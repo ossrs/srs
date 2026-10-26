@@ -13,12 +13,16 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
+#include <srs_app_srt_conn.hpp>
+#include <srs_app_srt_server.hpp>
+#include <srs_app_srt_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_resource.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_protocol_srt.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai07.hpp>
@@ -868,14 +872,15 @@ VOID TEST(AppRtcSourceTest, WhipHevcKeyframeApThenFus_SequenceHeaderThenKeyframe
 }
 #endif
 
-// The hooks of an RTMP client, in the order the connection calls them. A test can kick the client, as the HTTP API
-// does, while one of them waits for its backend.
+// The hooks of an RTMP or SRT client, in the order the connection calls them. A test can kick the client, as the HTTP
+// API does, while one of them waits for its backend, or have the backend refuse one, as it answers a non-zero code.
 class RtmpConnUtestHooks : public MockHttpHooksForCoworkers
 {
 public:
     std::vector<std::string> calls_;
     std::string kick_at_;
-    SrsRtmpConn *conn_;
+    std::string refuse_at_;
+    ISrsExpire *conn_;
 
 public:
     RtmpConnUtestHooks()
@@ -902,10 +907,18 @@ public:
             conn_->expire();
         }
     }
+    // The error of a backend that refuses the event, as SrsHttpHooks returns it.
+    srs_error_t answer(std::string name)
+    {
+        if (name != refuse_at_) {
+            return srs_success;
+        }
+        return srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 403");
+    }
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req)
     {
         call("on_connect");
-        return srs_success;
+        return answer("on_connect");
     }
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes)
     {
@@ -914,7 +927,7 @@ public:
     virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
     {
         call("on_publish");
-        return srs_success;
+        return answer("on_publish");
     }
     virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
     {
@@ -924,7 +937,7 @@ public:
     virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
     {
         call("on_play");
-        return srs_success;
+        return answer("on_play");
     }
     virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
     {
@@ -4717,3 +4730,764 @@ VOID TEST(ServerInotifyTest, AutoReloadForDocker_WatchesInDocker)
     _srs_in_docker = in_docker;
 }
 #endif
+
+// The SRT connection of a client. A read waits for what the client sends, as SrsSrtSocket's does: it ends with
+// ERROR_SRT_INTERRUPT when the coroutine is interrupted, and with ERROR_SRT_IO once the client has closed. Writes fail
+// from a given one on, as when the player is gone.
+class SrtConnUtestIO : public MockSrtConnection
+{
+public:
+    // The first write that fails, counted from 1, or 0 for none.
+    int fail_write_at_;
+    int nb_writes_;
+
+public:
+    SrtConnUtestIO()
+    {
+        fail_write_at_ = 0;
+        nb_writes_ = 0;
+    }
+    virtual ~SrtConnUtestIO()
+    {
+    }
+
+public:
+    void client_sends(const std::string &msg)
+    {
+        recv_msgs_.push_back(msg);
+        cond_->signal();
+    }
+    void client_closes()
+    {
+        srs_freep(read_error_);
+        read_error_ = srs_error_new(ERROR_SRT_IO, "srt_recvmsg, err=Connection was broken");
+        cond_->signal();
+    }
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        while (recv_msgs_.empty()) {
+            if (read_error_ != srs_success) {
+                return srs_error_copy(read_error_);
+            }
+            if (cond_->wait() != 0) {
+                return srs_error_new(ERROR_SRT_INTERRUPT, "srt socket %d interrupted", (int)srt_fd_);
+            }
+        }
+
+        std::string msg = recv_msgs_.front();
+        recv_msgs_.erase(recv_msgs_.begin());
+        size_t n = srs_min(size, msg.size());
+        memcpy(buf, msg.data(), n);
+        *nread = n;
+        recv_bytes_ += n;
+        read_count_++;
+        return srs_success;
+    }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        nb_writes_++;
+        if (fail_write_at_ && nb_writes_ >= fail_write_at_) {
+            return srs_error_new(ERROR_SRT_IO, "srt_sendmsg, err=Connection was broken");
+        }
+        return MockSrtConnection::write(buf, size, nwrite);
+    }
+};
+
+// An SRT client of the server: the real SrsMpegtsSrtConn with the vhost from config text, the stream's real SRT source
+// in its manager, the statistic and the publish tokens. The client's connection is SrtConnUtestIO, or a real SRT socket
+// the listener accepted. The connection serves the client in its own coroutine, as the server runs it.
+class SrtConnUtestClient : public ISrsCoroutineHandler
+{
+public:
+    MockSrsConfig conf_;
+    SrsStatistic stat_;
+    RtmpConnUtestHooks hooks_;
+    SrsStreamPublishTokenManager tokens_;
+    SrsSrtSourceManager srt_sources_;
+    MockLiveSourceManager live_sources_;
+    MockRtcSourceManager rtc_sources_;
+    MockConnectionManager manager_;
+    MockSrsRequest req_;
+    // The source of the stream live/livestream, which the client's stream id names.
+    SrsSharedPtr<SrsSrtSource> source_;
+    SrtConnUtestIO *io_;
+    SrsMpegtsSrtConn *conn_;
+    srs_error_t err_;
+    bool done_;
+
+public:
+    SrtConnUtestClient() : req_("__defaultVhost__", "live", "livestream")
+    {
+        io_ = NULL;
+        conn_ = NULL;
+        err_ = srs_success;
+        done_ = false;
+    }
+    virtual ~SrtConnUtestClient()
+    {
+        srs_freep(conn_);
+        srs_freep(err_);
+    }
+
+public:
+    // A client of the stream id, over SrtConnUtestIO.
+    srs_error_t open(std::string text, std::string streamid)
+    {
+        io_ = new SrtConnUtestIO();
+        io_->streamid_ = streamid;
+        return prepare(text, 100, "192.168.1.100", io_);
+    }
+    // A client over the SRT socket, as the listener accepted it.
+    srs_error_t open_socket(std::string text, srs_srt_t fd)
+    {
+        return prepare(text, fd, "127.0.0.1", NULL);
+    }
+    srs_error_t start()
+    {
+        return conn_->start();
+    }
+    // Waits for the connection to end, at most about 2s.
+    void wait_done()
+    {
+        for (int i = 0; i < 2000 && !done_; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    // Serves the client until the connection ends, at most about 2s, and returns what it returned.
+    srs_error_t run()
+    {
+        srs_error_t err = start();
+        if (err != srs_success) {
+            return err;
+        }
+
+        wait_done();
+        if (!done_) {
+            return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "srt connection not done");
+        }
+
+        err = err_;
+        err_ = srs_success;
+        return err;
+    }
+    // Waits for the encoder to publish the stream, at most about 1s.
+    void wait_publishing()
+    {
+        for (int i = 0; i < 1000 && source_->can_publish(); i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    // Waits for the player to join the stream, at most about 1s.
+    void wait_playing()
+    {
+        for (int i = 0; i < 1000 && source_->consumers_.empty(); i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    // Another encoder publishes the stream, or leaves it.
+    srs_error_t encoder_publishes()
+    {
+        return source_->on_publish();
+    }
+    void encoder_unpublishes()
+    {
+        source_->on_unpublish();
+    }
+    // That encoder sends a message, which the source delivers to its players.
+    srs_error_t encoder_sends(const std::string &msg)
+    {
+        SrsSrtPacket pkt;
+        pkt.wrap((char *)msg.data(), (int)msg.size());
+        return source_->on_srt_packet(&pkt);
+    }
+    // Whether an encoder can take the stream's publish token, which is free when no encoder holds it.
+    bool token_free()
+    {
+        SrsStreamPublishToken *token = NULL;
+        srs_error_t err = tokens_.acquire_token(&req_, token);
+        bool ok = (err == srs_success);
+        srs_freep(err);
+        srs_freep(token);
+        return ok;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        err_ = conn_->do_cycle();
+        done_ = true;
+        return srs_success;
+    }
+
+private:
+    srs_error_t prepare(std::string text, srs_srt_t fd, std::string ip, SrtConnUtestIO *io)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(std::string(_MIN_OK_CONF) + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+
+        // The stream's source, which the server keeps, with the statistic of the test.
+        if ((err = srt_sources_.fetch_or_create(&req_, source_)) != srs_success) {
+            return srs_error_wrap(err, "source");
+        }
+        source_->stat_ = &stat_;
+
+        conn_ = new SrsMpegtsSrtConn(&manager_, fd, ip, 9000);
+        conn_->config_ = &conf_;
+        conn_->stat_ = &stat_;
+        conn_->hooks_ = &hooks_;
+        conn_->stream_publish_tokens_ = &tokens_;
+        conn_->srt_sources_ = &srt_sources_;
+        conn_->live_sources_ = &live_sources_;
+        conn_->rtc_sources_ = &rtc_sources_;
+        if (io) {
+            srs_freep(conn_->srt_conn_);
+            conn_->srt_conn_ = io;
+        }
+        conn_->assemble();
+        dynamic_cast<SrsSecurity *>(conn_->security_)->config_ = &conf_;
+
+        // Serve the client in a coroutine of this object, which keeps what the connection returned.
+        srs_freep(conn_->trd_);
+        conn_->trd_ = new SrsSTCoroutine("srt", this, _srs_context->get_id());
+
+        hooks_.conn_ = conn_;
+        return err;
+    }
+};
+
+// A vhost that serves SRT, with the hooks of every event.
+static string srt_conn_utest_vhost(string extra = "")
+{
+    return string("vhost __defaultVhost__ { srt { enabled on; } ") + rtmp_conn_utest_all_hooks + " " + extra + " }";
+}
+
+// A message of TS packets as an encoder sends over SRT, here null packets (PID 0x1FFF), which a demuxer skips.
+static string srt_conn_utest_ts(int nb_packets)
+{
+    string msg;
+    for (int i = 0; i < nb_packets; i++) {
+        string pkt(SRS_TS_PACKET_SIZE, (char)0xff);
+        pkt[0] = 0x47;
+        pkt[1] = 0x1f;
+        pkt[2] = (char)0xff;
+        pkt[3] = 0x10;
+        msg += pkt;
+    }
+    return msg;
+}
+
+// Waits for a trace that holds the text, at most about 3s, and returns it.
+static string srt_conn_utest_wait_trace(ListenerUtestLog &log, string text)
+{
+    string line;
+    for (int i = 0; i < 300 && (line = log.last_trace(text)).empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    return line;
+}
+
+// An encoder or player such as ffmpeg, connected over loopback to a listener of the server with its stream id, and the
+// server's side of the connection as the listener accepts it.
+class SrtConnUtestSocketPair
+{
+public:
+    SrsSrtSocket *listener_;
+    SrsSrtSocket *client_;
+    srs_srt_t accepted_;
+
+public:
+    SrtConnUtestSocketPair()
+    {
+        listener_ = NULL;
+        client_ = NULL;
+        accepted_ = srs_srt_socket_invalid();
+    }
+    virtual ~SrtConnUtestSocketPair()
+    {
+        srs_freep(client_);
+        srs_freep(listener_);
+    }
+
+public:
+    srs_error_t connect(std::string streamid)
+    {
+        srs_error_t err = srs_success;
+
+        int port = 0;
+        if ((err = srs_utest_free_port(SOCK_DGRAM, &port)) != srs_success) {
+            return srs_error_wrap(err, "port");
+        }
+
+        srs_srt_t lfd = srs_srt_socket_invalid();
+        if ((err = srs_srt_socket_with_default_option(&lfd)) != srs_success) {
+            return srs_error_wrap(err, "listener");
+        }
+        listener_ = new SrsSrtSocket(_srs_srt_eventloop->poller(), lfd);
+        listener_->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+        if ((err = srs_srt_listen(lfd, "127.0.0.1", port)) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+
+        srs_srt_t cfd = srs_srt_socket_invalid();
+        if ((err = srs_srt_socket_with_default_option(&cfd)) != srs_success) {
+            return srs_error_wrap(err, "client");
+        }
+        client_ = new SrsSrtSocket(_srs_srt_eventloop->poller(), cfd);
+        client_->set_send_timeout(3 * SRS_UTIME_SECONDS);
+        client_->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+        if ((err = srs_srt_set_streamid(cfd, streamid)) != srs_success) {
+            return srs_error_wrap(err, "streamid");
+        }
+        if ((err = client_->connect("127.0.0.1", port)) != srs_success) {
+            return srs_error_wrap(err, "connect");
+        }
+
+        if ((err = listener_->accept(&accepted_)) != srs_success) {
+            return srs_error_wrap(err, "accept");
+        }
+        return err;
+    }
+};
+
+// A client whose stream id the server cannot read: a player that asks for `m=play`, where SRT's mode is `m=request`,
+// or an encoder whose stream id has a host but no `r=` resource. It is refused before any hook, token or source.
+VOID TEST(AppSrtConnTest, StreamIdWithUnknownModeOrNoResource_Refused)
+{
+    srs_error_t err;
+
+    const char *ids[] = {"#!::r=live/livestream,m=play", "#!::h=127.0.0.1,m=publish"};
+    for (int i = 0; i < 2; i++) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), ids[i]));
+
+        rtmp_conn_utest_expect(c.run(), ERROR_SRT_CONN, "invalid srt streamid");
+        EXPECT_STREQ("", c.hooks_.called().c_str());
+        EXPECT_EQ(0, c.live_sources_.fetch_or_create_count_);
+        EXPECT_TRUE(c.token_free());
+    }
+}
+
+// An SRT client of an edge vhost, which has SRT on: edges do not serve SRT, so the client is refused, and the operator
+// is warned with the vhost's name.
+VOID TEST(AppSrtConnTest, ClientOfEdgeVhost_Refused)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost("cluster { mode remote; origin 127.0.0.1:19350; }"), "#!::r=live/livestream,m=publish"));
+
+    rtmp_conn_utest_expect(c.run(), ERROR_SRT_CONN, "srt disabled, vhost=__defaultVhost__");
+    EXPECT_EQ(1, log.warns("disable SRT for edge vhost=__defaultVhost__"));
+    EXPECT_STREQ("", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.token_free());
+}
+
+// An RTMP or WebRTC encoder already publishes the stream, and holds its publish token. An SRT encoder of the same
+// stream is refused before any hook, and the stream is left to the other encoder.
+VOID TEST(AppSrtConnTest, SrtPublishWhileOtherProtocolPublishes_RefusedByToken)
+{
+    srs_error_t err;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=publish"));
+
+    SrsStreamPublishToken *rtmp_token = NULL;
+    HELPER_ASSERT_SUCCESS(c.tokens_.acquire_token(&c.req_, rtmp_token));
+    SrsUniquePtr<SrsStreamPublishToken> token(rtmp_token);
+
+    rtmp_conn_utest_expect(c.run(), ERROR_SYSTEM_STREAM_BUSY, "acquire stream publish token");
+    EXPECT_STREQ("", c.hooks_.called().c_str());
+    EXPECT_TRUE(rtmp_token->is_acquired());
+}
+
+// The HTTP hooks backend refuses an SRT client, answering a non-zero code: at its connect, at its publish or at its
+// play. The client is refused, the stream is not taken, and each hook the backend accepted is paired: on_close for
+// on_connect.
+VOID TEST(AppSrtConnTest, HookRefusesClient_RefusedWithHooksPaired)
+{
+    srs_error_t err;
+
+    struct {
+        const char *refuse_at;
+        const char *streamid;
+        const char *wrap;
+        const char *called;
+    } cases[] = {
+        {"on_connect", "#!::r=live/livestream,m=publish", "on connect", "on_connect"},
+        {"on_publish", "#!::r=live/livestream,m=publish", "srt: callback on publish", "on_connect,on_publish,on_close"},
+        {"on_play", "#!::r=live/livestream,m=request", "srt: callback on play", "on_connect,on_play,on_close"},
+    };
+    for (int i = 0; i < 3; i++) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), cases[i].streamid));
+        c.hooks_.refuse_at_ = cases[i].refuse_at;
+
+        rtmp_conn_utest_expect(c.run(), ERROR_RESPONSE_CODE, cases[i].wrap);
+        EXPECT_STREQ(cases[i].called, c.hooks_.called().c_str()) << cases[i].refuse_at;
+        EXPECT_TRUE(c.source_->can_publish());
+        EXPECT_TRUE(c.source_->consumers_.empty());
+        EXPECT_TRUE(c.token_free());
+    }
+}
+
+// The vhost denies the client's address: an encoder by `deny publish`, a player by `deny play`. The client is refused
+// after its on_connect, with no stream hook, and the stream is not taken.
+VOID TEST(AppSrtConnTest, ClientDeniedBySecurity_RefusedWithNoStreamHook)
+{
+    srs_error_t err;
+
+    const char *ids[] = {"#!::r=live/livestream,m=publish", "#!::r=live/livestream,m=request"};
+    for (int i = 0; i < 2; i++) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost("security { enabled on; deny publish 192.168.1.100; deny play 192.168.1.100; }"), ids[i]));
+
+        rtmp_conn_utest_expect(c.run(), ERROR_SYSTEM_SECURITY_DENY, "srt: security check");
+        EXPECT_STREQ("on_connect,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->can_publish());
+        EXPECT_TRUE(c.source_->consumers_.empty());
+    }
+}
+
+// The HTTP API kicks an SRT encoder while it publishes, or a player while it waits for packets (DELETE
+// /api/v1/clients/<id>). The connection ends, the stream is left, and the hooks stay paired.
+VOID TEST(AppSrtConnTest, ClientKickedByApi_EndsWithHooksPaired)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=publish"));
+        ISrsSrtConsumer *player_raw = NULL;
+        HELPER_ASSERT_SUCCESS(c.source_->create_consumer(player_raw));
+        SrsUniquePtr<ISrsSrtConsumer> player(player_raw);
+
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_publishing();
+        EXPECT_FALSE(c.source_->can_publish());
+
+        c.io_->client_sends(srt_conn_utest_ts(7));
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        c.conn_->expire();
+        c.wait_done();
+
+        ASSERT_TRUE(c.done_);
+        rtmp_conn_utest_expect(c.err_, ERROR_SRT_INTERRUPT, "srt: recvmsg");
+        c.err_ = srs_success;
+        EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->can_publish());
+        EXPECT_TRUE(c.token_free());
+
+        // The player of the stream got the encoder's message.
+        SrsSrtPacket *pkt = NULL;
+        HELPER_ASSERT_SUCCESS(player->dump_packet(&pkt));
+        ASSERT_TRUE(pkt != NULL);
+        EXPECT_EQ(7 * SRS_TS_PACKET_SIZE, pkt->size());
+        srs_freep(pkt);
+    }
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+        HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_playing();
+        EXPECT_EQ(1, (int)c.source_->consumers_.size());
+
+        c.conn_->expire();
+        c.wait_done();
+
+        ASSERT_TRUE(c.done_);
+        rtmp_conn_utest_expect(c.err_, ERROR_THREAD_INTERRUPED, "srt play thread");
+        c.err_ = srs_success;
+        EXPECT_STREQ("on_connect,on_play,on_stop,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->consumers_.empty());
+        c.encoder_unpublishes();
+    }
+}
+
+// An encoder sends what is not a TS of 188-byte packets: a TS of 204-byte packets, as DVB with Reed-Solomon bytes, or
+// raw H.264. SRT carries TS of 188-byte packets only, so the publish ends, the stream is left and the hooks stay
+// paired.
+VOID TEST(AppSrtConnTest, EncoderSendsNoTs_PublishEnds)
+{
+    srs_error_t err;
+
+    string h264 = string("\x00\x00\x00\x01\x67\x64\x00\x1f", 8) + string(7 * SRS_TS_PACKET_SIZE - 8, '\0');
+    string msgs[] = {string(7 * 204, (char)0x47), h264};
+    const char *texts[] = {"invalid ts packet len=1428", "invalid ts packet first=0"};
+    for (int i = 0; i < 2; i++) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=publish"));
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_publishing();
+
+        c.io_->client_sends(msgs[i]);
+        c.wait_done();
+
+        ASSERT_TRUE(c.done_);
+        EXPECT_NE(string::npos, srs_error_desc(c.err_).find(texts[i])) << srs_error_desc(c.err_);
+        rtmp_conn_utest_expect(c.err_, ERROR_SRT_CONN, "srt: process packet");
+        c.err_ = srs_success;
+        EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->can_publish());
+        EXPECT_TRUE(c.token_free());
+    }
+}
+
+// A player of a stream whose encoder has left (#4591): when no packet comes for `peer_idle_timeout`, it is
+// disconnected. While the encoder still publishes but sends nothing, as when it pauses, the player stays.
+VOID TEST(AppSrtConnTest, PlayerOfStreamWithoutEncoder_DisconnectedAfterIdleTimeout)
+{
+    srs_error_t err;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(string("srt_server { enabled on; listen 10080; peer_idle_timeout 50; } ") + srt_conn_utest_vhost(),
+                                 "#!::r=live/livestream,m=request"));
+    HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_playing();
+    EXPECT_EQ(50 * SRS_UTIME_MILLISECONDS, c.io_->get_recv_timeout());
+
+    srs_usleep(200 * SRS_UTIME_MILLISECONDS);
+    EXPECT_FALSE(c.done_);
+
+    c.encoder_unpublishes();
+    c.wait_done();
+
+    ASSERT_TRUE(c.done_);
+    rtmp_conn_utest_expect(c.err_, ERROR_SRT_SOURCE_DISCONNECTED, "srt source disconnected");
+    c.err_ = srs_success;
+    EXPECT_STREQ("on_connect,on_play,on_stop,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->consumers_.empty());
+}
+
+// The player is gone while the server sends it a message: the send fails, the play ends, the player leaves the stream
+// and the hooks stay paired.
+VOID TEST(AppSrtConnTest, PlayerGoneAtSend_PlayEnds)
+{
+    srs_error_t err;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+    c.io_->fail_write_at_ = 1;
+    HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_playing();
+
+    HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+    HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+    c.wait_done();
+
+    ASSERT_TRUE(c.done_);
+    rtmp_conn_utest_expect(c.err_, ERROR_SRT_IO, "srt send, size=1316");
+    c.err_ = srs_success;
+    EXPECT_EQ(1, c.io_->nb_writes_);
+    EXPECT_STREQ("on_connect,on_play,on_stop,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->consumers_.empty());
+    c.encoder_unpublishes();
+}
+
+static void *srt_conn_utest_st_thread_create_out_of_memory(void *(*start)(void *arg), void *arg, int joinable, int stack_size)
+{
+    return NULL;
+}
+
+// State Threads cannot make a coroutine, as when the server is out of memory: for a new SRT client, or for the receive
+// thread of a player. The client is refused, and the player leaves the stream with its hooks paired.
+VOID TEST(AppSrtConnTest, NoCoroutineForClientOrReceiveThread_Refused)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=publish"));
+
+        _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+        _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)srt_conn_utest_st_thread_create_out_of_memory;
+        err = c.start();
+        _pfn_st_thread_create = ov;
+        rtmp_conn_utest_expect(err, ERROR_ST_CREATE_CYCLE_THREAD, "coroutine");
+        EXPECT_STREQ("", c.hooks_.called().c_str());
+    }
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+        HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+        HELPER_ASSERT_SUCCESS(c.start());
+
+        _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+        _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)srt_conn_utest_st_thread_create_out_of_memory;
+        c.wait_done();
+        _pfn_st_thread_create = ov;
+
+        ASSERT_TRUE(c.done_);
+        rtmp_conn_utest_expect(c.err_, ERROR_ST_CREATE_CYCLE_THREAD, "start srt recv trd");
+        c.err_ = srs_success;
+        EXPECT_STREQ("on_connect,on_play,on_stop,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->consumers_.empty());
+        c.encoder_unpublishes();
+    }
+}
+
+// An SRT encoder to a vhost whose DVR plan is mistyped. The stream's live source cannot be made, so the encoder is
+// refused after its on_publish, which gets its on_unpublish, and its publish token is released.
+VOID TEST(AppSrtConnTest, EncoderOfVhostWithMistypedDvrPlan_Refused)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestFactory factory;
+    factory.real_dvr_ = true;
+    MockLiveSourceHandler handler;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost("dvr { enabled on; dvr_plan sesion; }"), "#!::r=live/livestream,m=publish"));
+    factory.config_ = &c.conf_;
+    factory.stat_ = &c.stat_;
+
+    // The live source the server makes for the stream, from the same config.
+    SrsLiveSource *live = new SrsLiveSource();
+    live->config_ = &c.conf_;
+    live->stat_ = &c.stat_;
+    live->handler_ = &handler;
+    live->app_factory_ = &factory;
+    c.live_sources_.mock_source_ = SrsSharedPtr<SrsLiveSource>(live);
+    live->assemble();
+
+    rtmp_conn_utest_expect(c.run(), ERROR_DVR_ILLEGAL_PLAN, "create source");
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->can_publish());
+    EXPECT_TRUE(c.token_free());
+}
+
+// An SRT encoder to a vhost with `srt_to_rtmp on` and WebRTC with `rtmp_to_rtc on`: the stream is bridged to its live
+// and WebRTC streams. While it publishes, the WebRTC stream is taken, so a WHIP encoder of it is refused; when the
+// encoder closes, the WebRTC stream is free again.
+VOID TEST(AppSrtConnTest, EncoderBridgedToWebRtc_WebRtcStreamTakenWhilePublishing)
+{
+    srs_error_t err;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open("rtc_server { enabled on; listen 8000; } vhost __defaultVhost__ { srt { enabled on; srt_to_rtmp on; } "
+                                 "rtc { enabled on; rtmp_to_rtc on; } }",
+                                 "#!::r=live/livestream,m=publish"));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+
+    SrsSharedPtr<SrsRtcSource> rtc = c.rtc_sources_.mock_source_;
+    EXPECT_EQ(1, c.rtc_sources_.fetch_or_create_count_);
+    EXPECT_FALSE(rtc->can_publish());
+
+    c.io_->client_closes();
+    c.wait_done();
+
+    ASSERT_TRUE(c.done_);
+    rtmp_conn_utest_expect(c.err_, ERROR_SRT_IO, "srt: recvmsg");
+    c.err_ = srs_success;
+    EXPECT_TRUE(rtc->can_publish());
+    EXPECT_TRUE(c.source_->can_publish());
+}
+
+// An encoder such as ffmpeg or OBS publishes over SRT. Each pithy print, the server logs the transport stats libsrt
+// counted since its last line, then the messages and kbps of the encoder.
+VOID TEST(AppSrtConnTest, EncoderTransportStatsLogged)
+{
+    srs_error_t err;
+
+    PithyPrintAtOnceScope stages(SrsPithyPrint::create_srt_publish);
+    ListenerUtestLog log;
+
+    SrtConnUtestSocketPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_socket(srt_conn_utest_vhost(), pair.accepted_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+
+    // The encoder sends a message; the line before the next read counts it.
+    string msg = srt_conn_utest_ts(7);
+    ssize_t nn = 0;
+    HELPER_ASSERT_SUCCESS(pair.client_->sendmsg((void *)msg.data(), msg.size(), &nn));
+    string line = srt_conn_utest_wait_trace(log, "Transport Stats # pktRecv=1,");
+    EXPECT_NE(string::npos, line.find("pktRecv=1, pktRcvLoss=0, pktRcvRetrans=0, pktRcvDrop=0")) << line;
+    line = log.last_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=");
+    EXPECT_NE(string::npos, line.find("packets=1,")) << line;
+
+    c.conn_->expire();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    rtmp_conn_utest_expect(c.err_, ERROR_SRT_INTERRUPT, "srt: recvmsg");
+    c.err_ = srs_success;
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+}
+
+// A player such as ffplay plays over SRT. Each pithy print, the server logs the transport stats libsrt counted since
+// its last line, then the messages and kbps of the player.
+VOID TEST(AppSrtConnTest, PlayerTransportStatsLogged)
+{
+    srs_error_t err;
+
+    PithyPrintAtOnceScope stages(SrsPithyPrint::create_srt_play);
+    ListenerUtestLog log;
+
+    SrtConnUtestSocketPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=request"));
+
+    // The player's wait for packets ends each 100ms, so it sends a lone message in that time.
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_socket(string("srt_server { enabled on; listen 10080; peer_idle_timeout 100; } ") + srt_conn_utest_vhost(), pair.accepted_));
+    HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_playing();
+
+    // The player gets the first message, then the line before the second counts it.
+    char buf[1500];
+    ssize_t nn = 0;
+    HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+    HELPER_ASSERT_SUCCESS(pair.client_->recvmsg(buf, sizeof(buf), &nn));
+    EXPECT_EQ(7 * SRS_TS_PACKET_SIZE, nn);
+
+    HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+    HELPER_ASSERT_SUCCESS(pair.client_->recvmsg(buf, sizeof(buf), &nn));
+    string line = srt_conn_utest_wait_trace(log, "Transport Stats # pktSent=1,");
+    EXPECT_NE(string::npos, line.find("pktSent=1, pktSndLoss=0, pktRetrans=0, pktSndDrop=0")) << line;
+    line = log.last_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " time=");
+    EXPECT_NE(string::npos, line.find("packets=1,")) << line;
+
+    c.conn_->expire();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    EXPECT_STREQ("on_connect,on_play,on_stop,on_close", c.hooks_.called().c_str());
+    c.encoder_unpublishes();
+}
+
+// An SRT player waiting for packets gets a lone message only when the next one comes, or when its wait of
+// `peer_idle_timeout` (10s by default) ends: SrsSrtConsumer::enqueue wakes the player only when it holds more than
+// one packet, while the player waits for one. The last message before the encoder pauses is held. The expected
+// behavior is that the player gets each message when it comes.
+VOID TEST(AppSrtConnTest, DISABLED_PlayerOfLoneMessage_HeldUntilNextOrTimeout)
+{
+    srs_error_t err;
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+    HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_playing();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+    for (int i = 0; i < 500 && c.io_->send_bytes_ == 0; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(7 * SRS_TS_PACKET_SIZE, c.io_->send_bytes_);
+
+    c.conn_->expire();
+    c.wait_done();
+    c.encoder_unpublishes();
+}
