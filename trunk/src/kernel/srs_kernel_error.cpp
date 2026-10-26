@@ -478,27 +478,35 @@ std::string SrsCplxError::error_code_strlong(SrsCplxError *err)
     return it->second;
 }
 
+#if defined(SRS_BACKTRACE) && defined(__linux)
+// Log the stack of the caller, one frame per line, with the function and source line when addr2line finds them.
+void srs_backtrace_log()
+{
+    void *addresses[64];
+    int nn_addresses = backtrace(addresses, sizeof(addresses) / sizeof(void *));
+    char **symbols = backtrace_symbols(addresses, nn_addresses);
+
+    // No error code for assert failed.
+    errno = 0;
+
+    char buffer[128];
+    srs_error("backtrace %d frames of %s %s", nn_addresses, _srs_binary, RTMP_SIG_SRS_SERVER);
+    for (int i = 0; i < nn_addresses; i++) {
+        void *frame = parse_symbol_offset(symbols[i]);
+        char *fmt = addr2line_format(frame, symbols[i], buffer, sizeof(buffer));
+        int parsed = (fmt == buffer);
+        srs_error("#%d %p %d %s", i, frame, parsed, fmt);
+    }
+
+    free(symbols);
+}
+#endif
+
 void SrsCplxError::srs_assert(bool expression)
 {
 #if defined(SRS_BACKTRACE) && defined(__linux)
     if (!expression) {
-        void *addresses[64];
-        int nn_addresses = backtrace(addresses, sizeof(addresses) / sizeof(void *));
-        char **symbols = backtrace_symbols(addresses, nn_addresses);
-
-        // No error code for assert failed.
-        errno = 0;
-
-        char buffer[128];
-        srs_error("backtrace %d frames of %s %s", nn_addresses, _srs_binary, RTMP_SIG_SRS_SERVER);
-        for (int i = 0; i < nn_addresses; i++) {
-            void *frame = parse_symbol_offset(symbols[i]);
-            char *fmt = addr2line_format(frame, symbols[i], buffer, sizeof(buffer));
-            int parsed = (fmt == buffer);
-            srs_error("#%d %p %d %s", i, frame, parsed, fmt);
-        }
-
-        free(symbols);
+        srs_backtrace_log();
     }
 #endif
 

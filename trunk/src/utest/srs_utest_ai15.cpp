@@ -541,6 +541,10 @@ void MockLogForSignal::log(SrsLogLevel level, const char *tag, const SrsContextI
     if (level == SrsLogLevelError) {
         error_count_++;
         last_error_tag_ = tag ? tag : "";
+
+        char buf[1024];
+        int r0 = vsnprintf(buf, sizeof(buf), fmt, args);
+        errors_.push_back(string(buf, r0 > 0 ? srs_min(r0, (int)sizeof(buf) - 1) : 0));
     } else if (level == SrsLogLevelWarn) {
         warn_count_++;
     }

@@ -10,13 +10,19 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#if defined(SRS_BACKTRACE) && defined(__linux)
+#include <dlfcn.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -346,3 +352,211 @@ VOID TEST(KernelCodecTest, HevcLevelFromGeneralLevelIdcReported)
     EXPECT_STREQ("6.2", srs_hevc_level2str((SrsHevcLevel)186).c_str());
     EXPECT_STREQ("Other", srs_hevc_level2str((SrsHevcLevel)31).c_str());
 }
+
+// An HTTP callback server, such as the origin cluster discovery, answers with an error status and a body larger
+// than the 4 MB log buffer. The wrapped error keeps the start of the message, cut to the buffer, so the log still
+// says which callback failed.
+VOID TEST(KernelErrorTest, WrapKeepsTheStartOfAHugeHookResponse)
+{
+    string res(5 * 1024 * 1024, 'x');
+    srs_error_t err = srs_error_new(ERROR_HTTP_STATUS_INVALID, "status=500");
+    err = srs_error_wrap(err, "http: post %s, status=%d, res=%s", "http://127.0.0.1:8085/api/v1/clusters", 500, res.c_str());
+
+    EXPECT_EQ(ERROR_HTTP_STATUS_INVALID, srs_error_code(err));
+    EXPECT_EQ((size_t)(4 * 1024 * 1024 - 1), err->msg_.size());
+    EXPECT_TRUE(srs_strings_starts_with(err->msg_, "http: post http://127.0.0.1:8085/api/v1/clusters, status=500, res=xxx"));
+    EXPECT_EQ(string::npos, err->msg_.find('\0'));
+    EXPECT_TRUE(srs_strings_contains(srs_error_summary(err), " : http: post http://127.0.0.1:8085/api/v1/clusters"));
+    EXPECT_TRUE(srs_strings_ends_with(srs_error_summary(err), "xxx : status=500"));
+
+    srs_freep(err);
+}
+
+// The same huge callback body in a new error, such as the cluster discovery's "load json from %s", should keep the
+// start of the message as the wrap does; it loses the whole message instead.
+VOID TEST(KernelErrorTest, DISABLED_NewErrorWithHugeHookResponse_MessageIsEmpty)
+{
+    string res(5 * 1024 * 1024, 'x');
+    srs_error_t err = srs_error_new(ERROR_OCLUSTER_DISCOVER, "load json from %s", res.c_str());
+
+    EXPECT_EQ(ERROR_OCLUSTER_DISCOVER, srs_error_code(err));
+    EXPECT_TRUE(srs_strings_starts_with(err->msg_, "load json from xxx"));
+
+    srs_freep(err);
+}
+
+#if defined(SRS_BACKTRACE) && defined(__linux)
+extern void *parse_symbol_offset(char *frame);
+extern char *addr2line_format(void *addr, char *symbol, char *buffer, int nn_buffer);
+extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
+extern void srs_backtrace_log();
+extern const char *_srs_binary;
+
+// A function of the SRS binary, exported by -rdynamic like every server function, so a backtrace names it.
+extern "C" int srs_utest_ai40_backtrace_marker(int v)
+{
+    int r = v * 3;
+    if (r > 100) {
+        r -= 7;
+    }
+    return r;
+}
+
+// The offset of an address inside srs_utest_ai40_backtrace_marker in the binary file, as ASan prints it.
+static void *kernel_error_marker_file_offset()
+{
+    Dl_info info;
+    if (dladdr((void *)srs_utest_ai40_backtrace_marker, &info) == 0) {
+        return NULL;
+    }
+    return (void *)(uintptr_t)((char *)(void *)srs_utest_ai40_backtrace_marker - (char *)info.dli_fbase + 8);
+}
+
+// A failed srs_assert logs the stack before it aborts: the first line names the binary, then one line per frame
+// with the function and source line that addr2line finds, so the crash can be read from the log alone.
+VOID TEST(KernelErrorTest, AssertBacktraceNamesCallers)
+{
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    srs_backtrace_log();
+    _srs_log = original;
+
+    ASSERT_GE(log.errors_.size(), (size_t)3);
+    int nn_frames = 0;
+    ASSERT_EQ(1, sscanf(log.errors_[0].c_str(), "backtrace %d frames of", &nn_frames));
+    EXPECT_EQ((size_t)nn_frames + 1, log.errors_.size());
+    EXPECT_TRUE(srs_strings_contains(log.errors_[0], string(" of ") + _srs_binary + " "));
+
+    // The frames of the logger and of its caller are resolved by addr2line (parsed is 1), callee first. A build
+    // with ASan may add its backtrace interceptor as the first frame.
+    int logger = -1, caller = -1;
+    for (int i = 1; i < (int)log.errors_.size(); i++) {
+        const string &line = log.errors_[i];
+        EXPECT_TRUE(srs_strings_starts_with(line, "#" + srs_strconv_format_int(i - 1) + " ")) << line;
+        if (logger < 0 && srs_strings_contains(line, " 1 0x") && srs_strings_contains(line, ": srs_backtrace_log() at srs_kernel_error.cpp:")) {
+            logger = i;
+        }
+        if (caller < 0 && srs_strings_contains(line, " 1 0x") && srs_strings_contains(line, "::TestBody() at srs_utest_ai40.cpp:")) {
+            caller = i;
+        }
+    }
+    EXPECT_GT(logger, 0);
+    EXPECT_EQ(logger + 1, caller);
+}
+
+// A backtrace frame of an exported function, as backtrace_symbols prints it, resolves to the function's offset in
+// the binary plus the frame's offset, which addr2line turns into the function name and source line.
+VOID TEST(KernelErrorTest, BacktraceFrameOfExportedFunctionResolves)
+{
+    EXPECT_EQ(9, srs_utest_ai40_backtrace_marker(3));
+
+    char frame[] = "./objs/srs_utest(srs_utest_ai40_backtrace_marker+0x8) [0x55d0c1a2b3c4]";
+    void *offset = parse_symbol_offset(frame);
+    EXPECT_EQ(kernel_error_marker_file_offset(), offset);
+
+    char buffer[128];
+    char *fmt = addr2line_format(offset, frame, buffer, sizeof(buffer));
+    ASSERT_EQ(buffer, fmt);
+    EXPECT_TRUE(srs_strings_contains(fmt, "srs_utest_ai40_backtrace_marker at srs_utest_ai40.cpp:"));
+}
+
+// A frame whose address is not in the SRS binary, such as one in libc resolved against it, gets "??" from addr2line;
+// the frame is logged as backtrace_symbols printed it.
+VOID TEST(KernelErrorTest, Addr2lineKeepsFrameOutsideTheBinary)
+{
+    char frame[] = "/lib/libc.so.6(+0x1) [0x7f0000000001]";
+    char buffer[128];
+    char *fmt = addr2line_format((void *)2, frame, buffer, sizeof(buffer));
+    EXPECT_EQ(frame, fmt);
+}
+
+// The SRS binary was deleted or replaced after SRS started, as an upgrade does, so addr2line cannot open it; the frame
+// is logged as backtrace_symbols printed it.
+VOID TEST(KernelErrorTest, Addr2lineKeepsFrameWhenTheBinaryIsGone)
+{
+    char frame[] = "./objs/srs(srs_utest_ai40_backtrace_marker+0x8) [0x55d0c1a2b3c4]";
+    char buffer[128];
+
+    const char *original = _srs_binary;
+    _srs_binary = "/tmp/srs-utest-ai40-binary-is-gone";
+    char *fmt = addr2line_format(kernel_error_marker_file_offset(), frame, buffer, sizeof(buffer));
+    _srs_binary = original;
+
+    EXPECT_EQ(frame, fmt);
+}
+
+// SRS started from a path too long for the addr2line command keeps the frame as backtrace_symbols printed it.
+VOID TEST(KernelErrorTest, Addr2lineKeepsFrameWhenTheBinaryPathIsTooLong)
+{
+    char frame[] = "./objs/srs(srs_utest_ai40_backtrace_marker+0x8) [0x55d0c1a2b3c4]";
+    char buffer[128];
+    string path = "/opt/" + string(600, 'd') + "/objs/srs";
+
+    const char *original = _srs_binary;
+    _srs_binary = path.c_str();
+    char *fmt = addr2line_format(kernel_error_marker_file_offset(), frame, buffer, sizeof(buffer));
+    _srs_binary = original;
+
+    EXPECT_EQ(frame, fmt);
+}
+
+// ASan reports a frame it cannot symbolize as the binary plus an offset; when addr2line cannot open the binary either,
+// the frame is reported as not resolved.
+VOID TEST(KernelErrorTest, AsanFrameNotResolvedWhenTheBinaryIsGone)
+{
+    char symbol[128];
+    snprintf(symbol, sizeof(symbol), "    #0 0x55d0c1a2b3c4  (/srs/objs/srs+%p)", kernel_error_marker_file_offset());
+    char out_buf[256] = {0};
+
+    const char *original = _srs_binary;
+    _srs_binary = "/tmp/srs-utest-ai40-binary-is-gone";
+    int r0 = srs_parse_asan_backtrace_symbols(symbol, out_buf);
+    _srs_binary = original;
+
+    EXPECT_EQ(ERROR_BACKTRACE_ADDR2LINE, r0);
+}
+
+#ifdef SRS_SANITIZER_LOG
+extern void asan_report_callback(const char *str);
+
+// An ASan report goes to the SRS log line by line: plain lines as they are, symbolized frames with the reason they
+// were not resolved again, and unsymbolized frames (the binary plus an offset) with what addr2line found.
+VOID TEST(KernelErrorTest, AsanReportLogsEachLine)
+{
+    char frame0[128];
+    snprintf(frame0, sizeof(frame0), "    #0 0x55d0c1a2b3c4  (%s+%p)", _srs_binary, kernel_error_marker_file_offset());
+    string report = string("==1==ERROR: AddressSanitizer: heap-use-after-free\n") + frame0 + "\n" +
+                    "    #1 0x55d0c1a2b3d4 in SrsLiveSource::on_audio(SrsRtmpCommonMessage*) /srs/src/app/srs_app_rtmp_source.cpp:1011";
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    asan_report_callback(report.c_str());
+    _srs_log = original;
+
+    ASSERT_EQ((size_t)3, log.errors_.size());
+    EXPECT_STREQ("==1==ERROR: AddressSanitizer: heap-use-after-free", log.errors_[0].c_str());
+    EXPECT_TRUE(srs_strings_starts_with(log.errors_[1], string(frame0) + ", 0x"));
+    EXPECT_FALSE(srs_strings_contains(log.errors_[1], "r0="));
+    EXPECT_TRUE(srs_strings_ends_with(log.errors_[2], ":1011, r0=1093"));
+}
+
+// The unsymbolized ASan frame should be logged with the function and source line from addr2line, as a failed assert
+// logs its frames; only the first 7 characters of the address are kept.
+VOID TEST(KernelErrorTest, DISABLED_AsanUnsymbolizedFrame_ResolvedNameCutTo7Chars)
+{
+    char frame0[128];
+    snprintf(frame0, sizeof(frame0), "    #0 0x55d0c1a2b3c4  (%s+%p)", _srs_binary, kernel_error_marker_file_offset());
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    asan_report_callback(frame0);
+    _srs_log = original;
+
+    ASSERT_EQ((size_t)1, log.errors_.size());
+    EXPECT_TRUE(srs_strings_contains(log.errors_[0], "srs_utest_ai40_backtrace_marker at srs_utest_ai40.cpp:")) << log.errors_[0];
+}
+#endif
+#endif
