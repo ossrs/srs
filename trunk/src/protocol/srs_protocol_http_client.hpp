@@ -44,7 +44,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     BIO *bio_out_;
 
 public:
-    SrsSslClient(SrsTcpClient *tcp);
+    SrsSslClient(ISrsProtocolReadWriter *transport);
     virtual ~SrsSslClient();
 
 public:

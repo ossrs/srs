@@ -14,6 +14,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_conn.hpp>
+#include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
@@ -847,4 +848,494 @@ VOID TEST(ProtocolConnTest, HttpsFlvPlayerLeaves_WriteEndsAsClientClose)
     EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
     EXPECT_TRUE(srs_is_client_gracefully_close(err));
     srs_freep(err);
+}
+
+// An HTTPS server on the other end of the server's HTTP client, such as an HTTP hook,
+// heartbeat or HLS notify backend, or the origin of an HTTPS-FLV edge. It runs OpenSSL's
+// server over memory BIOs: what the client writes is the server's input, and what the
+// server sends is what the client reads. The server acts each time the client reads.
+class TlsServerPeer : public ISrsProtocolReadWriter
+{
+public:
+    SSL_CTX *ctx_;
+    SSL *ssl_;
+    // The bytes from the client, and the bytes to the client.
+    BIO *in_;
+    BIO *out_;
+    // The client's write that fails, counted from 1, as a server gone; 0 for none.
+    int fail_write_;
+    // The server closes its TCP connection, with no TLS alert, once the client has
+    // written this many times; -1 for never.
+    int hangup_after_writes_;
+    // A network device flips the last byte of the next record the server sends after
+    // its handshake is done, such as its Finished or a response.
+    bool corrupt_;
+    bool corrupted_;
+    int nn_writes_;
+    // The plaintext the server got, and its reply once it has a whole request header.
+    string received_;
+    string response_;
+    bool responded_;
+    // Send a close_notify alert after the response, as a server closing the connection.
+    bool close_after_response_;
+    srs_utime_t rtm_;
+    srs_utime_t stm_;
+    int64_t nn_recv_;
+    int64_t nn_send_;
+
+public:
+    TlsServerPeer()
+    {
+        ctx_ = SSL_CTX_new(TLS_server_method());
+        SSL_CTX_use_certificate_chain_file(ctx_, tls_server_crt);
+        SSL_CTX_use_PrivateKey_file(ctx_, tls_server_key, SSL_FILETYPE_PEM);
+        ssl_ = SSL_new(ctx_);
+        in_ = BIO_new(BIO_s_mem());
+        out_ = BIO_new(BIO_s_mem());
+        SSL_set_bio(ssl_, in_, out_);
+        SSL_set_accept_state(ssl_);
+
+        fail_write_ = 0;
+        hangup_after_writes_ = -1;
+        corrupt_ = corrupted_ = false;
+        nn_writes_ = 0;
+        responded_ = false;
+        close_after_response_ = false;
+        rtm_ = stm_ = SRS_UTIME_NO_TIMEOUT;
+        nn_recv_ = nn_send_ = 0;
+    }
+    virtual ~TlsServerPeer()
+    {
+        SSL_free(ssl_);
+        SSL_CTX_free(ctx_);
+    }
+
+public:
+    bool hung_up()
+    {
+        return hangup_after_writes_ >= 0 && nn_writes_ >= hangup_after_writes_;
+    }
+    // The SNI the client sent, empty if none.
+    string servername()
+    {
+        const char *name = SSL_get_servername(ssl_, TLSEXT_NAMETYPE_host_name);
+        return name ? name : "";
+    }
+    // Take what the client sent, and send what the server has to.
+    void drive()
+    {
+        if (hung_up()) {
+            return;
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            SSL_do_handshake(ssl_);
+            ERR_clear_error();
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            return;
+        }
+
+        char buf[4096];
+        int r0;
+        while ((r0 = SSL_read(ssl_, buf, sizeof(buf))) > 0) {
+            received_.append(buf, r0);
+        }
+        ERR_clear_error();
+
+        if (!responded_ && !response_.empty() && received_.find("\r\n\r\n") != string::npos) {
+            responded_ = true;
+            SSL_write(ssl_, response_.data(), (int)response_.size());
+            if (close_after_response_) {
+                SSL_shutdown(ssl_);
+                ERR_clear_error();
+            }
+        }
+
+        char *data = NULL;
+        long size = BIO_get_mem_data(out_, &data);
+        if (corrupt_ && !corrupted_ && size > 0) {
+            corrupted_ = true;
+            data[size - 1] ^= 0xff;
+        }
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        drive();
+
+        int pending = hung_up() ? 0 : (int)BIO_ctrl_pending(out_);
+        if (pending <= 0) {
+            return srs_error_new(ERROR_SOCKET_READ, "EOF");
+        }
+
+        int n = srs_min(pending, (int)size);
+        BIO_read(out_, buf, n);
+        nn_recv_ += n;
+        if (nread) {
+            *nread = n;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread)
+    {
+        srs_error_t err = srs_success;
+        size_t nb = 0;
+        while (nb < size) {
+            ssize_t n = 0;
+            if ((err = read((char *)buf + nb, size - nb, &n)) != srs_success) {
+                return err;
+            }
+            nb += n;
+        }
+        if (nread) {
+            *nread = nb;
+        }
+        return err;
+    }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        nn_writes_++;
+        if (nn_writes_ == fail_write_) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "server gone");
+        }
+        BIO_write(in_, buf, (int)size);
+        nn_send_ += size;
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        srs_error_t err = srs_success;
+        ssize_t total = 0;
+        for (int i = 0; i < iov_size; i++) {
+            if ((err = write(iov[i].iov_base, iov[i].iov_len, NULL)) != srs_success) {
+                return err;
+            }
+            total += iov[i].iov_len;
+        }
+        if (nwrite) {
+            *nwrite = total;
+        }
+        return err;
+    }
+    virtual void set_recv_timeout(srs_utime_t tm)
+    {
+        rtm_ = tm;
+    }
+    virtual srs_utime_t get_recv_timeout()
+    {
+        return rtm_;
+    }
+    virtual void set_send_timeout(srs_utime_t tm)
+    {
+        stm_ = tm;
+    }
+    virtual srs_utime_t get_send_timeout()
+    {
+        return stm_;
+    }
+    virtual int64_t get_recv_bytes()
+    {
+        return nn_recv_;
+    }
+    virtual int64_t get_send_bytes()
+    {
+        return nn_send_;
+    }
+};
+
+static const char *https_hook_request = "POST /api/v1/streams HTTP/1.1\r\nHost: hooks.example.com\r\nContent-Length: 0\r\n\r\n";
+static const char *https_hook_response = "HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\n0";
+
+// An HTTP hook, heartbeat or HLS notify URL names its backend by a domain name, such as
+// https://hooks.example.com/api/v1/streams behind nginx or a CDN that serves many names
+// on one address. The client sends the name as SNI, so the backend picks the right
+// certificate; a backend named by its IP address gets no SNI.
+VOID TEST(ProtocolHttpClientTest, HttpsHookByDomainName_SendsSni)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        TlsServerPeer server;
+        server.response_ = https_hook_response;
+        SrsSslClient ssl(&server);
+        HELPER_ASSERT_SUCCESS(ssl.handshake("hooks.example.com"));
+        EXPECT_EQ("hooks.example.com", server.servername());
+
+        HELPER_ASSERT_SUCCESS(ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL));
+
+        char buf[1024];
+        ssize_t nread = 0;
+        HELPER_ASSERT_SUCCESS(ssl.read(buf, sizeof(buf), &nread));
+        EXPECT_EQ(https_hook_request, server.received_);
+        EXPECT_EQ(https_hook_response, string(buf, nread));
+    }
+
+    if (true) {
+        TlsServerPeer server;
+        SrsSslClient ssl(&server);
+        HELPER_ASSERT_SUCCESS(ssl.handshake("10.0.0.8"));
+        EXPECT_EQ("", server.servername());
+    }
+}
+
+// The backend resets the connection while the client does its handshake: right after
+// the TCP connect, such as a backend at its connection limit, or after its ServerHello,
+// such as a proxy that refuses the client. The handshake fails with the write error.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendResetsDuringHandshake_WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    // The client's first write is its ClientHello, the second its key exchange flight.
+    for (int fail_write = 1; fail_write <= 2; fail_write++) {
+        TlsServerPeer server;
+        server.fail_write_ = fail_write;
+        SrsSslClient ssl(&server);
+        err = ssl.handshake("hooks.example.com");
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << "write=" << fail_write;
+        srs_freep(err);
+        EXPECT_EQ(fail_write, server.nn_writes_);
+    }
+}
+
+// The backend closes the TCP connection after it got the client's key exchange, with no
+// Finished, such as a backend that crashed or a load balancer that timed out. The
+// client's read for the Finished fails, so the handshake fails.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendClosesBeforeFinished_HandshakeReadFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    server.hangup_after_writes_ = 2;
+    SrsSslClient ssl(&server);
+    err = ssl.handshake("hooks.example.com");
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+
+    // The server got both client flights and never finished.
+    EXPECT_EQ(2, server.nn_writes_);
+    EXPECT_FALSE(SSL_is_init_finished(server.ssl_));
+}
+
+// A network device corrupts the backend's Finished on the way. The client cannot verify
+// it, so the handshake fails as a TLS error instead of trusting the connection.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendFinishedCorrupted_HandshakeFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    server.corrupt_ = true;
+    SrsSslClient ssl(&server);
+    err = ssl.handshake("hooks.example.com");
+    EXPECT_EQ(ERROR_TLS_HANDSHAKE, srs_error_code(err));
+    srs_freep(err);
+
+    // The server finished its side; only the client refused.
+    EXPECT_TRUE(server.corrupted_);
+    EXPECT_TRUE(SSL_is_init_finished(server.ssl_));
+}
+
+// A network device corrupts the backend's response record. The client cannot verify it,
+// so the read fails as a TLS error and the hook gets no response.
+VOID TEST(ProtocolHttpClientTest, HttpsHookResponseCorrupted_ReadFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    server.response_ = https_hook_response;
+    SrsSslClient ssl(&server);
+    HELPER_ASSERT_SUCCESS(ssl.handshake("hooks.example.com"));
+    server.corrupt_ = true;
+
+    HELPER_ASSERT_SUCCESS(ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL));
+
+    char buf[1024];
+    ssize_t nread = 0;
+    err = ssl.read(buf, sizeof(buf), &nread);
+    EXPECT_EQ(ERROR_TLS_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(server.corrupted_);
+    EXPECT_EQ(0, nread);
+}
+
+// The backend answers and closes its side with a close_notify alert, as a server with
+// Connection: close does. The client reads the response, then its next read ends as a
+// socket read error.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendSendsCloseNotify_ReadEnds)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    server.response_ = https_hook_response;
+    server.close_after_response_ = true;
+    SrsSslClient ssl(&server);
+    HELPER_ASSERT_SUCCESS(ssl.handshake("hooks.example.com"));
+    HELPER_ASSERT_SUCCESS(ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL));
+
+    char buf[1024];
+    ssize_t nread = 0;
+    HELPER_ASSERT_SUCCESS(ssl.read(buf, sizeof(buf), &nread));
+    EXPECT_EQ(https_hook_response, string(buf, nread));
+
+    err = ssl.read(buf, sizeof(buf), &nread);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+}
+
+// The backend resets the connection while the client sends its request after the
+// handshake. The write fails with the socket error, so the hook fails.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendResetsDuringRequest_WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    SrsSslClient ssl(&server);
+    HELPER_ASSERT_SUCCESS(ssl.handshake("hooks.example.com"));
+    server.fail_write_ = server.nn_writes_ + 1;
+
+    err = ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+
+    // The server never got the request.
+    server.drive();
+    EXPECT_EQ("", server.received_);
+}
+
+// A TCP server that reads the client's request, sends a fixed reply, which may be empty,
+// and closes the connection.
+class RawReplyTcpServer : public SrsHttpTestServer
+{
+public:
+    string reply_;
+    string request_;
+    string error_;
+
+public:
+    RawReplyTcpServer(string reply) : SrsHttpTestServer("")
+    {
+        reply_ = reply;
+    }
+
+public:
+    virtual srs_error_t start()
+    {
+        srs_error_t err = SrsHttpTestServer::start();
+        // Let State Threads run once, so its clock is fresh before the server sets its
+        // read timeout. After a long run of tests that never yield, the clock is seconds
+        // behind and the timeout would fire at once.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        return err;
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd)
+    {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt(cfd);
+        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+        char buf[1024];
+        ssize_t nn = 0;
+        if ((err = skt.read(buf, sizeof(buf), &nn)) != srs_success) {
+            error_ = srs_error_desc(err);
+            return err;
+        }
+        request_.assign(buf, nn);
+
+        if (!reply_.empty()) {
+            return skt.write((void *)reply_.data(), reply_.size(), NULL);
+        }
+        return err;
+    }
+};
+
+// The operator's on_publish hook URL names the port of a service that is not HTTP, such
+// as an SSH server, by mistake. The client sends the request, cannot parse the reply as
+// an HTTP response, and the hook fails.
+VOID TEST(ProtocolHttpClientTest, HookUrlAtNonHttpService_PostFails)
+{
+    srs_error_t err = srs_success;
+
+    RawReplyTcpServer server("SSH-2.0-OpenSSH_9.6\r\n");
+    HELPER_ASSERT_SUCCESS(server.start());
+
+    SrsHttpClient client;
+    HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", server.get_port(), 3 * SRS_UTIME_SECONDS));
+
+    ISrsHttpMessage *msg = NULL;
+    err = client.post("/api/v1/streams", "{}", &msg);
+    EXPECT_EQ(ERROR_HTTP_PARSE_HEADER, srs_error_code(err)) << srs_error_desc(err) << "\nserver: " << server.error_;
+    srs_freep(err);
+    EXPECT_TRUE(msg == NULL);
+
+    EXPECT_EQ(0u, server.request_.find("POST /api/v1/streams HTTP/1.1\r\n")) << server.request_;
+}
+
+// The HLS notify backend, or the origin of an HTTPS-FLV edge, accepts the connection and
+// closes it without a reply, such as a backend that crashed on the request. The client's
+// GET fails reading the response.
+VOID TEST(ProtocolHttpClientTest, NotifyBackendClosesWithoutReply_GetFails)
+{
+    srs_error_t err = srs_success;
+
+    RawReplyTcpServer server("");
+    HELPER_ASSERT_SUCCESS(server.start());
+
+    SrsHttpClient client;
+    HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", server.get_port(), 3 * SRS_UTIME_SECONDS));
+
+    ISrsHttpMessage *msg = NULL;
+    err = client.get("/live/livestream.ts", "", &msg);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(msg == NULL);
+
+    EXPECT_EQ(0u, server.request_.find("GET /live/livestream.ts HTTP/1.1\r\n")) << server.request_;
+}
+
+// A TCP connection to a backend that resets it before the client sends anything.
+class ResetBeforeRequestTcpClient : public SrsTcpClient
+{
+public:
+    ResetBeforeRequestTcpClient() : SrsTcpClient("127.0.0.1", 8085, SRS_UTIME_NO_TIMEOUT)
+    {
+    }
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        return srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+    }
+};
+
+// The backend accepts the TCP connection and resets it before the request is sent, such
+// as a backend at its connection limit. The POST of a hook or heartbeat, and the GET of
+// an HLS notify or edge pull, fail with the write error, and the client drops the
+// connection, so it does not reuse a dead one.
+VOID TEST(ProtocolHttpClientTest, BackendResetsBeforeRequest_ConnectionDropped)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < 2; i++) {
+        bool is_post = (i == 0);
+        SrsHttpClient client;
+        HELPER_ASSERT_SUCCESS(client.initialize("http", "127.0.0.1", 8085, 3 * SRS_UTIME_SECONDS));
+        // The connection is already up, as connect() left it.
+        client.transport_ = new ResetBeforeRequestTcpClient();
+
+        ISrsHttpMessage *msg = NULL;
+        if (is_post) {
+            err = client.post("/api/v1/streams", "{}", &msg);
+        } else {
+            err = client.get("/live/livestream.ts", "", &msg);
+        }
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << (is_post ? "post" : "get");
+        srs_freep(err);
+        EXPECT_TRUE(msg == NULL);
+        EXPECT_TRUE(client.transport_ == NULL);
+    }
 }
