@@ -1241,7 +1241,7 @@ static const uint8_t mp4_aac_frame_sample[] = {0x21, 0x11, 0x45, 0x00};
 // of one VPS, SPS and PPS, or of the PPS twice, as the encoder sends after a restart with other settings.
 // pps_flags is the PPS's first byte: its id, its SPS id, dependent_slice_segments_enabled_flag, output_flag_present_flag,
 // num_extra_slice_header_bits and sign_data_hiding_enabled_flag.
-static srs_error_t mp4_hevc_sh(int nb_pps, string &tag, uint8_t pps_flags = 0xc1)
+srs_error_t mp4_hevc_sh(int nb_pps, string &tag, uint8_t pps_flags)
 {
     srs_error_t err = srs_success;
 

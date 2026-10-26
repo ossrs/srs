@@ -56,4 +56,8 @@ extern std::string ps_pack_header();
 extern std::string ps_system_header();
 extern std::string ps_pes(uint8_t sid, const std::string &body);
 
+// The HEVC sequence header of a 720p stream as an FLV video tag with the codec id 12, with one VPS and SPS and nb_pps
+// PPS whose first byte is pps_flags.
+extern srs_error_t mp4_hevc_sh(int nb_pps, std::string &tag, uint8_t pps_flags = 0xc1);
+
 #endif

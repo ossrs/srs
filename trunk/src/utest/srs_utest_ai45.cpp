@@ -29,6 +29,7 @@
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_ai36.hpp>
+#include <srs_utest_ai40.hpp>
 #include <srs_utest_ai41.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_ai44.hpp>
@@ -3433,12 +3434,13 @@ public:
         ss << "Transport: RTP/AVP/TCP;unicast;interleaved=" << channel << "-" << channel + 1 << "\r\n";
         request("SETUP", "/trackID=" + srs_strconv_format_int(track), ss.str());
     }
-    // The publisher of the stream sends a packet of its audio or video track.
-    srs_error_t publish(bool audio, uint16_t seq)
+    // The publisher of the stream sends a packet of its audio or video track, of the SSRC and payload type given or of the
+    // tracks the stream was opened with.
+    srs_error_t publish(bool audio, uint16_t seq, uint32_t ssrc = 0, uint8_t pt = 0)
     {
         SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
-        pkt->header_.set_ssrc(audio ? 1001 : 2001);
-        pkt->header_.set_payload_type(audio ? 97 : 96);
+        pkt->header_.set_ssrc(ssrc ? ssrc : (audio ? 1001 : 2001));
+        pkt->header_.set_payload_type(pt ? pt : (audio ? 97 : 96));
         pkt->header_.set_sequence(seq);
         pkt->header_.set_timestamp(seq * 1024);
         pkt->frame_type_ = audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
@@ -3789,5 +3791,493 @@ VOID TEST(AppRtspConnTest, DISABLED_PlayerOfLonePacket_HeldUntilNextPacket)
     HELPER_EXPECT_SUCCESS(c.publish(false, 100));
     c.wait_got("200,200,200,$0");
     EXPECT_STREQ("200,200,200,$0", c.got().c_str());
+}
+
+// The tracks a player of the RTSP stream was told about, one entry per change: V for a video track, A for an audio
+// track, - for none, as SrsRtspPlayStream follows them.
+class RtspSourceUtestPlayer : public ISrsRtcSourceChangeCallback
+{
+public:
+    std::string changes_;
+    uint32_t video_ssrc_;
+    uint32_t audio_ssrc_;
+
+public:
+    RtspSourceUtestPlayer()
+    {
+        video_ssrc_ = 0;
+        audio_ssrc_ = 0;
+    }
+    virtual ~RtspSourceUtestPlayer()
+    {
+    }
+
+public:
+    virtual void on_stream_change(SrsRtcSourceDescription *desc)
+    {
+        std::string tracks;
+        if (!desc->video_track_descs_.empty()) {
+            tracks += "V";
+            video_ssrc_ = desc->video_track_descs_.at(0)->ssrc_;
+        }
+        if (desc->audio_track_desc_) {
+            tracks += "A";
+            audio_ssrc_ = desc->audio_track_desc_->ssrc_;
+        }
+        changes_ += (changes_.empty() ? "" : ",") + (tracks.empty() ? std::string("-") : tracks);
+    }
+};
+
+// A stream an RTMP encoder publishes on a vhost with rtmp_to_rtsp: the RTSP source in the manager's pool and the
+// builder SrsRtmpBridge makes for each publish, and the RTSP players of the source.
+class RtspSourceUtestStream
+{
+public:
+    MockSrsRequest req_;
+    SrsStatistic stat_;
+    MockCircuitBreaker breaker_;
+    MockClockForPithyPrint clock_;
+    SrsRtspSourceManager manager_;
+    SrsSharedPtr<SrsRtspSource> source_;
+    SrsRtspRtpBuilder *builder_;
+    std::vector<SrsRtspConsumer *> players_;
+
+public:
+    RtspSourceUtestStream() : req_("__defaultVhost__", "live", "livestream")
+    {
+        clock_.now_ = 100 * SRS_UTIME_SECONDS;
+        builder_ = NULL;
+
+        SrsRtspSource *source = new SrsRtspSource();
+        source->stat_ = &stat_;
+        source->circuit_breaker_ = &breaker_;
+        source->clk_ = &clock_;
+        source_ = SrsSharedPtr<SrsRtspSource>(source);
+        source->assemble();
+        srs_error_t err = source->initialize(&req_);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+
+        manager_.pool_[req_.get_stream_url()] = source_;
+    }
+    virtual ~RtspSourceUtestStream()
+    {
+        for (int i = 0; i < (int)players_.size(); i++) {
+            SrsRtspConsumer *player = players_.at(i);
+            srs_freep(player);
+        }
+        srs_freep(builder_);
+    }
+
+public:
+    // The encoder publishes, as SrsRtmpBridge::initialize and on_publish do.
+    srs_error_t publish()
+    {
+        srs_error_t err = srs_success;
+
+        srs_freep(builder_);
+        builder_ = new SrsRtspRtpBuilder(source_.get(), source_);
+        if ((err = builder_->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "builder initialize");
+        }
+        if ((err = source_->on_publish()) != srs_success) {
+            return srs_error_wrap(err, "source publish");
+        }
+        return builder_->on_publish();
+    }
+    // The encoder stops, as SrsRtmpBridge::on_unpublish does, and the live source frees the bridge.
+    void unpublish()
+    {
+        builder_->on_unpublish();
+        source_->on_unpublish();
+        srs_freep(builder_);
+    }
+    srs_error_t video(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsMediaPacket msg;
+        msg.message_type_ = SrsFrameTypeVideo;
+        msg.timestamp_ = timestamp;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        return builder_->on_frame(&msg);
+    }
+    srs_error_t audio(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsMediaPacket msg;
+        msg.message_type_ = SrsFrameTypeAudio;
+        msg.timestamp_ = timestamp;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        return builder_->on_frame(&msg);
+    }
+    // An RTSP player starts to play, as SrsRtspPlayStream::cycle does.
+    SrsRtspConsumer *play(ISrsRtcSourceChangeCallback *handler = NULL)
+    {
+        SrsRtspConsumer *player = NULL;
+        srs_error_t err = source_->create_consumer(player);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!player) {
+            return NULL;
+        }
+        player->handler_ = handler;
+        players_.push_back(player);
+        return player;
+    }
+    void leave(SrsRtspConsumer *player)
+    {
+        players_.erase(std::find(players_.begin(), players_.end(), player));
+        srs_freep(player);
+    }
+    // The manager's check of its sources, as its 1s timer does.
+    void check_sources(srs_utime_t elapsed)
+    {
+        clock_.now_ += elapsed;
+        srs_error_t err = manager_.notify(1, 1 * SRS_UTIME_SECONDS, clock_.now_);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+    }
+    bool in_pool()
+    {
+        return manager_.pool_.find(req_.get_stream_url()) != manager_.pool_.end();
+    }
+};
+
+// What the player got since it last read, kept in pkts when given: aac for an audio packet, stap for the SPS and PPS
+// of H.264 (stap265 for the VPS, SPS and PPS of HEVC), nalu for a NALU in one packet, fu for a fragment of a NALU, < at
+// its first and > at its last, and * for the marker.
+static string rtsp_source_utest_got(SrsRtspConsumer *player, std::vector<SrsRtpPacket *> *pkts = NULL)
+{
+    std::stringstream ss;
+    for (int i = 0;; i++) {
+        SrsRtpPacket *pkt = NULL;
+        srs_error_t err = player->dump_packet(&pkt);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!pkt) {
+            break;
+        }
+
+        ss << (i ? "," : "");
+        if (pkt->is_audio()) {
+            ss << "aac";
+        } else if (pkt->nalu_type_ == kStapA) {
+            ss << "stap";
+        } else if (pkt->nalu_type_ == kStapHevc) {
+            ss << "stap265";
+        } else if (pkt->nalu_type_ == kFuA) {
+            SrsRtpFUAPayload2 *fua = dynamic_cast<SrsRtpFUAPayload2 *>(pkt->payload());
+            ss << "fu" << (fua->start_ ? "<" : "") << (fua->end_ ? ">" : "");
+        } else {
+            ss << "nalu";
+        }
+        ss << (pkt->header_.get_marker() ? "*" : "");
+
+        if (pkts) {
+            pkts->push_back(pkt);
+        } else {
+            srs_freep(pkt);
+        }
+    }
+    return ss.str();
+}
+
+static void rtsp_source_utest_free(std::vector<SrsRtpPacket *> &pkts)
+{
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts.at(i);
+        srs_freep(pkt);
+    }
+    pkts.clear();
+}
+
+// An H.264 key frame larger than an RTP packet holds, as at a scene change or a high bitrate: the player gets the
+// SPS and PPS, then the IDR in FU-A fragments of the frame's time, which put the NALU back together, the last with the
+// marker.
+VOID TEST(AppRtspSourceTest, KeyframeLargerThanRtpPacket_PlayerGetsFuA)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+
+    // An IDR of 3000 bytes: the FLV video tag header, the NALU size, then the NALU.
+    const int nb_nalu = 3000;
+    std::vector<uint8_t> idr(9 + nb_nalu);
+    uint8_t head[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0xb8, 0x65};
+    memcpy(&idr[0], head, sizeof(head));
+    for (int i = 1; i < nb_nalu; i++) {
+        idr[9 + i] = (uint8_t)(i * 7);
+    }
+    HELPER_ASSERT_SUCCESS(s.video(40, &idr[0], (int)idr.size()));
+
+    std::vector<SrsRtpPacket *> pkts;
+    EXPECT_STREQ("stap,fu<,fu,fu>*", rtsp_source_utest_got(player, &pkts).c_str());
+    ASSERT_EQ(4, (int)pkts.size());
+
+    std::string nalu;
+    for (int i = 1; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts.at(i);
+        SrsRtpFUAPayload2 *fua = dynamic_cast<SrsRtpFUAPayload2 *>(pkt->payload());
+        EXPECT_EQ(SrsAvcNaluTypeIDR, fua->nalu_type_);
+        EXPECT_LE(fua->size_, kRtpMaxPayloadSize);
+        EXPECT_EQ(40u * 90, pkt->header_.get_timestamp());
+        EXPECT_EQ(pkts.at(0)->header_.get_ssrc(), pkt->header_.get_ssrc());
+        EXPECT_EQ((uint16_t)(pkts.at(0)->header_.get_sequence() + i), pkt->header_.get_sequence());
+        nalu.append(fua->payload_, fua->size_);
+    }
+    EXPECT_TRUE(nalu == std::string((char *)&idr[10], nb_nalu - 1));
+    rtsp_source_utest_free(pkts);
+}
+
+// An HEVC encoder over enhanced or legacy RTMP: the stream's video track is H.265 with its payload type, and a player
+// gets the VPS, SPS and PPS in one packet, then the IDR.
+VOID TEST(AppRtspSourceTest, HevcPublisher_PlayerGetsH265Track)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player = s.play();
+
+    std::string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+    HELPER_ASSERT_SUCCESS(s.video(0, (const uint8_t *)sh.data(), (int)sh.size()));
+    const uint8_t idr[] = {0x1c, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x26, 0x01, 0xaf, 0x00, 0x10};
+    HELPER_ASSERT_SUCCESS(s.video(40, idr, sizeof(idr)));
+
+    SrsRtcTrackDescription *video = s.source_->video_desc();
+    ASSERT_TRUE(video != NULL);
+    EXPECT_STREQ("H265", video->media_->name_.c_str());
+    EXPECT_EQ(KVideoPayloadTypeHevc, video->media_->pt_);
+
+    std::vector<SrsRtpPacket *> pkts;
+    EXPECT_STREQ("stap265,nalu*", rtsp_source_utest_got(player, &pkts).c_str());
+    ASSERT_EQ(2, (int)pkts.size());
+    SrsRtpSTAPPayloadHevc *stap = dynamic_cast<SrsRtpSTAPPayloadHevc *>(pkts.at(0)->payload());
+    ASSERT_TRUE(stap != NULL);
+    EXPECT_EQ(3, (int)stap->nalus_.size());
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts.at(i);
+        EXPECT_EQ(KVideoPayloadTypeHevc, pkt->header_.get_payload_type());
+        EXPECT_EQ(video->ssrc_, pkt->header_.get_ssrc());
+    }
+    rtsp_source_utest_free(pkts);
+}
+
+// An encoder of H.264 and MP3 audio: RTSP plays only AAC, so the stream has only its video track, and a player gets
+// only video.
+VOID TEST(AppRtspSourceTest, Mp3Publisher_PlayerGetsOnlyVideo)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player = s.play();
+
+    // MP3, 44.1kHz, 16 bits, stereo, then an MPEG-1 Layer III frame header.
+    const uint8_t mp3[] = {0x2f, 0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00, 0x00};
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.audio(0, mp3, sizeof(mp3)));
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    HELPER_ASSERT_SUCCESS(s.audio(23, mp3, sizeof(mp3)));
+
+    EXPECT_TRUE(s.source_->audio_desc() == NULL);
+    EXPECT_TRUE(s.source_->video_desc() != NULL);
+    EXPECT_STREQ("stap,nalu*", rtsp_source_utest_got(player).c_str());
+}
+
+// The server overloaded, at its circuit breaker's dying level: the stream drops each packet for every player and counts
+// it as lost, and the players get packets again once the load goes down.
+VOID TEST(AppRtspSourceTest, ServerOverloaded_PacketsDroppedForEveryPlayer)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player1 = s.play();
+    SrsRtspConsumer *player2 = s.play();
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+
+    s.breaker_.set_hybrid_dying_water_level(true);
+    int64_t lost = _srs_pps_aloss2->sugar_;
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    EXPECT_EQ(4, _srs_pps_aloss2->sugar_ - lost);
+    EXPECT_STREQ("", rtsp_source_utest_got(player1).c_str());
+    EXPECT_STREQ("", rtsp_source_utest_got(player2).c_str());
+
+    s.breaker_.set_hybrid_dying_water_level(false);
+    HELPER_ASSERT_SUCCESS(s.video(40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+    EXPECT_EQ(4, _srs_pps_aloss2->sugar_ - lost);
+    EXPECT_STREQ("nalu*", rtsp_source_utest_got(player1).c_str());
+    EXPECT_STREQ("nalu*", rtsp_source_utest_got(player2).c_str());
+}
+
+// The manager keeps the stream while the encoder publishes, also with no player, as after the last player left with
+// packets it had not sent yet; once the encoder stops, it keeps the stream 3s more for a republish, then frees it.
+VOID TEST(AppRtspSourceTest, SourceCleanup_KeptWhilePublishing_FreedThreeSecondsAfterUnpublish)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    EXPECT_EQ(2, (int)player->queue_.size());
+
+    s.leave(player);
+    EXPECT_TRUE(s.source_->consumers_.empty());
+
+    s.check_sources(10 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(s.in_pool());
+
+    s.unpublish();
+    s.check_sources(2 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(s.in_pool());
+
+    s.check_sources(1 * SRS_UTIME_SECONDS);
+    EXPECT_FALSE(s.in_pool());
+}
+
+// A player that waits for the stream before the encoder publishes, and stays across a republish: it is told about
+// each track as the encoder's sequence headers come, with the SSRC of the packets it then gets, and about the new SSRCs
+// of the republish.
+VOID TEST(AppRtspSourceTest, PlayerWaitingBeforePublish_FollowsTracksAcrossRepublish)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    RtspSourceUtestPlayer handler;
+    SrsRtspConsumer *player = s.play(&handler);
+    EXPECT_TRUE(s.source_->source_id().empty());
+
+    HELPER_ASSERT_SUCCESS(s.publish());
+    EXPECT_STREQ("-", handler.changes_.c_str());
+    EXPECT_EQ(0, s.source_->source_id().compare(_srs_context->get_id()));
+
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    HELPER_ASSERT_SUCCESS(s.audio(23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    EXPECT_STREQ("-,V,VA", handler.changes_.c_str());
+
+    std::vector<SrsRtpPacket *> pkts;
+    EXPECT_STREQ("stap,nalu*,aac*", rtsp_source_utest_got(player, &pkts).c_str());
+    ASSERT_EQ(3, (int)pkts.size());
+    EXPECT_EQ(handler.video_ssrc_, pkts.at(1)->header_.get_ssrc());
+    EXPECT_EQ(handler.audio_ssrc_, pkts.at(2)->header_.get_ssrc());
+    uint32_t video_ssrc = handler.video_ssrc_;
+    rtsp_source_utest_free(pkts);
+
+    s.unpublish();
+    EXPECT_TRUE(s.source_->source_id().empty());
+    HELPER_ASSERT_SUCCESS(s.publish());
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    EXPECT_STREQ("-,V,VA,VA,VA", handler.changes_.c_str());
+    EXPECT_NE(video_ssrc, handler.video_ssrc_);
+
+    EXPECT_STREQ("stap,nalu*", rtsp_source_utest_got(player, &pkts).c_str());
+    ASSERT_EQ(2, (int)pkts.size());
+    EXPECT_EQ(handler.video_ssrc_, pkts.at(1)->header_.get_ssrc());
+    rtsp_source_utest_free(pkts);
+}
+
+// The interleaved RTP frames the RTSP client got, each as $<channel>:<SSRC>/<payload type>.
+static string rtsp_source_utest_rtp(RtspConnUtestClient &c)
+{
+    std::string out(c.io_->out_buffer.bytes(), c.io_->out_buffer.length());
+    std::stringstream ss;
+    for (size_t pos = out.find('$'); pos != std::string::npos && pos + 16 <= out.size();) {
+        SrsBuffer b((char *)out.data() + pos, (int)(out.size() - pos));
+        b.skip(1);
+        int channel = b.read_1bytes();
+        int size = b.read_2bytes();
+        b.skip(1);
+        int pt = b.read_1bytes() & 0x7f;
+        b.skip(6);
+        uint32_t ssrc = (uint32_t)b.read_4bytes();
+        ss << (ss.str().empty() ? "" : ",") << "$" << channel << ":" << ssrc << "/" << pt;
+        pos += 4 + size;
+    }
+    return ss.str();
+}
+
+// A player that stays while the encoder republishes, whose new tracks have other SSRCs and payload types. The player
+// keeps getting both tracks with the SSRCs and payload types of the SDP it was answered, as its decoder knows only those.
+VOID TEST(AppRtspSourceTest, PlayerStaysAcrossRepublish_KeepsSsrcAndPayloadTypeOfItsSdp)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open("vhost __defaultVhost__ { }", "rtsp-utest-republish"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.setup_tcp(0, 0);
+    c.setup_tcp(1, 2);
+    c.request("PLAY");
+    c.wait_got("200,200,200,200");
+    c.wait_playing();
+    ASSERT_STREQ("200,200,200,200", c.got().c_str());
+
+    // The republish: the builder of the new publish sets the tracks it made from the encoder's sequence headers.
+    SrsUniquePtr<SrsRtcTrackDescription> audio(c.source_->audio_desc()->copy());
+    audio->ssrc_ = 1002;
+    audio->media_->pt_ = 111;
+    c.source_->set_audio_desc(audio.get());
+    SrsUniquePtr<SrsRtcTrackDescription> video(c.source_->video_desc()->copy());
+    video->ssrc_ = 2002;
+    video->media_->pt_ = 102;
+    c.source_->set_video_desc(video.get());
+
+    HELPER_EXPECT_SUCCESS(c.publish(true, 200, 1002, 111));
+    HELPER_EXPECT_SUCCESS(c.publish(false, 200, 2002, 102));
+    HELPER_EXPECT_SUCCESS(c.publish(true, 201, 1002, 111));
+    HELPER_EXPECT_SUCCESS(c.publish(false, 201, 2002, 102));
+    // The last packet may wait for the next one (B56), so only the first three are checked.
+    c.wait_got("200,200,200,200,$0,$2,$0,$2");
+    EXPECT_EQ(0u, c.got().find("200,200,200,200,$0,$2,$0"));
+    EXPECT_EQ(0u, rtsp_source_utest_rtp(c).find("$0:1001/97,$2:2001/96,$0:1001/97"));
+}
+
+// An HEVC encoder that sends its VPS, SPS and PPS in band, in each key frame, with a sequence header that holds none,
+// as ISO/IEC 14496-15 allows for hev1. The format parses both, and the player should get the key frame's NALUs. The
+// RTSP builder fails the key frame, "vps/sps/pps empty", so the encoder is disconnected at its first key frame (B57).
+VOID TEST(AppRtspSourceTest, DISABLED_HevcParameterSetsInBand_PublisherDisconnected)
+{
+    srs_error_t err;
+
+    RtspSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.publish());
+    SrsRtspConsumer *player = s.play();
+
+    // The HEVCDecoderConfigurationRecord: version 1, Main profile, level 3.1, 4-byte NALU sizes, and no arrays.
+    const uint8_t sh[] = {0x1c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x60, 0x00, 0x00, 0x00, 0x90, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x5d, 0xf0, 0x00, 0xfc, 0xfd, 0xf8, 0xf8, 0x00, 0x00, 0x0f, 0x00};
+    HELPER_ASSERT_SUCCESS(s.video(0, sh, sizeof(sh)));
+
+    std::string tag;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, tag));
+    SrsFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+    HELPER_ASSERT_SUCCESS(format.on_video(0, (char *)tag.data(), (int)tag.size()));
+
+    // The key frame: the VPS, SPS and PPS, then the IDR, each with its size.
+    std::string frame("\x1c\x01\x00\x00\x00", 5);
+    std::vector<SrsHevcHvccNalu> &arrays = format.vcodec_->hevc_dec_conf_record_.nalu_vec_;
+    for (int i = 0; i < (int)arrays.size(); i++) {
+        const std::vector<uint8_t> &nalu = arrays.at(i).nal_data_vec_.at(0).nal_unit_data_;
+        frame += std::string(3, '\0') + (char)nalu.size() + std::string((const char *)&nalu[0], nalu.size());
+    }
+    frame += std::string("\x00\x00\x00\x05\x26\x01\xaf\x00\x10", 9);
+
+    HELPER_EXPECT_SUCCESS(s.video(40, (const uint8_t *)frame.data(), (int)frame.size()));
+    EXPECT_STREQ("nalu,nalu,nalu,nalu*", rtsp_source_utest_got(player).c_str());
 }
 #endif
