@@ -6,6 +6,7 @@
 #include <srs_utest_ai43.hpp>
 
 #include <srs_app_forward.hpp>
+#include <srs_app_fragment.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -20,7 +21,9 @@
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_mock.hpp>
 
+#include <stdio.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 using namespace std;
@@ -213,4 +216,65 @@ VOID TEST(AppForwardTest, Forwarding_KbpsLineLoggedWithMessagesSent)
     EXPECT_EQ(2, sdk->kbps_msgs_.at(0));
     EXPECT_EQ(SRS_CONSTS_LOG_FOWARDER, sdk->kbps_labels_.at(1));
     EXPECT_EQ(0, sdk->kbps_msgs_.at(1));
+}
+
+// A segment file of the path, of duration ms long, written to the disk unless it is gone.
+static SrsFragment *fragment_utest_segment(std::string path, int64_t duration, bool gone)
+{
+    if (gone) {
+        ::unlink(path.c_str());
+    } else {
+        FILE *fp = ::fopen(path.c_str(), "wb");
+        if (fp) {
+            ::fputs("ts", fp);
+            ::fclose(fp);
+        }
+    }
+
+    SrsFragment *fragment = new SrsFragment();
+    fragment->set_path(path);
+    fragment->append(1000);
+    fragment->append(1000 + duration);
+    return fragment;
+}
+
+static bool fragment_utest_file_exists(std::string path)
+{
+    return ::access(path.c_str(), F_OK) == 0;
+}
+
+// HLS (or DASH) with cleanup on deletes the segments that leave the window. When an expired segment file is already
+// gone, such as removed by the operator's cleanup job or a sync to a CDN that moves the files, the delete fails with a
+// warning, and the window still deletes the other expired files, frees every expired segment and keeps the live
+// segments and their files.
+VOID TEST(AppFragmentTest, CleanupExpiredSegmentAlreadyDeleted_OtherExpiredFilesStillDeleted)
+{
+    string gone = _srs_tmp_file_prefix + "fragment-cleanup-gone.ts";
+    string old = _srs_tmp_file_prefix + "fragment-cleanup-old.ts";
+    string live1 = _srs_tmp_file_prefix + "fragment-cleanup-live1.ts";
+    string live2 = _srs_tmp_file_prefix + "fragment-cleanup-live2.ts";
+
+    SrsUniquePtr<SrsFragmentWindow> window(new SrsFragmentWindow());
+    window->append(fragment_utest_segment(gone, 4000, true));
+    window->append(fragment_utest_segment(old, 4000, false));
+    window->append(fragment_utest_segment(live1, 4000, false));
+    window->append(fragment_utest_segment(live2, 4000, false));
+
+    // A 5s window keeps the last two 4s segments; the first two expire.
+    window->shrink(5 * SRS_UTIME_SECONDS);
+    ASSERT_EQ(2, window->size());
+    ASSERT_EQ(2, (int)window->expired_fragments_.size());
+
+    window->clear_expired(true);
+    EXPECT_EQ(0, (int)window->expired_fragments_.size());
+    EXPECT_FALSE(fragment_utest_file_exists(old));
+
+    EXPECT_EQ(2, window->size());
+    EXPECT_EQ(live1, dynamic_cast<SrsFragment *>(window->at(0))->fullpath());
+    EXPECT_EQ(live2, dynamic_cast<SrsFragment *>(window->at(1))->fullpath());
+    EXPECT_TRUE(fragment_utest_file_exists(live1));
+    EXPECT_TRUE(fragment_utest_file_exists(live2));
+
+    ::unlink(live1.c_str());
+    ::unlink(live2.c_str());
 }
