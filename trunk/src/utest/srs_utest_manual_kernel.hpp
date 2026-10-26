@@ -166,6 +166,8 @@ class MockPsHandler : public ISrsPsMessageHandler
 {
 public:
     std::vector<SrsTsMessage *> msgs_;
+    // When not 0, refuse each message with this error code, as a muxer that cannot take it.
+    int error_code_;
 
 public:
     MockPsHandler();

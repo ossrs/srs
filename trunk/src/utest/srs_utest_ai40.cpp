@@ -20,7 +20,9 @@
 #include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_mp4.hpp>
+#include <srs_kernel_ps.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
@@ -2464,4 +2466,231 @@ VOID TEST(KernelPacketTest, DISABLED_RtcHevcLaterSliceOfPFrame_DroppedAsBframe)
     vector<SrsNaluSample *> kept;
     HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" + address_bits + "010" "1"), kept));
     EXPECT_EQ(1, (int)kept.size());
+}
+
+// The pack header of a GB28181 camera: 14 bytes and 6 stuffing bytes.
+static string ps_pack_header()
+{
+    return string("\x00\x00\x01\xba\x44\x68\x6e\x4c\x94\x01\x01\x30\x13\xfe\xff\xff\x00\x00\xa0\x05", 20);
+}
+
+// The system header fields of the same camera after header_length: rate bound, audio and video bounds, flags.
+static string ps_system_fields()
+{
+    return string("\x80\x98\x09\x04\xe1\x7f", 6);
+}
+
+// The system header of the same camera, listing streams 0xe0, 0xc0, 0xbd and 0xbf.
+static string ps_system_header()
+{
+    return string("\x00\x00\x01\xbb\x00\x12", 6) + ps_system_fields() +
+           string("\xe0\xe0\x80\xc0\xc0\x08\xbd\xe0\x80\xbf\xe0\x80", 12);
+}
+
+// A system header whose header_length covers the fields and the bytes after them.
+static string ps_system_header_with(const string &after_fields)
+{
+    int length = 6 + (int)after_fields.size();
+    string h("\x00\x00\x01\xbb", 4);
+    h.push_back((char)((length >> 8) & 0xff));
+    h.push_back((char)(length & 0xff));
+    return h + ps_system_fields() + after_fields;
+}
+
+// A PES packet of the stream id, with PES_packet_length as the size of the body.
+static string ps_pes(uint8_t sid, const string &body)
+{
+    string pes("\x00\x00\x01", 3);
+    pes.push_back((char)sid);
+    pes.push_back((char)((body.size() >> 8) & 0xff));
+    pes.push_back((char)(body.size() & 0xff));
+    return pes + body;
+}
+
+// A video or audio PES with a PTS, holding the payload.
+static string ps_media_pes(uint8_t sid, const string &payload)
+{
+    return ps_pes(sid, string("\x80\x80\x05\x21\x00\x01\x00\x01", 8) + payload);
+}
+
+// An H.264 IDR slice in AnnexB, as a camera puts it in a video PES.
+static string ps_h264_idr()
+{
+    return string("\x00\x00\x00\x01\x65\x88\x84\x00\x33\xff", 10);
+}
+
+// A GB28181 camera with G.711 A-law audio lists it in its PSM as stream type 0x90, which the PS demuxer does not know.
+// The PSM sets the video type and leaves the audio type unset; the audio PES still reaches the muxer, which decides.
+VOID TEST(KernelPSTest, CameraWithG711AudioLeavesPsmAudioTypeUnset)
+{
+    srs_error_t err;
+
+    // PSM: current, version 0, marker; no program info; H.264 on 0xe0 and G.711 A-law on 0xc0, no descriptors; CRC.
+    string psm = ps_pes(0xbc, string("\x80\x01\x00\x00\x00\x08\x1b\xe0\x00\x00\x90\xc0\x00\x00\x00\x00\x00\x00", 18));
+    string pack = ps_pack_header() + ps_system_header() + psm + ps_media_pes(0xe0, ps_h264_idr()) +
+                  ps_media_pes(0xc0, string(160, '\xd5'));
+
+    MockPsHandler handler;
+    SrsPsContext context;
+    SrsBuffer b((char *)pack.data(), (int)pack.size());
+    HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
+
+    EXPECT_EQ(SrsTsStreamVideoH264, context.video_stream_type_);
+    EXPECT_EQ(SrsTsStreamReserved, context.audio_stream_type_);
+    ASSERT_EQ(2, (int)handler.msgs_.size());
+    EXPECT_TRUE(handler.msgs_[0]->is_video());
+    EXPECT_TRUE(handler.msgs_[1]->is_audio());
+    EXPECT_EQ(160, handler.msgs_[1]->payload_->length());
+}
+
+// A PSM from a non-compliant or corrupted device is refused: the PS pack fails, so the GB28181 connection goes to
+// recover mode, and the stream types the PSM would set stay as they were.
+VOID TEST(KernelPSTest, CorruptPsmIsRefused)
+{
+    struct {
+        const char *name;
+        string payload;
+    } cases[] = {
+        {"shorter than its fixed fields", string("\x80\x01\x00", 3)},
+        {"next PSM, not yet applicable", string("\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00", 10)},
+        {"marker bit cleared", string("\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00", 10)},
+        {"program info past the end", string("\x80\x01\x00\x10\x00\x00", 6)},
+        {"no ES map length", string("\x80\x01\x00\x00", 4)},
+        {"ES map past the end", string("\x80\x01\x00\x00\x00\x10\x1b\xe0\x00\x00", 10)},
+        {"ES entry cut short", string("\x80\x01\x00\x00\x00\x02\x1b\xe0\x00\x00\x00\x00", 12)},
+        {"ES info past the map", string("\x80\x01\x00\x00\x00\x04\x1b\xe0\x00\x08\x00\x00\x00\x00", 14)},
+        {"no CRC", string("\x80\x01\x00\x00\x00\x04\x1b\xe0\x00\x00", 10)},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SCOPED_TRACE(cases[i].name);
+
+        string pack = ps_pack_header() + ps_pes(0xbc, cases[i].payload);
+
+        MockPsHandler handler;
+        SrsPsContext context;
+        SrsBuffer b((char *)pack.data(), (int)pack.size());
+        packet_expect_error_code(ERROR_GB_PS_HEADER, context.decode(&b, &handler));
+
+        EXPECT_EQ(SrsTsStreamReserved, context.video_stream_type_);
+        EXPECT_EQ(SrsTsStreamReserved, context.audio_stream_type_);
+    }
+}
+
+// The muxer cannot take a message, such as while it connects its RTMP output: decoding fails with the muxer's error, so
+// the connection recovers, and the next pack decodes from a fresh message.
+VOID TEST(KernelPSTest, MuxerRefusingMessageFailsDecode)
+{
+    srs_error_t err;
+
+    MockPsHandler handler;
+    handler.error_code_ = ERROR_GB_RTMP_CONNECTING;
+    SrsPsContext context;
+
+    string pack = ps_pack_header() + ps_media_pes(0xe0, ps_h264_idr());
+    if (true) {
+        SrsBuffer b((char *)pack.data(), (int)pack.size());
+        packet_expect_error_code(ERROR_GB_RTMP_CONNECTING, context.decode(&b, &handler));
+        EXPECT_TRUE(handler.msgs_.empty());
+    }
+
+    handler.error_code_ = 0;
+    if (true) {
+        SrsBuffer b((char *)pack.data(), (int)pack.size());
+        HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
+        ASSERT_EQ(1, (int)handler.msgs_.size());
+        SrsTsMessage *msg = handler.msgs_[0];
+        EXPECT_TRUE(msg->is_video());
+        EXPECT_EQ(ps_h264_idr(), string(msg->payload_->bytes(), msg->payload_->length()));
+    }
+}
+
+// The GB28181 TCP connection keeps a PS header cut at the end of an RTP packet only when it is 32 bytes or less. A pack
+// whose RTP packet ends inside its headers after more bytes is refused whole, and the stream goes back to the pack
+// start, for the recover mode to skip from there.
+VOID TEST(KernelPSTest, PackCutInsideItsHeadersIsRefusedAndRewound)
+{
+    struct {
+        const char *name;
+        string bytes;
+    } cases[] = {
+        {"inside the system header", ps_pack_header() + ps_system_header().substr(0, 18)},
+        {"in the PES start code after the system header", ps_pack_header() + ps_system_header() + string("\x00\x00", 2)},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SCOPED_TRACE(cases[i].name);
+        EXPECT_LT(32, (int)cases[i].bytes.size());
+
+        MockPsHandler handler;
+        SrsPsContext context;
+        context.set_detect_ps_integrity(true);
+        SrsBuffer b((char *)cases[i].bytes.data(), (int)cases[i].bytes.size());
+        packet_expect_error_code(ERROR_GB_PS_HEADER, context.decode(&b, &handler));
+
+        EXPECT_EQ(0, b.pos());
+        EXPECT_TRUE(handler.msgs_.empty());
+    }
+}
+
+// A system header whose header_length ends inside a stream entry, from a corrupted device, is refused.
+VOID TEST(KernelPSTest, SystemHeaderWithCutStreamEntryIsRefused)
+{
+    string pack = ps_pack_header() + ps_system_header_with(string("\xe0\xe0", 2)) + ps_media_pes(0xe0, ps_h264_idr());
+
+    MockPsHandler handler;
+    SrsPsContext context;
+    SrsBuffer b((char *)pack.data(), (int)pack.size());
+    packet_expect_error_code(ERROR_GB_PS_HEADER, context.decode(&b, &handler));
+    EXPECT_TRUE(handler.msgs_.empty());
+}
+
+// A device pads its system header after the stream list, inside header_length: the list ends at the first byte that is
+// not a stream entry, the padding is skipped, and the video after it still decodes.
+VOID TEST(KernelPSTest, SystemHeaderPaddingAfterStreamListIsSkipped)
+{
+    srs_error_t err;
+
+    string pack = ps_pack_header() + ps_system_header_with(string("\xe0\xe0\x80\x7f\xff", 5)) +
+                  ps_media_pes(0xe0, ps_h264_idr());
+
+    MockPsHandler handler;
+    SrsPsContext context;
+    SrsBuffer b((char *)pack.data(), (int)pack.size());
+    HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
+
+    SrsPsPacket *ps = context.helper()->ps_;
+    EXPECT_TRUE(ps->has_system_header_);
+    EXPECT_EQ(0xe0, (int)ps->video_stream_id_);
+    EXPECT_EQ(0, (int)ps->audio_stream_id_);
+    ASSERT_EQ(1, (int)handler.msgs_.size());
+    EXPECT_TRUE(handler.msgs_[0]->is_video());
+}
+
+// Bug: the GB28181 TCP connection keeps the bytes of a PS header cut at the end of an RTP packet, up to 32 bytes, to
+// parse with the next packet, but the PS decoder holds them only once 4 bytes or more came. When the RTP packet ends 1
+// to 3 bytes into the next PES start code, decoding fails, the connection goes to recover mode and drops the pack.
+VOID TEST(KernelPSTest, DISABLED_PesStartCodeCutAfterTwoBytes_PackDropped)
+{
+    srs_error_t err;
+
+    MockPsHandler handler;
+    SrsPsContext context;
+    context.set_detect_ps_integrity(true);
+
+    // A slice larger than the 32 bytes the decoder holds for the next packet.
+    string video = ps_media_pes(0xe0, ps_h264_idr() + string(200, '\x5a'));
+
+    // The first RTP payload ends with 2 bytes of the video PES start code, which the connection keeps.
+    string first = ps_pack_header() + ps_media_pes(0xc0, string(160, '\xd5')) + video.substr(0, 2);
+    SrsBuffer b((char *)first.data(), (int)first.size());
+    HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
+    ASSERT_EQ(2, b.left());
+
+    // The next RTP payload follows the kept bytes.
+    SrsBuffer b2((char *)video.data(), (int)video.size());
+    HELPER_ASSERT_SUCCESS(context.decode(&b2, &handler));
+    ASSERT_EQ(2, (int)handler.msgs_.size());
+    EXPECT_TRUE(handler.msgs_[0]->is_audio());
+    EXPECT_TRUE(handler.msgs_[1]->is_video());
 }
