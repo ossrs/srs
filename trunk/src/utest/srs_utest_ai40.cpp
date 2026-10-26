@@ -10,15 +10,19 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_app_http_stream.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_flv.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -593,4 +597,201 @@ VOID TEST(KernelFileTest, StaticFileServedFromDiskByDefaultReader)
     __MOCK_HTTP_EXPECT_STREQ(200, "<h1>SRS</h1>", w);
 
     ::unlink(path.c_str());
+}
+
+// A publisher to an edge sends a message on chunk stream 100, a 2-byte basic header, which the received
+// message keeps as its preferred chunk stream. The edge proxies it to the origin as it is, so the chunk
+// stream is chosen by the message type: returns the bytes the edge writes to the origin.
+static string flv_edge_proxy_high_cid_message(uint8_t type, const uint8_t *payload, int size)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO publisher;
+    uint8_t chunk[] = {
+        0x00, 100 - 64,                                  // fmt=0, cid=100 in a 2-byte basic header
+        0x00, 0x00, 0x00,                                // timestamp
+        0x00, 0x00, (uint8_t)size,                       // payload length
+        type,                                            // message type
+        0x01, 0x00, 0x00, 0x00,                          // stream id, little endian
+    };
+    publisher.in_buffer.append((char *)chunk, sizeof(chunk));
+    publisher.in_buffer.append((char *)payload, size);
+
+    SrsProtocol edge_in(&publisher);
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    if ((err = edge_in.recv_message(&msg_raw)) != srs_success) {
+        srs_freep(err);
+        return "";
+    }
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+    if (msg->header_.prefer_cid_ != 100) {
+        return "";
+    }
+
+    MockBufferIO origin;
+    SrsProtocol edge_out(&origin);
+    SrsMediaPacket copy;
+    msg->to_msg(&copy);
+    if ((err = edge_out.send_and_free_message(copy.copy(), 1)) != srs_success) {
+        srs_freep(err);
+        return "";
+    }
+
+    return string(origin.out_buffer.bytes(), origin.out_buffer.length());
+}
+
+// The edge forwards a publisher's control messages, such as a SetBufferLength user control or a set peer
+// bandwidth, on the protocol control chunk stream 2, not the publisher's chunk stream 100.
+VOID TEST(KernelFlvTest, EdgeProxiesPublisherControlFromHighChunkStream)
+{
+    // User control, SetBufferLength of stream 1 to 3000ms.
+    uint8_t set_buffer_length[] = {0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x0b, 0xb8};
+    string out = flv_edge_proxy_high_cid_message(RTMP_MSG_UserControlMessage, set_buffer_length, sizeof(set_buffer_length));
+    ASSERT_EQ(12 + sizeof(set_buffer_length), out.size());
+    EXPECT_EQ(0x02, (uint8_t)out[0]); // fmt=0, cid=2
+    EXPECT_EQ(RTMP_MSG_UserControlMessage, (uint8_t)out[7]);
+    EXPECT_EQ(0, memcmp(out.data() + 12, set_buffer_length, sizeof(set_buffer_length)));
+
+    // Set peer bandwidth, window 2500000, dynamic limit.
+    uint8_t set_peer_bandwidth[] = {0x00, 0x26, 0x25, 0xa0, 0x02};
+    out = flv_edge_proxy_high_cid_message(RTMP_MSG_SetPeerBandwidth, set_peer_bandwidth, sizeof(set_peer_bandwidth));
+    ASSERT_EQ(12 + sizeof(set_peer_bandwidth), out.size());
+    EXPECT_EQ(0x02, (uint8_t)out[0]);
+    EXPECT_EQ(RTMP_MSG_SetPeerBandwidth, (uint8_t)out[7]);
+}
+
+// The edge forwards a publisher's AMF3 data message, such as onMetaData from a Flash encoder, on the
+// stream data chunk stream 5, as it does an AMF0 data message.
+VOID TEST(KernelFlvTest, EdgeProxiesPublisherAmf3MetadataFromHighChunkStream)
+{
+    // AMF3 data: a 0x00 format byte, then the AMF0 string "onMetaData" and a null.
+    uint8_t amf3_metadata[] = {0x00, 0x02, 0x00, 0x0a, 'o', 'n', 'M', 'e', 't', 'a', 'D', 'a', 't', 'a', 0x05};
+    string out = flv_edge_proxy_high_cid_message(RTMP_MSG_AMF3DataMessage, amf3_metadata, sizeof(amf3_metadata));
+    ASSERT_EQ(12 + sizeof(amf3_metadata), out.size());
+    EXPECT_EQ(0x05, (uint8_t)out[0]); // fmt=0, cid=5
+    EXPECT_EQ(RTMP_MSG_AMF3DataMessage, (uint8_t)out[7]);
+    EXPECT_EQ(0, memcmp(out.data() + 12, amf3_metadata, sizeof(amf3_metadata)));
+}
+
+// A media packet of the given type and size, filled with the FLV tag body of an AVC or AAC frame.
+static SrsMediaPacket *flv_media_packet(SrsFrameType type, int64_t timestamp, bool sequence_header, int size)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->timestamp_ = timestamp;
+    msg->message_type_ = type;
+    char *data = new char[size];
+    memset(data, 0x55, size);
+    if (type == SrsFrameTypeVideo) {
+        data[0] = 0x17; // keyframe, AVC
+        data[1] = sequence_header ? 0x00 : 0x01;
+    } else if (type == SrsFrameTypeAudio) {
+        data[0] = (char)0xaf; // AAC
+        data[1] = sequence_header ? 0x00 : 0x01;
+    }
+    msg->wrap(data, size);
+    return msg;
+}
+
+// An HTTP-FLV player joins a stream whose first packets are video frames and only an AAC sequence header,
+// so the guessed FLV header has video only (#939). With drop_if_not_match on, the default, the audio
+// tags are dropped, in the first batch and later ones, so the player never gets a tag its header lacks.
+VOID TEST(KernelFlvTest, HttpFlvGuessedVideoOnlyDropsAudioTags)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    HELPER_ASSERT_SUCCESS(w.open(""));
+    SrsFlvStreamEncoder enc;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&w, NULL));
+    enc.set_guess_has_av(true);
+    enc.set_drop_if_not_match(true);
+
+    SrsMediaPacket *msgs[] = {
+        flv_media_packet(SrsFrameTypeVideo, 0, true, 10),
+        flv_media_packet(SrsFrameTypeAudio, 0, true, 4),
+        flv_media_packet(SrsFrameTypeVideo, 40, false, 20),
+    };
+    HELPER_EXPECT_SUCCESS(enc.write_tags(msgs, 3));
+
+    // FLV header with the video flag only, then the two video tags.
+    ASSERT_EQ(13 + (11 + 10 + 4) + (11 + 20 + 4), w.filesize());
+    EXPECT_EQ(0x01, (uint8_t)w.data()[4]);
+    EXPECT_EQ(SrsFrameTypeVideo, (uint8_t)w.data()[13]);
+    EXPECT_EQ(SrsFrameTypeVideo, (uint8_t)w.data()[13 + 25]);
+
+    // The audio frames that come later are dropped too.
+    SrsMediaPacket *later[] = {
+        flv_media_packet(SrsFrameTypeAudio, 23, false, 100),
+        flv_media_packet(SrsFrameTypeVideo, 80, false, 30),
+    };
+    HELPER_EXPECT_SUCCESS(enc.write_tags(later, 2));
+    ASSERT_EQ(13 + 25 + 35 + (11 + 30 + 4), w.filesize());
+    EXPECT_EQ(SrsFrameTypeVideo, (uint8_t)w.data()[13 + 25 + 35]);
+
+    for (int i = 0; i < 3; i++) {
+        srs_freep(msgs[i]);
+    }
+    for (int i = 0; i < 2; i++) {
+        srs_freep(later[i]);
+    }
+}
+
+// An HTTP-FLV mount for an audio-only stream, with has_video off and guess_has_av off, gets an FLV header
+// with audio only. With drop_if_not_match on, a video frame the publisher sends anyway is dropped,
+// whether it comes alone or in a batch.
+VOID TEST(KernelFlvTest, HttpFlvHasVideoOffDropsVideoTags)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    HELPER_ASSERT_SUCCESS(w.open(""));
+    SrsFlvStreamEncoder enc;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&w, NULL));
+    enc.set_guess_has_av(false);
+    enc.set_has_audio(true);
+    enc.set_has_video(false);
+    enc.set_drop_if_not_match(true);
+
+    char avc[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x65};
+    HELPER_EXPECT_SUCCESS(enc.write_video(0, avc, sizeof(avc)));
+    ASSERT_EQ(13, w.filesize());
+    EXPECT_EQ(0x04, (uint8_t)w.data()[4]);
+
+    SrsMediaPacket *msgs[] = {
+        flv_media_packet(SrsFrameTypeVideo, 40, false, 20),
+        flv_media_packet(SrsFrameTypeAudio, 23, false, 8),
+    };
+    HELPER_EXPECT_SUCCESS(enc.write_tags(msgs, 2));
+    ASSERT_EQ(13 + (11 + 8 + 4), w.filesize());
+    EXPECT_EQ(SrsFrameTypeAudio, (uint8_t)w.data()[13]);
+
+    for (int i = 0; i < 2; i++) {
+        srs_freep(msgs[i]);
+    }
+}
+
+// An HTTP-FLV mount for a video-only stream, with has_audio off and guess_has_av off, gets an FLV header
+// with video only. With drop_if_not_match on, an audio frame is dropped and the video frame is written.
+VOID TEST(KernelFlvTest, HttpFlvHasAudioOffDropsAudioTags)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    HELPER_ASSERT_SUCCESS(w.open(""));
+    SrsFlvStreamEncoder enc;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&w, NULL));
+    enc.set_guess_has_av(false);
+    enc.set_has_audio(false);
+    enc.set_has_video(true);
+    enc.set_drop_if_not_match(true);
+
+    char aac[] = {(char)0xaf, 0x01, 0x21, 0x10, 0x04, 0x60};
+    HELPER_EXPECT_SUCCESS(enc.write_audio(0, aac, sizeof(aac)));
+    ASSERT_EQ(13, w.filesize());
+    EXPECT_EQ(0x01, (uint8_t)w.data()[4]);
+
+    char avc[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x65};
+    HELPER_EXPECT_SUCCESS(enc.write_video(0, avc, sizeof(avc)));
+    ASSERT_EQ(13 + (11 + 6 + 4), w.filesize());
+    EXPECT_EQ(SrsFrameTypeVideo, (uint8_t)w.data()[13]);
 }
