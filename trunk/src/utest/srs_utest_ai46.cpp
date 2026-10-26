@@ -2093,6 +2093,89 @@ VOID TEST(AppUtilityTest, HostDropsUdpForFullReceiveBuffer_DropsSinceLastSample)
     EXPECT_EQ(0, srs_get_udp_snmp_stat()->rcv_buf_errors_delta_);
 }
 
+// Sends n 1KB datagrams from a UDP socket with the smallest send buffer to the address, without waiting. Returns the sends
+// that failed for a full send buffer.
+static int utility_utest_udp_send_full(const sockaddr_in &addr, int n)
+{
+    int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    int size = 1;
+    ::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    int failed = 0;
+    for (int i = 0; i < n; i++) {
+        if (::sendto(fd, buf, sizeof(buf), MSG_DONTWAIT, (sockaddr *)&addr, sizeof(addr)) < 0 && errno == EAGAIN) {
+            failed++;
+        }
+    }
+
+    ::close(fd);
+    return failed;
+}
+
+// A WebRTC server sending to a browser on its LAN that went away, such as a laptop that left the Wi-Fi: no host answers ARP
+// for the address, so the kernel holds the datagrams while it asks, the small send buffer fills, and the next sends fail.
+// The peer is the last addresses of the subnet of the host's first IPv4 interface other than the loopback, such as
+// 172.17.255.254 in Docker, the first one no host answers. Returns the sends that failed, or 0 if every address answered.
+static int utility_utest_udp_send_to_gone_lan_peer(int n)
+{
+    ifaddrs *ifap = NULL;
+    if (srs_getifaddrs(&ifap) != 0) {
+        return 0;
+    }
+
+    int failed = 0;
+    for (ifaddrs *p = ifap; p && !failed; p = p->ifa_next) {
+        if (!p->ifa_addr || !p->ifa_netmask || p->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+        if ((p->ifa_flags & IFF_LOOPBACK) || !(p->ifa_flags & IFF_UP)) {
+            continue;
+        }
+
+        uint32_t self = ntohl(((sockaddr_in *)p->ifa_addr)->sin_addr.s_addr);
+        uint32_t mask = ntohl(((sockaddr_in *)p->ifa_netmask)->sin_addr.s_addr);
+        uint32_t broadcast = (self & mask) | ~mask;
+        for (uint32_t i = 1; i <= 3 && i < ~mask && !failed; i++) {
+            uint32_t peer = broadcast - i;
+            if (peer == self) {
+                continue;
+            }
+
+            sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(9);
+            addr.sin_addr.s_addr = htonl(peer);
+            failed = utility_utest_udp_send_full(addr, n);
+        }
+    }
+
+    srs_freeifaddrs(ifap);
+    return failed;
+}
+
+// The host failing UDP sends for a full send buffer, as a WebRTC server sending to a LAN peer that went away, then failing
+// more before the server's next sample of /proc/net/snmp: the stat has the send buffer errors since the last sample, which
+// the RTC server logs as loss, and none once the errors stop.
+VOID TEST(AppUtilityTest, LanPeerGoneFillsSendBuffer_SendErrorsSinceLastSample)
+{
+    ASSERT_GT(utility_utest_udp_send_to_gone_lan_peer(100), 0);
+    srs_update_udp_snmp_statistic();
+    SrsSnmpUdpStat *stat = srs_get_udp_snmp_stat();
+    EXPECT_TRUE(stat->ok_);
+    EXPECT_GT(stat->snd_buf_errors_, 0u);
+
+    int failed = utility_utest_udp_send_to_gone_lan_peer(100);
+    ASSERT_GT(failed, 0);
+    srs_update_udp_snmp_statistic();
+    EXPECT_EQ(failed, srs_get_udp_snmp_stat()->snd_buf_errors_delta_);
+
+    srs_update_udp_snmp_statistic();
+    EXPECT_EQ(0, srs_get_udp_snmp_stat()->snd_buf_errors_delta_);
+}
+
 // The first interface of the host that /proc/net/dev lists and that has an IPv4 address other than the loopback, such as
 // eth0, or empty if none.
 static string utility_utest_host_interface()
