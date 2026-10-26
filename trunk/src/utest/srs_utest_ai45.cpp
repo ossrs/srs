@@ -35,8 +35,12 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
+#include <srs_utest_manual_protocol.hpp>
 #include <srs_utest_manual_service.hpp>
 #ifdef SRS_RTSP
+#include <srs_app_rtsp_conn.hpp>
+#include <srs_app_rtsp_source.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_utest_ai22.hpp>
 #endif
 
@@ -3256,3 +3260,534 @@ VOID TEST(AppRtmpSourceTest, HttpPlayerJoinsBeforeFastCacheFilled_GetsNothing)
     HELPER_EXPECT_SUCCESS(cache.dump_packets(player, false, SrsRtmpJitterAlgorithmFULL));
     EXPECT_STREQ("", rtmp_source_utest_got(player).c_str());
 }
+
+#ifdef SRS_RTSP
+// The TCP connection of an RTSP client. The server reads what the client sent and waits for more, as on a socket; an
+// interrupt of the reading coroutine ends the read, as it does on a socket. What the server writes is kept, and the
+// writes fail from the given one on, as when the client is gone.
+class RtspConnUtestIO : public MockBufferIO
+{
+public:
+    srs_cond_t readable_;
+    bool closed_;
+    int nb_writes_;
+    int fail_from_write_;
+
+public:
+    RtspConnUtestIO()
+    {
+        readable_ = srs_cond_new();
+        closed_ = false;
+        nb_writes_ = 0;
+        fail_from_write_ = 0;
+    }
+    virtual ~RtspConnUtestIO()
+    {
+        srs_cond_destroy(readable_);
+    }
+
+public:
+    void client_sends(std::string data)
+    {
+        append(data);
+        srs_cond_signal(readable_);
+    }
+    // The client closes the connection: what it sent is read, then the reads fail, and so do the writes.
+    void client_closes()
+    {
+        closed_ = true;
+        fail_from_write_ = nb_writes_ + 1;
+        srs_cond_signal(readable_);
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        while (in_buffer.length() <= 0) {
+            if (closed_) {
+                return srs_error_new(ERROR_SOCKET_READ, "connection closed by peer");
+            }
+            if (srs_cond_wait(readable_) != 0) {
+                return srs_error_new(ERROR_SOCKET_READ, "read interrupted");
+            }
+        }
+        return MockBufferIO::read(buf, size, nread);
+    }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        nb_writes_++;
+        if (fail_from_write_ && nb_writes_ >= fail_from_write_) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        }
+        return MockBufferIO::write(buf, size, nwrite);
+    }
+};
+
+// An RTSP player of the live app, served by the real SrsRtspConnection and SrsRtspStack over RtspConnUtestIO, with the
+// vhost from config text. The stream is in the server's RTSP sources with an AAC and an H.264 track, so the player that
+// PLAY makes takes the packets the stream gets, and the server's statistic counts the client.
+class RtspConnUtestClient : public ISrsCoroutineHandler
+{
+public:
+    MockSrsConfig conf_;
+    RtmpConnUtestHooks hooks_;
+    MockResourceManagerForRtspConn manager_;
+    RtspConnUtestIO *io_;
+    SrsRtspConnection *conn_;
+    SrsSharedPtr<SrsRtspSource> source_;
+    std::string stream_;
+    int cseq_;
+    srs_error_t err_;
+    bool done_;
+    bool whole_cycle_;
+
+public:
+    RtspConnUtestClient()
+    {
+        io_ = NULL;
+        conn_ = NULL;
+        cseq_ = 0;
+        err_ = srs_success;
+        done_ = false;
+        whole_cycle_ = true;
+    }
+    virtual ~RtspConnUtestClient()
+    {
+        if (conn_) {
+            // Ends the serve as the server does, so the client leaves the server's statistic.
+            conn_->trd_->stop();
+            if (!whole_cycle_) {
+                conn_->do_teardown();
+            }
+        }
+        srs_freep(conn_);
+        srs_freep(err_);
+    }
+
+public:
+    srs_error_t open(std::string text, std::string stream)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(std::string(_MIN_OK_CONF) + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+
+        stream_ = stream;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        req.app_ = "live";
+        req.stream_ = stream;
+        if ((err = _srs_rtsp_sources->fetch_or_create(&req, source_)) != srs_success) {
+            return srs_error_wrap(err, "source");
+        }
+
+        SrsUniquePtr<SrsRtcTrackDescription> audio(new SrsRtcTrackDescription());
+        audio->type_ = "audio";
+        audio->ssrc_ = 1001;
+        SrsAudioPayload *aac = new SrsAudioPayload(97, "MPEG4-GENERIC", 44100, 2);
+        aac->aac_config_hex_ = "1210";
+        audio->media_ = aac;
+        source_->set_audio_desc(audio.get());
+
+        SrsUniquePtr<SrsRtcTrackDescription> video(new SrsRtcTrackDescription());
+        video->type_ = "video";
+        video->ssrc_ = 2001;
+        video->media_ = new SrsVideoPayload(96, "H264", 90000);
+        source_->set_video_desc(video.get());
+
+        io_ = new RtspConnUtestIO();
+        conn_ = new SrsRtspConnection(&manager_, io_, "192.168.1.100", 50000);
+        conn_->config_ = &conf_;
+        conn_->hooks_ = &hooks_;
+        conn_->assemble();
+        dynamic_cast<SrsSecurity *>(conn_->security_)->config_ = &conf_;
+
+        // Serve the client in a coroutine of this object, which keeps what the connection returned.
+        srs_freep(conn_->trd_);
+        conn_->trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
+
+        return err;
+    }
+    srs_error_t start()
+    {
+        return conn_->start();
+    }
+    // The client sends a request of the stream, with the path after the stream's URL and the headers.
+    void request(std::string method, std::string path = "", std::string headers = "")
+    {
+        io_->client_sends(request_text(method, path, headers));
+    }
+    std::string request_text(std::string method, std::string path = "", std::string headers = "")
+    {
+        std::stringstream ss;
+        ss << method << " rtsp://127.0.0.1:8554/live/" << stream_ << path << " RTSP/1.0\r\n"
+           << "CSeq: " << ++cseq_ << "\r\n"
+           << headers << "\r\n";
+        return ss.str();
+    }
+    // The client sets up a track over TCP, as VLC with --rtsp-tcp or ffplay -rtsp_transport tcp do.
+    void setup_tcp(int track, int channel)
+    {
+        std::stringstream ss;
+        ss << "Transport: RTP/AVP/TCP;unicast;interleaved=" << channel << "-" << channel + 1 << "\r\n";
+        request("SETUP", "/trackID=" + srs_strconv_format_int(track), ss.str());
+    }
+    // The publisher of the stream sends a packet of its audio or video track.
+    srs_error_t publish(bool audio, uint16_t seq)
+    {
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+        pkt->header_.set_ssrc(audio ? 1001 : 2001);
+        pkt->header_.set_payload_type(audio ? 97 : 96);
+        pkt->header_.set_sequence(seq);
+        pkt->header_.set_timestamp(seq * 1024);
+        pkt->frame_type_ = audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
+
+        SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+        raw->nn_payload_ = 4;
+        raw->payload_ = pkt->wrap(raw->nn_payload_);
+        memset(raw->payload_, audio ? 0xaa : 0x55, raw->nn_payload_);
+        pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+        return source_->on_rtp(pkt.get());
+    }
+    // What the client got, in order: the status of each answer, and "$<channel>" for each interleaved frame.
+    std::string got()
+    {
+        std::string out(io_->out_buffer.bytes(), io_->out_buffer.length());
+        std::string s;
+        size_t pos = 0;
+        while (pos < out.size()) {
+            std::string item;
+            if (out[pos] == '$') {
+                int size = (pos + 4 > out.size()) ? 0 : (((uint8_t)out[pos + 2] << 8) | (uint8_t)out[pos + 3]);
+                if (pos + 4 > out.size() || pos + 4 + size > out.size()) {
+                    return s + (s.empty() ? "" : ",") + "cut";
+                }
+                item = "$" + srs_strconv_format_int((uint8_t)out[pos + 1]);
+                pos += 4 + size;
+            } else {
+                size_t end = out.find("\r\n\r\n", pos);
+                if (end == std::string::npos) {
+                    return s + (s.empty() ? "" : ",") + "cut";
+                }
+                std::string header = out.substr(pos, end - pos);
+                item = header.substr(9, 3);
+                pos = end + 4;
+                size_t cl = header.find("Content-Length: ");
+                if (cl != std::string::npos) {
+                    pos += ::atoi(header.c_str() + cl + 16);
+                }
+            }
+            s += (s.empty() ? "" : ",") + item;
+        }
+        return s;
+    }
+    // Waits at most about 2s for the client to get the items.
+    void wait_got(std::string expect)
+    {
+        for (int i = 0; i < 2000 && got() != expect; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    // PLAY is answered before its player starts; waits at most about 2s for the player to join the stream, as the
+    // packets before it are not for this player.
+    void wait_playing()
+    {
+        for (int i = 0; i < 2000 && source_->consumers_.empty(); i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    void wait_done()
+    {
+        for (int i = 0; i < 2000 && !done_; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    SrsStatisticClient *stat_client()
+    {
+        return _srs_stat->find_client(conn_->cid_.c_str());
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        if (whole_cycle_) {
+            err_ = conn_->cycle();
+        } else {
+            err_ = conn_->do_cycle();
+        }
+        done_ = true;
+        return srs_success;
+    }
+};
+
+static const char *rtsp_conn_utest_hooks = "http_hooks { enabled on; on_play http://127.0.0.1:8085/api/v1/sessions; "
+                                           "on_stop http://127.0.0.1:8085/api/v1/sessions; }";
+
+// A player that wants only the video, such as a video wall or an analytics client, sets up only the video track of
+// the two the DESCRIBE offers, then plays. It gets the video frames on its channel, the audio ones are not sent, and
+// the play goes on until its TEARDOWN, which ends it with on_stop.
+VOID TEST(AppRtspConnTest, PlayerSetsUpOnlyVideo_GetsOnlyVideoUntilTeardown)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(string("vhost __defaultVhost__ { ") + rtsp_conn_utest_hooks + " }", "rtsp-utest-video-only"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.setup_tcp(1, 2);
+    c.request("PLAY");
+    c.wait_got("200,200,200");
+    c.wait_playing();
+    ASSERT_STREQ("200,200,200", c.got().c_str());
+    ASSERT_TRUE(c.conn_->player_ != NULL);
+
+    for (uint16_t seq = 100; seq < 103; seq++) {
+        HELPER_EXPECT_SUCCESS(c.publish(true, seq));
+        HELPER_EXPECT_SUCCESS(c.publish(false, seq));
+    }
+    c.wait_got("200,200,200,$2,$2,$2");
+    EXPECT_STREQ("200,200,200,$2,$2,$2", c.got().c_str());
+    EXPECT_FALSE(c.done_);
+    EXPECT_TRUE(c.stat_client() != NULL);
+
+    c.request("TEARDOWN");
+    c.wait_got("200,200,200,$2,$2,$2,200");
+    EXPECT_STREQ("200,200,200,$2,$2,$2,200", c.got().c_str());
+    EXPECT_STREQ("on_play,on_stop", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.conn_->player_ == NULL);
+    EXPECT_TRUE(c.stat_client() == NULL);
+
+    c.io_->client_closes();
+    c.wait_done();
+    EXPECT_TRUE(c.done_);
+    EXPECT_EQ(1, c.manager_.remove_count_);
+    EXPECT_STREQ("on_play,on_stop", c.hooks_.called().c_str());
+}
+
+// VLC sets up a track over UDP first, as it does by default. The server serves only TCP, so it answers 461 Unsupported
+// Transport, and VLC sets the track up again over TCP, then plays it.
+VOID TEST(AppRtspConnTest, PlayerTriesUdpFirst_UnsupportedTransportThenTcpPlays)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open("vhost __defaultVhost__ { }", "rtsp-utest-udp-first"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.request("SETUP", "/trackID=0", "Transport: RTP/AVP;unicast;client_port=5000-5001\r\n");
+    c.wait_got("200,461");
+    ASSERT_STREQ("200,461", c.got().c_str());
+    EXPECT_TRUE(c.conn_->networks_.empty());
+
+    c.setup_tcp(0, 0);
+    c.request("PLAY");
+    c.wait_got("200,461,200,200");
+    c.wait_playing();
+    ASSERT_STREQ("200,461,200,200", c.got().c_str());
+
+    HELPER_EXPECT_SUCCESS(c.publish(true, 100));
+    HELPER_EXPECT_SUCCESS(c.publish(true, 101));
+    c.wait_got("200,461,200,200,$0,$0");
+    EXPECT_STREQ("200,461,200,200,$0,$0", c.got().c_str());
+}
+
+// A vhost whose security denies the client's address to play: the DESCRIBE is answered 403 Forbidden, with no on_play
+// and no client in the statistic, and the PLAY after it is not valid, for no track is set up.
+VOID TEST(AppRtspConnTest, PlayerDeniedBySecurity_ForbiddenWithNoHook)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(string("vhost __defaultVhost__ { ") + rtsp_conn_utest_hooks +
+                                     " security { enabled on; deny play 192.168.1.100; } }",
+                                 "rtsp-utest-denied"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.request("PLAY");
+    c.wait_got("403,455");
+    EXPECT_STREQ("403,455", c.got().c_str());
+    EXPECT_STREQ("", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.stat_client() == NULL);
+    EXPECT_TRUE(c.conn_->player_ == NULL);
+}
+
+// The client is gone when the server answers one of its requests: in the play flow, in each answer that refuses a
+// request, and while it plays. The write fails and the connection ends at that answer, with the answers before it
+// sent.
+VOID TEST(AppRtspConnTest, ClientGoneAtEachAnswer_ConnectionEnds)
+{
+    // DESCRIBE, SETUP with no Transport, PLAY with no SETUP, SETUP over UDP, SETUP over TCP, PLAY, DESCRIBE and SETUP
+    // while playing, TEARDOWN.
+    const char *answers[] = {"200", "400", "455", "461", "200", "200", "455", "455", "200"};
+    const char *wraps[] = {"response describe", "response setup", "response play", "response setup", "response setup",
+                           "response record", "response describe", "response setup", "response teardown"};
+
+    for (int i = 0; i < 9; i++) {
+        RtspConnUtestClient c;
+        c.whole_cycle_ = false;
+        srs_error_t err = c.open("vhost __defaultVhost__ { }", "rtsp-utest-gone-" + srs_strconv_format_int(i));
+        HELPER_ASSERT_SUCCESS(err);
+        c.io_->fail_from_write_ = i + 1;
+
+        std::string script = c.request_text("DESCRIBE");
+        script += c.request_text("SETUP", "/trackID=1");
+        script += c.request_text("PLAY");
+        script += c.request_text("SETUP", "/trackID=1", "Transport: RTP/AVP;unicast;client_port=5000-5001\r\n");
+        script += c.request_text("SETUP", "/trackID=1", "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n");
+        script += c.request_text("PLAY");
+        script += c.request_text("DESCRIBE");
+        script += c.request_text("SETUP", "/trackID=0", "Transport: RTP/AVP/TCP;unicast;interleaved=2-3\r\n");
+        script += c.request_text("TEARDOWN");
+        c.io_->client_sends(script);
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_done();
+
+        ASSERT_TRUE(c.done_) << i;
+        std::string expect;
+        for (int j = 0; j < i; j++) {
+            expect += (j ? "," : "") + std::string(answers[j]);
+        }
+        EXPECT_STREQ(expect.c_str(), c.got().c_str()) << i;
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(c.err_)) << i << srs_error_desc(c.err_);
+        EXPECT_NE(string::npos, srs_error_desc(c.err_).find(wraps[i])) << i << srs_error_desc(c.err_);
+    }
+}
+
+// The player is gone while it plays: the write of a frame's 4-byte interleaved header fails, or the header is sent and
+// the write of its packet fails, as a peer that resets between the two sends. The player drops the frame, and the
+// connection ends at its next read, with on_stop, the client out of the statistic and the player off the stream.
+VOID TEST(AppRtspConnTest, PlayerGoneWhilePlaying_FrameDroppedAndConnectionEnds)
+{
+    srs_error_t err;
+
+    const char *gots[] = {"200,200,200", "200,200,200,cut"};
+    for (int i = 0; i < 2; i++) {
+        RtspConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(string("vhost __defaultVhost__ { ") + rtsp_conn_utest_hooks + " }", "rtsp-utest-gone-playing"));
+        HELPER_ASSERT_SUCCESS(c.start());
+
+        c.request("DESCRIBE");
+        c.setup_tcp(1, 0);
+        c.request("PLAY");
+        c.wait_got("200,200,200");
+        c.wait_playing();
+        ASSERT_STREQ("200,200,200", c.got().c_str());
+
+        // The three answers are the first three writes; the first frame's header is the fourth, its packet the fifth.
+        // The player tries the next frame too, whose header fails.
+        c.io_->fail_from_write_ = 4 + i;
+        HELPER_EXPECT_SUCCESS(c.publish(false, 100));
+        HELPER_EXPECT_SUCCESS(c.publish(false, 101));
+        for (int j = 0; j < 2000 && c.io_->nb_writes_ < 5 + i; j++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+        EXPECT_EQ(5 + i, c.io_->nb_writes_) << i;
+        EXPECT_STREQ(gots[i], c.got().c_str()) << i;
+        EXPECT_FALSE(c.done_) << i;
+
+        c.io_->client_closes();
+        c.wait_done();
+        ASSERT_TRUE(c.done_) << i;
+        EXPECT_STREQ("on_play,on_stop", c.hooks_.called().c_str()) << i;
+        EXPECT_TRUE(c.stat_client() == NULL) << i;
+        EXPECT_TRUE(c.source_->consumers_.empty()) << i;
+        EXPECT_EQ(1, c.manager_.remove_count_) << i;
+    }
+}
+
+// The API kicks an RTSP player off (DELETE /api/v1/clients/{id}), which expires its connection, as it does for
+// every client in the statistic. The connection ends with on_stop, and the player leaves the stream.
+VOID TEST(AppRtspConnTest, PlayerKickedByApi_PlayEndsWithOnStop)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(string("vhost __defaultVhost__ { ") + rtsp_conn_utest_hooks + " }", "rtsp-utest-kicked"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.setup_tcp(1, 0);
+    c.request("PLAY");
+    c.wait_got("200,200,200");
+    c.wait_playing();
+    ASSERT_STREQ("200,200,200", c.got().c_str());
+    HELPER_EXPECT_SUCCESS(c.publish(false, 100));
+    HELPER_EXPECT_SUCCESS(c.publish(false, 101));
+    c.wait_got("200,200,200,$0,$0");
+    ASSERT_STREQ("200,200,200,$0,$0", c.got().c_str());
+
+    SrsStatisticClient *client = c.stat_client();
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(client->conn_ != NULL);
+    client->conn_->expire();
+    c.wait_done();
+
+    ASSERT_TRUE(c.done_);
+    EXPECT_STREQ("on_play,on_stop", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.stat_client() == NULL);
+    EXPECT_TRUE(c.source_->consumers_.empty());
+    EXPECT_EQ(1, c.manager_.remove_count_);
+}
+
+// State Threads cannot make the coroutine of the player at PLAY, as when the server is out of memory. The PLAY was
+// answered before, so the client got 200, then the connection ends, and the play's hooks are paired.
+VOID TEST(AppRtspConnTest, NoCoroutineForPlayer_ConnectionEndsAfterPlayAnswer)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    c.whole_cycle_ = false;
+    HELPER_ASSERT_SUCCESS(c.open(string("vhost __defaultVhost__ { ") + rtsp_conn_utest_hooks + " }", "rtsp-utest-no-coroutine"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.setup_tcp(1, 0);
+    c.wait_got("200,200");
+    ASSERT_STREQ("200,200", c.got().c_str());
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)rtmp_conn_utest_st_thread_create_out_of_memory;
+    c.request("PLAY");
+    c.wait_done();
+    _pfn_st_thread_create = ov;
+
+    ASSERT_TRUE(c.done_);
+    EXPECT_STREQ("200,200,200", c.got().c_str());
+    rtmp_conn_utest_expect(c.err_, ERROR_ST_CREATE_CYCLE_THREAD, "start play");
+    c.err_ = srs_success;
+
+    // The server ends the serve with the teardown, as SrsRtspConnection::cycle does.
+    HELPER_EXPECT_SUCCESS(c.conn_->do_teardown());
+    EXPECT_STREQ("on_play,on_stop", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.stat_client() == NULL);
+    EXPECT_TRUE(c.source_->consumers_.empty());
+}
+
+// A player that plays a stream gets each packet the stream gets, at once: the play does not merge writes. The player
+// waits for two packets, so the last packet the stream got waits for the next one: the end of each frame waits for
+// the next frame, and the last packet before the publisher pauses or stops is never sent (B56).
+VOID TEST(AppRtspConnTest, DISABLED_PlayerOfLonePacket_HeldUntilNextPacket)
+{
+    srs_error_t err;
+
+    RtspConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open("vhost __defaultVhost__ { }", "rtsp-utest-lone-packet"));
+    HELPER_ASSERT_SUCCESS(c.start());
+
+    c.request("DESCRIBE");
+    c.setup_tcp(1, 0);
+    c.request("PLAY");
+    c.wait_got("200,200,200");
+    c.wait_playing();
+    ASSERT_STREQ("200,200,200", c.got().c_str());
+
+    HELPER_EXPECT_SUCCESS(c.publish(false, 100));
+    c.wait_got("200,200,200,$0");
+    EXPECT_STREQ("200,200,200,$0", c.got().c_str());
+}
+#endif
