@@ -48,6 +48,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -56,6 +57,8 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -4543,3 +4546,238 @@ VOID TEST(ProtocolRtspStackTest, DISABLED_RequestCutBetweenCrAndLf_HeadersAfterI
     srs_freep(next);
 }
 #endif
+
+// A WHIP offer as a browser publishes it: Opus audio and H.264 video, sendonly, with the
+// transport-wide-cc extension. The caller gives the H.264 fmtp and may add session-level and
+// video-level lines.
+static string sdp_whip_offer(const string &h264_fmtp, const string &session_lines = "", const string &video_lines = "")
+{
+    return "v=0\r\n"
+           "o=- 4611731400430051336 2 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n" +
+           session_lines +
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0 1\r\n"
+           "a=msid-semantic: WMS\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:Vx3d\r\n"
+           "a=ice-pwd:fA0Ttk8rMDpEgG4e5w3bU1xq\r\n"
+           "a=fingerprint:sha-256 4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB:3B:45:7D:DD:61:8F:0C:5E:6B:0A:9A:B1\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:0\r\n"
+           "a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n"
+           "a=sendonly\r\n"
+           "a=msid:- a1\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtpmap:111 opus/48000/2\r\n"
+           "a=rtcp-fb:111 transport-cc\r\n"
+           "a=fmtp:111 minptime=10;useinbandfec=1\r\n"
+           "a=ssrc:1001 cname:browser\r\n"
+           "m=video 9 UDP/TLS/RTP/SAVPF 102\r\n"
+           "c=IN IP4 0.0.0.0\r\n" +
+           video_lines +
+           "a=ice-ufrag:Vx3d\r\n"
+           "a=ice-pwd:fA0Ttk8rMDpEgG4e5w3bU1xq\r\n"
+           "a=fingerprint:sha-256 4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB:3B:45:7D:DD:61:8F:0C:5E:6B:0A:9A:B1\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:1\r\n"
+           "a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n"
+           "a=sendonly\r\n"
+           "a=msid:- v1\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtcp-rsize\r\n"
+           "a=rtpmap:102 H264/90000\r\n"
+           "a=rtcp-fb:102 nack\r\n"
+           "a=rtcp-fb:102 nack pli\r\n"
+           "a=rtcp-fb:102 transport-cc\r\n"
+           "a=fmtp:102 " +
+           h264_fmtp + "\r\n"
+                       "a=ssrc:2001 cname:browser\r\n";
+}
+
+// The server answers a WHIP publisher. The negotiator builds the answer's media, then the
+// connection sets the ICE credentials, the DTLS fingerprint and role and the host candidates
+// (rtc_server.protocol all: one UDP and one ICE-TCP candidate) on every media, as
+// SrsRtcConnection::generate_local_sdp does, and the API encodes it. The browser reads its ICE
+// password, fingerprint and DTLS role back from every media and connects to the candidates.
+VOID TEST(ProtocolSdpTest, WhipAnswerCarriesIceFingerprintAndCandidates)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcUserConfig ruc;
+    ruc.req_->vhost_ = "__defaultVhost__";
+    ruc.publish_ = true;
+    ruc.remote_sdp_str_ = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    HELPER_ASSERT_SUCCESS(ruc.remote_sdp_.parse(ruc.remote_sdp_str_));
+
+    SrsRtcPublisherNegotiator negotiator;
+    SrsRtcSourceDescription stream_desc;
+    HELPER_ASSERT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
+
+    SrsSdp local_sdp;
+    HELPER_ASSERT_SUCCESS(negotiator.generate_publish_local_sdp(ruc.req_, local_sdp, &stream_desc, ruc.remote_sdp_.is_unified(), ruc.audio_before_video_));
+
+    SrsRand rand;
+    const string ufrag = rand.gen_str(8);
+    const string pwd = rand.gen_str(32);
+    const string fingerprint = "9C:1F:0E:3B:6A:2D:5E:44:81:07:C2:9A:B3:5F:6E:12:D4:70:8B:3C:2E:91:A6:05:7D:4B:E8:C1:36:0F:5A:22";
+    local_sdp.set_ice_ufrag(ufrag);
+    local_sdp.set_ice_pwd(pwd);
+    local_sdp.set_fingerprint_algo("sha-256");
+    local_sdp.set_fingerprint(fingerprint);
+    local_sdp.add_candidate("udp", "192.168.1.10", 8000, "host");
+    local_sdp.add_candidate("tcp", "192.168.1.10", 8000, "host");
+    local_sdp.set_dtls_role("passive");
+
+    std::ostringstream os;
+    HELPER_ASSERT_SUCCESS(local_sdp.encode(os));
+    string answer = os.str();
+
+    // Each media carries both candidates, with the host type preference 126 and component 1:
+    // (2^24)*126 + (2^8)*65535 + 255 = 2130706431. The ICE-TCP one is passive (RFC 6544): the
+    // browser connects to the server.
+    const string udp_candidate = "a=candidate:0 1 udp 2130706431 192.168.1.10 8000 typ host generation 0\r\n";
+    const string tcp_candidate = "a=candidate:1 1 tcp 2130706431 192.168.1.10 8000 typ host tcptype passive\r\n";
+    size_t video = answer.find("m=video");
+    ASSERT_NE(string::npos, video) << answer;
+    EXPECT_NE(string::npos, answer.find(udp_candidate)) << answer;
+    EXPECT_LT(answer.find(udp_candidate), video) << answer;
+    EXPECT_NE(string::npos, answer.find(udp_candidate, video)) << answer;
+    EXPECT_NE(string::npos, answer.find(tcp_candidate, video)) << answer;
+    EXPECT_NE(string::npos, answer.find("a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n", video)) << answer;
+    EXPECT_NE(string::npos, answer.find("a=recvonly\r\n", video)) << answer;
+
+    // The browser parses the answer and finds the same credentials on each media.
+    SrsSdp browser;
+    HELPER_ASSERT_SUCCESS(browser.parse(answer));
+    ASSERT_EQ(2, (int)browser.media_descs_.size());
+    EXPECT_EQ(ufrag, browser.get_ice_ufrag());
+    EXPECT_EQ(pwd, browser.get_ice_pwd());
+    EXPECT_EQ("passive", browser.get_dtls_role());
+    for (size_t i = 0; i < browser.media_descs_.size(); ++i) {
+        SrsMediaDesc &desc = browser.media_descs_[i];
+        EXPECT_EQ(ufrag, desc.session_info_.ice_ufrag_);
+        EXPECT_EQ(pwd, desc.session_info_.ice_pwd_);
+        EXPECT_EQ("sha-256", desc.session_info_.fingerprint_algo_);
+        EXPECT_EQ(fingerprint, desc.session_info_.fingerprint_);
+    }
+    EXPECT_EQ("0", browser.media_descs_[0].mid_);
+    EXPECT_EQ("1", browser.media_descs_[1].mid_);
+}
+
+// A publisher that caps its bitrate sends bandwidth lines (RFC 4566 5.8, b=AS or b=TIAS, as
+// browsers write for a maxBitrate) and may name the session with an i= line. The server ignores
+// them, and the attributes after a bandwidth line still belong to the video media.
+VOID TEST(ProtocolSdpTest, PublisherOfferWithBandwidthLines_Accepted)
+{
+    srs_error_t err = srs_success;
+
+    string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+                                  "i=WHIP publisher\r\nb=AS:3000\r\n", "b=AS:2500\r\nb=TIAS:2500000\r\n");
+    SrsSdp sdp;
+    HELPER_ASSERT_SUCCESS(sdp.parse(offer));
+
+    ASSERT_EQ(2, (int)sdp.media_descs_.size());
+    SrsMediaDesc &video = sdp.media_descs_[1];
+    EXPECT_EQ("video", video.type_);
+    EXPECT_EQ("1", video.mid_);
+    EXPECT_TRUE(video.sendonly_);
+    EXPECT_TRUE(video.rtcp_mux_);
+    ASSERT_TRUE(video.find_media_with_payload_type(102) != NULL);
+    EXPECT_EQ("H264", video.find_media_with_payload_type(102)->encoding_name_);
+    ASSERT_EQ(1, (int)video.ssrc_infos_.size());
+    EXPECT_EQ(2001u, video.ssrc_infos_[0].ssrc_);
+    EXPECT_EQ("Vx3d", sdp.get_ice_ufrag());
+}
+
+// An offer whose rtpmap does not describe a payload of its m-line is refused with the SDP decode
+// error: an application that munged the m-line to drop a codec but kept its rtpmap, and an rtpmap
+// with no clock rate.
+VOID TEST(ProtocolSdpTest, OfferWithRtpmapNotMatchingMLine_Refused)
+{
+    srs_error_t err = srs_success;
+
+    // The app removed VP8 (96) from the m-line but kept its attributes.
+    string munged = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f", "",
+                                   "a=rtpmap:96 VP8/90000\r\n");
+    SrsSdp sdp;
+    err = sdp.parse(munged);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("can not find payload 96")) << srs_error_desc(err);
+    srs_freep(err);
+
+    // The rtpmap of the H.264 payload has no clock rate.
+    string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
+    size_t pos = offer.find("a=rtpmap:102 H264/90000");
+    ASSERT_NE(string::npos, pos);
+    offer.replace(pos, strlen("a=rtpmap:102 H264/90000"), "a=rtpmap:102 H264");
+    SrsSdp sdp2;
+    err = sdp2.parse(offer);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("invalid rtpmap line=102 H264")) << srs_error_desc(err);
+    srs_freep(err);
+}
+
+// A WHIP publisher whose H.264 fmtp leaves out level-asymmetry-allowed, an optional parameter
+// whose default is 0 (RFC 6184 8.1), as GStreamer's payloader writes it. srs_parse_h264_fmtp
+// refuses the fmtp, and the negotiator skips a payload it cannot parse instead of keeping it as a
+// backup, so the publish is refused with no H.264 match. The same offer with
+// level-asymmetry-allowed=0, which means the same, is accepted.
+VOID TEST(ProtocolSdpTest, DISABLED_WhipPublisherH264WithoutLevelAsymmetry_PublishRefused)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsRtcUserConfig ruc;
+        ruc.req_->vhost_ = "__defaultVhost__";
+        ruc.publish_ = true;
+        HELPER_ASSERT_SUCCESS(ruc.remote_sdp_.parse(sdp_whip_offer("level-asymmetry-allowed=0;packetization-mode=1;profile-level-id=42e01f")));
+
+        SrsRtcPublisherNegotiator negotiator;
+        SrsRtcSourceDescription stream_desc;
+        HELPER_ASSERT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
+        ASSERT_EQ(1, (int)stream_desc.video_track_descs_.size());
+    }
+
+    SrsRtcUserConfig ruc;
+    ruc.req_->vhost_ = "__defaultVhost__";
+    ruc.publish_ = true;
+    HELPER_ASSERT_SUCCESS(ruc.remote_sdp_.parse(sdp_whip_offer("packetization-mode=1;profile-level-id=42e01f")));
+
+    SrsRtcPublisherNegotiator negotiator;
+    SrsRtcSourceDescription stream_desc;
+    HELPER_EXPECT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
+    ASSERT_EQ(1, (int)stream_desc.video_track_descs_.size());
+    EXPECT_EQ(102, (int)stream_desc.video_track_descs_[0]->media_->pt_);
+}
+
+// An offer whose ssrc-group, rtcp-fb or ssrc line ends right after its first word. The parser
+// takes the rest of the line with is.str().substr(is.tellg()), but the first word read to the end
+// of the line, so tellg() gives -1 and substr throws std::out_of_range. Nothing in the server
+// catches it: SrsGoApiRtcPublish and SrsGoApiRtcPlay parse the HTTP body before any hook, so one
+// request to the WHIP or WHEP API ends the process. The parser must refuse the line instead.
+VOID TEST(ProtocolSdpTest, DISABLED_OfferLineEndingAfterFirstWord_ParserThrows)
+{
+    const char *lines[] = {
+        "a=ssrc-group:FID",
+        "a=rtcp-fb:102",
+        "a=ssrc:2002 cname",
+    };
+
+    for (size_t i = 0; i < sizeof(lines) / sizeof(lines[0]); ++i) {
+        string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f") + lines[i] + "\r\n";
+
+        SrsSdp sdp;
+        srs_error_t err = srs_success;
+        bool thrown = false;
+        try {
+            err = sdp.parse(offer);
+        } catch (const std::exception &e) {
+            thrown = true;
+        }
+        EXPECT_FALSE(thrown) << lines[i];
+        EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err)) << lines[i];
+        srs_freep(err);
+    }
+}
