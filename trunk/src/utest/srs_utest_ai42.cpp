@@ -11,6 +11,7 @@
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_edge.hpp>
+#include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_ffmpeg.hpp>
@@ -3555,25 +3556,25 @@ VOID TEST(AppDvrTest, DISABLED_Mp4PublishWithNoFrame_TmpFileLeft)
     EXPECT_FALSE(s.exists(s.stream_path(".mp4.tmp")));
 }
 
-// The pithy print stages, with the edge stage set to print at each message, so the kbps line of a pull or a push is
-// logged at once, not after the configured 10s.
-class EdgeUtestPithyPrintScope
+// The pithy print stages, with one stage set to print at each call, so its line, such as the kbps line of an edge pull
+// or push, is logged at once, not after the configured 10s. Objects of the stage must be made inside the scope.
+class PithyPrintAtOnceScope
 {
 public:
     SrsStageManager stages_;
     SrsStageManager *saved_;
 
 public:
-    EdgeUtestPithyPrintScope()
+    PithyPrintAtOnceScope(SrsPithyPrint *(*create_stage)())
     {
         saved_ = _srs_stages;
         _srs_stages = &stages_;
 
-        SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_edge());
+        SrsUniquePtr<SrsPithyPrint> pprint(create_stage());
         pprint->elapse();
         pprint->cache_->interval_ = 0;
     }
-    ~EdgeUtestPithyPrintScope()
+    ~PithyPrintAtOnceScope()
     {
         _srs_stages = saved_;
     }
@@ -3743,7 +3744,7 @@ VOID TEST(AppEdgeTest, RtmpPullFromOrigin_SourceGetsStreamUntilOriginCloses)
     RtmpConnTestOrigin origin(RtmpConnOriginServesThenCloses);
     HELPER_ASSERT_SUCCESS(origin.start());
 
-    EdgeUtestPithyPrintScope pithy;
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_edge);
     MockEdgeIngesterFixture f(1000);
     f.config_.origin_ = edge_utest_origin("127.0.0.1:" + srs_strconv_format_int(origin.get_port()));
     EdgeUtestUpstreamFactory factory(&f.config_);
@@ -4107,7 +4108,7 @@ VOID TEST(AppEdgeTest, PublisherControlMessages_OnlyMediaPushedToOrigin)
 {
     srs_error_t err;
 
-    EdgeUtestPithyPrintScope pithy;
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_edge);
     SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
     MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
     forwarder->sdk_ = sdk;
@@ -4234,4 +4235,336 @@ VOID TEST(AppEdgeTest, PlayerArrivesWhileEdgeStopsPull_RefusedThenNextPlayerPull
     HELPER_EXPECT_SUCCESS(edge->on_client_play());
     EXPECT_TRUE(ingester->start_called_);
     EXPECT_EQ(SrsEdgeStatePlay, edge->state_);
+}
+
+// What the FFmpeg engines of a test encoder did, kept after the encoder frees them.
+class EncoderUtestEngines
+{
+public:
+    int starts_;
+    int cycles_;
+    int stops_;
+    // The error each start returns a copy of, such as a fork that fails; owned here.
+    srs_error_t start_error_;
+
+public:
+    EncoderUtestEngines()
+    {
+        starts_ = 0;
+        cycles_ = 0;
+        stops_ = 0;
+        start_error_ = srs_success;
+    }
+    ~EncoderUtestEngines()
+    {
+        srs_freep(start_error_);
+    }
+};
+
+// An FFmpeg engine that forks no process: it records each start, check and stop.
+class EncoderUtestFFMPEG : public MockFFMPEGForEncoder
+{
+public:
+    EncoderUtestEngines *engines_;
+
+public:
+    EncoderUtestFFMPEG(EncoderUtestEngines *engines)
+    {
+        engines_ = engines;
+    }
+
+public:
+    virtual srs_error_t start()
+    {
+        engines_->starts_++;
+        return srs_error_copy(engines_->start_error_);
+    }
+    virtual srs_error_t cycle()
+    {
+        engines_->cycles_++;
+        return srs_success;
+    }
+    virtual void stop()
+    {
+        engines_->stops_++;
+    }
+};
+
+// The app factory of a test encoder. It makes the real FFmpeg engines, which read the test config, or with engines_
+// set, engines that fork nothing. It hands out coroutine_ as the next coroutine, or makes a real one.
+class EncoderUtestFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+    EncoderUtestEngines *engines_;
+    ISrsCoroutine *coroutine_;
+    int coroutines_;
+
+public:
+    EncoderUtestFactory(ISrsAppConfig *config)
+    {
+        config_ = config;
+        engines_ = NULL;
+        coroutine_ = NULL;
+        coroutines_ = 0;
+    }
+    virtual ~EncoderUtestFactory()
+    {
+        srs_freep(coroutine_);
+    }
+
+public:
+    virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin)
+    {
+        if (engines_) {
+            return new EncoderUtestFFMPEG(engines_);
+        }
+
+        SrsFFMPEG *ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        ffmpeg->config_ = config_;
+        return ffmpeg;
+    }
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+    {
+        coroutines_++;
+        if (!coroutine_) {
+            return SrsAppFactory::create_coroutine(name, handler, cid);
+        }
+
+        ISrsCoroutine *trd = coroutine_;
+        coroutine_ = NULL;
+        return trd;
+    }
+};
+
+// A stream published to vhost v, whose transcode sections the test gives: the encoder of the origin hub, with the
+// test config and factory, and its own list of transcoded outputs.
+class EncoderUtestStream
+{
+public:
+    MockSrsConfig conf_;
+    EncoderUtestFactory factory_;
+    vector<string> transcoded_urls_;
+    MockSrsRequest req_;
+    SrsEncoder *encoder_;
+
+public:
+    EncoderUtestStream(string app, string stream = "livestream") : factory_(&conf_), req_("v", app, stream)
+    {
+        encoder_ = new SrsEncoder();
+        encoder_->config_ = &conf_;
+        encoder_->app_factory_ = &factory_;
+        encoder_->transcoded_urls_ = &transcoded_urls_;
+    }
+    ~EncoderUtestStream()
+    {
+        srs_freep(encoder_);
+    }
+
+public:
+    // Loads the config, then the hub assembles the encoder and publishes the stream to it.
+    srs_error_t publish(string transcodes)
+    {
+        srs_error_t err = config_load(conf_, "vhost v { " + transcodes + " }");
+        if (err != srs_success) {
+            return srs_error_wrap(err, "load config");
+        }
+
+        encoder_->assemble();
+        return encoder_->on_publish(&req_);
+    }
+
+    // Waits up to 1s for the encoder coroutine to run.
+    void wait(int *count)
+    {
+        for (int i = 0; i < 100 && *count == 0; i++) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+};
+
+#define ENCODER_UTEST_FFMPEG "ffmpeg ./objs/ffmpeg/bin/ffmpeg; "
+#define ENCODER_UTEST_COPY "engine copy { enabled on; vcodec copy; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_copy; } "
+
+// The operator turns a transcode off, or leaves out its FFmpeg or its engines, at the vhost, app or stream scope: the
+// stream is published as it is, with no FFmpeg and no encoder coroutine.
+VOID TEST(AppEncoderTest, TranscodeOffOrIncomplete_StreamPublishedAsIs)
+{
+    srs_error_t err;
+
+    const char *cases[] = {
+        "transcode { enabled off; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "}",
+        "transcode live { enabled on; " ENCODER_UTEST_COPY "}",
+        "transcode live/livestream { enabled on; " ENCODER_UTEST_FFMPEG "}",
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        EncoderUtestStream s("live");
+        HELPER_EXPECT_SUCCESS(s.publish(cases[i]));
+        EXPECT_TRUE(s.encoder_->ffmpegs_.empty()) << cases[i];
+        EXPECT_EQ(0, s.factory_.coroutines_) << cases[i];
+        EXPECT_TRUE(s.transcoded_urls_.empty()) << cases[i];
+    }
+}
+
+// The operator turns one engine of the app's transcode off: only the other engine runs, and only its output is a
+// transcoded stream. The unpublish frees the engine and forgets its output.
+VOID TEST(AppEncoderTest, OneEngineTurnedOff_OnlyOtherEngineRuns)
+{
+    srs_error_t err;
+
+    EncoderUtestStream s("live");
+    s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+    HELPER_ASSERT_SUCCESS(s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG
+                                    "engine sd { enabled off; vcodec libx264; vbitrate 300; vprofile baseline; vpreset superfast;"
+                                    "    acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_sd; } " ENCODER_UTEST_COPY "}"));
+
+    ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
+    EXPECT_EQ("rtmp://127.0.0.1:1935/live/livestream_copy", s.encoder_->at(0)->output());
+    ASSERT_EQ(1, (int)s.transcoded_urls_.size());
+    EXPECT_EQ("rtmp://127.0.0.1:1935/live/livestream_copy", s.transcoded_urls_.at(0));
+    EXPECT_EQ(1, s.factory_.coroutines_);
+
+    s.encoder_->on_unpublish();
+    EXPECT_TRUE(s.encoder_->ffmpegs_.empty());
+    EXPECT_TRUE(s.transcoded_urls_.empty());
+}
+
+// An engine of the app's transcode re-encodes video with no profile, or names no vcodec, as an audio-only engine
+// would: FFmpeg can not run it, so the publish is refused. The copy engine made before it is freed and forgotten by
+// the unpublish that follows a refused publish.
+VOID TEST(AppEncoderTest, AppEngineWithoutVideoProfile_PublishRefused)
+{
+    const char *engines[] = {
+        "engine hd { enabled on; vcodec libx264; vbitrate 800; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; }",
+        "engine aac { enabled on; acodec libfdk_aac; abitrate 45; output rtmp://127.0.0.1:[port]/[app]/[stream]_aac; }",
+    };
+
+    for (int i = 0; i < (int)(sizeof(engines) / sizeof(engines[0])); i++) {
+        EncoderUtestStream s("live");
+        srs_error_t err = s.publish(string("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY) + engines[i] + " }");
+        EXPECT_EQ(ERROR_ENCODER_VPROFILE, srs_error_code(err)) << engines[i];
+        srs_freep(err);
+        EXPECT_EQ(0, s.factory_.coroutines_) << engines[i];
+
+        s.encoder_->on_unpublish();
+        EXPECT_TRUE(s.encoder_->ffmpegs_.empty()) << engines[i];
+        EXPECT_TRUE(s.transcoded_urls_.empty()) << engines[i];
+    }
+}
+
+// The transcode of one stream has an engine with no output: that stream's publish is refused, while another stream
+// of the same app, which the transcode does not match, is published as it is.
+VOID TEST(AppEncoderTest, StreamEngineWithoutOutput_PublishRefused)
+{
+    srs_error_t err;
+    string transcode = "transcode live/livestream { enabled on; " ENCODER_UTEST_FFMPEG "engine copy { enabled on; vcodec copy; acodec copy; } }";
+
+    if (true) {
+        EncoderUtestStream s("live");
+        err = s.publish(transcode);
+        EXPECT_EQ(ERROR_ENCODER_OUTPUT, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_TRUE(s.encoder_->ffmpegs_.empty());
+        EXPECT_TRUE(s.transcoded_urls_.empty());
+    }
+
+    if (true) {
+        EncoderUtestStream s("live", "other");
+        HELPER_EXPECT_SUCCESS(s.publish(transcode));
+        EXPECT_TRUE(s.encoder_->ffmpegs_.empty());
+        EXPECT_EQ(0, s.factory_.coroutines_);
+    }
+}
+
+// FFmpeg can not start, such as when the fork fails: the encoder logs it and retries after a while, and an unpublish
+// during that wait stops the encoder at once, not after the wait, stopping the engine.
+VOID TEST(AppEncoderTest, FfmpegFailsToStart_RetriedUntilUnpublish)
+{
+    srs_error_t err;
+
+    EncoderUtestEngines engines;
+    engines.start_error_ = srs_error_new(ERROR_ENCODER_FORK, "vfork process failed");
+    EncoderUtestStream s("live");
+    s.factory_.engines_ = &engines;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "}");
+    s.wait(&engines.starts_);
+    srs_utime_t starttime = srs_time_now_realtime();
+    s.encoder_->on_unpublish();
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    _srs_log = original_log;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(1, s.factory_.coroutines_);
+    EXPECT_EQ(1, engines.starts_);
+    EXPECT_EQ(0, engines.cycles_);
+    EXPECT_EQ(1, engines.stops_);
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+
+    int retries = 0;
+    for (int i = 0; i < (int)log.warns_.size(); i++) {
+        const string &w = log.warns_[i];
+        if (w.find("Encoder: Ignore error") == 0 && w.find("vfork process failed") != string::npos) {
+            retries++;
+        }
+    }
+    EXPECT_EQ(1, retries);
+}
+
+// The engine runs: each loop of the encoder checks it and logs the encoder line with the number of engines and the
+// input stream.
+VOID TEST(AppEncoderTest, EngineRuns_EncoderLineLogged)
+{
+    srs_error_t err;
+
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_encoder);
+    EncoderUtestEngines engines;
+    EncoderUtestStream s("live");
+    s.factory_.engines_ = &engines;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "}");
+    s.wait(&engines.cycles_);
+    s.encoder_->on_unpublish();
+
+    _srs_log = original_log;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(1, engines.starts_);
+    EXPECT_EQ(1, engines.cycles_);
+    EXPECT_EQ(1, engines.stops_);
+
+    int lines = 0;
+    for (int i = 0; i < (int)log.traces_.size(); i++) {
+        const string &t = log.traces_[i];
+        if (t.find("-> ENC time=") == 0 && t.find("encoders=1, input=v/live/livestream") != string::npos) {
+            lines++;
+        }
+    }
+    EXPECT_EQ(1, lines);
+}
+
+// full.conf says a vhost can hold several transcode sections, and the encoder looks for one of the vhost, one of the
+// app and one of the stream. But the config gives only the vhost's first transcode section, so a vhost transcoding
+// two apps transcodes only the first; the second app's streams are published with no transcode and no error.
+VOID TEST(AppEncoderTest, DISABLED_VhostWithTranscodeOfTwoApps_SecondAppNotTranscoded)
+{
+    srs_error_t err;
+
+    EncoderUtestStream s("game");
+    s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+    HELPER_ASSERT_SUCCESS(s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "} "
+                                    "transcode game { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "}"));
+
+    ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
+    EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_copy", s.encoder_->at(0)->output());
 }
