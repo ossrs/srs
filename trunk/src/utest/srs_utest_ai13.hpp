@@ -47,11 +47,17 @@ public:
     std::vector<int> on_hls_notify_nb_notifies_;
     int on_hls_notify_count_;
     srs_error_t on_hls_notify_error_;
+    // The on_hls calls, by the segment's ts url, and the error each call returns.
+    std::vector<std::string> on_hls_ts_urls_;
+    srs_error_t on_hls_error_;
 
 public:
     MockHttpHooksForHlsNotify();
     virtual ~MockHttpHooksForHlsNotify();
+    virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
+                               std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
+    void set_on_hls_error(srs_error_t err);
     void set_on_hls_notify_error(srs_error_t err);
     void reset();
 };

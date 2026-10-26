@@ -5,6 +5,8 @@
 //
 #include <srs_utest_ai42.hpp>
 
+#include <srs_app_async_call.hpp>
+#include <srs_app_hls.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
@@ -17,6 +19,7 @@
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -1155,4 +1158,122 @@ VOID TEST(ProtocolUtilityTest, DISABLED_PublicIpv4NicWithLinkLocalIpv6_MarkedInt
     EXPECT_FALSE(scope.ips()[1]->is_internet_);
 
     EXPECT_TRUE(utility.is_internet("ens6"));
+}
+
+// State Threads returns NULL when it cannot map the stack of a new coroutine, such as when the
+// process is out of memory or over its address space limit.
+static void *async_call_st_thread_create_out_of_memory(void *(* /*start*/)(void *arg), void * /*arg*/, int /*joinable*/, int /*stack_size*/)
+{
+    return NULL;
+}
+
+// A publisher starts a stream on a vhost with HLS, in TS or fMP4 segments. The HLS muxer starts the
+// worker that sends the on_hls and on_hls_notify callbacks when the stream is published. When no
+// coroutine can be created for it, the publish fails with the ST error, instead of writing segments
+// whose callbacks would never be sent. The unpublish after the failure stops the worker safely.
+VOID TEST(AppAsyncCallTest, HlsPublishFailsWhenNoCoroutineCanBeCreatedForCallbacks)
+{
+    srs_error_t err = srs_success;
+
+    MockHlsRequest req("__defaultVhost__", "live", "livestream");
+    SrsHlsMuxer ts_muxer;
+    SrsHlsFmp4Muxer fmp4_muxer;
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)async_call_st_thread_create_out_of_memory;
+    srs_error_t ts_err = ts_muxer.on_publish(&req);
+    srs_error_t fmp4_err = fmp4_muxer.on_publish(&req);
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(ts_err));
+    EXPECT_TRUE(srs_error_desc(ts_err).find("async start") != string::npos);
+    EXPECT_TRUE(srs_error_desc(ts_err).find("coroutine") != string::npos);
+    srs_freep(ts_err);
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(fmp4_err));
+    EXPECT_TRUE(srs_error_desc(fmp4_err).find("async start") != string::npos);
+    EXPECT_TRUE(srs_error_desc(fmp4_err).find("coroutine") != string::npos);
+    srs_freep(fmp4_err);
+
+    HELPER_EXPECT_SUCCESS(ts_muxer.on_unpublish());
+    HELPER_EXPECT_SUCCESS(fmp4_muxer.on_unpublish());
+}
+
+// Queue the callbacks of a reaped HLS segment as SrsHlsMuxer::do_segment_close does: on_hls, then
+// on_hls_notify, with the tasks' config and hooks set to the test's.
+static void async_call_reap_hls_segment(SrsAsyncCallWorker *worker, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks, int seq)
+{
+    srs_error_t err = srs_success;
+
+    string ts_url = "livestream-" + srs_strconv_format_int(seq) + ".ts";
+    SrsDvrAsyncCallOnHls *on_hls = new SrsDvrAsyncCallOnHls(SrsContextId(), req, "./objs/nginx/html/live/" + ts_url, ts_url,
+                                                            "./objs/nginx/html/live/livestream.m3u8", "livestream.m3u8", seq, 10 * SRS_UTIME_SECONDS);
+    on_hls->config_ = config;
+    on_hls->hooks_ = hooks;
+    HELPER_EXPECT_SUCCESS(worker->execute(on_hls));
+
+    SrsDvrAsyncCallOnHlsNotify *notify = new SrsDvrAsyncCallOnHlsNotify(SrsContextId(), req, ts_url);
+    notify->config_ = config;
+    notify->hooks_ = hooks;
+    HELPER_EXPECT_SUCCESS(worker->execute(notify));
+}
+
+// A segment is reaped and its on_hls and on_hls_notify callbacks are queued, in that order. The on_hls
+// backend refuses the first segment, such as an HTTP 500 while it restarts. The worker logs and drops
+// the failure, still sends the CDN notify of the same segment, and keeps sending the callbacks of the
+// next segment once the backend is back.
+VOID TEST(AppAsyncCallTest, HlsCallbacksGoOnWhenOnHlsBackendRefusesASegment)
+{
+    srs_error_t err = srs_success;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    MockHlsRequest req("__defaultVhost__", "live", "livestream");
+    MockAppConfigForHlsNotify config;
+    config.on_hls_directive_ = new SrsConfDirective();
+    config.on_hls_directive_->name_ = "on_hls";
+    config.on_hls_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/hls");
+    vector<string> notify_urls;
+    notify_urls.push_back("http://cdn.example.com/[app]/[stream]/[ts_url]");
+    config.set_on_hls_notify_urls(notify_urls);
+
+    MockHttpHooksForHlsNotify hooks;
+
+    SrsAsyncCallWorker worker;
+    HELPER_EXPECT_SUCCESS(worker.start());
+
+    // The backend answers HTTP 500 for the first segment.
+    srs_error_t refused = srs_error_new(ERROR_HTTP_STATUS_INVALID, "http: status 500");
+    hooks.set_on_hls_error(refused);
+    srs_freep(refused);
+
+    async_call_reap_hls_segment(&worker, &req, &config, &hooks, 0);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_TRUE(worker.tasks_.empty());
+    ASSERT_EQ(1, (int)hooks.on_hls_ts_urls_.size());
+    EXPECT_STREQ("livestream-0.ts", hooks.on_hls_ts_urls_[0].c_str());
+    ASSERT_EQ(1, hooks.on_hls_notify_count_);
+    EXPECT_STREQ("livestream-0.ts", hooks.on_hls_notify_ts_urls_[0].c_str());
+    ASSERT_EQ(1, (int)log.warns_.size());
+    EXPECT_TRUE(log.warns_[0].find("ignore task failed") != string::npos);
+    EXPECT_TRUE(log.warns_[0].find("callback on_hls http://127.0.0.1:8085/api/v1/hls") != string::npos);
+    EXPECT_TRUE(log.warns_[0].find("status 500") != string::npos);
+
+    // The backend is back for the next segment.
+    hooks.set_on_hls_error(srs_success);
+    async_call_reap_hls_segment(&worker, &req, &config, &hooks, 1);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_TRUE(worker.tasks_.empty());
+    ASSERT_EQ(2, (int)hooks.on_hls_ts_urls_.size());
+    EXPECT_STREQ("livestream-1.ts", hooks.on_hls_ts_urls_[1].c_str());
+    ASSERT_EQ(2, hooks.on_hls_notify_count_);
+    EXPECT_STREQ("livestream-1.ts", hooks.on_hls_notify_ts_urls_[1].c_str());
+    EXPECT_EQ(1, (int)log.warns_.size());
+
+    worker.stop();
+    _srs_log = original_log;
 }
