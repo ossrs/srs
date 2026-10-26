@@ -6,18 +6,23 @@
 
 #include <srs_utest_ai46.hpp>
 
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_srt_listener.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_protocol_json.hpp>
+#include <srs_protocol_sdp.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_ai37.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #include <vector>
 using namespace std;
@@ -1056,4 +1061,75 @@ VOID TEST(AppSrtSourceTest, NoCoroutineForSourcesTimer_ServerFailsToStart)
     EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
     EXPECT_TRUE(srs_error_desc(err).find("timer") != string::npos);
     srs_freep(err);
+}
+
+// The video of a stream as the stream API lists it, from the server's registry, or NULL if the stream or its video is
+// not listed.
+static SrsJsonObject *statistic_utest_listed_video(SrsJsonArray *streams, string name)
+{
+    for (int i = 0; i < streams->count(); i++) {
+        SrsJsonObject *stream = streams->at(i)->to_object();
+        SrsJsonAny *stream_name = stream->get_property("name");
+        if (!stream_name || stream_name->to_str() != name) {
+            continue;
+        }
+
+        SrsJsonAny *video = stream->get_property("video");
+        return (video && video->is_object()) ? video->to_object() : NULL;
+    }
+    return NULL;
+}
+
+// WHIP publishers of VP9 and of AV1, which SRS relays to WebRTC players without parsing the bitstream: the stream API
+// lists each stream's video codec as the SDP named it, with profile and level null (the SDP gives none SRS reads) and
+// no size, for the console and for clients that read the API.
+VOID TEST(AppStatisticTest, WhipVp9AndAv1Publishers_ListedWithoutProfileOrLevel)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    const char *codecs[] = {"VP9", "AV1"};
+    const char *names[] = {"whip_vp9", "whip_av1"};
+
+    for (int i = 0; i < 2; i++) {
+        MockRequest req("__defaultVhost__", "live", names[i]);
+
+        SrsRtcTrackDescription desc;
+        desc.type_ = "video";
+        desc.ssrc_ = 5678 + i;
+        desc.media_ = new SrsVideoPayload(98 + i, codecs[i], 90000);
+        MockRtcPacketReceiver receiver;
+        SrsRtcVideoRecvTrack track(&receiver, &desc, false);
+
+        SrsRtcFormat format;
+        format.stat_ = stat.get();
+        HELPER_ASSERT_SUCCESS(format.initialize(&req));
+
+        // The first video packet of the publisher, a frame of the relayed codec.
+        SrsRtpPacket frame;
+        HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &frame, false));
+    }
+
+    SrsUniquePtr<SrsJsonArray> streams(SrsJsonAny::array());
+    HELPER_ASSERT_SUCCESS(stat->dumps_streams(streams.get(), 0, 10));
+    ASSERT_EQ(2, streams->count());
+
+    for (int i = 0; i < 2; i++) {
+        SrsJsonObject *video = statistic_utest_listed_video(streams.get(), names[i]);
+        ASSERT_TRUE(video != NULL) << names[i];
+
+        SrsJsonAny *codec = video->get_property("codec");
+        ASSERT_TRUE(codec != NULL && codec->is_string()) << names[i];
+        EXPECT_STREQ(codecs[i], codec->to_str().c_str());
+
+        SrsJsonAny *profile = video->get_property("profile");
+        ASSERT_TRUE(profile != NULL) << names[i];
+        EXPECT_TRUE(profile->is_null()) << names[i];
+        SrsJsonAny *level = video->get_property("level");
+        ASSERT_TRUE(level != NULL) << names[i];
+        EXPECT_TRUE(level->is_null()) << names[i];
+
+        EXPECT_EQ(0, video->get_property("width")->to_integer()) << names[i];
+        EXPECT_EQ(0, video->get_property("height")->to_integer()) << names[i];
+    }
 }
