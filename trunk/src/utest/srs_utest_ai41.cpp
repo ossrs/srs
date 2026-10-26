@@ -13,6 +13,8 @@
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_protocol_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
@@ -26,7 +28,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+
 #include <string>
+#include <utility>
+#include <vector>
 
 using namespace std;
 using namespace srs_internal;
@@ -376,4 +384,467 @@ VOID TEST(ProtocolAmf0Test, PublisherMetadataCutInsideDate_DecodeFails)
         EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err)) << "left=" << lefts[i];
         srs_freep(err);
     }
+}
+
+// A TLS client on the other end of an HTTPS or RTMPS connection, such as a browser or an
+// encoder. It runs OpenSSL's client over memory BIOs: what the server writes is the
+// client's input, and what the client sends is what the server reads. The client acts
+// each time the server reads, as a peer answers what it got.
+class TlsClientPeer : public ISrsProtocolReadWriter
+{
+public:
+    SSL_CTX *ctx_;
+    SSL *ssl_;
+    // The bytes from the server, and the bytes to the server.
+    BIO *in_;
+    BIO *out_;
+    // The most bytes one server read gets, as a TCP segment; 0 for no limit.
+    int segment_;
+    // The server's write that fails, counted from 1, as a client gone; 0 for none.
+    int fail_write_;
+    // The client closes its TCP connection, with no TLS alert, once the server has
+    // written this many times; -1 for never.
+    int hangup_after_writes_;
+    int nn_writes_;
+    int nn_reads_;
+    // The plaintext the client got from the server.
+    string received_;
+    // What the client sends once it has got this much plaintext.
+    vector<pair<size_t, string> > replies_;
+    srs_utime_t rtm_;
+    srs_utime_t stm_;
+    int64_t nn_recv_;
+    int64_t nn_send_;
+
+public:
+    TlsClientPeer(bool verify_server)
+    {
+        ctx_ = SSL_CTX_new(TLS_client_method());
+        SSL_CTX_set_verify(ctx_, verify_server ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+        ssl_ = SSL_new(ctx_);
+        in_ = BIO_new(BIO_s_mem());
+        out_ = BIO_new(BIO_s_mem());
+        SSL_set_bio(ssl_, in_, out_);
+        SSL_set_connect_state(ssl_);
+
+        segment_ = 0;
+        fail_write_ = 0;
+        hangup_after_writes_ = -1;
+        nn_writes_ = 0;
+        nn_reads_ = 0;
+        rtm_ = stm_ = SRS_UTIME_NO_TIMEOUT;
+        nn_recv_ = nn_send_ = 0;
+    }
+    virtual ~TlsClientPeer()
+    {
+        SSL_free(ssl_);
+        SSL_CTX_free(ctx_);
+    }
+
+public:
+    bool hung_up()
+    {
+        return hangup_after_writes_ >= 0 && nn_writes_ >= hangup_after_writes_;
+    }
+    // Take what the server sent, and send what the client has to.
+    void drive()
+    {
+        if (hung_up()) {
+            return;
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            SSL_do_handshake(ssl_);
+            ERR_clear_error();
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            return;
+        }
+
+        char buf[4096];
+        int r0;
+        while ((r0 = SSL_read(ssl_, buf, sizeof(buf))) > 0) {
+            received_.append(buf, r0);
+        }
+        ERR_clear_error();
+
+        while (!replies_.empty() && replies_.front().first <= received_.size()) {
+            string data = replies_.front().second;
+            replies_.erase(replies_.begin());
+            SSL_write(ssl_, data.data(), (int)data.size());
+        }
+    }
+    void send(const string &data)
+    {
+        drive();
+        SSL_write(ssl_, data.data(), (int)data.size());
+    }
+    void close_notify()
+    {
+        drive();
+        SSL_shutdown(ssl_);
+        ERR_clear_error();
+    }
+    string received()
+    {
+        drive();
+        return received_;
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        nn_reads_++;
+        drive();
+
+        int pending = hung_up() ? 0 : (int)BIO_ctrl_pending(out_);
+        if (pending <= 0) {
+            return srs_error_new(ERROR_SOCKET_READ, "EOF");
+        }
+
+        int n = srs_min(pending, (int)size);
+        if (segment_ > 0) {
+            n = srs_min(n, segment_);
+        }
+        BIO_read(out_, buf, n);
+        nn_recv_ += n;
+        if (nread) {
+            *nread = n;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread)
+    {
+        srs_error_t err = srs_success;
+        size_t nb = 0;
+        while (nb < size) {
+            ssize_t n = 0;
+            if ((err = read((char *)buf + nb, size - nb, &n)) != srs_success) {
+                return err;
+            }
+            nb += n;
+        }
+        if (nread) {
+            *nread = nb;
+        }
+        return err;
+    }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        nn_writes_++;
+        if (nn_writes_ == fail_write_) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "client gone");
+        }
+        BIO_write(in_, buf, (int)size);
+        nn_send_ += size;
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        srs_error_t err = srs_success;
+        ssize_t total = 0;
+        for (int i = 0; i < iov_size; i++) {
+            if ((err = write(iov[i].iov_base, iov[i].iov_len, NULL)) != srs_success) {
+                return err;
+            }
+            total += iov[i].iov_len;
+        }
+        if (nwrite) {
+            *nwrite = total;
+        }
+        return err;
+    }
+    virtual void set_recv_timeout(srs_utime_t tm)
+    {
+        rtm_ = tm;
+    }
+    virtual srs_utime_t get_recv_timeout()
+    {
+        return rtm_;
+    }
+    virtual void set_send_timeout(srs_utime_t tm)
+    {
+        stm_ = tm;
+    }
+    virtual srs_utime_t get_send_timeout()
+    {
+        return stm_;
+    }
+    virtual int64_t get_recv_bytes()
+    {
+        return nn_recv_;
+    }
+    virtual int64_t get_send_bytes()
+    {
+        return nn_send_;
+    }
+};
+
+// The key and certificate of the HTTPS API, HTTPS stream and RTMPS server in the default
+// configs.
+static const char *tls_server_key = "conf/server.key";
+static const char *tls_server_crt = "conf/server.crt";
+
+// Write a new RSA private key, which is not the key of tls_server_crt, to a PEM file.
+static bool tls_write_other_rsa_key(const string &path)
+{
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    bool ok = pctx && EVP_PKEY_keygen_init(pctx) == 1 && EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, 2048) == 1 && EVP_PKEY_keygen(pctx, &pkey) == 1;
+    EVP_PKEY_CTX_free(pctx);
+
+    FILE *f = ok ? fopen(path.c_str(), "w") : NULL;
+    ok = f && PEM_write_PrivateKey(f, pkey, NULL, NULL, 0, NULL, NULL) == 1;
+    if (f) {
+        fclose(f);
+    }
+    EVP_PKEY_free(pkey);
+    return ok;
+}
+
+// A browser's ClientHello, and its key exchange flight, arrive in several TCP segments,
+// such as a ClientHello over 1 KB with a post-quantum key share, or a slow mobile link.
+// The server keeps reading until each flight is whole, completes the handshake, and reads
+// the request, whose TLS record is split too.
+VOID TEST(ProtocolConnTest, HttpsClientFlightsInSmallSegments_HandshakeCompletes)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    client.segment_ = 50;
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+    // Both client flights took more than one read each.
+    EXPECT_GT(client.nn_reads_, 4);
+
+    string req = "GET /api/v1/versions HTTP/1.1\r\nHost: localhost:1990\r\n\r\n";
+    client.send(req);
+    EXPECT_TRUE(SSL_is_init_finished(client.ssl_));
+
+    char buf[1024];
+    ssize_t nread = 0;
+    HELPER_ASSERT_SUCCESS(ssl.read(buf, sizeof(buf), &nread));
+    EXPECT_EQ(req, string(buf, nread));
+}
+
+// A browser or curl that does not trust the server's self-signed certificate aborts the
+// handshake with a TLS alert after the ServerHello. The server fails the handshake as a
+// TLS error, and the connection ends.
+VOID TEST(ProtocolConnTest, HttpsClientRejectsSelfSignedCert_HandshakeFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(true);
+    SrsSslConnection ssl(&client);
+    err = ssl.handshake(tls_server_key, tls_server_crt);
+    EXPECT_EQ(ERROR_TLS_HANDSHAKE, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_NE(X509_V_OK, SSL_get_verify_result(client.ssl_));
+    EXPECT_FALSE(SSL_is_init_finished(client.ssl_));
+}
+
+// A certificate monitor reads the server's certificate from the ServerHello and closes
+// the TCP connection with no alert. The server's read for the client's key exchange
+// fails as a client close.
+VOID TEST(ProtocolConnTest, CertMonitorClosesAfterServerHello_HandshakeReadFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    client.hangup_after_writes_ = 1;
+    SrsSslConnection ssl(&client);
+    err = ssl.handshake(tls_server_key, tls_server_crt);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    EXPECT_TRUE(srs_is_client_gracefully_close(err));
+    srs_freep(err);
+
+    // The client got the ServerHello and stopped there.
+    EXPECT_EQ(1, client.nn_writes_);
+}
+
+// A port scanner sends a ClientHello and resets the connection, or a client goes away
+// before the server's last flight. The server's write fails as a client close, at
+// either point.
+VOID TEST(ProtocolConnTest, ClientResetsDuringHandshake_WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    // The server's first write is the ServerHello flight, the second its Finished.
+    for (int fail_write = 1; fail_write <= 2; fail_write++) {
+        TlsClientPeer client(false);
+        client.fail_write_ = fail_write;
+        SrsSslConnection ssl(&client);
+        err = ssl.handshake(tls_server_key, tls_server_crt);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << "write=" << fail_write;
+        EXPECT_TRUE(srs_is_client_gracefully_close(err));
+        srs_freep(err);
+        EXPECT_EQ(fail_write, client.nn_writes_);
+    }
+}
+
+// The operator's https_api, http_server https or rtmps section names a key file that
+// does not exist. Each client's handshake is refused before reading anything, as a key
+// or certificate error.
+VOID TEST(ProtocolConnTest, OperatorKeyFileMissing_HandshakeRefused)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    string key = srs_utest_tmp_dir() + "/srs_utest_ai41_no_such.key";
+    err = ssl.handshake(key, tls_server_crt);
+    EXPECT_EQ(ERROR_TLS_KEY_CRT, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, client.nn_reads_);
+}
+
+// The operator renews the certificate but keeps the old key, so the key is not the
+// certificate's. Each client's handshake is refused as a key or certificate error.
+VOID TEST(ProtocolConnTest, OperatorKeyNotMatchingCert_HandshakeRefused)
+{
+    srs_error_t err = srs_success;
+
+    string key = srs_utest_tmp_dir() + "/srs_utest_ai41_other_" + srs_strconv_format_int(getpid()) + ".key";
+    ASSERT_TRUE(tls_write_other_rsa_key(key));
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    err = ssl.handshake(key, tls_server_crt);
+    EXPECT_EQ(ERROR_TLS_KEY_CRT, srs_error_code(err));
+    srs_freep(err);
+    unlink(key.c_str());
+
+    EXPECT_EQ(0, client.nn_reads_);
+}
+
+// An HTTPS client sends a request, then closes the connection with a TLS close_notify.
+// The server reads the request, and its next read fails as a client close, so the HTTP
+// connection ends quietly.
+VOID TEST(ProtocolConnTest, HttpsClientSendsCloseNotify_ReadEndsAsClientClose)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+
+    string req = "GET /api/v1/summaries HTTP/1.1\r\nHost: localhost:1990\r\n\r\n";
+    client.send(req);
+    client.close_notify();
+
+    char buf[1024];
+    ssize_t nread = 0;
+    HELPER_ASSERT_SUCCESS(ssl.read(buf, sizeof(buf), &nread));
+    EXPECT_EQ(req, string(buf, nread));
+
+    err = ssl.read(buf, sizeof(buf), &nread);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    EXPECT_TRUE(srs_is_client_gracefully_close(err));
+    srs_freep(err);
+}
+
+// An HTTPS client, such as a browser closing a preconnected socket, closes the TCP
+// connection with no close_notify while the server waits for its request. The read fails
+// as a client close.
+VOID TEST(ProtocolConnTest, HttpsClientDropsTcpWithoutCloseNotify_ReadEndsAsClientClose)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+    client.hangup_after_writes_ = client.nn_writes_;
+
+    char buf[1024];
+    ssize_t nread = 0;
+    err = ssl.read(buf, sizeof(buf), &nread);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    EXPECT_TRUE(srs_is_client_gracefully_close(err));
+    srs_freep(err);
+}
+
+// An RTMPS encoder completes TLS, then the RTMP handshake inside it: it writes C0 and C1
+// as two TLS records, and C2 once it has S0S1S2. The server reads C0C1 and C2 whole over
+// TLS and answers the 3073 bytes of S0S1S2.
+VOID TEST(ProtocolConnTest, RtmpsEncoderHandshakeOverTls_Completes)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+
+    client.send(string("\x03", 1));
+    client.send(string(1536, 0));
+    client.replies_.push_back(make_pair((size_t)3073, string(1536, 0)));
+
+    SrsRtmpServer rtmp(&ssl);
+    HELPER_ASSERT_SUCCESS(rtmp.handshake());
+
+    string got = client.received();
+    ASSERT_EQ(3073u, got.size());
+    EXPECT_EQ(0x03, got[0]);
+    // The encoder's C2 was sent and read.
+    EXPECT_TRUE(client.replies_.empty());
+    EXPECT_EQ(0, (int)BIO_ctrl_pending(client.out_));
+}
+
+// An HTTPS-FLV player gets the live stream as a chunked response: the status line and
+// headers, then the FLV header as one chunk written from an iovec. The player decrypts
+// both.
+VOID TEST(ProtocolConnTest, HttpsFlvPlayerGetsChunkedStream)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+
+    SrsHttpResponseWriter w(&ssl);
+    w.header()->set_content_type("video/x-flv");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    // FLV header with audio and video, then PreviousTagSize0.
+    char flv[] = {'F', 'L', 'V', 0x01, 0x05, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00};
+    iovec iov[2];
+    iov[0].iov_base = flv;
+    iov[0].iov_len = 9;
+    iov[1].iov_base = flv + 9;
+    iov[1].iov_len = 4;
+    HELPER_ASSERT_SUCCESS(w.writev(iov, 2, NULL));
+
+    string got = client.received();
+    EXPECT_EQ(0u, got.find("HTTP/1.1 200 OK\r\n"));
+    EXPECT_NE(string::npos, got.find("Transfer-Encoding: chunked\r\n"));
+    string chunk = string("\r\n\r\nd\r\n") + string(flv, sizeof(flv)) + "\r\n";
+    EXPECT_NE(string::npos, got.find(chunk));
+}
+
+// An HTTPS-FLV player closes its connection while the server sends the stream. The
+// server's TLS write fails as a client close, so the player's connection ends.
+VOID TEST(ProtocolConnTest, HttpsFlvPlayerLeaves_WriteEndsAsClientClose)
+{
+    srs_error_t err = srs_success;
+
+    TlsClientPeer client(false);
+    SrsSslConnection ssl(&client);
+    HELPER_ASSERT_SUCCESS(ssl.handshake(tls_server_key, tls_server_crt));
+    client.fail_write_ = client.nn_writes_ + 1;
+
+    SrsHttpResponseWriter w(&ssl);
+    w.header()->set_content_type("video/x-flv");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    char flv[] = {'F', 'L', 'V', 0x01, 0x05, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00};
+    iovec iov[1];
+    iov[0].iov_base = flv;
+    iov[0].iov_len = sizeof(flv);
+    err = w.writev(iov, 1, NULL);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    EXPECT_TRUE(srs_is_client_gracefully_close(err));
+    srs_freep(err);
 }
