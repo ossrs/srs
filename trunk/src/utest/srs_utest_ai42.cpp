@@ -457,6 +457,70 @@ VOID TEST(ProtocolSrtTest, PublisherAndPlayerTransportStats)
     }
 }
 
+// A player closes its SRT connection while the publisher stalls, so the server has nothing to send and
+// does not see the close yet. libsrt marks the connection broken when the player's shutdown arrives, so
+// the next transport stats print of SrsMpegtsSrtConn::do_playing fails with a stats error, which the
+// play loop logs past; the send of the next packet then finds the player gone.
+VOID TEST(ProtocolSrtTest, PlayerClosesWhilePublisherStalls_StatsFail)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
+
+    srs_srt_t lfd = srs_srt_socket_invalid();
+    HELPER_ASSERT_SUCCESS(srt_utest_listen("127.0.0.1", port, true, &lfd));
+    SrsSrtSocket listener(_srs_srt_eventloop->poller(), lfd);
+    listener.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+
+    srs_srt_t cfd = srs_srt_socket_invalid();
+    HELPER_ASSERT_SUCCESS(srs_srt_socket_with_default_option(&cfd));
+    HELPER_ASSERT_SUCCESS(srs_srt_set_streamid(cfd, "#!::r=live/livestream,m=request"));
+    SrsSrtSocket *client = new SrsSrtSocket(_srs_srt_eventloop->poller(), cfd);
+    client->set_send_timeout(3 * SRS_UTIME_SECONDS);
+    err = client->connect("127.0.0.1", port);
+    if (err != srs_success) {
+        srs_freep(client);
+    }
+    HELPER_ASSERT_SUCCESS(err);
+
+    srs_srt_t afd = srs_srt_socket_invalid();
+    err = listener.accept(&afd);
+    if (err != srs_success) {
+        srs_freep(client);
+    }
+    HELPER_ASSERT_SUCCESS(err);
+    SrsSrtSocket accepted(_srs_srt_eventloop->poller(), afd);
+
+    // While the player is there, the stats print works.
+    if (true) {
+        SrsSrtStat s;
+        HELPER_EXPECT_SUCCESS(s.fetch(afd, true));
+    }
+
+    // The player closes, and no packet comes from the publisher. The shutdown takes a moment to arrive,
+    // so the test prints the stats until they fail, at most 3 seconds.
+    srs_freep(client);
+
+    err = srs_success;
+    for (int i = 0; i < 300; i++) {
+        SrsSrtStat s;
+        if ((err = s.fetch(afd, true)) != srs_success) {
+            break;
+        }
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(ERROR_SRT_STATS, srs_error_code(err));
+    srs_freep(err);
+
+    // The next packet from the publisher finds the player gone.
+    string msg = srt_utest_ts_message(0);
+    ssize_t nn = 0;
+    err = accepted.sendmsg((void *)msg.data(), msg.size(), &nn);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
 // A player that pauses, such as one busy decoding, while the server sends to it: libsrt's send buffer
 // fills, so the server's send waits until the player reads again, then goes on. The player gets every
 // message in order, as the vhost has `tlpktdrop off`.
