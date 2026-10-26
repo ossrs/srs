@@ -14,6 +14,7 @@
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_hourglass.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
@@ -895,4 +896,201 @@ VOID TEST(KernelHourglassTest, SharedTimerStartupNamesTheTimerThatFailed)
         shared.timer5s_ = NULL;
         shared.factory_ = NULL;
     }
+}
+
+// The server's stats lines are built every 10s from global counters that every other test shares.
+// This scope gives each listed counter a test clock and an empty history, as in a server that just
+// started, and puts the counter back as it was when the test ends.
+class KbpsGlobalPpsScope
+{
+public:
+    MockWallClock clock_;
+    vector<SrsPps *> pps_;
+    vector<SrsPps> saved_;
+
+public:
+    KbpsGlobalPpsScope(const vector<SrsPps *> &pps)
+    {
+        pps_ = pps;
+        for (int i = 0; i < (int)pps.size(); i++) {
+            SrsPps *p = pps[i];
+            saved_.push_back(*p);
+
+            SrsPps fresh;
+            fresh.clk_ = &clock_;
+            *p = fresh;
+        }
+    }
+    ~KbpsGlobalPpsScope()
+    {
+        for (int i = 0; i < (int)pps_.size(); i++) {
+            *pps_[i] = saved_[i];
+        }
+    }
+};
+
+static vector<SrsPps *> kbps_server_line_pps()
+{
+    SrsPps *all[] = {_srs_pps_cids_get, _srs_pps_cids_set, _srs_pps_timer, _srs_pps_pub, _srs_pps_conn,
+                     _srs_pps_dispose, _srs_pps_clock_15ms, _srs_pps_clock_20ms, _srs_pps_clock_25ms,
+                     _srs_pps_clock_30ms, _srs_pps_clock_35ms, _srs_pps_clock_40ms, _srs_pps_clock_80ms,
+                     _srs_pps_clock_160ms, _srs_pps_timer_s, _srs_pps_objs_rtps, _srs_pps_objs_rraw,
+                     _srs_pps_objs_rfua, _srs_pps_objs_rbuf, _srs_pps_objs_msgs, _srs_pps_objs_rothers};
+    return vector<SrsPps *>(all, all + sizeof(all) / sizeof(all[0]));
+}
+
+static vector<SrsPps *> kbps_rtc_line_pps()
+{
+    SrsPps *all[] = {_srs_pps_rpkts, _srs_pps_rrtps, _srs_pps_rstuns, _srs_pps_rrtcps, _srs_pps_spkts,
+                     _srs_pps_srtps, _srs_pps_sstuns, _srs_pps_srtcps, _srs_pps_pli, _srs_pps_twcc, _srs_pps_rr,
+                     _srs_pps_snack, _srs_pps_snack2, _srs_pps_sanack, _srs_pps_svnack, _srs_pps_rnack,
+                     _srs_pps_rnack2, _srs_pps_rhnack, _srs_pps_rmnack, _srs_pps_srtx, _srs_pps_rrtx,
+                     _srs_pps_rrtx_unwrap, _srs_pps_rrtx_padding, _srs_pps_ids, _srs_pps_fids,
+                     _srs_pps_fids_level0, _srs_pps_addrs, _srs_pps_fast_addrs};
+    return vector<SrsPps *>(all, all + sizeof(all) / sizeof(all[0]));
+}
+
+// Every 10s the server logs "SRS: cpu=..,..MB" followed by a group for each kind of work done in the
+// last 10s: coroutine id lookups, timer ticks, disposed connections, clock jitter and RTC objects.
+// An idle server prints none of them; a busy one prints each rate; when the work stops, the groups
+// go away again 10s later.
+VOID TEST(KernelKbpsTest, ServerStatsLineShowsTheRatesOfABusyServer)
+{
+    KbpsGlobalPpsScope scope(kbps_server_line_pps());
+
+    // The first stats line after the server starts: nothing has happened yet.
+    if (true) {
+        scope.clock_.set_clock(0);
+        SrsKbpsStats stats;
+        srs_global_kbps_update(&stats);
+        EXPECT_STREQ("", stats.cid_desc_.c_str());
+        EXPECT_STREQ("", stats.timer_desc_.c_str());
+        EXPECT_STREQ("", stats.free_desc_.c_str());
+        EXPECT_STREQ("", stats.clock_desc_.c_str());
+        EXPECT_STREQ("", stats.objs_desc_.c_str());
+    }
+
+    // 10s of a busy server: log contexts read and set by coroutines, the 20ms timer ticking with RTC
+    // publishers and players on it, a few clients leaving, the 20ms clock late now and then, and RTP
+    // packets parsed for the publishers.
+    _srs_pps_cids_get->sugar_ += 1200;
+    _srs_pps_cids_set->sugar_ += 400;
+    _srs_pps_timer->sugar_ += 500;
+    _srs_pps_pub->sugar_ += 100;
+    _srs_pps_conn->sugar_ += 300;
+    _srs_pps_dispose->sugar_ += 30;
+    _srs_pps_clock_20ms->sugar_ += 480;
+    _srs_pps_timer_s->sugar_ += 10;
+    _srs_pps_objs_rtps->sugar_ += 2000;
+    _srs_pps_objs_rraw->sugar_ += 1000;
+    _srs_pps_objs_rfua->sugar_ += 500;
+    _srs_pps_objs_msgs->sugar_ += 3000;
+    _srs_pps_objs_rothers->sugar_ += 10;
+    _srs_pps_objs_rbuf->sugar_ += 1500;
+
+    if (true) {
+        scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+        SrsKbpsStats stats;
+        srs_global_kbps_update(&stats);
+        EXPECT_STREQ(", cid=120,40", stats.cid_desc_.c_str());
+        EXPECT_STREQ(", timer=50,10,30", stats.timer_desc_.c_str());
+        EXPECT_STREQ(", free=3", stats.free_desc_.c_str());
+        EXPECT_STREQ(", clock=0,48,0,0,0,0,0,0,1", stats.clock_desc_.c_str());
+        EXPECT_STREQ(", objs=(pkt:200,raw:100,fua:50,msg:300,oth:1,buf:150)", stats.objs_desc_.c_str());
+    }
+
+    // The clients leave and the server is idle for the next 10s: the line is short again.
+    if (true) {
+        scope.clock_.set_clock(20 * SRS_UTIME_SECONDS);
+        SrsKbpsStats stats;
+        srs_global_kbps_update(&stats);
+        EXPECT_STREQ("", stats.cid_desc_.c_str());
+        EXPECT_STREQ("", stats.timer_desc_.c_str());
+        EXPECT_STREQ("", stats.free_desc_.c_str());
+        EXPECT_STREQ("", stats.clock_desc_.c_str());
+        EXPECT_STREQ("", stats.objs_desc_.c_str());
+    }
+}
+
+// Every 10s the RTC server logs "RTC: Server conns=N" followed by the packet, RTCP, NACK and session
+// lookup rates of the last 10s. Here WebRTC clients send and receive over UDP: every packet looks up
+// its session by the fast id of its address, most of them hit the level-0 cache.
+VOID TEST(KernelKbpsTest, RtcStatsLineShowsTheRatesOfUdpClients)
+{
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
+
+    if (true) {
+        scope.clock_.set_clock(0);
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ("", stats.rpkts_desc_.c_str());
+        EXPECT_STREQ("", stats.spkts_desc_.c_str());
+        EXPECT_STREQ("", stats.rtcp_desc_.c_str());
+        EXPECT_STREQ("", stats.snk_desc_.c_str());
+        EXPECT_STREQ("", stats.rnk_desc_.c_str());
+        EXPECT_STREQ("", stats.fid_desc_.c_str());
+    }
+
+    // 10s of traffic: received RTP, STUN and RTCP; sent RTP to players; PLI, TWCC and RR feedback;
+    // NACKs sent to the publisher for lost audio and video; NACKs from players, some for packets no
+    // longer in the queue.
+    _srs_pps_rpkts->sugar_ += 5000;
+    _srs_pps_rrtps->sugar_ += 4500;
+    _srs_pps_rstuns->sugar_ += 100;
+    _srs_pps_rrtcps->sugar_ += 400;
+    _srs_pps_spkts->sugar_ += 8000;
+    _srs_pps_srtps->sugar_ += 7600;
+    _srs_pps_sstuns->sugar_ += 100;
+    _srs_pps_srtcps->sugar_ += 300;
+    _srs_pps_pli->sugar_ += 20;
+    _srs_pps_twcc->sugar_ += 100;
+    _srs_pps_rr->sugar_ += 50;
+    _srs_pps_snack->sugar_ += 30;
+    _srs_pps_sanack->sugar_ += 10;
+    _srs_pps_svnack->sugar_ += 20;
+    _srs_pps_snack2->sugar_ += 50;
+    _srs_pps_rnack->sugar_ += 40;
+    _srs_pps_rnack2->sugar_ += 80;
+    _srs_pps_rhnack->sugar_ += 20;
+    _srs_pps_rmnack->sugar_ += 10;
+    _srs_pps_ids->sugar_ += 100;
+    _srs_pps_fids->sugar_ += 150;
+    _srs_pps_fids_level0->sugar_ += 4850;
+    _srs_pps_addrs->sugar_ += 100;
+    _srs_pps_fast_addrs->sugar_ += 5000;
+
+    if (true) {
+        scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ(", rpkts=(500,rtp:450,stun:10,rtcp:40)", stats.rpkts_desc_.c_str());
+        EXPECT_STREQ(", spkts=(800,rtp:760,stun:10,rtcp:30)", stats.spkts_desc_.c_str());
+        EXPECT_STREQ(", rtcp=(pli:2,twcc:10,rr:5)", stats.rtcp_desc_.c_str());
+        EXPECT_STREQ(", snk=(3,a:1,v:2,h:5)", stats.snk_desc_.c_str());
+        EXPECT_STREQ(", rnk=(4,8,h:2,m:1)", stats.rnk_desc_.c_str());
+        EXPECT_STREQ(", fid=(id:10,fid:15,ffid:485,addr:10,faddr:500)", stats.fid_desc_.c_str());
+    }
+}
+
+// With WebRTC over TCP only, no UDP packet arrives, so no address gets a fast id; each TCP client still
+// finds its session by the STUN username, so the RTC stats line should show the id lookups. The check
+// joins the five rates with the comma operator instead of ||, so only the last one, the fast id
+// count, decides, and the fid group is missing.
+VOID TEST(KernelKbpsTest, DISABLED_RtcStatsLineWithTcpClientsOnly_FidGroupMissing)
+{
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
+
+    scope.clock_.set_clock(0);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    // 50 WebRTC clients connect over TCP in 10s, each looking up its session by name once.
+    _srs_pps_ids->sugar_ += 50;
+
+    scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+    SrsKbsRtcStats stats;
+    srs_global_rtc_update(&stats);
+    EXPECT_STREQ(", fid=(id:5,fid:0,ffid:0,addr:0,faddr:0)", stats.fid_desc_.c_str());
 }
