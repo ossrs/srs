@@ -190,10 +190,12 @@ MockUdpHandler::MockUdpHandler()
     packet_count_ = 0;
     last_packet_data_ = "";
     last_packet_size_ = 0;
+    on_udp_packet_error_ = srs_success;
 }
 
 MockUdpHandler::~MockUdpHandler()
 {
+    srs_freep(on_udp_packet_error_);
 }
 
 srs_error_t MockUdpHandler::on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf)
@@ -202,7 +204,7 @@ srs_error_t MockUdpHandler::on_udp_packet(const sockaddr *from, const int fromle
     packet_count_++;
     last_packet_data_ = string(buf, nb_buf);
     last_packet_size_ = nb_buf;
-    return srs_success;
+    return srs_error_copy(on_udp_packet_error_);
 }
 
 // Mock ISrsUdpMuxHandler implementation

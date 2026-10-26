@@ -43,7 +43,18 @@ public:
         saved_ = _srs_stages;
         _srs_stages = &stages_;
 
-        SrsUniquePtr<SrsPithyPrint> pprint(create_stage());
+        at_once(create_stage());
+    }
+    // Swaps the stages only, for a stage whose id is known later, such as a listener's fd; the test then calls at_once.
+    PithyPrintAtOnceScope()
+    {
+        saved_ = _srs_stages;
+        _srs_stages = &stages_;
+    }
+    // Prints the stage of this pithy print at once, and frees the pithy print.
+    void at_once(SrsPithyPrint *stage)
+    {
+        SrsUniquePtr<SrsPithyPrint> pprint(stage);
         pprint->elapse();
         pprint->cache_->interval_ = 0;
     }
