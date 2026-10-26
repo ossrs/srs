@@ -701,6 +701,8 @@ public:
     // its handshake is done, such as its Finished or a response.
     bool corrupt_;
     bool corrupted_;
+    // A network device flips the last byte of the client's next write, such as its request.
+    bool corrupt_request_;
     int nn_writes_;
     // The plaintext the server got, and its reply once it has a whole request header.
     string received_;
@@ -728,6 +730,7 @@ public:
         fail_write_ = 0;
         hangup_after_writes_ = -1;
         corrupt_ = corrupted_ = false;
+        corrupt_request_ = false;
         nn_writes_ = 0;
         responded_ = false;
         close_after_response_ = false;
@@ -829,7 +832,12 @@ public:
         if (nn_writes_ == fail_write_) {
             return srs_error_new(ERROR_SOCKET_WRITE, "server gone");
         }
-        BIO_write(in_, buf, (int)size);
+        string bytes((char *)buf, size);
+        if (corrupt_request_ && size > 0) {
+            corrupt_request_ = false;
+            bytes[size - 1] ^= 0xff;
+        }
+        BIO_write(in_, bytes.data(), (int)size);
         nn_send_ += size;
         if (nwrite) {
             *nwrite = size;
@@ -1033,6 +1041,41 @@ VOID TEST(ProtocolHttpClientTest, HttpsBackendResetsDuringRequest_WriteFails)
     // The server never got the request.
     server.drive();
     EXPECT_EQ("", server.received_);
+}
+
+// A network device corrupts the client's request on the way. The backend cannot verify
+// the record, so it refuses it with a fatal bad_record_mac alert and the session is dead.
+// The client's read of the response fails as a TLS error, and a retry of the request on
+// the same connection fails at the write, rather than sending on the dead session.
+VOID TEST(ProtocolHttpClientTest, HttpsBackendRefusesCorruptedRequest_RetryWriteFails)
+{
+    srs_error_t err = srs_success;
+
+    TlsServerPeer server;
+    server.response_ = https_hook_response;
+    SrsSslClient ssl(&server);
+    HELPER_ASSERT_SUCCESS(ssl.handshake("hooks.example.com"));
+    server.corrupt_request_ = true;
+
+    HELPER_ASSERT_SUCCESS(ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL));
+
+    char buf[1024];
+    ssize_t nread = 0;
+    err = ssl.read(buf, sizeof(buf), &nread);
+    EXPECT_EQ(ERROR_TLS_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, nread);
+
+    // The server refused the request and never answered.
+    EXPECT_EQ("", server.received_);
+    EXPECT_FALSE(server.responded_);
+
+    // The retry is not sent: the server gets no more bytes.
+    int nn_writes = server.nn_writes_;
+    err = ssl.write((void *)https_hook_request, strlen(https_hook_request), NULL);
+    EXPECT_EQ(ERROR_TLS_WRITE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(nn_writes, server.nn_writes_);
 }
 
 // A TCP server that reads the client's request, sends a fixed reply, which may be empty,
