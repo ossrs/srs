@@ -13,6 +13,7 @@
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -26,10 +27,12 @@
 #include <srs_kernel_resource.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai16.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai34.hpp>
 #include <srs_utest_ai40.hpp>
@@ -2595,4 +2598,457 @@ VOID TEST(AppHlsTest, HlsCallbacksByHooksConfig)
     on_hls.hooks_ = NULL;
     notify.config_ = NULL;
     notify.hooks_ = NULL;
+}
+
+// The socket of an HTTP API client that closes its connection after the first writes of the reply: every write from
+// the given one on fails, as a send to a peer that sent a FIN or RST does.
+class HttpApiUtestLeavingClientIO : public MockBufferIO
+{
+public:
+    // The write that fails first, from 1, and the writes made so far.
+    int fail_at_;
+    int nb_writes_;
+
+public:
+    HttpApiUtestLeavingClientIO(int fail_at)
+    {
+        fail_at_ = fail_at;
+        nb_writes_ = 0;
+    }
+    virtual ~HttpApiUtestLeavingClientIO()
+    {
+    }
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        if (++nb_writes_ >= fail_at_) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "peer reset");
+        }
+        return MockBufferIO::write(buf, size, nwrite);
+    }
+};
+
+// The HTTP API of a server, mounted at the paths SrsServer mounts, over a real stream registry that the tests fill as
+// publishers and players come and go.
+class HttpApiUtestServer
+{
+public:
+    MockAppConfig config_;
+    SrsStatistic stat_;
+    SrsHttpServeMux mux_;
+
+public:
+    HttpApiUtestServer()
+    {
+        stat_.config_ = &config_;
+        stat_.server_id_ = "vid-utest-server";
+
+        SrsGoApiVersion *version = new SrsGoApiVersion();
+        version->stat_ = &stat_;
+        mux_.handle("/api/v1/versions", version);
+
+        SrsGoApiVhosts *vhosts = new SrsGoApiVhosts();
+        vhosts->stat_ = &stat_;
+        mux_.handle("/api/v1/vhosts/", vhosts);
+
+        SrsGoApiStreams *streams = new SrsGoApiStreams();
+        streams->stat_ = &stat_;
+        mux_.handle("/api/v1/streams/", streams);
+
+        SrsGoApiClients *clients = new SrsGoApiClients();
+        clients->stat_ = &stat_;
+        mux_.handle("/api/v1/clients/", clients);
+
+        mux_.handle("/api/v1/tests/errors", new SrsGoApiError());
+        mux_.handle("error.srs.com/api/v1/tests/errors", new SrsGoApiError());
+    }
+    virtual ~HttpApiUtestServer()
+    {
+    }
+
+public:
+    // A request of the method to the url, as the HTTP API connection parses it, with JSONP allowed as the API server
+    // allows it.
+    srs_error_t serve(llhttp_method_t method, string url, MockBufferIO *io)
+    {
+        srs_error_t err = srs_success;
+
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, method, (llhttp_status_t)200, -1);
+        if ((err = r.set_url(url, true)) != srs_success) {
+            return srs_error_wrap(err, "url");
+        }
+
+        SrsHttpResponseWriter w(io);
+        return mux_.serve_http(&w, &r);
+    }
+};
+
+// The status line of an HTTP reply the API wrote.
+static string http_api_utest_status(MockBufferIO &io)
+{
+    string reply = string(io.out_buffer.bytes(), io.out_buffer.length());
+    return reply.substr(0, reply.find("\r\n"));
+}
+
+// The body of an HTTP reply the API wrote.
+static string http_api_utest_body(MockBufferIO &io)
+{
+    string reply = string(io.out_buffer.bytes(), io.out_buffer.length());
+    size_t pos = reply.find("\r\n\r\n");
+    return pos == string::npos ? "" : reply.substr(pos + 4);
+}
+
+// The JSON body of an HTTP reply the API wrote, or NULL if it is not a JSON object.
+static SrsJsonObject *http_api_utest_json(MockBufferIO &io)
+{
+    SrsJsonAny *json = SrsJsonAny::loads(http_api_utest_body(io));
+    if (json && !json->is_object()) {
+        srs_freep(json);
+    }
+    return (SrsJsonObject *)json;
+}
+
+// The code of the JSON reply, or -1 if it has none.
+static int http_api_utest_code(MockBufferIO &io)
+{
+    SrsUniquePtr<SrsJsonObject> obj(http_api_utest_json(io));
+    SrsJsonAny *code = obj.get() ? obj->get_property("code") : NULL;
+    return (code && code->is_integer()) ? (int)code->to_integer() : -1;
+}
+
+// A dashboard lists the streams of a server where two encoders publish, a page at a time, then opens one of them.
+// The list counts every stream in its total, while the page holds only the streams asked for.
+VOID TEST(AppHttpApiTest, DashboardListsStreamsByPage_TotalCountsAll)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest a("__defaultVhost__", "live", "camera1");
+    MockRequest b("__defaultVhost__", "live", "camera2");
+    MockExpire conn_a, conn_b;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-pub-1", &a, &conn_a, SrsRtmpConnFMLEPublish));
+    server.stat_.on_stream_publish(&a, "cid-pub-1");
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-pub-2", &b, &conn_b, SrsRtmpConnFMLEPublish));
+    server.stat_.on_stream_publish(&b, "cid-pub-2");
+
+    // The first page of one stream.
+    MockBufferIO page;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/streams/?start=0&count=1", &page));
+    SrsUniquePtr<SrsJsonObject> obj(http_api_utest_json(page));
+    ASSERT_TRUE(obj.get() != NULL) << http_api_utest_body(page);
+    EXPECT_EQ(0, obj->get_property("code")->to_integer());
+    EXPECT_EQ(2, obj->get_property("total")->to_integer());
+    EXPECT_STREQ("vid-utest-server", obj->get_property("server")->to_str().c_str());
+    SrsJsonAny *streams = obj->get_property("streams");
+    ASSERT_TRUE(streams != NULL && streams->is_array());
+    ASSERT_EQ(1, ((SrsJsonArray *)streams)->count());
+
+    // All streams, then the one the dashboard opens, by the id the list gave.
+    MockBufferIO all;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/streams/", &all));
+    SrsUniquePtr<SrsJsonObject> obj2(http_api_utest_json(all));
+    ASSERT_TRUE(obj2.get() != NULL);
+    EXPECT_EQ(2, obj2->get_property("total")->to_integer());
+    SrsJsonArray *list = (SrsJsonArray *)obj2->get_property("streams");
+    ASSERT_EQ(2, list->count());
+    SrsJsonObject *first = list->at(0)->to_object();
+    string sid = first->get_property("id")->to_str();
+    string name = first->get_property("name")->to_str();
+
+    MockBufferIO one;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/streams/" + sid, &one));
+    SrsUniquePtr<SrsJsonObject> obj3(http_api_utest_json(one));
+    ASSERT_TRUE(obj3.get() != NULL);
+    SrsJsonAny *stream = obj3->get_property("stream");
+    ASSERT_TRUE(stream != NULL && stream->is_object());
+    EXPECT_STREQ(sid.c_str(), stream->to_object()->get_property("id")->to_str().c_str());
+    EXPECT_STREQ(name.c_str(), stream->to_object()->get_property("name")->to_str().c_str());
+    EXPECT_TRUE(stream->to_object()->get_property("publish")->to_object()->get_property("active")->to_boolean());
+}
+
+// A dashboard holds the id of a stream whose encoder then stops: once the publisher leaves, the stream is gone from the
+// registry, and the next query of its id answers stream not found, not a stale stream.
+VOID TEST(AppHttpApiTest, StreamOpenedAfterEncoderLeft_NotFound)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    MockExpire conn;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-pub", &req, &conn, SrsRtmpConnFMLEPublish));
+    server.stat_.on_stream_publish(&req, "cid-pub");
+    SrsStatisticStream *stream = server.stat_.find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    string sid = stream->id_;
+
+    server.stat_.on_stream_close(&req);
+    server.stat_.on_disconnect("cid-pub", srs_success);
+
+    MockBufferIO io;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/streams/" + sid, &io));
+    EXPECT_STREQ("HTTP/1.1 200 OK", http_api_utest_status(io).c_str());
+    EXPECT_EQ(ERROR_RTMP_STREAM_NOT_FOUND, http_api_utest_code(io)) << http_api_utest_body(io);
+
+    // A player that left is not found either.
+    MockBufferIO client;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/clients/cid-pub", &client));
+    EXPECT_EQ(ERROR_RTMP_CLIENT_NOT_FOUND, http_api_utest_code(client)) << http_api_utest_body(client);
+}
+
+// A dashboard opens a vhost by the id the vhost list gave: the reply has its name and the streams and clients on it.
+// An id the server does not know, such as one kept from before a restart (ids are random per run), answers vhost not
+// found.
+VOID TEST(AppHttpApiTest, VhostOpenedById_UnknownIdNotFound)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("ossrs.net", "live", "livestream");
+    MockExpire publisher, player;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-pub", &req, &publisher, SrsRtmpConnFMLEPublish));
+    server.stat_.on_stream_publish(&req, "cid-pub");
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-play", &req, &player, SrsRtmpConnPlay));
+    SrsStatisticVhost *vhost = server.stat_.find_vhost_by_name("ossrs.net");
+    ASSERT_TRUE(vhost != NULL);
+    vhost->config_ = &server.config_;
+
+    MockBufferIO io;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/vhosts/" + vhost->id_, &io));
+    SrsUniquePtr<SrsJsonObject> obj(http_api_utest_json(io));
+    ASSERT_TRUE(obj.get() != NULL) << http_api_utest_body(io);
+    EXPECT_EQ(0, obj->get_property("code")->to_integer());
+    SrsJsonAny *data = obj->get_property("vhost");
+    ASSERT_TRUE(data != NULL && data->is_object());
+    EXPECT_STREQ(vhost->id_.c_str(), data->to_object()->get_property("id")->to_str().c_str());
+    EXPECT_STREQ("ossrs.net", data->to_object()->get_property("name")->to_str().c_str());
+    EXPECT_EQ(1, data->to_object()->get_property("streams")->to_integer());
+    EXPECT_EQ(2, data->to_object()->get_property("clients")->to_integer());
+
+    MockBufferIO unknown;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/vhosts/vid-0from0restart", &unknown));
+    EXPECT_EQ(ERROR_RTMP_VHOST_NOT_FOUND, http_api_utest_code(unknown)) << http_api_utest_body(unknown);
+}
+
+// The vhost, stream and client APIs only read, besides kicking a client with DELETE: a client that POSTs or PUTs to
+// them, such as a script that tries to change a stream, gets 405 Method Not Allowed and nothing changes.
+VOID TEST(AppHttpApiTest, WriteMethodsToReadOnlyApis_MethodNotAllowed)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    MockExpire conn;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-play", &req, &conn, SrsRtmpConnPlay));
+
+    MockBufferIO vhosts;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_POST, "http://127.0.0.1:1985/api/v1/vhosts/", &vhosts));
+    EXPECT_STREQ("HTTP/1.1 405 Method Not Allowed", http_api_utest_status(vhosts).c_str());
+
+    MockBufferIO streams;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_PUT, "http://127.0.0.1:1985/api/v1/streams/", &streams));
+    EXPECT_STREQ("HTTP/1.1 405 Method Not Allowed", http_api_utest_status(streams).c_str());
+
+    MockBufferIO clients;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_PUT, "http://127.0.0.1:1985/api/v1/clients/cid-play", &clients));
+    EXPECT_STREQ("HTTP/1.1 405 Method Not Allowed", http_api_utest_status(clients).c_str());
+
+    EXPECT_FALSE(conn.expired_);
+    EXPECT_TRUE(server.stat_.find_client("cid-play") != NULL);
+}
+
+// An operator kicks an RTMP player with DELETE on its client id: the player's connection is expired, so its coroutine
+// ends and closes the socket, and the API answers success. A DELETE with no client id, such as a script whose id
+// variable was empty, kicks nobody and answers client not found.
+VOID TEST(AppHttpApiTest, OperatorKicksRtmpPlayer_ConnectionExpired)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    MockExpire player, other;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-play", &req, &player, SrsRtmpConnPlay));
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-other", &req, &other, SrsRtmpConnPlay));
+
+    MockBufferIO io;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_DELETE, "http://127.0.0.1:1985/api/v1/clients/cid-play", &io));
+    EXPECT_STREQ("HTTP/1.1 200 OK", http_api_utest_status(io).c_str());
+    EXPECT_EQ(0, http_api_utest_code(io)) << http_api_utest_body(io);
+    EXPECT_TRUE(player.expired_);
+    EXPECT_FALSE(other.expired_);
+
+    MockBufferIO empty;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_DELETE, "http://127.0.0.1:1985/api/v1/clients/", &empty));
+    EXPECT_EQ(ERROR_RTMP_CLIENT_NOT_FOUND, http_api_utest_code(empty)) << http_api_utest_body(empty);
+    EXPECT_FALSE(other.expired_);
+}
+
+// An HLS viewer is listed as a client, but it has no connection of its own to close: each playlist and segment is a
+// separate HTTP request. Kicking it is refused with code 400 and an error log, and the viewer stays listed.
+VOID TEST(AppHttpApiTest, OperatorKicksHlsViewer_RefusedNoConnection)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-hls", &req, NULL, SrsHlsPlay));
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    MockBufferIO io;
+    err = server.serve(HTTP_DELETE, "http://127.0.0.1:1985/api/v1/clients/cid-hls", &io);
+
+    _srs_log = original_log;
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_EQ(SRS_CONSTS_HTTP_BadRequest, http_api_utest_code(io)) << http_api_utest_body(io);
+    EXPECT_TRUE(server.stat_.find_client("cid-hls") != NULL);
+    EXPECT_STRNE("", utest_log_find(log.errors_, "kickoff client id=cid-hls error").c_str());
+}
+
+// The old console talks JSONP: it sends every call as a GET with a callback and the real method in the query. Its
+// kick of a player expires the connection as a DELETE does, and the reply is wrapped in the callback, so the page's
+// script tag runs it.
+VOID TEST(AppHttpApiTest, JsonpConsoleKicksPlayer_ReplyWrappedInCallback)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    MockExpire player;
+    HELPER_EXPECT_SUCCESS(server.stat_.on_client("cid-play", &req, &player, SrsRtmpConnPlay));
+
+    MockBufferIO io;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/clients/cid-play?callback=onKick&method=DELETE", &io));
+    EXPECT_TRUE(player.expired_);
+
+    string body = http_api_utest_body(io);
+    ASSERT_GT(body.length(), 8u) << body;
+    EXPECT_EQ(0u, body.find("onKick({")) << body;
+    EXPECT_EQ(')', body.at(body.length() - 1)) << body;
+    EXPECT_NE(string::npos, body.find("\"code\":0")) << body;
+}
+
+// An API client, such as a monitor that polls with a short timeout, closes its connection while the reply is sent.
+// At whichever write the socket fails, the handler stops writing and returns the error, so the connection ends;
+// nothing after the failed write is sent. For JSONP the reply goes out in parts: the callback, "(", the data and ")".
+VOID TEST(AppHttpApiTest, ClientLeavesMidReply_WriteErrorEndsReply)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+
+    // JSON: the header, then the body in one write.
+    for (int fail_at = 1; fail_at <= 2; fail_at++) {
+        HttpApiUtestLeavingClientIO io(fail_at);
+        err = server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/versions", &io);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << fail_at;
+        EXPECT_NE(string::npos, srs_error_desc(err).find("write json")) << fail_at << ": " << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_EQ(fail_at, io.nb_writes_);
+    }
+
+    // JSONP: the header with the callback, then "(", the data and ")".
+    const char *parts[] = {"write jsonp callback", "write jsonp callback", "write jsonp left token", "write jsonp data", "write jsonp right token"};
+    for (int fail_at = 1; fail_at <= 5; fail_at++) {
+        HttpApiUtestLeavingClientIO io(fail_at);
+        err = server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/versions?callback=onVersion", &io);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << fail_at;
+        EXPECT_NE(string::npos, srs_error_desc(err).find(parts[fail_at - 1])) << fail_at << ": " << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_EQ(fail_at, io.nb_writes_);
+    }
+
+    // The client stays: the whole JSONP reply is written.
+    HttpApiUtestLeavingClientIO io(100);
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/versions?callback=onVersion", &io));
+    EXPECT_EQ(5, io.nb_writes_);
+    string body = http_api_utest_body(io);
+    EXPECT_EQ(0u, body.find("onVersion({")) << body;
+    EXPECT_EQ(')', body.at(body.length() - 1)) << body;
+}
+
+// The error test endpoint, /api/v1/tests/errors, always answers code 100, for a client to check how it handles an API
+// error; the HTTP vhost error.srs.com serves its own copy at the same path.
+VOID TEST(AppHttpApiTest, ErrorTestEndpoint_AnswersCode100)
+{
+    srs_error_t err;
+
+    HttpApiUtestServer server;
+
+    MockBufferIO io;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://127.0.0.1:1985/api/v1/tests/errors", &io));
+    EXPECT_STREQ("HTTP/1.1 200 OK", http_api_utest_status(io).c_str());
+    EXPECT_EQ(100, http_api_utest_code(io)) << http_api_utest_body(io);
+
+    MockBufferIO vhost;
+    HELPER_ASSERT_SUCCESS(server.serve(HTTP_GET, "http://error.srs.com:1985/api/v1/tests/errors", &vhost));
+    EXPECT_EQ(100, http_api_utest_code(vhost)) << http_api_utest_body(vhost);
+}
+
+// With the RAW API enabled, an rpc the server does not have, such as a typo of reload or a missing rpc, is refused
+// with ERROR_SYSTEM_CONFIG_RAW, and no signal is raised.
+VOID TEST(AppHttpApiTest, RawApiUnknownRpc_RefusedNoSignal)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + "http_api { enabled on; raw_api { enabled on; allow_reload on; } }"));
+
+    MockSignalHandler handler;
+    SrsHttpServeMux mux;
+    SrsGoApiRaw *raw = new SrsGoApiRaw(&handler);
+    raw->config_ = &conf;
+    raw->assemble();
+    HELPER_ASSERT_SUCCESS(mux.handle("/api/v1/raw", raw));
+
+    const char *urls[] = {"http://127.0.0.1:1985/api/v1/raw?rpc=relaod", "http://127.0.0.1:1985/api/v1/raw"};
+    for (int i = 0; i < 2; i++) {
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url(urls[i], true));
+        MockBufferIO io;
+        SrsHttpResponseWriter w(&io);
+        HELPER_ASSERT_SUCCESS(mux.serve_http(&w, &r));
+        EXPECT_EQ(ERROR_SYSTEM_CONFIG_RAW, http_api_utest_code(io)) << urls[i] << ": " << http_api_utest_body(io);
+    }
+    EXPECT_EQ(0, handler.signal_count_);
+
+    // The same server reloads for the right rpc.
+    SrsHttpMessage r(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(r.set_url("http://127.0.0.1:1985/api/v1/raw?rpc=reload", true));
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    HELPER_ASSERT_SUCCESS(mux.serve_http(&w, &r));
+    EXPECT_EQ(0, http_api_utest_code(io)) << http_api_utest_body(io);
+    EXPECT_EQ(SRS_SIGNAL_RELOAD, handler.signal_received_);
+}
+
+// The server mounts /metrics on the HTTP API whether the exporter is on or not. A Prometheus that scrapes it with the
+// exporter off gets a JSON error, ERROR_EXPORTER_DISABLED, not metrics.
+VOID TEST(AppHttpApiTest, MetricsScrapedWithExporterOff_Refused)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + "http_api { enabled on; } exporter { enabled off; }"));
+
+    SrsStatistic stat;
+    stat.config_ = &conf;
+    SrsHttpServeMux mux;
+    SrsGoApiMetrics *metrics = new SrsGoApiMetrics();
+    metrics->stat_ = &stat;
+    metrics->config_ = &conf;
+    metrics->assemble();
+    HELPER_ASSERT_SUCCESS(mux.handle("/metrics", metrics));
+
+    SrsHttpMessage r(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(r.set_url("http://127.0.0.1:1985/metrics", true));
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    HELPER_ASSERT_SUCCESS(mux.serve_http(&w, &r));
+    EXPECT_EQ(ERROR_EXPORTER_DISABLED, http_api_utest_code(io)) << http_api_utest_body(io);
+    EXPECT_EQ(string::npos, http_api_utest_body(io).find("srs_build_info"));
 }
