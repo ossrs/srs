@@ -54,16 +54,14 @@
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_protocol.hpp>
 
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <netinet/in.h>
 #include <set>
 #include <stdio.h>
 #include <string>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <vector>
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 using namespace std;
 
@@ -1319,6 +1317,23 @@ VOID TEST(AppHeartbeatTest, CollectorClosesMidBody_TickWarnsReadBody)
 // Removes a dir and everything in it, as an operator's cleanup job does.
 void hls_utest_remove_all(const string &dir)
 {
+#ifdef _WIN32
+    WIN32_FIND_DATAA e;
+    HANDLE d = ::FindFirstFileA((dir + "/*").c_str(), &e);
+    if (d == INVALID_HANDLE_VALUE) {
+        ::unlink(dir.c_str());
+        return;
+    }
+
+    do {
+        string name = e.cFileName;
+        if (name != "." && name != "..") {
+            hls_utest_remove_all(dir + "/" + name);
+        }
+    } while (::FindNextFileA(d, &e));
+    ::FindClose(d);
+    ::rmdir(dir.c_str());
+#else
     DIR *d = opendir(dir.c_str());
     if (!d) {
         ::unlink(dir.c_str());
@@ -1334,6 +1349,7 @@ void hls_utest_remove_all(const string &dir)
     }
     closedir(d);
     ::rmdir(dir.c_str());
+#endif
 }
 
 string hls_utest_read_file(const string &path)
@@ -3520,8 +3536,8 @@ public:
     {
         dir_ = "/tmp/srs-utest-static-" + srs_strconv_format_int(getpid());
         hls_utest_remove_all(dir_);
-        ::mkdir(dir_.c_str(), 0755);
-        ::mkdir((dir_ + "/live").c_str(), 0755);
+        srs_mkdir(dir_.c_str());
+        srs_mkdir((dir_ + "/live").c_str());
 
         entry_.pattern = "/";
         stream_ = new SrsVodStream(dir_);

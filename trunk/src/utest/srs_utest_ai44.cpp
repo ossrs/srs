@@ -69,15 +69,11 @@
 #include <srs_app_gb28181.hpp>
 #endif
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <openssl/ssl.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -1999,7 +1995,7 @@ public:
     {
         int v = 0;
         socklen_t n = sizeof(int);
-        getsockopt(fd_, SOL_SOCKET, SO_RCVBUF, &v, &n);
+        srs_getsockopt(fd_, SOL_SOCKET, SO_RCVBUF, &v, &n);
         return v;
     }
     bool merged_read()

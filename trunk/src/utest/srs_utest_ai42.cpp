@@ -48,12 +48,8 @@
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #ifndef _WIN32
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -3245,7 +3241,7 @@ VOID TEST(AppDvrTest, SegmentDiskFillsAtAnyWrite_OnlyClosedSegmentsReported)
         }
         if (err == srs_success) {
             // The next segment's name, in ms, differs from the first's.
-            ::usleep(2000);
+            srs_usleep(2 * SRS_UTIME_MILLISECONDS);
             err = s.av(1000, 1500);
         }
         s.dvr_->on_unpublish();
@@ -3318,7 +3314,7 @@ VOID TEST(AppDvrTest, SegmentWaitsForKeyframe_NewSegmentStartsWithHeaders)
     EXPECT_TRUE(s.async_.tasks_.empty());
 
     // The next segment's name, in ms, differs from the first's.
-    ::usleep(2000);
+    srs_usleep(2 * SRS_UTIME_MILLISECONDS);
     HELPER_ASSERT_SUCCESS(s.av(2000, 2900, 2000));
     EXPECT_EQ(1, s.on_dvr_request_sh_count_);
     s.dvr_->on_unpublish();
@@ -3358,7 +3354,7 @@ VOID TEST(AppDvrTest, DISABLED_SegmentWithJitterOff_LaterSegmentsCutEachKeyframe
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
     for (int64_t sec = 0; sec < 10; sec++) {
         // Each segment's name, in ms, differs from the one before.
-        ::usleep(2000);
+        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
         HELPER_ASSERT_SUCCESS(s.av(sec * 1000, sec * 1000 + 900));
     }
     s.dvr_->on_unpublish();
@@ -3467,7 +3463,7 @@ VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
     }
 
     // The next file's name, in ms, differs from the first's.
-    ::usleep(2000);
+    srs_usleep(2 * SRS_UTIME_MILLISECONDS);
     HELPER_ASSERT_SUCCESS(s.dvr_->on_publish(&s.req_));
 
     // No recording is complete, nor reported.

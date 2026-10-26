@@ -54,6 +54,14 @@
 #include <unistd.h>
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+
+#include <shellapi.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "shell32.lib")
+#endif
+
 #include <map>
 #include <set>
 #include <vector>
@@ -3180,5 +3188,462 @@ VOID TEST(PidFileLockerTest, NoRoomToWritePid_ServerRefusesToStart)
     EXPECT_EQ((int)srs_strconv_format_int(getpid()).length(), (int)st.st_size);
 
     ::unlink(path.c_str());
+}
+#endif
+
+#ifdef _WIN32 // Windows only: the Windows half of the platform shims; Linux and macOS run the POSIX half.
+static string win_tmp_file(const char *name)
+{
+    return _srs_tmp_file_prefix + "ai46-win-" + name;
+}
+
+static void win_write_file(const string &path, const string &data)
+{
+    FILE *fp = ::fopen(path.c_str(), "wb");
+    ASSERT_TRUE(fp != NULL);
+    ASSERT_EQ(data.size(), ::fwrite(data.data(), 1, data.size(), fp));
+    ::fclose(fp);
+}
+
+static string win_read_file(const string &path)
+{
+    string data;
+    FILE *fp = ::fopen(path.c_str(), "rb");
+    if (!fp) {
+        return data;
+    }
+
+    char buf[256];
+    size_t n;
+    while ((n = ::fread(buf, 1, sizeof(buf), fp)) > 0) {
+        data.append(buf, n);
+    }
+    ::fclose(fp);
+    return data;
+}
+
+// A program of Windows by its full path, as a config names FFmpeg: srs_process_spawn does not search PATH.
+static string win_system_exe(const char *name)
+{
+    char dir[MAX_PATH];
+    UINT n = ::GetSystemDirectoryA(dir, sizeof(dir));
+    return string(dir, n) + "\\" + name;
+}
+
+// Start cmd.exe with the command as SRS starts an engine, wait for it, and return its exit code, or -1 when it
+// did not start.
+static int win_spawn_cmd(const string &command, const string &out, const string &err)
+{
+    string cmd = win_system_exe("cmd.exe");
+    const char *argv[] = {cmd.c_str(), "/c", command.c_str(), NULL};
+    pid_t pid = srs_process_spawn(cmd.c_str(), argv, out.c_str(), err.c_str(), "cid", "info\n");
+    if (pid < 0) {
+        return -1;
+    }
+
+    int status = -1;
+    if (srs_waitpid(pid, &status, 0) != pid) {
+        return -1;
+    }
+    return status;
+}
+
+// An engine writes its output and its errors to the two log files of its config, and its exit code reaches SRS.
+VOID TEST(WindowsPlatformTest, EngineOutputAndErrorsGoToTheirLogs)
+{
+    string out = win_tmp_file("spawn-out");
+    string err = win_tmp_file("spawn-err");
+    ::unlink(out.c_str());
+    ::unlink(err.c_str());
+
+    EXPECT_EQ(3, win_spawn_cmd("echo out& 1>&2 echo err& exit 3", out, err));
+
+    string got = win_read_file(out);
+    EXPECT_TRUE(srs_strings_ends_with(got, "out\r\n")) << got;
+    EXPECT_EQ("err\r\n", win_read_file(err));
+
+    ::unlink(out.c_str());
+    ::unlink(err.c_str());
+}
+
+// The log starts with the banner that names SRS, the context and the engine, before anything the engine writes;
+// with no error log, the errors go to SRS's own stderr.
+VOID TEST(WindowsPlatformTest, EngineLogStartsWithTheBanner)
+{
+    string out = win_tmp_file("spawn-banner");
+    ::unlink(out.c_str());
+
+    string cmd = win_system_exe("cmd.exe");
+    const char *argv[] = {cmd.c_str(), "/c", "echo out", NULL};
+    pid_t pid = srs_process_spawn(cmd.c_str(), argv, out.c_str(), "", "cid", "info\n");
+    ASSERT_GT(pid, 0);
+    int status = -1;
+    ASSERT_EQ(pid, srs_waitpid(pid, &status, 0));
+    EXPECT_EQ(0, status);
+
+    string got = win_read_file(out);
+    string head = "\nprocess ppid=" + srs_strconv_format_int(::GetCurrentProcessId()) + ", cid=cid, pid=" +
+                  srs_strconv_format_int(pid) + ", in=0, out=1, err=2\ninfo\n";
+    EXPECT_EQ(head + "out\r\n", got);
+
+    ::unlink(out.c_str());
+}
+
+static string win_wide_to_utf8(const wchar_t *s)
+{
+    int n = ::WideCharToMultiByte(CP_UTF8, 0, s, -1, NULL, 0, NULL, NULL);
+    if (n <= 1) {
+        return string();
+    }
+    string v(n - 1, '\0');
+    ::WideCharToMultiByte(CP_UTF8, 0, s, -1, &v[0], n, NULL, NULL);
+    return v;
+}
+
+// An engine gets each argument as the config wrote it, with spaces, quotes, backslashes and empty ones, such as an
+// output under Program Files. cmd.exe echoes its command line as it got it, which the C runtime of an engine such
+// as FFmpeg splits as CommandLineToArgvW does.
+VOID TEST(WindowsPlatformTest, EngineGetsTheArgsAsIs)
+{
+    string out = win_tmp_file("spawn-args");
+    ::unlink(out.c_str());
+
+    vector<string> args;
+    args.push_back("a b");
+    args.push_back("c\"d");
+    args.push_back("e\\");
+    args.push_back("");
+    args.push_back("f\\\\\"g h");
+    args.push_back("C:\\Program Files\\ffmpeg\\");
+
+    string cmd = win_system_exe("cmd.exe");
+    vector<const char *> argv;
+    argv.push_back(cmd.c_str());
+    argv.push_back("/c");
+    argv.push_back("echo");
+    for (int i = 0; i < (int)args.size(); i++) {
+        argv.push_back(args[i].c_str());
+    }
+    argv.push_back(NULL);
+
+    pid_t pid = srs_process_spawn(cmd.c_str(), &argv[0], out.c_str(), "", "cid", "");
+    ASSERT_GT(pid, 0);
+    int status = -1;
+    ASSERT_EQ(pid, srs_waitpid(pid, &status, 0));
+    EXPECT_EQ(0, status);
+
+    // The echoed line follows the banner, which ends with the empty info.
+    string got = win_read_file(out);
+    size_t pos = got.find("err=2\n");
+    ASSERT_NE(string::npos, pos) << got;
+    string line = got.substr(pos + 6);
+    ASSERT_TRUE(srs_strings_ends_with(line, "\r\n")) << line;
+    line = "x " + line.substr(0, line.size() - 2);
+
+    wstring wline(line.begin(), line.end());
+    int n = 0;
+    LPWSTR *parsed = ::CommandLineToArgvW(wline.c_str(), &n);
+    ASSERT_TRUE(parsed != NULL);
+    EXPECT_EQ((int)args.size() + 1, n) << line;
+    for (int i = 0; i < (int)args.size() && i + 1 < n; i++) {
+        EXPECT_EQ(args[i], win_wide_to_utf8(parsed[i + 1])) << line;
+    }
+    ::LocalFree(parsed);
+
+    ::unlink(out.c_str());
+}
+
+// The log of an engine that ran before keeps its lines; the next run appends, as a log does.
+VOID TEST(WindowsPlatformTest, EngineAppendsToItsLog)
+{
+    string err = win_tmp_file("spawn-append");
+    win_write_file(err, "old\r\n");
+
+    EXPECT_EQ(0, win_spawn_cmd("1>&2 echo new", "/dev/null", err));
+
+    EXPECT_EQ("old\r\nnew\r\n", win_read_file(err));
+
+    ::unlink(err.c_str());
+}
+
+// One file for both logs, as ff_log_dir gives an engine, keeps the lines of both in order, none written over.
+VOID TEST(WindowsPlatformTest, EngineSharesOneLogForBothOutputs)
+{
+    string out = win_tmp_file("spawn-both");
+    ::unlink(out.c_str());
+
+    EXPECT_EQ(0, win_spawn_cmd("echo out& 1>&2 echo err", out, out));
+
+    string got = win_read_file(out);
+    EXPECT_TRUE(srs_strings_ends_with(got, "out\r\nerr\r\n")) << got;
+
+    ::unlink(out.c_str());
+}
+
+// An engine that reads its input, such as sort, ends at once on the null device, where SRS's console would hold it.
+VOID TEST(WindowsPlatformTest, EngineHasNoInput)
+{
+    string err = win_tmp_file("spawn-stdin");
+    ::unlink(err.c_str());
+
+    EXPECT_EQ(0, win_spawn_cmd("sort& 1>&2 echo done", "/dev/null", err));
+
+    EXPECT_EQ("done\r\n", win_read_file(err));
+
+    ::unlink(err.c_str());
+}
+
+// With ff_log_dir set to /dev/null, as the default config does, the engine writes to the null device.
+VOID TEST(WindowsPlatformTest, EngineLogsToTheNullDevice)
+{
+    EXPECT_EQ(0, win_spawn_cmd("echo out& 1>&2 echo err", "/dev/null", "/dev/null"));
+}
+
+// A config from Linux names the engine without .exe, such as ./objs/ffmpeg/bin/ffmpeg; it still starts.
+VOID TEST(WindowsPlatformTest, EngineNamedWithoutExeStarts)
+{
+    string cmd = win_system_exe("cmd");
+    const char *argv[] = {cmd.c_str(), "/c", "exit 5", NULL};
+    pid_t pid = srs_process_spawn(cmd.c_str(), argv, "/dev/null", "/dev/null", "cid", "");
+    ASSERT_GT(pid, 0);
+
+    int status = -1;
+    EXPECT_EQ(pid, srs_waitpid(pid, &status, 0));
+    EXPECT_EQ(5, status);
+}
+
+// An engine not installed at the path of the config does not start, and SRS learns why.
+VOID TEST(WindowsPlatformTest, EngineNotInstalledFails)
+{
+    string bin = win_tmp_file("no-such-ffmpeg");
+    const char *argv[] = {bin.c_str(), "-i", "in.flv", NULL};
+
+    errno = 0;
+    EXPECT_EQ(-1, srs_process_spawn(bin.c_str(), argv, "/dev/null", "/dev/null", "cid", ""));
+    EXPECT_EQ(ENOENT, errno);
+}
+
+// An engine whose log dir is missing does not start, as SRS cannot open its log.
+VOID TEST(WindowsPlatformTest, EngineLogDirMissingFails)
+{
+    string cmd = win_system_exe("cmd.exe");
+    string log = win_tmp_file("no-such-dir/ffmpeg.log");
+    const char *argv[] = {cmd.c_str(), "/c", "exit 0", NULL};
+
+    errno = 0;
+    EXPECT_EQ(-1, srs_process_spawn(cmd.c_str(), argv, log.c_str(), "/dev/null", "cid", ""));
+    EXPECT_EQ(ENOENT, errno);
+}
+
+// An engine is reaped once; after that SRS has no child by that pid to signal or wait for.
+VOID TEST(WindowsPlatformTest, EngineIsReapedOnce)
+{
+    string cmd = win_system_exe("cmd.exe");
+    const char *argv[] = {cmd.c_str(), "/c", "exit 0", NULL};
+    pid_t pid = srs_process_spawn(cmd.c_str(), argv, "/dev/null", "/dev/null", "cid", "");
+    ASSERT_GT(pid, 0);
+
+    int status = -1;
+    EXPECT_EQ(pid, srs_waitpid(pid, &status, 0));
+
+    errno = 0;
+    EXPECT_EQ(-1, srs_waitpid(pid, &status, WNOHANG));
+    EXPECT_EQ(ECHILD, errno);
+    errno = 0;
+    EXPECT_EQ(-1, srs_kill(pid, SIGTERM));
+    EXPECT_EQ(ESRCH, errno);
+}
+
+// SRS sees a running engine as not quit, kills it, and reaps it with the exit code of a killed process.
+VOID TEST(WindowsPlatformTest, KilledEngineIsReaped)
+{
+    string ping = win_system_exe("PING.EXE");
+    const char *argv[] = {ping.c_str(), "-n", "30", "127.0.0.1", NULL};
+    pid_t pid = srs_process_spawn(ping.c_str(), argv, "/dev/null", "/dev/null", "cid", "");
+    ASSERT_GT(pid, 0);
+
+    int status = -1;
+    EXPECT_EQ(0, srs_waitpid(pid, &status, WNOHANG));
+
+    EXPECT_EQ(0, srs_kill(pid, SIGKILL));
+    EXPECT_EQ(pid, srs_waitpid(pid, &status, 0));
+    EXPECT_EQ(128 + SIGKILL, status);
+}
+
+// An engine that quit on its own, such as FFmpeg at the end of its input, still takes the stop signal, and SRS
+// reaps it with its own exit code.
+VOID TEST(WindowsPlatformTest, EngineThatQuitTakesTheSignal)
+{
+    string cmd = win_system_exe("cmd.exe");
+    const char *argv[] = {cmd.c_str(), "/c", "exit 4", NULL};
+    pid_t pid = srs_process_spawn(cmd.c_str(), argv, "/dev/null", "/dev/null", "cid", "");
+    ASSERT_GT(pid, 0);
+
+    HANDLE h = ::OpenProcess(SYNCHRONIZE, FALSE, (DWORD)pid);
+    ASSERT_TRUE(h != NULL);
+    EXPECT_EQ(WAIT_OBJECT_0, ::WaitForSingleObject(h, 10000));
+    ::CloseHandle(h);
+
+    EXPECT_EQ(0, srs_kill(pid, SIGTERM));
+    int status = -1;
+    EXPECT_EQ(pid, srs_waitpid(pid, &status, 0));
+    EXPECT_EQ(4, status);
+}
+
+// An unpublish stops an engine that keeps running: SRS asks it to quit, then ends it, and reaps it.
+VOID TEST(WindowsPlatformTest, StopEndsARunningEngine)
+{
+    srs_error_t err;
+
+    string ping = win_system_exe("PING.EXE");
+    vector<string> argv;
+    argv.push_back(ping);
+    argv.push_back("-n");
+    argv.push_back("30");
+    argv.push_back("127.0.0.1");
+    argv.push_back("1>/dev/null");
+
+    SrsUniquePtr<SrsProcess> process(new SrsProcess());
+    HELPER_ASSERT_SUCCESS(process->initialize(ping, argv));
+    HELPER_ASSERT_SUCCESS(process->start());
+    pid_t pid = process->get_pid();
+    EXPECT_GT(pid, 0);
+
+    HELPER_EXPECT_SUCCESS(process->cycle());
+    EXPECT_TRUE(process->started());
+
+    process->stop();
+    EXPECT_FALSE(process->started());
+
+    int status = -1;
+    errno = 0;
+    EXPECT_EQ(-1, srs_waitpid(pid, &status, WNOHANG));
+    EXPECT_EQ(ECHILD, errno);
+}
+
+// A second SRS with the same pid file refuses to start, and the pid of the first stays in the file. A Windows lock
+// belongs to the handle, so a second handle in this process plays the second SRS.
+VOID TEST(WindowsPlatformTest, SecondServerWithSamePidFileRefused)
+{
+    srs_error_t err;
+
+    string path = win_tmp_file("pid");
+    ::unlink(path.c_str());
+    MockAppConfigForPidFile config(path);
+
+    if (true) {
+        SrsPidFileLocker first;
+        first.config_ = &config;
+        HELPER_EXPECT_SUCCESS(first.acquire());
+
+        SrsPidFileLocker second;
+        second.config_ = &config;
+        err = second.acquire();
+        EXPECT_EQ(ERROR_SYSTEM_PID_ALREADY_RUNNING, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(-1, second.pid_fd_);
+
+        EXPECT_EQ(srs_strconv_format_int(::GetCurrentProcessId()), win_read_file(path));
+        first.config_ = NULL;
+        second.config_ = NULL;
+    }
+
+    ::unlink(path.c_str());
+}
+
+// A program that reads the playlist without letting others delete it, such as a web server serving it, keeps
+// SRS from replacing it until it closes the file.
+VOID TEST(WindowsPlatformTest, PlaylistHeldByAReaderNotReplaced)
+{
+    string m3u8 = win_tmp_file("live.m3u8");
+    string temp = win_tmp_file("live.m3u8.temp");
+    win_write_file(m3u8, "#EXTM3U\n#old\n");
+    win_write_file(temp, "#EXTM3U\n#new\n");
+
+    FILE *reader = ::fopen(m3u8.c_str(), "rb");
+    ASSERT_TRUE(reader != NULL);
+    errno = 0;
+    EXPECT_EQ(-1, srs_rename(temp.c_str(), m3u8.c_str()));
+    EXPECT_EQ(EACCES, errno);
+    ::fclose(reader);
+
+    EXPECT_EQ("#EXTM3U\n#old\n", win_read_file(m3u8));
+    EXPECT_EQ(0, srs_rename(temp.c_str(), m3u8.c_str()));
+    EXPECT_EQ("#EXTM3U\n#new\n", win_read_file(m3u8));
+
+    ::unlink(m3u8.c_str());
+}
+
+// A hook or an origin at [::1] that is down refuses at once, as at 127.0.0.1; Windows would retry the SYN for
+// about 2 s.
+VOID TEST(WindowsPlatformTest, Ipv6LoopbackConnectRefusedAtOnce)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &port));
+
+    srs_netfd_t stfd = NULL;
+    srs_utime_t starttime = srs_time_now_realtime();
+    err = srs_tcp_connect("::1", port, 3 * SRS_UTIME_SECONDS, &stfd);
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_EQ(ERROR_ST_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(stfd == NULL);
+    EXPECT_LT(elapsed, 500 * SRS_UTIME_MILLISECONDS);
+}
+
+// A listen on an address this host does not have, such as a config copied from another server, fails with the
+// errno SRS logs for it.
+VOID TEST(WindowsPlatformTest, ListenOnAnAddressNotOnThisHostFails)
+{
+    srs_error_t err;
+
+    int types[] = {SOCK_STREAM, SOCK_DGRAM};
+    for (int i = 0; i < 2; i++) {
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_free_port(types[i], &port));
+
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = htonl(0xc0000201); // 192.0.2.1, TEST-NET-1
+
+        srs_socket_t fd = ::socket(AF_INET, types[i], 0);
+        ASSERT_NE(SRS_INVALID_SOCKET, fd);
+        errno = 0;
+        EXPECT_EQ(-1, srs_bind(fd, (sockaddr *)&addr, sizeof(addr)));
+        EXPECT_EQ(EADDRNOTAVAIL, errno);
+        srs_close_socket(fd);
+    }
+}
+
+// The summaries API names the OS: Windows, its version and build, and the host name.
+VOID TEST(WindowsPlatformTest, UnameNamesWindows)
+{
+    utsname name;
+    ASSERT_EQ(0, srs_uname(&name));
+
+    EXPECT_STREQ("Windows", name.sysname);
+    EXPECT_STREQ("x86_64", name.machine);
+    EXPECT_STRNE("", name.nodename);
+    // Windows 10 and 11, and the servers since 2016, are all version 10.0, told apart by the build.
+    EXPECT_STREQ("10", name.release);
+    string version = name.version;
+    ASSERT_TRUE(srs_strings_starts_with(version, "10.0.")) << version;
+    EXPECT_GE(::atoi(version.substr(5).c_str()), 10240) << version;
+}
+
+// The summaries API gives the uptime of the host, from its boot.
+VOID TEST(WindowsPlatformTest, PlatformInfoGivesTheHostUptime)
+{
+    srs_update_platform_info();
+    double uptime = srs_get_platform_info()->os_uptime_;
+    double expect = (double)::GetTickCount64() / 1000;
+
+    EXPECT_GT(uptime, 0);
+    EXPECT_NEAR(expect, uptime, 2);
 }
 #endif

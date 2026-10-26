@@ -47,7 +47,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #if defined(SRS_BACKTRACE) && defined(__linux)
 #include <dlfcn.h>
 #endif

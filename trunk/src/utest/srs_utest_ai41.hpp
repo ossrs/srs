@@ -23,7 +23,6 @@
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_protocol.hpp>
 
-#include <sys/socket.h>
 
 #include <string>
 #include <vector>
@@ -140,7 +139,7 @@ private:
             struct linger lg;
             lg.l_onoff = 1;
             lg.l_linger = 0;
-            setsockopt(srs_netfd_fileno(cfd), SOL_SOCKET, SO_LINGER, &lg, sizeof(lg));
+            srs_setsockopt(srs_netfd_fileno(cfd), SOL_SOCKET, SO_LINGER, &lg, sizeof(lg));
             return err;
         }
 

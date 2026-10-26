@@ -50,7 +50,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -111,7 +110,7 @@ VOID TEST(KernelUtilityTest, HlsDirUnderRegularFileFailsToCreate)
 // Another process creates the directory between the server's check and its mkdir.
 static int ai41_mkdir_raced(const char *dir)
 {
-    ::mkdir(dir, 0755);
+    srs_mkdir(dir);
     errno = EEXIST;
     return -1;
 }
@@ -125,7 +124,7 @@ VOID TEST(KernelUtilityTest, HlsDirCreatedByAnotherServerAtOnceIsUsed)
 
     string parent = srs_utest_tmp_dir() + "/srs_utest_ai41_race_" + srs_strconv_format_int(getpid());
     string dir = parent + "/livestream";
-    ASSERT_EQ(0, ::mkdir(parent.c_str(), 0755));
+    ASSERT_EQ(0, srs_mkdir(parent.c_str()));
 
     srs_mkdir_t old = _srs_mkdir_fn;
     _srs_mkdir_fn = ai41_mkdir_raced;
@@ -1797,9 +1796,11 @@ public:
     {
         if (!truncated_) {
             truncated_ = true;
-            if (::truncate(path_.c_str(), 0) != 0) {
+            int fd = srs_file_open(path_.c_str(), O_WRONLY | O_TRUNC);
+            if (fd < 0) {
                 return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "truncate");
             }
+            srs_file_close(fd);
         }
         return MockBufferIO::write(buf, size, nwrite);
     }

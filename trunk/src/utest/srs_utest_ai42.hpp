@@ -19,7 +19,6 @@
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_config.hpp>
 
-#include <arpa/inet.h>
 #ifndef _WIN32
 #include <ifaddrs.h>
 #endif
