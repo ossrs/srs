@@ -1696,7 +1696,7 @@ VOID TEST(AppNgExecTest, EncoderPublishes_CommandsRunWithStreamNamesUntilUnpubli
 
     // The sleep runs; the echo may have quit already, for the next loop to run it again.
     ASSERT_EQ(2, (int)exec->exec_publishs_.size());
-    SrsProcess *sleeper = exec->exec_publishs_[1];
+    ISrsProcess *sleeper = exec->exec_publishs_[1];
     EXPECT_TRUE(sleeper->started());
     pid_t pid = sleeper->get_pid();
     ASSERT_GT(pid, 0);

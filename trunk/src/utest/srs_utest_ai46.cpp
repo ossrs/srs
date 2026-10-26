@@ -15,6 +15,8 @@
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_app_ng_exec.hpp>
+#include <srs_app_process.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
@@ -29,12 +31,15 @@
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai18.hpp>
 #include <srs_utest_ai24.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_ai37.hpp>
+#include <srs_utest_ai38.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_ai43.hpp>
+#include <srs_utest_ai44.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -2670,4 +2675,115 @@ VOID TEST(AppListenerTest, BrowserAddressUnreachable_SendFailsOtherBrowsersStill
 
     srs_close_stfd(other_fd);
     srs_close_stfd(server_fd);
+}
+
+// The time of an exec's retry loop: it records each wait, as the ingester's mock does, and yields for only 1ms, so the
+// loop retries at once.
+class NgExecUtestTime : public MockTimeForIngester
+{
+public:
+    virtual void usleep(srs_utime_t duration)
+    {
+        MockTimeForIngester::usleep(duration);
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+};
+
+// The factory of an exec: its commands are processes that never fork, each failing to start with the fork error of the
+// moment, and its retry loop waits on a recorded time.
+class NgExecUtestFactory : public SrsAppFactory
+{
+public:
+    std::vector<MockProcessForFFMPEG *> processes_;
+    NgExecUtestTime *time_;
+    // The error each new process starts with, owned by the factory.
+    srs_error_t fork_error_;
+
+public:
+    NgExecUtestFactory()
+    {
+        time_ = NULL;
+        fork_error_ = srs_success;
+    }
+    virtual ~NgExecUtestFactory()
+    {
+        srs_freep(fork_error_);
+    }
+
+public:
+    virtual ISrsProcess *create_process()
+    {
+        MockProcessForFFMPEG *process = new MockProcessForFFMPEG();
+        process->start_error_ = srs_error_copy(fork_error_);
+        processes_.push_back(process);
+        return process;
+    }
+    virtual ISrsTime *create_time()
+    {
+        time_ = new NgExecUtestTime();
+        return time_;
+    }
+};
+
+// A vhost with two exec commands, and the process table is full when an encoder publishes: the first fork fails. The
+// exec logs the error and keeps its coroutine, waits 3s, and tries again, the second command too; once processes exit
+// and the fork works, both commands run, and the exec logs them for the stream.
+VOID TEST(AppNgExecTest, ProcessTableFull_ForkFailsThenRetriedUntilCommandsRun)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_exec);
+
+    MockSrsConfig conf;
+    string text = "vhost __defaultVhost__ { exec { enabled on; publish /bin/echo [app]/[stream]; publish /bin/sleep 30; } }";
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + text));
+
+    NgExecUtestFactory factory;
+    factory.fork_error_ = srs_error_new(ERROR_ENCODER_FORK, "vfork process failed, cli=/bin/echo live/livestream");
+
+    SrsUniquePtr<SrsNgExec> exec(new SrsNgExec());
+    exec->config_ = &conf;
+    exec->app_factory_ = &factory;
+    exec->assemble();
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_ASSERT_SUCCESS(exec->on_publish(&req));
+    ASSERT_EQ(2, (int)factory.processes_.size());
+    MockProcessForFFMPEG *echo = factory.processes_[0];
+    MockProcessForFFMPEG *sleeper = factory.processes_[1];
+    EXPECT_EQ("/bin/echo", echo->binary_);
+    EXPECT_EQ("/bin/sleep", sleeper->binary_);
+
+    // The fork fails at each try: the exec warns, waits 3s and retries; the second command waits for the first.
+    for (int i = 0; i < 100 && echo->start_count_ < 2; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    ASSERT_GE(echo->start_count_, 2);
+    EXPECT_EQ(0, sleeper->start_count_);
+    EXPECT_FALSE(echo->started());
+    EXPECT_GE(log.warns("EXEC: Ignore error"), 2);
+    EXPECT_GE(log.warns("process start"), 2);
+    EXPECT_GE(log.warns("vfork process failed"), 2);
+    ASSERT_TRUE(factory.time_ != NULL);
+    EXPECT_GE(factory.time_->usleep_count_, 2);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory.time_->last_usleep_duration_);
+    EXPECT_TRUE(log.last_trace("-> EXE ").empty());
+
+    // Processes exit and the fork works again: the next try runs both commands and logs them.
+    srs_freep(echo->start_error_);
+    srs_freep(sleeper->start_error_);
+    int warned = log.warns("EXEC: Ignore error");
+    for (int i = 0; i < 100 && log.last_trace("-> EXE ").empty(); i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(echo->started());
+    EXPECT_TRUE(sleeper->started());
+    EXPECT_EQ(warned, log.warns("EXEC: Ignore error"));
+    string line = log.last_trace("-> EXE ");
+    EXPECT_NE(string::npos, line.find("publish=2, input=__defaultVhost__/live/livestream")) << line;
+
+    // The encoder stops: the exec holds no command.
+    exec->on_unpublish();
+    EXPECT_TRUE(exec->exec_publishs_.empty());
 }
