@@ -22,6 +22,10 @@
 #
 # Remove the build with: docker volume rm <checkout>-coverage-build
 #
+# A failed run says why: a failed configure or build prints its errors and keeps the make log in
+# trunk/objs/coverage/make.log; failed tests print their [  FAILED  ] lines, or the end of the test log when srs_utest
+# fails with no failed test, such as a crash or a sanitizer report.
+#
 # Exit code is 0 when the build and every test pass, 1 otherwise.
 
 FLAGS="--rtsp=on --srt=on --gb28181=on --h265=on --utest=on --gcov=on --sanitizer=on"
@@ -45,22 +49,34 @@ done
 
 if [[ $RUN == yes ]]; then
     echo "volume $VOLUME, flags $FLAGS"
+    rm -f "$OUT/utest.log" "$OUT/make.log"
     docker run --rm -v "$ROOT/trunk:/host:ro" -v "$VOLUME:/srs" -v "$OUT:/out" -e FLAGS="$FLAGS" "$IMAGE" bash -c '
-        mkdir -p /srs/trunk && tar -C /host --exclude=./objs --exclude=./Makefile -cf - . | tar -C /srs/trunk -xf - || exit 1
-        cd /srs/trunk || exit 1
+        # Exit 2 when the tests could not run, so the host tells a build failure from a test failure.
+        mkdir -p /srs/trunk && tar -C /host --exclude=./objs --exclude=./Makefile -cf - . | tar -C /srs/trunk -xf - || { echo "sync of trunk into the volume failed"; exit 2; }
+        cd /srs/trunk || exit 2
         HEADER=$(grep SRS_USER_CONFIGURE objs/srs_auto_headers.hpp 2>/dev/null | sed "s/.*\"\(.*\)\"/\1/")
         if [[ ! -f Makefile || "$HEADER" != "$FLAGS" || configure -nt objs/Makefile || auto/module_files.sh -nt objs/Makefile ]]; then
             echo "configure: $FLAGS"
-            ./configure $FLAGS >/tmp/configure.log 2>&1 || { tail -n 30 /tmp/configure.log; exit 1; }
+            ./configure $FLAGS >/out/make.log 2>&1 || { tail -n 30 /out/make.log; echo "configure failed"; exit 2; }
             find objs -path "*/utest/*.o" -delete
         fi
         echo "build: make utest"
-        make utest -j$(nproc) >/tmp/make.log 2>&1 || { grep -E "error:|Error " /tmp/make.log | head -n 30; exit 1; }
+        if ! make utest -j$(nproc) >/out/make.log 2>&1; then
+            ERRORS=$(grep -E "error:|Error [0-9]|undefined reference|ld returned" /out/make.log | head -n 30)
+            [[ -n "$ERRORS" ]] && echo "$ERRORS" || tail -n 30 /out/make.log
+            echo "build failed"
+            exit 2
+        fi
+        rm -f /out/make.log
         find objs -name "*.gcda" -delete
         echo "test: srs_utest"
         ./objs/srs_utest >/out/utest.log 2>&1
         CODE=$?
         grep -E "^\[  (PASSED|FAILED)  \]" /out/utest.log
+        if [[ $CODE -ne 0 ]] && ! grep -qE "^\[  FAILED  \]" /out/utest.log; then
+            echo "srs_utest exited with $CODE and no failed test; end of the test log:"
+            tail -n 30 /out/utest.log
+        fi
         rm -rf objs/cov && mkdir -p objs/cov
         for gcda in objs/src/*/*.gcda; do
             dir=$(dirname $gcda); name=$(basename $gcda .gcda)
@@ -68,11 +84,18 @@ if [[ $RUN == yes ]]; then
             gcov -l -p -o $dir $src >/dev/null 2>&1
         done
         mv *.gcov objs/cov/ 2>/dev/null
-        exit $CODE
+        [[ $CODE -eq 0 ]] || exit 1
     '
     CODE=$?
-    if [[ $CODE -ne 0 ]]; then
-        echo "build or tests failed, test log trunk/objs/coverage/utest.log"
+    if [[ $CODE -eq 2 ]]; then
+        [[ -f "$OUT/make.log" ]] && echo "make log trunk/objs/coverage/make.log"
+        exit 1
+    elif [[ $CODE -ge 125 ]]; then
+        echo "docker run failed with $CODE"
+        exit 1
+    elif [[ $CODE -ne 0 ]]; then
+        echo "tests failed, test log trunk/objs/coverage/utest.log"
+        CODE=1
     fi
 else
     CODE=0
