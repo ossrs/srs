@@ -2694,3 +2694,75 @@ VOID TEST(KernelPSTest, DISABLED_PesStartCodeCutAfterTwoBytes_PackDropped)
     EXPECT_TRUE(handler.msgs_[0]->is_audio());
     EXPECT_TRUE(handler.msgs_[1]->is_video());
 }
+
+// At startup the server starts the RTC and GB connection managers, each with a coroutine that frees
+// the removed connections. When State Threads cannot create it (out of memory), start fails with the
+// ST error, so the server exits instead of running with connections that are never freed.
+VOID TEST(KernelResourceTest, ConnManagerFailsToStartWhenNoCoroutineCanBeCreated)
+{
+    srs_error_t err = srs_success;
+
+    SrsResourceManager manager("RTC", true);
+    manager.assemble();
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)hourglass_st_thread_create_out_of_memory;
+    err = manager.start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("conn manager") != string::npos);
+    srs_freep(err);
+
+    // Nothing frees a removed connection, even after this test yields.
+    MockSrsResource *conn = new MockSrsResource();
+    manager.add(conn);
+    manager.remove(conn);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, (int)manager.size());
+    EXPECT_EQ(1, (int)manager.zombies_.size());
+
+    // The manager frees its zombies when it is destroyed, in the context of its own id.
+    manager.cid_ = _srs_context->get_id();
+}
+
+// A WebRTC session subscribes to the connection manager in assemble() and unsubscribes in its
+// destructor. The manager frees a disposed session after its clear has dropped the unsubscribed
+// handlers, so the freed session's address stays in the unsubscribed list until the next clear. When
+// malloc gives that address to the next session, which subscribes before then, the new session is a
+// live handler and must get the dispose events of the other sessions.
+VOID TEST(KernelResourceTest, NewSessionAtFreedSessionAddressGetsDisposeEvents)
+{
+    SrsResourceManager manager("RTC", true);
+    manager.assemble();
+    manager.cid_ = _srs_context->get_id();
+
+    // One handler object stands for the old session and the new session at the same address.
+    MockSrsDisposingHandler session;
+    manager.subscribe(&session);
+
+    // The old session is freed by the manager's clear, and its destructor unsubscribes.
+    MockSrsResource *old_session = new MockSrsResource();
+    manager.add_with_name("old", old_session);
+    manager.remove(old_session);
+    manager.clear();
+    manager.unsubscribe(&session);
+    ASSERT_EQ(1, (int)session.disposing_calls_.size());
+
+    // The new session at the same address subscribes, before the manager clears again.
+    manager.subscribe(&session);
+
+    // Another session leaves: the new session hears of it, before and while it is disposed.
+    MockSrsResource *other = new MockSrsResource();
+    manager.add_with_name("other", other);
+    manager.remove(other);
+    ASSERT_EQ(2, (int)session.before_dispose_calls_.size());
+    EXPECT_TRUE(other == session.before_dispose_calls_.at(1));
+
+    manager.clear();
+    ASSERT_EQ(2, (int)session.disposing_calls_.size());
+    EXPECT_TRUE(other == session.disposing_calls_.at(1));
+    EXPECT_TRUE(manager.empty());
+
+    manager.unsubscribe(&session);
+}
