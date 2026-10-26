@@ -13,9 +13,12 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -24,6 +27,8 @@
 #include <unistd.h>
 #ifndef _WIN32
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #include <sys/resource.h>
 #endif
 
@@ -34,6 +39,8 @@ using namespace std;
 #include <srt/srt.h>
 
 extern SrsSrtEventLoop *_srs_srt_eventloop;
+extern vector<SrsIPAddress *> _srs_system_ips;
+extern string _srs_public_internet_address;
 
 // The libsrt log handler the tests set back after they route libsrt logs to the SRS log.
 static void srt_utest_quiet_log(void *opaque, int level, const char *file, int line, const char *area, const char *message)
@@ -876,3 +883,276 @@ VOID TEST(ProtocolStTest, ListenWithNoFreeFd_TcpAndUdpListenFail)
     EXPECT_EQ(free_fd, st_utest_lowest_free_fd());
 }
 #endif
+
+// The interface list of a host, as getifaddrs gives it: one entry per address, in the order added. The
+// interface names are ones the test hosts do not have, because the discovery records each interface's
+// internet flag in a map the process keeps.
+class UtilityIfaceList
+{
+private:
+    struct Entry {
+        ifaddrs ifa_;
+        sockaddr_storage addr_;
+        char name_[16];
+    };
+    vector<Entry *> entries_;
+
+public:
+    UtilityIfaceList()
+    {
+    }
+    ~UtilityIfaceList()
+    {
+        for (int i = 0; i < (int)entries_.size(); i++) {
+            delete entries_[i];
+        }
+    }
+
+public:
+    // Add an address of the interface name with the flags; an empty ip is an interface with no address,
+    // such as a VPN tunnel before it is configured.
+    void add(const char *name, unsigned int flags, const char *ip)
+    {
+        Entry *e = new Entry();
+        memset(e, 0, sizeof(Entry));
+        snprintf(e->name_, sizeof(e->name_), "%s", name);
+        e->ifa_.ifa_name = e->name_;
+        e->ifa_.ifa_flags = flags;
+
+        if (strchr(ip, ':')) {
+            sockaddr_in6 *a6 = (sockaddr_in6 *)&e->addr_;
+            a6->sin6_family = AF_INET6;
+#ifdef __APPLE__
+            a6->sin6_len = sizeof(sockaddr_in6);
+#endif
+            inet_pton(AF_INET6, ip, &a6->sin6_addr);
+            e->ifa_.ifa_addr = (sockaddr *)a6;
+        } else if (ip[0]) {
+            sockaddr_in *a4 = (sockaddr_in *)&e->addr_;
+            a4->sin_family = AF_INET;
+#ifdef __APPLE__
+            a4->sin_len = sizeof(sockaddr_in);
+#endif
+            inet_pton(AF_INET, ip, &a4->sin_addr);
+            e->ifa_.ifa_addr = (sockaddr *)a4;
+        }
+
+        if (!entries_.empty()) {
+            entries_.back()->ifa_.ifa_next = &e->ifa_;
+        }
+        entries_.push_back(e);
+    }
+    ifaddrs *head()
+    {
+        return entries_.empty() ? NULL : &entries_[0]->ifa_;
+    }
+};
+
+// The local IPs the server discovered at startup, swapped in for a test and restored after it, with the
+// cached public address cleared, so the address is chosen again from the test's IPs.
+class UtilityLocalIpsScope
+{
+private:
+    vector<SrsIPAddress *> saved_ips_;
+    string saved_address_;
+
+public:
+    UtilityLocalIpsScope()
+    {
+        saved_ips_.swap(_srs_system_ips);
+        saved_address_ = _srs_public_internet_address;
+        _srs_public_internet_address = "";
+    }
+    ~UtilityLocalIpsScope()
+    {
+        for (int i = 0; i < (int)_srs_system_ips.size(); i++) {
+            SrsIPAddress *ip = _srs_system_ips[i];
+            srs_freep(ip);
+        }
+        _srs_system_ips.clear();
+        _srs_system_ips.swap(saved_ips_);
+        _srs_public_internet_address = saved_address_;
+    }
+
+public:
+    vector<SrsIPAddress *> &ips()
+    {
+        return _srs_system_ips;
+    }
+};
+
+// The flags of an interface that is up with a link.
+#define UTILITY_IFF_READY (IFF_UP | IFF_RUNNING)
+
+// A host on a VPN: the tunnel device has no address yet (#141, #1087), so discovery skips it and lists
+// the LAN address, in both the IPv4 and the IPv6 pass.
+VOID TEST(ProtocolUtilityTest, LocalIpsOfHostOnVpn_TunnelWithNoAddressSkipped)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("tun0", UTILITY_IFF_READY | IFF_POINTOPOINT, "");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "192.168.1.10");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+
+    ASSERT_EQ(1, (int)scope.ips().size());
+    SrsIPAddress *ip = scope.ips()[0];
+    EXPECT_STREQ("enp3s0", ip->ifname_.c_str());
+    EXPECT_STREQ("192.168.1.10", ip->ip_.c_str());
+    EXPECT_TRUE(ip->is_ipv4_);
+    EXPECT_FALSE(ip->is_internet_);
+    EXPECT_FALSE(ip->is_loopback_);
+    EXPECT_FALSE(utility.is_internet("enp3s0"));
+
+    // An RTMP client, such as an edge or a forwarder, connects with this address in its tcUrl.
+    EXPECT_STREQ("192.168.1.10", utility.public_internet_address().c_str());
+}
+
+// A dual-stack cloud host with public IPv4 and IPv6 addresses on its NIC: the IPv4 address is listed
+// first even when the system lists the IPv6 one first, both are internet, and so is the NIC.
+VOID TEST(ProtocolUtilityTest, LocalIpsOfDualStackCloudHost_Ipv4FirstBothInternet)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "::1");
+    ifs.add("ens5", UTILITY_IFF_READY, "2001:db8::10");
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("ens5", UTILITY_IFF_READY, "203.0.113.10");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+
+    ASSERT_EQ(2, (int)scope.ips().size());
+    SrsIPAddress *v4 = scope.ips()[0];
+    EXPECT_STREQ("203.0.113.10", v4->ip_.c_str());
+    EXPECT_TRUE(v4->is_ipv4_);
+    EXPECT_TRUE(v4->is_internet_);
+    SrsIPAddress *v6 = scope.ips()[1];
+    EXPECT_STREQ("2001:db8::10", v6->ip_.c_str());
+    EXPECT_FALSE(v6->is_ipv4_);
+    EXPECT_TRUE(v6->is_internet_);
+    EXPECT_STREQ("ens5", v6->ifname_.c_str());
+
+    // The system summary API counts this NIC's bytes as internet traffic.
+    EXPECT_TRUE(utility.is_internet("ens5"));
+}
+
+// A laptop offline: the cable is out (the NIC is up but not running) and the VPN tunnel has no address,
+// so discovery falls back to the IPv4 loopback, and the server still has an address to use.
+VOID TEST(ProtocolUtilityTest, LocalIpsOfOfflineLaptop_FallBackToLoopback)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "::1");
+    ifs.add("enp3s0", IFF_UP, "192.168.1.10");
+    ifs.add("tun0", UTILITY_IFF_READY | IFF_POINTOPOINT, "");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+
+    ASSERT_EQ(1, (int)scope.ips().size());
+    SrsIPAddress *ip = scope.ips()[0];
+    EXPECT_STREQ("lo", ip->ifname_.c_str());
+    EXPECT_STREQ("127.0.0.1", ip->ip_.c_str());
+    EXPECT_TRUE(ip->is_ipv4_);
+    EXPECT_TRUE(ip->is_loopback_);
+    EXPECT_FALSE(ip->is_internet_);
+
+    EXPECT_STREQ("127.0.0.1", utility.public_internet_address().c_str());
+}
+
+// An SRT publisher on a cloud host with a Docker bridge, whose streamid names only the stream: the
+// request takes the default app, and the server's public IPv4 rather than the bridge's address as its
+// host and tcUrl, which the hooks and the stream API report.
+VOID TEST(ProtocolUtilityTest, SrtPublishStreamOnlyOnCloudHost_DefaultAppAndPublicHost)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("docker0", UTILITY_IFF_READY, "172.17.0.1");
+    ifs.add("ens5", UTILITY_IFF_READY, "203.0.113.10");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+    ASSERT_EQ(2, (int)scope.ips().size());
+
+    MockAppConfig config;
+    SrtMode mode = SrtModePull;
+    SrsRequest req;
+    EXPECT_TRUE(srs_srt_streamid_to_request(&config, "#!::r=livestream,m=publish", mode, &req));
+
+    EXPECT_EQ(SrtModePush, mode);
+    EXPECT_STREQ("live", req.app_.c_str());
+    EXPECT_STREQ("livestream", req.stream_.c_str());
+    EXPECT_STREQ("203.0.113.10", req.host_.c_str());
+    EXPECT_STREQ("203.0.113.10", req.vhost_.c_str());
+    EXPECT_STREQ("srt://203.0.113.10/live", req.tcUrl_.c_str());
+}
+
+// An SRT client that asks for a mode other than publish or request, such as FFmpeg users who write
+// m=play, or that names no stream at all, is refused, so the connection is closed.
+VOID TEST(ProtocolUtilityTest, SrtStreamIdWithUnknownModeOrNoStream_Refused)
+{
+    MockAppConfig config;
+
+    if (true) {
+        SrtMode mode = SrtModePull;
+        SrsRequest req;
+        EXPECT_FALSE(srs_srt_streamid_to_request(&config, "#!::r=live/livestream,m=play", mode, &req));
+        EXPECT_TRUE(req.stream_.empty());
+    }
+
+    if (true) {
+        SrtMode mode = SrtModePull;
+        SrsRequest req;
+        EXPECT_FALSE(srs_srt_streamid_to_request(&config, "#!::m=publish", mode, &req));
+        EXPECT_TRUE(req.stream_.empty());
+    }
+}
+
+// A telnet or HTTP/1.0 client sends no Host header to a host with a public IPv6 address and a private
+// IPv4 one: the request's host is the IPv4 address, since an IPv6 address cannot stand as a URL host.
+VOID TEST(ProtocolUtilityTest, HttpRequestWithoutHostOnIpv6PublicHost_UsesIpv4Address)
+{
+    srs_error_t err = srs_success;
+
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "192.168.1.10");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "2001:db8::20");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+    ASSERT_EQ(2, (int)scope.ips().size());
+    EXPECT_TRUE(scope.ips()[1]->is_internet_);
+
+    SrsHttpMessage m(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(m.set_url("/api/v1/versions", false));
+    EXPECT_STREQ("192.168.1.10", m.host().c_str());
+    EXPECT_STREQ("/api/v1/versions", m.path().c_str());
+}
+
+// B26: a host with a public IPv4 address on its NIC, which also has the IPv6 link-local address every
+// IPv6-enabled interface gets, is marked intranet: the link-local address is discovered last and
+// overwrites the NIC's flag, so the system summary API counts all its traffic as intranet.
+VOID TEST(ProtocolUtilityTest, DISABLED_PublicIpv4NicWithLinkLocalIpv6_MarkedIntranet)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("ens6", UTILITY_IFF_READY, "203.0.113.30");
+    ifs.add("ens6", UTILITY_IFF_READY, "fe80::1");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+
+    ASSERT_EQ(2, (int)scope.ips().size());
+    EXPECT_TRUE(scope.ips()[0]->is_internet_);
+    EXPECT_FALSE(scope.ips()[1]->is_internet_);
+
+    EXPECT_TRUE(utility.is_internet("ens6"));
+}
