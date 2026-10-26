@@ -4568,3 +4568,134 @@ VOID TEST(AppEncoderTest, DISABLED_VhostWithTranscodeOfTwoApps_SecondAppNotTrans
     ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
     EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_copy", s.encoder_->at(0)->output());
 }
+
+// The server's config, loaded from the test's text for the scope of a test, as the server loads its config file: the
+// objects the server's factory makes read it from _srs_config.
+class FactoryUtestServerConfig
+{
+public:
+    MockSrsConfig conf_;
+    SrsConfig *saved_;
+
+public:
+    FactoryUtestServerConfig()
+    {
+        saved_ = _srs_config;
+    }
+    ~FactoryUtestServerConfig()
+    {
+        _srs_config = saved_;
+    }
+
+public:
+    srs_error_t load(string text)
+    {
+        srs_error_t err = conf_.mock_parse(string(_MIN_OK_CONF) + text);
+        _srs_config = &conf_;
+        return err;
+    }
+};
+
+// The edge's pull for its first player, made as the server makes it: the ingester asks the server's app factory for the
+// upstream of the protocol, and the upstream reads the origin from the server's config. Returns the ingester's result.
+static srs_error_t factory_utest_edge_pull(FactoryUtestServerConfig &server, string client_protocol, MockEdgeIngesterFixture &f)
+{
+    f.req_.protocol_ = client_protocol;
+    f.ingester_->config_ = &server.conf_;
+    f.ingester_->app_factory_ = _srs_app_factory;
+
+    srs_error_t err = f.ingester_->do_cycle();
+
+    f.ingester_->app_factory_ = NULL;
+    return err;
+}
+
+// An HTTP-FLV origin for an edge's pull, serving the FLV header and one key frame.
+static string factory_utest_flv_reply()
+{
+    string body = edge_utest_flv_header() + edge_utest_flv_tag(9, 40, edge_utest_flv_video());
+    return edge_utest_flv_reply(body, (int)body.size());
+}
+
+// The operator sets an edge vhost's cluster protocol: flv makes the edge pull the stream from the origin by HTTP-FLV,
+// and with no protocol the edge pulls it by RTMP. The server's factory makes the upstream of that protocol, which
+// connects to the origin of the server's config, and the source gets the origin's frame.
+VOID TEST(AppFactoryTest, EdgeVhostClusterProtocol_ServerPullsByIt)
+{
+    srs_error_t err;
+
+    if (true) {
+        EdgeUtestFlvOrigin origin(factory_utest_flv_reply());
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        FactoryUtestServerConfig server;
+        HELPER_ASSERT_SUCCESS(server.load("vhost test.vhost { cluster { mode remote; origin " + origin.server() + "; protocol flv; } }"));
+
+        MockEdgeIngesterFixture f(1000);
+        err = factory_utest_edge_pull(server, "rtmp", f);
+        EXPECT_EQ(ERROR_HTTP_REQUEST_EOF, srs_error_code(err)) << srs_error_desc(err);
+        srs_freep(err);
+
+        EXPECT_EQ(0, (int)origin.request_.find("GET /live/livestream.flv HTTP/1.1\r\n")) << origin.request_;
+        EXPECT_EQ(1, f.edge_.on_ingest_play_count_);
+        EXPECT_EQ(1, f.source_.on_video_count_);
+    }
+
+    if (true) {
+        RtmpConnTestOrigin origin(RtmpConnOriginServesThenCloses);
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        FactoryUtestServerConfig server;
+        HELPER_ASSERT_SUCCESS(server.load("vhost test.vhost { cluster { mode remote; origin 127.0.0.1:" +
+                                          srs_strconv_format_int(origin.get_port()) + "; } }"));
+
+        MockEdgeIngesterFixture f(1000);
+        HELPER_EXPECT_SUCCESS(factory_utest_edge_pull(server, "flv", f));
+
+        EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
+        EXPECT_EQ("livestream", origin.stream_);
+        EXPECT_EQ(1, f.edge_.on_ingest_play_count_);
+        EXPECT_EQ(1, f.source_.on_video_count_);
+    }
+}
+
+// With follow_client on, the edge pulls by the protocol of the player that started the pull, not by the vhost's
+// protocol: an HTTP-FLV player on an RTMP edge makes it pull HTTP-FLV, and an RTMP player on an HTTP-FLV edge makes it
+// pull RTMP.
+VOID TEST(AppFactoryTest, EdgeFollowsClientProtocol_ServerPullsByThePlayersProtocol)
+{
+    srs_error_t err;
+
+    if (true) {
+        EdgeUtestFlvOrigin origin(factory_utest_flv_reply());
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        FactoryUtestServerConfig server;
+        HELPER_ASSERT_SUCCESS(server.load("vhost test.vhost { cluster { mode remote; origin " + origin.server() +
+                                          "; protocol rtmp; follow_client on; } }"));
+
+        MockEdgeIngesterFixture f(1000);
+        err = factory_utest_edge_pull(server, "flv", f);
+        EXPECT_EQ(ERROR_HTTP_REQUEST_EOF, srs_error_code(err)) << srs_error_desc(err);
+        srs_freep(err);
+
+        EXPECT_EQ(0, (int)origin.request_.find("GET /live/livestream.flv HTTP/1.1\r\n")) << origin.request_;
+        EXPECT_EQ(1, f.source_.on_video_count_);
+    }
+
+    if (true) {
+        RtmpConnTestOrigin origin(RtmpConnOriginServesThenCloses);
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        FactoryUtestServerConfig server;
+        HELPER_ASSERT_SUCCESS(server.load("vhost test.vhost { cluster { mode remote; origin 127.0.0.1:" +
+                                          srs_strconv_format_int(origin.get_port()) + "; protocol flv; follow_client on; } }"));
+
+        MockEdgeIngesterFixture f(1000);
+        HELPER_EXPECT_SUCCESS(factory_utest_edge_pull(server, "rtmp", f));
+
+        EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
+        EXPECT_EQ("livestream", origin.stream_);
+        EXPECT_EQ(1, f.source_.on_video_count_);
+    }
+}
