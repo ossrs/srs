@@ -7,6 +7,8 @@
 
 #include <srs_app_http_stream.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -21,12 +23,16 @@
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_log.hpp>
+#include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai08.hpp>
+#include <srs_utest_ai11.hpp>
+#include <srs_utest_ai18.hpp>
 #include <srs_utest_ai29.hpp>
 #include <srs_utest_ai30.hpp>
+#include <srs_utest_ai37.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -40,6 +46,7 @@
 #include <unistd.h>
 
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 
@@ -2186,4 +2193,174 @@ VOID TEST(ProtocolRawAvcTest, SrtAacPesWithCutAdtsFrame_CutFrameRefused)
     ASSERT_EQ(2, target.on_frame_count_);
     EXPECT_EQ(1000, target.timestamps_[0]);
     EXPECT_EQ(1000, target.timestamps_[1]);
+}
+
+static void stun_put_u16(std::string &b, uint16_t v)
+{
+    b.push_back((char)((v >> 8) & 0xff));
+    b.push_back((char)(v & 0xff));
+}
+
+static void stun_put_u32(std::string &b, uint32_t v)
+{
+    stun_put_u16(b, (uint16_t)(v >> 16));
+    stun_put_u16(b, (uint16_t)(v & 0xffff));
+}
+
+static void stun_put_attr(std::string &b, uint16_t type, const std::string &value)
+{
+    stun_put_u16(b, type);
+    stun_put_u16(b, (uint16_t)value.size());
+    b.append(value);
+    if (value.size() % 4) {
+        b.append(4 - value.size() % 4, '\0');
+    }
+}
+
+// Set the message length in the header to the bytes after it plus the attribute about to be appended.
+static void stun_set_length(std::string &b, int next_attr_size)
+{
+    int len = (int)b.size() - 20 + next_attr_size;
+    b[2] = (char)((len >> 8) & 0xff);
+    b[3] = (char)(len & 0xff);
+}
+
+// A binding request as Chrome sends it to an ice-lite server, which always makes the browser the controlling agent:
+// USERNAME, ICE-CONTROLLING with its tie-breaker, PRIORITY and, on the check that nominates the pair, USE-CANDIDATE,
+// then MESSAGE-INTEGRITY signed with the server's ICE password and FINGERPRINT, see RFC 8445 sections 7.1 and 8.1.1.
+static std::string stun_controlling_binding_request(const std::string &username, const std::string &pwd, bool nominate)
+{
+    std::string b;
+    stun_put_u16(b, BindingRequest);
+    stun_put_u16(b, 0);
+    stun_put_u32(b, kStunMagicCookie);
+    b.append("chrome-tid-1", 12);
+
+    stun_put_attr(b, Username, username);
+    stun_put_attr(b, IceControlling, std::string("\x5a\x13\x7c\x02\x9e\x41\xd8\x66", 8));
+    std::string priority;
+    stun_put_u32(priority, 0x6e7f1eff);
+    stun_put_attr(b, Priority, priority);
+    if (nominate) {
+        stun_put_attr(b, UseCandidate, "");
+    }
+
+    stun_set_length(b, 24);
+    unsigned char mac[20];
+    unsigned int mac_len = 0;
+    HMAC(EVP_sha1(), pwd.data(), (int)pwd.size(), (const unsigned char *)b.data(), b.size(), mac, &mac_len);
+    stun_put_attr(b, MessageIntegrity, std::string((const char *)mac, mac_len));
+
+    stun_set_length(b, 8);
+    std::string crc;
+    stun_put_u32(crc, srs_crc32_ieee(b.data(), (int)b.size()) ^ 0x5354554E);
+    stun_put_attr(b, Fingerprint, crc);
+    return b;
+}
+
+// A browser nominates the candidate pair with USE-CANDIDATE on a check sent as the controlling agent. The server,
+// which is ice-lite, accepts it even with the strict role check on, since only a controlled peer is refused, and the
+// session manager logs both flags for the pair.
+VOID TEST(ProtocolRtcStunTest, ChromeNominatesPairAsControllingAgent_AcceptedUnderStrictCheck)
+{
+    srs_error_t err;
+
+    // The ICE password of the answer, 32 random characters as the server makes it.
+    SrsRand rand;
+    const std::string pwd = rand.gen_str(32);
+
+    // A check before the nomination carries no USE-CANDIDATE.
+    std::string check = stun_controlling_binding_request("srvufrag:cliufrag", pwd, false);
+    SrsStunPacket c;
+    HELPER_ASSERT_SUCCESS(c.decode(check.data(), (int)check.size()));
+    EXPECT_TRUE(c.get_ice_controlling());
+    EXPECT_FALSE(c.get_use_candidate());
+
+    std::string nominate = stun_controlling_binding_request("srvufrag:cliufrag", pwd, true);
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(nominate.data(), (int)nominate.size()));
+    EXPECT_TRUE(r.is_binding_request());
+    EXPECT_STREQ("srvufrag", r.get_local_ufrag().c_str());
+    EXPECT_STREQ("cliufrag", r.get_remote_ufrag().c_str());
+    EXPECT_TRUE(r.get_use_candidate());
+    EXPECT_TRUE(r.get_ice_controlling());
+    EXPECT_FALSE(r.get_ice_controlled());
+
+    MockAppConfigForStunStrictCheck config;
+    MockRtcAsyncTaskExecutor exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-stun-controlling");
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&exec, cid));
+    conn->config_ = &config;
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "__defaultVhost__";
+    conn->req_ = req;
+    conn->local_sdp_.session_info_.ice_pwd_ = pwd;
+
+    std::string ice_pwd;
+    HELPER_EXPECT_SUCCESS(conn->on_binding_request(&r, ice_pwd));
+    EXPECT_STREQ(pwd.c_str(), ice_pwd.c_str());
+
+    conn->config_ = NULL;
+}
+
+// Passes a STUN datagram from the address of a known session to the session manager, as the UDP listener does, and
+// returns the error code, telling whether the session's network got the packet.
+static int stun_session_manager_receive(std::string datagram, bool *network_got_it)
+{
+    MockResourceManagerForUpdateSessions conns;
+    MockRtcNetworkForUdpNetwork network;
+    MockRtcConnectionForUpdateSessions conn;
+    conn.udp_network_ = &network;
+    conns.fast_id_map_[12345] = &conn;
+
+    SrsRtcSessionManager manager;
+    manager.conn_manager_ = &conns;
+
+    MockUdpMuxSocket skt;
+    skt.fast_id_ = 12345;
+    skt.peer_id_ = "192.168.1.10:50000";
+    skt.data_ = (char *)datagram.data();
+    skt.size_ = (int)datagram.size();
+
+    srs_error_t err = manager.on_udp_packet(&skt);
+    int code = srs_error_code(err);
+    srs_freep(err);
+
+    *network_got_it = network.on_stun_called_;
+    manager.conn_manager_ = NULL;
+    conn.udp_network_ = NULL;
+    skt.data_ = NULL;
+    return code;
+}
+
+// A binding request whose datagram does not hold the message its header counts, cut in transit or with bytes after it,
+// is refused before it reaches the session, so it neither switches the session's address nor gets a response.
+VOID TEST(ProtocolRtcStunTest, BindingRequestNotMatchingItsLength_RefusedBeforeSession)
+{
+    std::string request = stun_controlling_binding_request("srvufrag:cliufrag", "pwd", true);
+    bool network_got_it = true;
+
+    // The FINGERPRINT lost at the end.
+    EXPECT_EQ(ERROR_RTC_STUN, stun_session_manager_receive(request.substr(0, request.size() - 8), &network_got_it));
+    EXPECT_FALSE(network_got_it);
+
+    // Four bytes after the message.
+    network_got_it = true;
+    EXPECT_EQ(ERROR_RTC_STUN, stun_session_manager_receive(request + std::string(4, '\0'), &network_got_it));
+    EXPECT_FALSE(network_got_it);
+}
+
+// A binding request whose USERNAME says it is longer than the rest of the message is refused, rather than reading the
+// username past the datagram.
+VOID TEST(ProtocolRtcStunTest, AttributeLongerThanMessage_RefusedBeforeSession)
+{
+    std::string request = stun_controlling_binding_request("srvufrag:cliufrag", "pwd", true);
+    // The USERNAME length, right after the 20-byte header and the attribute type.
+    request[22] = 0x01;
+    request[23] = 0x00;
+
+    bool network_got_it = true;
+    EXPECT_EQ(ERROR_RTC_STUN, stun_session_manager_receive(request, &network_got_it));
+    EXPECT_FALSE(network_got_it);
 }
