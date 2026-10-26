@@ -34,6 +34,7 @@
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai23.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -2766,3 +2767,64 @@ VOID TEST(KernelResourceTest, NewSessionAtFreedSessionAddressGetsDisposeEvents)
 
     manager.unsubscribe(&session);
 }
+
+#ifdef SRS_GB28181
+static int resource_trace_count(const vector<string> &traces, const string &text)
+{
+    int count = 0;
+    for (int i = 0; i < (int)traces.size(); i++) {
+        if (traces.at(i).find(text) != string::npos) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// A GB28181 publish API call creates a session, held by a shared resource in the verbose GB manager
+// and run by an executor coroutine. When the session ends, the executor and then the shared resource
+// are disposed, and the manager logs each by its description, which both take from the session the
+// shared resource holds. The device id is then free for the device to publish again.
+VOID TEST(KernelResourceTest, GbSessionEndsAndManagerLogsItBySessionDesc)
+{
+    srs_error_t err = srs_success;
+
+    SrsResourceManager manager("GB", true);
+    manager.assemble();
+    manager.cid_ = _srs_context->get_id();
+
+    MockAppFactoryForGbPublish factory;
+    SrsConfDirective conf;
+    SrsGoApiGbPublish api(&conf);
+    api.gb_manager_ = &manager;
+    api.app_factory_ = &factory;
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+
+    MockGbSessionForApiPublish *session = factory.mock_gb_session_;
+    err = api.bind_session("34020000001320000001", 1234567890);
+    if (err != srs_success) {
+        _srs_log = original;
+    }
+    HELPER_ASSERT_SUCCESS(err);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(manager.find_by_id("34020000001320000001") != NULL);
+
+    // The session ends, so its executor removes itself from the manager.
+    session->owner_coroutine_->interrupt();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // Disposing the executor removes the shared resource, and the next clear disposes it.
+    manager.clear();
+    manager.clear();
+    _srs_log = original;
+
+    // The executor and the shared resource each log the session's description, before and while disposed.
+    EXPECT_EQ(2, resource_trace_count(log.traces_, "GB: before dispose resource(MockGbSessionForApiPublish)"));
+    EXPECT_EQ(2, resource_trace_count(log.traces_, "GB: disposing #0 resource(MockGbSessionForApiPublish)"));
+    EXPECT_TRUE(manager.empty());
+    EXPECT_TRUE(manager.find_by_id("34020000001320000001") == NULL);
+    EXPECT_TRUE(manager.find_by_fast_id(1234567890) == NULL);
+}
+#endif

@@ -113,6 +113,8 @@ public:
     std::vector<std::string> errors_;
     // The warning logs.
     int warn_count_;
+    // The text of each trace log.
+    std::vector<std::string> traces_;
 
 public:
     MockLogForSignal();
