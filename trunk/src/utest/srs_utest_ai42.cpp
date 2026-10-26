@@ -16,6 +16,7 @@
 #include <srs_app_fragment.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_ingest.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
@@ -4697,5 +4698,143 @@ VOID TEST(AppFactoryTest, EdgeFollowsClientProtocol_ServerPullsByThePlayersProto
         EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
         EXPECT_EQ("livestream", origin.stream_);
         EXPECT_EQ(1, f.source_.on_video_count_);
+    }
+}
+
+// The command line FFmpeg runs for the first engine of ingest i of vhost v, set up as SrsIngester sets it up from the
+// test config. FFmpeg starts on a process that forks nothing and keeps the arguments.
+static srs_error_t ffmpeg_utest_ingest_argv(string ingest, vector<string> &argv)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsConfig conf;
+    if ((err = config_load(conf, "vhost v { " + ingest + " }")) != srs_success) {
+        return srs_error_wrap(err, "load config");
+    }
+
+    SrsConfDirective *vhost = conf.get_vhost("v");
+    SrsConfDirective *ingest_conf = conf.get_ingest_by_id("v", "i");
+    vector<SrsConfDirective *> engines = conf.get_transcode_engines(ingest_conf);
+    if (engines.empty()) {
+        return srs_error_new(ERROR_ENCODER_PARSE, "no engine");
+    }
+
+    SrsIngester ingester;
+    ingester.config_ = &conf;
+
+    SrsFFMPEG ffmpeg("./objs/ffmpeg/bin/ffmpeg");
+    ffmpeg.config_ = &conf;
+    MockProcessForFFMPEG *process = new MockProcessForFFMPEG();
+    srs_freep(ffmpeg.process_);
+    ffmpeg.process_ = process;
+
+    if ((err = ingester.initialize_ffmpeg(&ffmpeg, vhost, ingest_conf, engines.at(0))) != srs_success) {
+        return srs_error_wrap(err, "init ffmpeg");
+    }
+    if ((err = ffmpeg.start()) != srs_success) {
+        return srs_error_wrap(err, "start ffmpeg");
+    }
+
+    argv = process->argv_;
+    return err;
+}
+
+// An ingest pulls a UDP stream or reads a file and transcodes it with an engine that keeps the default iformat, flv:
+// FFmpeg probes such an input itself, and only an RTMP input is read as FLV. The output is always FLV over RTMP.
+VOID TEST(AppFfmpegTest, IngestTranscodesNonRtmpInput_InputFormatLeftToFfmpeg)
+{
+    srs_error_t err;
+
+    string engine = "engine hd { enabled on; vcodec libx264; vbitrate 800; vprofile main; vpreset medium;"
+                    "    acodec libfdk_aac; abitrate 64; output rtmp://127.0.0.1:[port]/live/livestream_hd; }";
+    struct {
+        const char *input;
+        const char *argv;
+    } cases[] = {
+        {"type stream; url udp://0.0.0.0:2222;", "-re -i udp://0.0.0.0:2222 -vcodec libx264"},
+        {"type file; url ./doc/source.flv;", "-re -i ./doc/source.flv -vcodec libx264"},
+        {"type stream; url rtmp://127.0.0.1/live/source;", "-re -f flv -i rtmp://127.0.0.1/live/source -vcodec libx264"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        vector<string> argv;
+        HELPER_EXPECT_SUCCESS(ffmpeg_utest_ingest_argv(string("ingest i { enabled on; input { ") + cases[i].input +
+                                                           " } ffmpeg ./objs/ffmpeg/bin/ffmpeg; " + engine + " }",
+                                                       argv));
+
+        string cmd = srs_strings_join(argv, " ");
+        EXPECT_NE(string::npos, cmd.find(cases[i].argv)) << cmd;
+        EXPECT_NE(string::npos, cmd.find("-f flv -y rtmp://127.0.0.1:1935/live/livestream_hd")) << cmd;
+    }
+}
+
+// An engine of the app's transcode asks for 5.1 audio, or has a minus sign typed before its audio bitrate or sample
+// rate: the engine takes only mono or stereo and no negative number, so the publish is refused, naming the setting.
+VOID TEST(AppFfmpegTest, AppEngineWithSurroundOrNegativeAudio_PublishRefused)
+{
+    struct {
+        const char *audio;
+        int code;
+    } cases[] = {
+        {"acodec libfdk_aac; abitrate 128; achannels 6;", ERROR_ENCODER_ACHANNELS},
+        {"acodec libfdk_aac; abitrate -64;", ERROR_ENCODER_ABITRATE},
+        {"acodec libfdk_aac; abitrate 64; asample_rate -44100;", ERROR_ENCODER_ASAMPLE_RATE},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        EncoderUtestStream s("live");
+        srs_error_t err = s.publish(string("transcode live { enabled on; " ENCODER_UTEST_FFMPEG "engine aac { enabled on; vcodec copy; ") +
+                                    cases[i].audio + " output rtmp://127.0.0.1:[port]/[app]/[stream]_aac; } }");
+        EXPECT_EQ(cases[i].code, srs_error_code(err)) << cases[i].audio << ", " << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_EQ(0, s.factory_.coroutines_) << cases[i].audio;
+
+        s.encoder_->on_unpublish();
+        EXPECT_TRUE(s.transcoded_urls_.empty()) << cases[i].audio;
+    }
+}
+
+// The engine check says the vcodec must be H.264 or H.265, but it refuses only a vcodec naming all of 264, 265 and
+// hevc at once, so an engine re-encoding to VP8 (libvpx) is accepted. FFmpeg can not put VP8 in the FLV of the RTMP
+// output and fails at each start, and the encoder retries it every 3s with no transcoded stream.
+VOID TEST(AppFfmpegTest, DISABLED_AppEngineWithVp8Vcodec_Accepted)
+{
+    EncoderUtestStream s("live");
+    s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+    srs_error_t err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG
+                               "engine vp8 { enabled on; vcodec libvpx; vbitrate 800; vprofile main; vpreset medium;"
+                               "    acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_vp8; } }");
+    EXPECT_EQ(ERROR_ENCODER_VCODEC, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+}
+
+// An engine of the app's transcode re-encodes video and names no acodec. The encoder accepts it, and FFmpeg gets
+// "-acodec" with an empty name, which it refuses ("Encoder not found"), so the engine fails at each start. The
+// engine should either be refused at publish, as one with no vcodec is, or run with no empty argument.
+VOID TEST(AppFfmpegTest, DISABLED_AppEngineWithoutAcodec_FfmpegGetsEmptyAudioCodec)
+{
+    srs_error_t err;
+
+    EncoderUtestStream s("live");
+    s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+    err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG
+                    "engine hd { enabled on; vcodec libx264; vbitrate 800; vprofile main; vpreset medium;"
+                    "    output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } }");
+    if (err != srs_success) {
+        EXPECT_EQ(ERROR_ENCODER_ACODEC, srs_error_code(err)) << srs_error_desc(err);
+        srs_freep(err);
+        return;
+    }
+
+    ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
+    SrsFFMPEG *ffmpeg = dynamic_cast<SrsFFMPEG *>(s.encoder_->at(0));
+    ASSERT_TRUE(ffmpeg != NULL);
+    MockProcessForFFMPEG *process = new MockProcessForFFMPEG();
+    srs_freep(ffmpeg->process_);
+    ffmpeg->process_ = process;
+    HELPER_ASSERT_SUCCESS(ffmpeg->start());
+
+    for (int i = 0; i < (int)process->argv_.size(); i++) {
+        EXPECT_FALSE(process->argv_[i].empty()) << i << ": " << srs_strings_join(process->argv_, " ");
     }
 }
