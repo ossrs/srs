@@ -5,6 +5,7 @@
 //
 #include <srs_utest_ai41.hpp>
 
+#include <srs_app_http_stream.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -22,6 +23,7 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -1337,5 +1339,440 @@ VOID TEST(ProtocolHttpClientTest, BackendResetsBeforeRequest_ConnectionDropped)
         srs_freep(err);
         EXPECT_TRUE(msg == NULL);
         EXPECT_TRUE(client.transport_ == NULL);
+    }
+}
+
+// Parse one HTTP request or response the way the HTTP server and client do, from the
+// bytes a peer sent. The message reads its body from the parser's buffer, so the parser
+// must outlive it.
+static srs_error_t http_conn_parse(SrsHttpParser *hp, MockBufferIO *io, llhttp_type type, bool jsonp, SrsHttpMessage **pmsg)
+{
+    srs_error_t err = hp->initialize(type);
+    if (err != srs_success) {
+        return err;
+    }
+    hp->set_jsonp(jsonp);
+
+    ISrsHttpMessage *msg = NULL;
+    err = hp->parse_message(io, &msg);
+    *pmsg = dynamic_cast<SrsHttpMessage *>(msg);
+    return err;
+}
+
+// An HTTP-FLV player on the default vhost, which the server names __defaultVhost__. The
+// request keeps the vhost for the source lookup, but its host is the address the player
+// asked for, which the hooks and the stream stats report.
+VOID TEST(ProtocolHttpConnTest, HttpFlvPlayerOnDefaultVhost_RequestHostIsHttpHost)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET /live/livestream.flv?token=abc HTTP/1.1\r\nHost: 192.168.1.10:8080\r\nUser-Agent: ffplay\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    SrsUniquePtr<ISrsRequest> req(msg->to_request(SRS_CONSTS_RTMP_DEFAULT_VHOST));
+    EXPECT_STREQ(SRS_CONSTS_RTMP_DEFAULT_VHOST, req->vhost_.c_str());
+    EXPECT_STREQ("192.168.1.10", req->host_.c_str());
+    EXPECT_STREQ("live", req->app_.c_str());
+    EXPECT_STREQ("livestream", req->stream_.c_str());
+    EXPECT_STREQ("?token=abc", req->param_.c_str());
+    EXPECT_STREQ("flv", req->protocol_.c_str());
+}
+
+// The SRS console kicks a client off. A browser without CORS sends it as a JSONP GET with
+// method=DELETE, and other API clients as a plain DELETE; both are a DELETE to the clients
+// API, which kicks the client only for a DELETE.
+VOID TEST(ProtocolHttpConnTest, ConsoleKicksClientWithJsonpDelete_MethodIsDelete)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("GET /api/v1/clients/k3d1x?callback=jQuery_1&method=DELETE HTTP/1.1\r\nHost: 127.0.0.1:1985\r\n\r\n");
+        SrsHttpParser hp;
+        SrsHttpMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, true, &msg_raw));
+        SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+        EXPECT_TRUE(msg->is_jsonp());
+        EXPECT_TRUE(msg->is_http_delete());
+        EXPECT_FALSE(msg->is_http_get());
+        EXPECT_STREQ("DELETE", msg->method_str().c_str());
+        EXPECT_STREQ("k3d1x", msg->parse_rest_id("/api/v1/clients/").c_str());
+    }
+
+    if (true) {
+        MockBufferIO io;
+        io.append("DELETE /api/v1/clients/k3d1x HTTP/1.1\r\nHost: 127.0.0.1:1985\r\n\r\n");
+        SrsHttpParser hp;
+        SrsHttpMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, true, &msg_raw));
+        SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+        EXPECT_FALSE(msg->is_jsonp());
+        EXPECT_TRUE(msg->is_http_delete());
+        EXPECT_FALSE(msg->is_http_get());
+    }
+}
+
+// A client asks for the server's options as a whole with "OPTIONS *" (the asterisk form of
+// RFC 9112), as some HTTP tools and proxies probe a server. The request target has no
+// leading slash, so the server puts one before it when it builds the URL from the Host.
+VOID TEST(ProtocolHttpConnTest, ServerWideOptionsAsterisk_UrlBuiltFromHost)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("OPTIONS * HTTP/1.1\r\nHost: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_TRUE(msg->is_http_options());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_EQ(8080, msg->port());
+    EXPECT_STREQ("/*", msg->path().c_str());
+    EXPECT_STREQ("http://192.168.1.10:8080/*", msg->url().c_str());
+}
+
+// A browser opens the SRS WHEP player page with the WHEP endpoint in its query, as the page's
+// "?url=xxx to set the whole WHIP/WHEP url directly" (research/players/js/srs.page.js) asks:
+// players/whep.html?url=http://host:1985/rtc/v1/whep/?app=live&stream=livestream. Browsers send
+// ':' and '/' of a query as they are, so the server must still serve the page's path.
+VOID TEST(ProtocolHttpConnTest, DISABLED_WhepPageWithEndpointUrlInQuery_ServesQueryPath)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET /players/whep.html?url=http://192.168.1.10:1985/rtc/v1/whep/?app=live&stream=livestream HTTP/1.1\r\n"
+              "Host: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/players/whep.html", msg->path().c_str());
+    EXPECT_STREQ(".html", msg->ext().c_str());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_EQ(8080, msg->port());
+    EXPECT_STREQ("http://192.168.1.10:1985/rtc/v1/whep/?app=live", msg->query_get("url").c_str());
+}
+
+// A hook backend answers a callback with an empty body and "Content-Length: 0", as many web
+// frameworks do for a bare 200. The body reads as empty at once, without waiting on the
+// keep-alive connection for bytes that never come.
+VOID TEST(ProtocolHttpConnTest, HookBackendRepliesContentLengthZero_BodyEmpty)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_EQ(200, msg->status_code());
+    EXPECT_EQ(0, msg->content_length());
+
+    // The mock fails a read on an empty socket, so a read here would fail the body.
+    string body;
+    HELPER_EXPECT_SUCCESS(msg->body_read_all(body));
+    EXPECT_TRUE(body.empty());
+    EXPECT_TRUE(msg->body_reader()->eof());
+}
+
+// Read a chunked body the way the hook client and the HTTP-FLV edge do: read until EOF or an
+// error, keeping what came before the error.
+static srs_error_t http_conn_read_body(ISrsHttpMessage *msg, string &body)
+{
+    srs_error_t err = srs_success;
+    ISrsHttpResponseReader *br = msg->body_reader();
+    while (!br->eof()) {
+        char buf[64];
+        ssize_t nn = 0;
+        if ((err = br->read(buf, sizeof(buf), &nn)) != srs_success) {
+            return err;
+        }
+        body.append(buf, nn);
+    }
+    return err;
+}
+
+// A backend that declares a chunked body but sends a blank line where a chunk size must be,
+// such as a broken proxy that drops the size line. The body is refused, not read as data.
+VOID TEST(ProtocolHttpConnTest, ChunkedBodyWithEmptySizeLine_Refused)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n\r\nHello\r\n0\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+    EXPECT_TRUE(msg->is_chunked());
+
+    string body;
+    err = http_conn_read_body(msg.get(), body);
+    EXPECT_EQ(ERROR_HTTP_INVALID_CHUNK_HEADER, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(body.empty());
+}
+
+// A backend that declares a chunked body but sends the data with no chunk framing, or a
+// negative size. Neither is a hex chunk size, so the body is refused.
+VOID TEST(ProtocolHttpConnTest, ChunkedBodyWithNonHexSize_Refused)
+{
+    srs_error_t err = srs_success;
+
+    const char *bodies[] = {"{\"code\":0}\r\n", "-5\r\nHello\r\n0\r\n\r\n"};
+    for (int i = 0; i < 2; i++) {
+        MockBufferIO io;
+        io.append(string("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n") + bodies[i]);
+        SrsHttpParser hp;
+        SrsHttpMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+        SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+        string body;
+        err = http_conn_read_body(msg.get(), body);
+        EXPECT_EQ(ERROR_HTTP_INVALID_CHUNK_HEADER, srs_error_code(err)) << bodies[i];
+        srs_freep(err);
+        EXPECT_TRUE(body.empty()) << bodies[i];
+    }
+}
+
+// A backend sends a chunk with a chunk extension, "5;name=value", which RFC 9112 7.1.1 allows
+// and tells a recipient to ignore when it does not know it. The body must read as the data.
+VOID TEST(ProtocolHttpConnTest, DISABLED_ChunkWithExtension_BodyRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5;name=value\r\nHello\r\n0\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    HELPER_EXPECT_SUCCESS(http_conn_read_body(msg.get(), body));
+    EXPECT_STREQ("Hello", body.c_str());
+}
+
+// An HTTP-FLV origin or a hook backend closes the connection inside a chunk, such as when it
+// restarts. The bytes that came are given to the reader, then the read fails with the socket
+// error instead of waiting for the rest of the chunk.
+VOID TEST(ProtocolHttpConnTest, ChunkedPeerClosesInsideChunk_ReadFails)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0d\r\nHello");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    err = http_conn_read_body(msg.get(), body);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_STREQ("Hello", body.c_str());
+}
+
+// The peer sends a whole chunk and closes before the CRLF that ends it. The read fails on the
+// missing CRLF instead of taking the cut chunk as complete.
+VOID TEST(ProtocolHttpConnTest, ChunkedPeerClosesBeforeChunkEnd_ReadFails)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    err = http_conn_read_body(msg.get(), body);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_FALSE(msg->body_reader()->eof());
+}
+
+// An HTTP-TS player (or .mp3 or .aac) leaves mid-stream. The live stream writes a 200 with no
+// length, so each TS chunk goes out in chunked encoding; once the player is gone the next chunk
+// fails with the socket error, and nothing more is sent.
+VOID TEST(ProtocolHttpConnTest, HttpTsPlayerLeavesMidStream_ChunkWriteFails)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    w.header()->set_content_type("video/MP2T");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    char ts[188];
+    memset(ts, 0xff, sizeof(ts));
+    ts[0] = 0x47;
+    HELPER_ASSERT_SUCCESS(w.write(ts, sizeof(ts)));
+
+    string out = HELPER_BUFFER2STR(&io.out_buffer);
+    EXPECT_NE(string::npos, out.find("Transfer-Encoding: chunked\r\n"));
+    EXPECT_NE(string::npos, out.find("\r\n\r\nbc\r\n\x47"));
+    int sent = io.out_length();
+
+    io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "broken pipe");
+    err = w.write(ts, sizeof(ts));
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(sent, io.out_length());
+}
+
+// An HTTP-FLV player leaves mid-stream. The FLV tags of each batch go out as one chunk; once
+// the player is gone the next batch fails with the socket error.
+VOID TEST(ProtocolHttpConnTest, HttpFlvPlayerLeavesMidStream_TagsWriteFails)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    w.header()->set_content_type("video/x-flv");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    char tag[11 + 6 + 4];
+    memset(tag, 0, sizeof(tag));
+    tag[0] = SrsFrameTypeVideo;
+    iovec iovs[2];
+    iovs[0].iov_base = tag;
+    iovs[0].iov_len = 11;
+    iovs[1].iov_base = tag + 11;
+    iovs[1].iov_len = 10;
+    HELPER_ASSERT_SUCCESS(w.writev(iovs, 2, NULL));
+    // The tags go out as one chunk: the size line, the two tag parts and the CRLF.
+    string out = HELPER_BUFFER2STR(&io.out_buffer);
+    int header_size = (int)out.find("\r\n\r\n") + 4;
+    EXPECT_EQ(0, out.compare(header_size, 4, "15\r\n"));
+    EXPECT_EQ(header_size + 4 + 21 + 2, io.out_length());
+    int sent = io.out_length();
+
+    io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "broken pipe");
+    err = w.writev(iovs, 2, NULL);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(sent, io.out_length());
+}
+
+// An audio media packet with an AAC raw frame.
+static SrsMediaPacket *http_conn_aac_packet(int64_t timestamp)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->timestamp_ = timestamp;
+    msg->message_type_ = SrsFrameTypeAudio;
+    char *data = new char[8];
+    memset(data, 0x55, 8);
+    data[0] = (char)0xaf;
+    data[1] = 0x01;
+    msg->wrap(data, 8);
+    return msg;
+}
+
+// An HTTP-FLV mount with has_audio off for a stream the publisher sends audio on too. With
+// drop_if_not_match on, a batch of only audio frames is all dropped, so nothing is written:
+// an empty chunk would be the "0" chunk that ends the chunked body, and the player would see
+// the stream end.
+VOID TEST(ProtocolHttpConnTest, HttpFlvAudioOnlyBatchOnVideoMount_NoChunkWritten)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    w.header()->set_content_type("video/x-flv");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    SrsBufferWriter bw(&w);
+    SrsFlvStreamEncoder enc;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&bw, NULL));
+    enc.set_guess_has_av(false);
+    enc.set_has_audio(false);
+    enc.set_has_video(true);
+    enc.set_drop_if_not_match(true);
+
+    char avc[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x65};
+    HELPER_ASSERT_SUCCESS(enc.write_video(0, avc, sizeof(avc)));
+    int sent = io.out_length();
+    ASSERT_GT(sent, 0);
+
+    SrsMediaPacket *msgs[] = {http_conn_aac_packet(23), http_conn_aac_packet(46)};
+    HELPER_EXPECT_SUCCESS(enc.write_tags(msgs, 2));
+    EXPECT_EQ(sent, io.out_length());
+    EXPECT_EQ(string::npos, HELPER_BUFFER2STR(&io.out_buffer).find("\r\n0\r\n\r\n"));
+
+    for (int i = 0; i < 2; i++) {
+        srs_freep(msgs[i]);
+    }
+}
+
+// A client that has gone before the server answers, such as a player that gave up on a 404.
+// The reply's header is the first write, so the error reply fails with the socket error.
+VOID TEST(ProtocolHttpConnTest, ErrorReplyToClientGone_HeaderWriteFails)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "broken pipe");
+    SrsHttpResponseWriter w(&io);
+
+    err = srs_go_http_error(&w, SRS_CONSTS_HTTP_NotFound);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, io.out_length());
+}
+
+// A browser sends a CORS preflight for an API call, and the page is closed before the answer.
+// The preflight answer has no body, so its header goes out in final_request, which fails with
+// the socket error; with the browser still there, it gets the 200 and the CORS headers.
+VOID TEST(ProtocolHttpConnTest, CorsPreflightFromClosedPage_FinalRequestFails)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < 2; i++) {
+        bool page_closed = (i == 1);
+
+        MockBufferIO in;
+        in.append("OPTIONS /api/v1/streams/ HTTP/1.1\r\nHost: 192.168.1.10:1985\r\nOrigin: http://192.168.1.10:8080\r\n"
+                  "Access-Control-Request-Method: GET\r\n\r\n");
+        SrsHttpParser hp;
+        SrsHttpMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &in, HTTP_REQUEST, false, &msg_raw));
+        SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+        SrsHttpCorsMux cors(NULL);
+        HELPER_ASSERT_SUCCESS(cors.initialize(true));
+
+        MockBufferIO io;
+        if (page_closed) {
+            io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "broken pipe");
+        }
+        SrsHttpResponseWriter w(&io);
+        err = cors.serve_http(&w, msg.get());
+
+        if (page_closed) {
+            EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+            srs_freep(err);
+            EXPECT_EQ(0, io.out_length());
+        } else {
+            HELPER_EXPECT_SUCCESS(err);
+            string out = HELPER_BUFFER2STR(&io.out_buffer);
+            EXPECT_EQ(0u, out.find("HTTP/1.1 200 OK\r\n")) << out;
+            EXPECT_NE(string::npos, out.find("Access-Control-Allow-Origin: *\r\n")) << out;
+            EXPECT_NE(string::npos, out.find("Content-Length: 0\r\n")) << out;
+        }
     }
 }
