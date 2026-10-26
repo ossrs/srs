@@ -7,11 +7,14 @@
 
 #include <srs_core_platform.hpp>
 #include <srs_kernel_aac.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <string>
@@ -168,4 +171,52 @@ VOID TEST(KernelAACTest, AdtsHeaderWriteFailsWhenPlayerLeaves)
 
     // Nothing of the failed frame was written.
     EXPECT_EQ(8, f.tellg());
+}
+
+// A WebRTC publisher aggregates small NALUs, such as SPS and PPS, into one STAP-A packet, each NALU after a
+// 2-byte size. A broken or hostile publisher sends a size with the top bit set, 0x8000 or more, which the
+// decoder reads as a negative int. It must reject the packet, never keep a NALU of negative size or move the
+// read position backward.
+VOID TEST(KernelBufferTest, StapANaluSizeWithTopBitSetIsRejected)
+{
+    srs_error_t err;
+
+    // STAP-A header (NRI 3, type 24), then a NALU size of 0xffff, then more bytes than any short NALU needs.
+    char data[64];
+    memset(data, 0x41, sizeof(data));
+    data[0] = 0x78;
+    data[1] = (char)0xff;
+    data[2] = (char)0xff;
+    SrsBuffer buf(data, sizeof(data));
+
+    SrsRtpSTAPPayload stap;
+    err = stap.decode(&buf);
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_TRUE(stap.nalus_.empty());
+    EXPECT_EQ(3, buf.pos());
+}
+
+// The same for an HEVC publisher: a STAP packet (RFC 7798, type 48) whose NALU size is 0x8000 is rejected.
+VOID TEST(KernelBufferTest, StapHevcNaluSizeWithTopBitSetIsRejected)
+{
+    srs_error_t err;
+
+    // PayloadHdr of type 48, then a NALU size of 0x8000.
+    char data[64];
+    memset(data, 0x41, sizeof(data));
+    data[0] = 0x60;
+    data[1] = 0x01;
+    data[2] = (char)0x80;
+    data[3] = 0x00;
+    SrsBuffer buf(data, sizeof(data));
+
+    SrsRtpSTAPPayloadHevc stap;
+    err = stap.decode(&buf);
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_TRUE(stap.nalus_.empty());
+    EXPECT_EQ(4, buf.pos());
 }
