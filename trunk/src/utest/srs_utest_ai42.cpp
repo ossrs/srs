@@ -2929,6 +2929,17 @@ static int dvr_utest_count_tags(const vector<DvrUtestFlvTag> &tags, int type)
     return n;
 }
 
+// Waits until the wall clock is in a later ms, so the next file named by [timestamp] differs from every file before.
+// A plain srs_usleep is not enough: ST counts a sleep from its last clock check, which is stale while a test runs
+// without yielding, so the sleep may end at once.
+static void dvr_utest_wait_next_ms()
+{
+    int64_t ms = srsu2ms(srs_time_now_realtime());
+    while (srsu2ms(srs_time_now_realtime()) == ms) {
+        srs_usleep(100);
+    }
+}
+
 // The number of a property of the FLV file's metadata, or -1.
 static double dvr_utest_flv_meta_number(const string &flv, const string &name)
 {
@@ -3241,7 +3252,7 @@ VOID TEST(AppDvrTest, SegmentDiskFillsAtAnyWrite_OnlyClosedSegmentsReported)
         }
         if (err == srs_success) {
             // The next segment's name, in ms, differs from the first's.
-            srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+            dvr_utest_wait_next_ms();
             err = s.av(1000, 1500);
         }
         s.dvr_->on_unpublish();
@@ -3314,7 +3325,7 @@ VOID TEST(AppDvrTest, SegmentWaitsForKeyframe_NewSegmentStartsWithHeaders)
     EXPECT_TRUE(s.async_.tasks_.empty());
 
     // The next segment's name, in ms, differs from the first's.
-    srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+    dvr_utest_wait_next_ms();
     HELPER_ASSERT_SUCCESS(s.av(2000, 2900, 2000));
     EXPECT_EQ(1, s.on_dvr_request_sh_count_);
     s.dvr_->on_unpublish();
@@ -3354,7 +3365,7 @@ VOID TEST(AppDvrTest, DISABLED_SegmentWithJitterOff_LaterSegmentsCutEachKeyframe
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
     for (int64_t sec = 0; sec < 10; sec++) {
         // Each segment's name, in ms, differs from the one before.
-        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+        dvr_utest_wait_next_ms();
         HELPER_ASSERT_SUCCESS(s.av(sec * 1000, sec * 1000 + 900));
     }
     s.dvr_->on_unpublish();
@@ -3463,7 +3474,7 @@ VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
     }
 
     // The next file's name, in ms, differs from the first's.
-    srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+    dvr_utest_wait_next_ms();
     HELPER_ASSERT_SUCCESS(s.dvr_->on_publish(&s.req_));
 
     // No recording is complete, nor reported.
