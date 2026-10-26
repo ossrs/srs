@@ -205,3 +205,24 @@ VOID TEST(AppSrtListenerTest, NoCoroutineForAcceptLoop_ServerFailsToStart)
     EXPECT_TRUE(srs_error_desc(err).find("start coroutine") != string::npos);
     srs_freep(err);
 }
+
+// The server starts its SRT event loop, which polls every SRT socket, before it listens on any port. When no coroutine
+// can be created for that loop, as when the process is out of memory at startup, the start fails with the ST error, so
+// the server quits instead of running with SRT sockets nobody polls.
+VOID TEST(AppSrtServerTest, NoCoroutineForEventLoop_ServerFailsToStart)
+{
+    srs_error_t err;
+
+    SrsSrtEventLoop loop;
+    HELPER_ASSERT_SUCCESS(loop.initialize());
+    EXPECT_TRUE(loop.poller() != NULL);
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)srt_listener_utest_st_thread_create_out_of_memory;
+    err = loop.start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("start coroutine") != string::npos);
+    srs_freep(err);
+}
