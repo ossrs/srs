@@ -18,8 +18,10 @@
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_protocol_conn.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 #include <sys/socket.h>
 
@@ -307,6 +309,225 @@ static std::string rtmp_stack_chunks(int cid, uint8_t type, uint32_t stream_id, 
     }
     return b;
 }
+
+// A TLS client on the other end of an HTTPS or RTMPS connection, such as a browser or an
+// encoder. It runs OpenSSL's client over memory BIOs: what the server writes is the
+// client's input, and what the client sends is what the server reads. The client acts
+// each time the server reads, as a peer answers what it got.
+class TlsClientPeer : public ISrsProtocolReadWriter
+{
+public:
+    SSL_CTX *ctx_;
+    SSL *ssl_;
+    // The bytes from the server, and the bytes to the server.
+    BIO *in_;
+    BIO *out_;
+    // The most bytes one server read gets, as a TCP segment; 0 for no limit.
+    int segment_;
+    // The server's write that fails, counted from 1, as a client gone; 0 for none.
+    int fail_write_;
+    // The client closes its TCP connection, with no TLS alert, once the server has
+    // written this many times; -1 for never.
+    int hangup_after_writes_;
+    int nn_writes_;
+    int nn_reads_;
+    // The plaintext the client got from the server.
+    std::string received_;
+    // What the client sends once it has got this much plaintext.
+    std::vector<std::pair<size_t, std::string> > replies_;
+    srs_utime_t rtm_;
+    srs_utime_t stm_;
+    int64_t nn_recv_;
+    int64_t nn_send_;
+
+public:
+    TlsClientPeer(bool verify_server)
+    {
+        ctx_ = SSL_CTX_new(TLS_client_method());
+        SSL_CTX_set_verify(ctx_, verify_server ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+        ssl_ = SSL_new(ctx_);
+        in_ = BIO_new(BIO_s_mem());
+        out_ = BIO_new(BIO_s_mem());
+        SSL_set_bio(ssl_, in_, out_);
+        SSL_set_connect_state(ssl_);
+
+        segment_ = 0;
+        fail_write_ = 0;
+        hangup_after_writes_ = -1;
+        nn_writes_ = 0;
+        nn_reads_ = 0;
+        rtm_ = stm_ = SRS_UTIME_NO_TIMEOUT;
+        nn_recv_ = nn_send_ = 0;
+    }
+    virtual ~TlsClientPeer()
+    {
+        SSL_free(ssl_);
+        SSL_CTX_free(ctx_);
+    }
+
+public:
+    bool hung_up()
+    {
+        return hangup_after_writes_ >= 0 && nn_writes_ >= hangup_after_writes_;
+    }
+    // Take what the server sent, and send what the client has to.
+    void drive()
+    {
+        if (hung_up()) {
+            return;
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            SSL_do_handshake(ssl_);
+            ERR_clear_error();
+        }
+        if (!SSL_is_init_finished(ssl_)) {
+            return;
+        }
+
+        char buf[4096];
+        int r0;
+        while ((r0 = SSL_read(ssl_, buf, sizeof(buf))) > 0) {
+            received_.append(buf, r0);
+        }
+        ERR_clear_error();
+
+        while (!replies_.empty() && replies_.front().first <= received_.size()) {
+            std::string data = replies_.front().second;
+            replies_.erase(replies_.begin());
+            SSL_write(ssl_, data.data(), (int)data.size());
+        }
+    }
+    void send(const std::string &data)
+    {
+        drive();
+        SSL_write(ssl_, data.data(), (int)data.size());
+    }
+    void close_notify()
+    {
+        drive();
+        SSL_shutdown(ssl_);
+        ERR_clear_error();
+    }
+    std::string received()
+    {
+        drive();
+        return received_;
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        nn_reads_++;
+        drive();
+
+        int pending = hung_up() ? 0 : (int)BIO_ctrl_pending(out_);
+        if (pending <= 0) {
+            return srs_error_new(ERROR_SOCKET_READ, "EOF");
+        }
+
+        int n = srs_min(pending, (int)size);
+        if (segment_ > 0) {
+            n = srs_min(n, segment_);
+        }
+        BIO_read(out_, buf, n);
+        nn_recv_ += n;
+        if (nread) {
+            *nread = n;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread)
+    {
+        srs_error_t err = srs_success;
+        size_t nb = 0;
+        while (nb < size) {
+            ssize_t n = 0;
+            if ((err = read((char *)buf + nb, size - nb, &n)) != srs_success) {
+                return err;
+            }
+            nb += n;
+        }
+        if (nread) {
+            *nread = nb;
+        }
+        return err;
+    }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        nn_writes_++;
+        if (nn_writes_ == fail_write_) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "client gone");
+        }
+        BIO_write(in_, buf, (int)size);
+        nn_send_ += size;
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return srs_success;
+    }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        srs_error_t err = srs_success;
+        ssize_t total = 0;
+        for (int i = 0; i < iov_size; i++) {
+            if ((err = write(iov[i].iov_base, iov[i].iov_len, NULL)) != srs_success) {
+                return err;
+            }
+            total += iov[i].iov_len;
+        }
+        if (nwrite) {
+            *nwrite = total;
+        }
+        return err;
+    }
+    virtual void set_recv_timeout(srs_utime_t tm)
+    {
+        rtm_ = tm;
+    }
+    virtual srs_utime_t get_recv_timeout()
+    {
+        return rtm_;
+    }
+    virtual void set_send_timeout(srs_utime_t tm)
+    {
+        stm_ = tm;
+    }
+    virtual srs_utime_t get_send_timeout()
+    {
+        return stm_;
+    }
+    virtual int64_t get_recv_bytes()
+    {
+        return nn_recv_;
+    }
+    virtual int64_t get_send_bytes()
+    {
+        return nn_send_;
+    }
+};
+
+// The peer of an RTMP connection, whose connection is reset after it took a given number of
+// messages: SrsProtocol writes each message with one writev, and a writev after the reset fails.
+class RtmpStackResetIO : public MockBufferIO
+{
+public:
+    int writevs_left_;
+    int writevs_tried_;
+
+public:
+    RtmpStackResetIO(int writevs_left) : writevs_left_(writevs_left), writevs_tried_(0) {}
+
+public:
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        writevs_tried_++;
+        if (writevs_left_ <= 0) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        }
+        writevs_left_--;
+        return MockBufferIO::writev(iov, iov_size, nwrite);
+    }
+};
 
 // A binding request as Chrome sends it to an ice-lite server, as the controlling agent, signed with the server's ICE
 // password; with `nominate`, it carries USE-CANDIDATE.

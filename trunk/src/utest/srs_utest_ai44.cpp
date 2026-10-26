@@ -474,49 +474,6 @@ static int listener_utest_send(srs_netfd_t client, string ip, int port, string d
     return srs_sendto(client, (void *)data.data(), (int)data.size(), (sockaddr *)&addr, len, SRS_UTIME_NO_TIMEOUT);
 }
 
-// The server's log while it lives: each warning and trace is kept.
-class ListenerUtestLog
-{
-public:
-    MockLogForSignal log_;
-    ISrsLog *saved_;
-
-public:
-    ListenerUtestLog()
-    {
-        saved_ = _srs_log;
-        _srs_log = &log_;
-    }
-    ~ListenerUtestLog()
-    {
-        _srs_log = saved_;
-    }
-
-public:
-    // The last trace that holds the text, or "".
-    string last_trace(string text)
-    {
-        string found;
-        for (int i = 0; i < (int)log_.traces_.size(); i++) {
-            if (log_.traces_[i].find(text) != string::npos) {
-                found = log_.traces_[i];
-            }
-        }
-        return found;
-    }
-    // How many warnings hold the text.
-    int warns(string text)
-    {
-        int n = 0;
-        for (int i = 0; i < (int)log_.warns_.size(); i++) {
-            if (log_.warns_[i].find(text) != string::npos) {
-                n++;
-            }
-        }
-        return n;
-    }
-};
-
 // The server's cached clock while it lives: the server started at base_, and the test moves the clock on. The
 // clock is restored when it goes.
 class ListenerUtestClock
