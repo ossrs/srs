@@ -3694,3 +3694,777 @@ VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackSplitAtSequenceZero_RestNeverR
     EXPECT_EQ(0, fbs.at(1).base_sn_);
     EXPECT_EQ(1500, fbs.at(0).count_ + fbs.at(1).count_);
 }
+
+// --- P2.18: kernel/srs_kernel_rtc_rtp.cpp ------------------------------------
+
+// A WebRTC publisher's RTP header carries its one-byte extensions, then the SRTP auth tag trails the whole packet. The
+// transport-cc sequence is parsed from the wire before SRTP unprotect (SrsRtcPublishStream::on_rtp_cipher), so a packet
+// that fails SRTP still advances congestion control. The fast parser walks the 0xBEDE extension block, skipping a
+// padding byte and the audio-level extension, to the transport-cc one.
+static string rtp_with_extensions(uint8_t cc, uint16_t twcc_sn, bool twcc_present, const string &trailer)
+{
+    // One-byte extension block: padding, audio-level (id 2, len 1 byte), then transport-cc (id 5, len 2 bytes).
+    string ext;
+    ext.push_back((char)0x00); // padding
+    ext.push_back((char)0x20); // id=2 (audio level), len nibble 0 -> 1 data byte
+    ext.push_back((char)0x80); // audio level value
+    if (twcc_present) {
+        ext.push_back((char)0x51); // id=5 (transport-cc), len nibble 1 -> 2 data bytes
+        ext.push_back((char)(twcc_sn >> 8));
+        ext.push_back((char)(twcc_sn & 0xff));
+    }
+    while (ext.size() % 4) {
+        ext.push_back((char)0x00); // pad to whole 32-bit words
+    }
+
+    string p;
+    p.push_back((char)(0x90 | (cc & 0x0f))); // V=2, X=1, CC=cc
+    p.push_back((char)0x60);                 // M=0, PT=96
+    p += rtcp_be16(0x1234);                  // sequence
+    p += rtcp_be32(0x11223344);              // timestamp
+    p += rtcp_be32(0x0a0b0c0d);              // SSRC
+    for (int i = 0; i < cc; i++) {
+        p += rtcp_be32(0xc0000000 + i); // CSRC list
+    }
+    p += rtcp_be16(0xBEDE);
+    p += rtcp_be16((uint16_t)(ext.size() / 4));
+    p += ext;
+    p += trailer;
+    return p;
+}
+
+VOID TEST(KernelRtcRtpTest, FastParseTwccAmongExtensions)
+{
+    srs_error_t err = srs_success;
+
+    // The SRTP auth tag (10 bytes here) trails the RTP, giving the parser the slack it needs past the extensions.
+    string trailer(10, '\xaa');
+    string p = rtp_with_extensions(0, 0xabcd, true, trailer);
+
+    uint16_t twcc_sn = 0;
+    HELPER_ASSERT_SUCCESS(srs_rtp_fast_parse_twcc((char *)p.data(), (int)p.size(), 5, twcc_sn));
+    EXPECT_EQ(0xabcd, twcc_sn);
+}
+
+// The same packet with a contributing-source list: the parser accounts for the CSRC bytes before the extensions.
+VOID TEST(KernelRtcRtpTest, FastParseTwccWithCsrcList)
+{
+    srs_error_t err = srs_success;
+
+    string trailer(10, '\xaa');
+    string p = rtp_with_extensions(2, 0x5678, true, trailer);
+
+    uint16_t twcc_sn = 0;
+    HELPER_ASSERT_SUCCESS(srs_rtp_fast_parse_twcc((char *)p.data(), (int)p.size(), 5, twcc_sn));
+    EXPECT_EQ(0x5678, twcc_sn);
+}
+
+// A packet whose extension block has no transport-cc extension: the parser walks every one-byte extension and finds
+// none, so it returns without a sequence, and the publisher skips the transport-cc update for it.
+VOID TEST(KernelRtcRtpTest, FastParseTwccAbsentWalksAllExtensions)
+{
+    srs_error_t err = srs_success;
+
+    string trailer(10, '\xaa');
+    string p = rtp_with_extensions(0, 0, false, trailer);
+
+    uint16_t twcc_sn = 0xffff;
+    HELPER_ASSERT_SUCCESS(srs_rtp_fast_parse_twcc((char *)p.data(), (int)p.size(), 5, twcc_sn));
+    EXPECT_EQ(0xffff, twcc_sn); // unchanged
+}
+
+// Malformed packets the parser rejects before SRTP: one large enough but with the extension bit clear, one whose CSRC
+// list makes it too short, and one whose profile is not 0xBEDE.
+VOID TEST(KernelRtcRtpTest, FastParseTwccRejectsMalformedHeaders)
+{
+    srs_error_t err = srs_success;
+    uint16_t twcc_sn = 0;
+
+    // Extension bit clear, but the packet is long enough to pass the size check.
+    string no_ext(40, '\x00');
+    no_ext[0] = (char)0x80; // V=2, X=0
+    err = srs_rtp_fast_parse_twcc((char *)no_ext.data(), (int)no_ext.size(), 5, twcc_sn);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // Extension bit set with CC=2, but only the fixed size: the CSRC list makes it too short.
+    string short_csrc(20, '\x00');
+    short_csrc[0] = (char)0x92; // V=2, X=1, CC=2
+    err = srs_rtp_fast_parse_twcc((char *)short_csrc.data(), (int)short_csrc.size(), 5, twcc_sn);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // Extension profile is not 0xBEDE (one-byte extensions), which this fast parser does not support.
+    string p = rtp_with_extensions(0, 0xabcd, true, string(10, '\xaa'));
+    p[12] = (char)0x10;
+    p[13] = (char)0x00; // profile 0x1000
+    err = srs_rtp_fast_parse_twcc((char *)p.data(), (int)p.size(), 5, twcc_sn);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// The extension-type map is negotiated from the SDP's a=extmap lines. An id out of the 1..255 range is rejected, and a
+// known URI maps to its type, which the full header decoder uses to tell transport-cc and audio-level apart.
+VOID TEST(KernelRtcRtpTest, ExtensionTypesRegisterByUri)
+{
+    SrsRtpExtensionTypes types;
+
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+    EXPECT_TRUE(types.register_by_uri(2, kAudioLevelUri));
+    EXPECT_EQ(kRtpExtensionTransportSequenceNumber, types.get_type(5));
+    EXPECT_EQ(kRtpExtensionAudioLevel, types.get_type(2));
+    EXPECT_EQ(kRtpExtensionNone, types.get_type(9)); // unregistered id
+
+    // An unknown URI, and an id out of range, are both refused.
+    EXPECT_FALSE(types.register_by_uri(3, "urn:unknown"));
+    EXPECT_FALSE(types.register_by_uri(0, kTWCCExt));
+    EXPECT_FALSE(types.register_by_uri(256, kTWCCExt));
+}
+
+// A publisher's audio packet carries both a transport-cc sequence and an ssrc-audio-level in its 0xBEDE block. With the
+// extension map set and transport-cc decoding enabled, the full header decoder reads both, and the header re-encodes to
+// the same extension block.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsTwccAndAudioLevelRoundTrip)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+    EXPECT_TRUE(types.register_by_uri(2, kAudioLevelUri));
+
+    // Build the extensions the publisher sends.
+    SrsRtpExtensions src;
+    src.set_types_(&types);
+    HELPER_ASSERT_SUCCESS(src.set_twcc_sequence_number(5, 0x4142));
+    HELPER_ASSERT_SUCCESS(src.set_audio_level(2, 0x30));
+
+    char b[256];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ((int)src.nb_bytes(), nb);
+
+    // The publisher stream decodes transport-cc in the full header (enable_twcc_decode), plus the audio level.
+    SrsRtpExtensions dst;
+    dst.set_types_(&types);
+    dst.enable_twcc_decode();
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+
+    uint16_t twcc_sn = 0;
+    HELPER_ASSERT_SUCCESS(dst.get_twcc_sequence_number(twcc_sn));
+    EXPECT_EQ(0x4142, twcc_sn);
+    uint8_t level = 0;
+    HELPER_ASSERT_SUCCESS(dst.get_audio_level(level));
+    EXPECT_EQ(0x30, level);
+}
+
+// By default transport-cc is parsed by the fast path, so the full header decoder skips the transport-cc extension
+// (decode_twcc_extension_ false) while still reading the audio level. The skipped extension leaves no sequence.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsSkipTwccWhenNotDecodingIt)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+    EXPECT_TRUE(types.register_by_uri(2, kAudioLevelUri));
+
+    SrsRtpExtensions src;
+    src.set_types_(&types);
+    HELPER_ASSERT_SUCCESS(src.set_twcc_sequence_number(5, 0x4142));
+    HELPER_ASSERT_SUCCESS(src.set_audio_level(2, 0x30));
+
+    char b[256];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+
+    SrsRtpExtensions dst;
+    dst.set_types_(&types);
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+
+    uint16_t twcc_sn = 0;
+    EXPECT_TRUE(dst.get_twcc_sequence_number(twcc_sn) != srs_success); // skipped, not stored
+    uint8_t level = 0;
+    HELPER_ASSERT_SUCCESS(dst.get_audio_level(level));
+    EXPECT_EQ(0x30, level);
+}
+
+// The extension block of a 0x1000 (two-byte header) profile is not parsed for values, but it is skipped so the payload
+// that follows is reached.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsTwoByteProfileSkipped)
+{
+    srs_error_t err = srs_success;
+
+    // profile 0x1000, length 1 word (4 bytes), then 4 bytes of extension data.
+    string p = rtcp_be16(0x1000) + rtcp_be16(1) + string(4, '\x11');
+    SrsRtpExtensions ext;
+    SrsBuffer buf((char *)p.data(), (int)p.size());
+    HELPER_ASSERT_SUCCESS(ext.decode(&buf));
+    EXPECT_TRUE(buf.empty());
+}
+
+// Asking a header with no extensions for its transport-cc sequence, or an extension block with no audio level for the
+// level, returns an error rather than a value.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsMissingValuesReturnError)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpHeader h;
+    uint16_t twcc_sn = 0;
+    EXPECT_TRUE(h.get_twcc_sequence_number(twcc_sn) != srs_success);
+
+    SrsRtpExtensions ext;
+    EXPECT_TRUE(ext.get_twcc_sequence_number(twcc_sn) != srs_success);
+    uint8_t level = 0;
+    EXPECT_TRUE(ext.get_audio_level(level) != srs_success);
+}
+
+// Truncated extension blocks are refused: one too short for the 4-byte profile/length, one that promises more
+// extension bytes than it carries, and a transport-cc or audio-level extension cut inside its value.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsTruncatedAreRefused)
+{
+    srs_error_t err = srs_success;
+
+    // Too short for the profile and length fields.
+    if (true) {
+        string p(3, '\x00');
+        SrsRtpExtensions ext;
+        SrsBuffer buf((char *)p.data(), (int)p.size());
+        err = ext.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // A transport-cc extension cut after its one-byte header.
+    if (true) {
+        SrsRtpExtensionTwcc twcc;
+        string p;
+        p.push_back((char)0x51); // id 5, len nibble 1
+        SrsBuffer buf((char *)p.data(), (int)p.size());
+        err = twcc.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // A transport-cc extension whose len nibble is not 1 is invalid.
+    if (true) {
+        SrsRtpExtensionTwcc twcc;
+        string p;
+        p.push_back((char)0x53); // id 5, len nibble 3
+        p += rtcp_be16(0);
+        SrsBuffer buf((char *)p.data(), (int)p.size());
+        err = twcc.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // An audio-level extension cut after its header, and one whose len nibble is not 0.
+    if (true) {
+        SrsRtpExtensionOneByte al;
+        string p;
+        p.push_back((char)0x20); // id 2, len nibble 0, no value byte
+        SrsBuffer buf((char *)p.data(), (int)p.size());
+        err = al.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+    if (true) {
+        SrsRtpExtensionOneByte al;
+        string p;
+        p.push_back((char)0x23); // id 2, len nibble 3
+        p += string(3, '\x00');
+        SrsBuffer buf((char *)p.data(), (int)p.size());
+        err = al.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
+
+// Encoding into a buffer too small for the extensions, or for a single extension, fails rather than overruns.
+VOID TEST(KernelRtcRtpTest, HeaderExtensionsEncodeIntoShortBufferFails)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    SrsRtpExtensions ext;
+    ext.set_types_(&types);
+    HELPER_ASSERT_SUCCESS(ext.set_twcc_sequence_number(5, 0x1111));
+
+    // Only the 0xBEDE and length words fit; the extension bytes do not.
+    char b[4];
+    SrsBuffer buf(b, sizeof(b));
+    err = ext.encode(&buf);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // A single transport-cc extension needs 3 bytes.
+    SrsRtpExtensionTwcc twcc;
+    twcc.set_id(5);
+    twcc.set_sn(0x1111);
+    char b2[2];
+    SrsBuffer buf2(b2, sizeof(b2));
+    err = twcc.encode(&buf2);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // A single audio-level extension needs 2 bytes.
+    SrsRtpExtensionOneByte al;
+    al.set_id(2);
+    al.set_value(0x30);
+    char b3[1];
+    SrsBuffer buf3(b3, sizeof(b3));
+    err = al.encode(&buf3);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A mixer or relay forwards a packet with a contributing-source list, over a transport-cc extension. The header
+// round-trips: the CSRC list and the extension block are both preserved.
+VOID TEST(KernelRtcRtpTest, HeaderWithCsrcRoundTrip)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    SrsRtpHeader src;
+    src.set_extensions(&types);
+    src.set_payload_type(96);
+    src.set_sequence(0x2233);
+    src.set_ssrc(0x0a0b0c0d);
+    src.set_twcc_sequence_number(5, 0x7788);
+
+    // Two contributing sources: nb_bytes and encode account for them, and decode reads them back.
+    src.cc_ = 2;
+    src.csrc_[0] = 0xc0c0c0c0;
+    src.csrc_[1] = 0xd0d0d0d0;
+
+    char b[256];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+
+    SrsRtpHeader dst;
+    dst.set_extensions(&types);
+    dst.enable_twcc_decode();
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+    EXPECT_EQ(0x2233, dst.get_sequence());
+    EXPECT_EQ(0x0a0b0c0d, dst.get_ssrc());
+    EXPECT_EQ(2, dst.cc_);
+    EXPECT_EQ((uint32_t)0xc0c0c0c0, dst.csrc_[0]);
+    uint16_t twcc_sn = 0;
+    HELPER_ASSERT_SUCCESS(dst.get_twcc_sequence_number(twcc_sn));
+    EXPECT_EQ(0x7788, twcc_sn);
+}
+
+// A header with the extension bit set but too few bytes for even the 4-byte profile and length words is refused
+// gracefully.
+VOID TEST(KernelRtcRtpTest, HeaderTruncatedBeforeExtensionsRefused)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    // Fixed 12-byte header with X=1, then only 2 of the 4 extension-header bytes.
+    string w;
+    w.push_back((char)0x90); // V=2, X=1, CC=0
+    w.push_back((char)0x60); // PT=96
+    w += rtcp_be16(0x2233);
+    w += rtcp_be32(0);
+    w += rtcp_be32(0x0a0b0c0d);
+    w += rtcp_be16(0xBEDE); // only the profile word, length word missing
+
+    SrsRtpHeader dst;
+    dst.set_extensions(&types);
+    SrsBuffer dbuf((char *)w.data(), (int)w.size());
+    err = dst.decode(&dbuf);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// B14: a WebRTC peer's RTP packet declares an extension length longer than the packet carries. SrsRtpExtensions::decode
+// reads the 4-byte profile and length words with a require, but then skips extension_length*4 bytes with no check, so
+// SrsBuffer::skip asserts and the server aborts. The packet is parsed in do_on_rtp_plaintext after SRTP unprotect, so
+// any peer that can publish over WebRTC can crash the server with one packet. Fix: require extension_length*4 bytes
+// before building the sub-buffer and skipping. High severity.
+VOID TEST(KernelRtcRtpTest, DISABLED_RtpExtensionLengthBeyondPacket_ServerAborts)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    // Fixed header with X=1, profile 0xBEDE, extension_length 0x00ff words (1020 bytes), but no extension bytes follow.
+    string w;
+    w.push_back((char)0x90); // V=2, X=1, CC=0
+    w.push_back((char)0x60); // PT=96
+    w += rtcp_be16(0x2233);
+    w += rtcp_be32(0);
+    w += rtcp_be32(0x0a0b0c0d);
+    w += rtcp_be16(0xBEDE);
+    w += rtcp_be16(0x00ff); // 255 words of extension that are not present
+
+    SrsRtpHeader dst;
+    dst.set_extensions(&types);
+    SrsBuffer dbuf((char *)w.data(), (int)w.size());
+    err = dst.decode(&dbuf); // aborts today: SrsBuffer::skip assert
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// The RTMP-to-WebRTC packetizer builds a STAP-A of SPS and PPS before an IDR, and the publisher parser reads a STAP-A.
+// The payload round-trips, and get_sps, get_pps and get_idr find each NALU; a zero-length NALU entry is skipped.
+VOID TEST(KernelRtcRtpTest, StapAPayloadRoundTripAndGetters)
+{
+    srs_error_t err = srs_success;
+
+    string sps("\x67\x42\x00\x1f", 4);
+    string pps("\x68\xce\x3c\x80", 4);
+    string idr("\x65\x88\x84\x00\x10", 5);
+
+    SrsRtpSTAPPayload src;
+    SrsNaluSample s_sps, s_pps, s_idr;
+    s_sps.bytes_ = (char *)sps.data(); s_sps.size_ = (int)sps.size();
+    s_pps.bytes_ = (char *)pps.data(); s_pps.size_ = (int)pps.size();
+    s_idr.bytes_ = (char *)idr.data(); s_idr.size_ = (int)idr.size();
+    src.nalus_.push_back(&s_sps);
+    src.nalus_.push_back(&s_pps);
+    src.nalus_.push_back(&s_idr);
+
+    char b[256];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ((int)src.nb_bytes(), nb);
+    src.nalus_.clear(); // the samples are stack objects; do not let the destructor free them
+
+    // The parser decodes the STAP-A, with a zero-length entry prepended that must be skipped by the getters.
+    string wire(b, nb);
+    wire.insert(1, string("\x00\x00", 2)); // a zero-length NALU entry right after the STAP header
+    SrsRtpSTAPPayload dst;
+    SrsBuffer dbuf((char *)wire.data(), (int)wire.size());
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+
+    ASSERT_TRUE(dst.get_sps() != NULL);
+    EXPECT_EQ(sps, string(dst.get_sps()->bytes_, dst.get_sps()->size_));
+    ASSERT_TRUE(dst.get_pps() != NULL);
+    EXPECT_EQ(pps, string(dst.get_pps()->bytes_, dst.get_pps()->size_));
+    ASSERT_TRUE(dst.get_idr() != NULL);
+    EXPECT_EQ(idr, string(dst.get_idr()->bytes_, dst.get_idr()->size_));
+
+    // A copy holds the same NALUs.
+    SrsUniquePtr<ISrsRtpPayloader> cp(dst.copy());
+    SrsRtpSTAPPayload *cpp = dynamic_cast<SrsRtpSTAPPayload *>(cp.get());
+    ASSERT_TRUE(cpp != NULL);
+    ASSERT_TRUE(cpp->get_sps() != NULL);
+    EXPECT_EQ(sps, string(cpp->get_sps()->bytes_, cpp->get_sps()->size_));
+}
+
+// A large NALU is packetized into FU-A fragments (SrsRtpFUAPayload), and the publisher parser reads a fragment. The
+// payload round-trips with its start/end flags, and a copy preserves it.
+VOID TEST(KernelRtcRtpTest, FuaPayloadRoundTripAndCopy)
+{
+    srs_error_t err = srs_success;
+
+    string frag("\x9a\x21\x6c\x42\x00\x11\x22", 7);
+    SrsRtpFUAPayload src;
+    src.nri_ = (SrsAvcNaluType)0x60;
+    src.nalu_type_ = SrsAvcNaluTypeIDR;
+    src.start_ = true;
+    src.end_ = false;
+    SrsNaluSample s;
+    s.bytes_ = (char *)frag.data(); s.size_ = (int)frag.size();
+    src.nalus_.push_back(&s);
+
+    char b[64];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ((int)src.nb_bytes(), nb);
+    src.nalus_.clear();
+
+    SrsRtpFUAPayload dst;
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+    EXPECT_TRUE(dst.start_);
+    EXPECT_FALSE(dst.end_);
+    EXPECT_EQ(SrsAvcNaluTypeIDR, dst.nalu_type_);
+
+    SrsUniquePtr<ISrsRtpPayloader> cp(dst.copy());
+    SrsRtpFUAPayload *cpp = dynamic_cast<SrsRtpFUAPayload *>(cp.get());
+    ASSERT_TRUE(cpp != NULL);
+    EXPECT_EQ(SrsAvcNaluTypeIDR, cpp->nalu_type_);
+    EXPECT_EQ((int)dst.nb_bytes(), (int)cpp->nb_bytes());
+}
+
+// The merge-NALUs packetizer collects a frame's NALUs into one SrsRtpRawNALUs, inserting a start code between them, and
+// a short enough set goes out in a single RTP packet. An empty sample is ignored.
+VOID TEST(KernelRtcRtpTest, RawNalusCollectEncodeAndRead)
+{
+    srs_error_t err = srs_success;
+
+    string n1("\x67\x42\x00\x1f", 4);
+    string n2("\x68\xce\x3c\x80", 4);
+
+    SrsRtpRawNALUs raw;
+    SrsNaluSample *s1 = new SrsNaluSample();
+    s1->bytes_ = (char *)n1.data(); s1->size_ = (int)n1.size();
+    SrsNaluSample *s2 = new SrsNaluSample();
+    s2->bytes_ = (char *)n2.data(); s2->size_ = (int)n2.size();
+    SrsNaluSample *empty = new SrsNaluSample();
+    empty->bytes_ = NULL; empty->size_ = 0;
+    raw.push_back(empty); // ignored: size 0
+    raw.push_back(s1);
+    raw.push_back(s2);
+
+    // nb_bytes is the two NALUs plus the 3-byte start code inserted between them.
+    EXPECT_EQ((int)(n1.size() + 3 + n2.size()), (int)raw.nb_bytes());
+
+    char b[64];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(raw.encode(&ebuf));
+    EXPECT_EQ((int)raw.nb_bytes(), ebuf.pos());
+
+    // A copy carries the same bytes.
+    SrsUniquePtr<ISrsRtpPayloader> cp(raw.copy());
+    EXPECT_EQ((int)raw.nb_bytes(), (int)cp->nb_bytes());
+}
+
+// The NACK responder answers with an RFC 4588 RTX packet: the two-byte original sequence number, then the original
+// payload. The publisher's RTX packet is parsed the same way, recovering the original sequence and payload.
+VOID TEST(KernelRtcRtpTest, RtxPayloadRoundTrip)
+{
+    srs_error_t err = srs_success;
+
+    string media("\x00\x11\x22\x33\x44", 5);
+    SrsRtpRawPayload *inner = new SrsRtpRawPayload();
+    inner->payload_ = (char *)media.data();
+    inner->nn_payload_ = (int)media.size();
+
+    SrsRtpRtxPayload src;
+    src.osn_ = 0x1234;
+    src.payload_ = inner;
+
+    char b[64];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ((int)src.nb_bytes(), nb);
+
+    SrsRtpRtxPayload dst;
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+    EXPECT_EQ(0x1234, dst.osn_);
+    ASSERT_TRUE(dst.payload_ != NULL);
+    EXPECT_EQ((int)media.size(), (int)dst.payload_->nb_bytes());
+
+    SrsUniquePtr<ISrsRtpPayloader> cp(dst.copy());
+    EXPECT_EQ((int)dst.nb_bytes(), (int)cp->nb_bytes());
+
+    // A packet too short for the two-byte OSN is refused when encoding.
+    char tiny[1];
+    SrsBuffer tbuf(tiny, sizeof(tiny));
+    SrsRtpRtxPayload small;
+    small.osn_ = 1;
+    err = small.encode(&tbuf);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A WebRTC HEVC publisher sends a STAP (aggregation) packet of VPS, SPS and PPS, and FU fragments of a slice. The HEVC
+// payloads round-trip, and the STAP getters find each parameter set.
+VOID TEST(KernelRtcRtpTest, HevcStapAndFuaPayloadsRoundTrip)
+{
+    srs_error_t err = srs_success;
+
+    string vps("\x40\x01\x0c\x01", 4); // NALU type 32 (VPS)
+    string sps("\x42\x01\x01\x01", 4); // NALU type 33 (SPS)
+    string pps("\x44\x01\xc1\x72", 4); // NALU type 34 (PPS)
+
+    SrsRtpSTAPPayloadHevc stap;
+    SrsNaluSample sv, ss, sp;
+    sv.bytes_ = (char *)vps.data(); sv.size_ = (int)vps.size();
+    ss.bytes_ = (char *)sps.data(); ss.size_ = (int)sps.size();
+    sp.bytes_ = (char *)pps.data(); sp.size_ = (int)pps.size();
+    stap.nalus_.push_back(&sv);
+    stap.nalus_.push_back(&ss);
+    stap.nalus_.push_back(&sp);
+
+    char b[256];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(stap.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ((int)stap.nb_bytes(), nb);
+    stap.nalus_.clear();
+
+    SrsRtpSTAPPayloadHevc dst;
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+    ASSERT_TRUE(dst.get_vps() != NULL);
+    EXPECT_EQ(vps, string(dst.get_vps()->bytes_, dst.get_vps()->size_));
+    ASSERT_TRUE(dst.get_sps() != NULL);
+    EXPECT_EQ(sps, string(dst.get_sps()->bytes_, dst.get_sps()->size_));
+    ASSERT_TRUE(dst.get_pps() != NULL);
+    EXPECT_EQ(pps, string(dst.get_pps()->bytes_, dst.get_pps()->size_));
+    EXPECT_TRUE(dst.get_idr() == NULL); // no IRAP slice in a parameter-set STAP
+
+    SrsUniquePtr<ISrsRtpPayloader> cp(dst.copy());
+    EXPECT_EQ((int)dst.nb_bytes(), (int)cp->nb_bytes());
+
+    // An HEVC FU fragment of an IDR slice.
+    string frag("\x01\xaf\x00\x11\x22", 5);
+    SrsRtpFUAPayloadHevc fua;
+    fua.nalu_type_ = SrsHevcNaluType_CODED_SLICE_IDR;
+    fua.start_ = true;
+    fua.end_ = true;
+    SrsNaluSample fs;
+    fs.bytes_ = (char *)frag.data(); fs.size_ = (int)frag.size();
+    fua.nalus_.push_back(&fs);
+
+    char fb[64];
+    SrsBuffer fbuf(fb, sizeof(fb));
+    HELPER_ASSERT_SUCCESS(fua.encode(&fbuf));
+    int fnb = fbuf.pos();
+    EXPECT_EQ((int)fua.nb_bytes(), fnb);
+    fua.nalus_.clear();
+
+    SrsRtpFUAPayloadHevc fdst;
+    SrsBuffer fdbuf(fb, fnb);
+    HELPER_ASSERT_SUCCESS(fdst.decode(&fdbuf));
+    EXPECT_TRUE(fdst.start_);
+    EXPECT_TRUE(fdst.end_);
+    EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_IDR, fdst.nalu_type_);
+
+    SrsUniquePtr<ISrsRtpPayloader> fcp(fdst.copy());
+    EXPECT_EQ((int)fdst.nb_bytes(), (int)fcp->nb_bytes());
+}
+
+// Payload decoders refuse a fragment or aggregation unit cut short of its header.
+VOID TEST(KernelRtcRtpTest, PayloadsTruncatedAreRefused)
+{
+    srs_error_t err = srs_success;
+
+    // STAP-A needs 1 byte; an entry size needs 2 bytes and its NALU bytes.
+    if (true) {
+        SrsRtpSTAPPayload p;
+        SrsBuffer buf((char *)"", 0);
+        err = p.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+    if (true) {
+        string w("\x18\x00\x05", 3); // STAP header, entry size 5, but no NALU bytes
+        SrsRtpSTAPPayload p;
+        SrsBuffer buf((char *)w.data(), (int)w.size());
+        err = p.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+    // FU-A needs 2 bytes of headers and then 1 byte of payload.
+    if (true) {
+        string w("\x7c", 1);
+        SrsRtpFUAPayload p;
+        SrsBuffer buf((char *)w.data(), (int)w.size());
+        err = p.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+    // HEVC STAP and FU need their 2- and 3-byte headers.
+    if (true) {
+        string w("\x60", 1);
+        SrsRtpSTAPPayloadHevc p;
+        SrsBuffer buf((char *)w.data(), (int)w.size());
+        err = p.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+    if (true) {
+        string w("\x62\x01", 2);
+        SrsRtpFUAPayloadHevc p;
+        SrsBuffer buf((char *)w.data(), (int)w.size());
+        err = p.decode(&buf);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
+
+// A relayed RTP packet carries a raw payload and RTP padding. Encode writes the payload then the padding bytes, and the
+// publisher's decode strips the padding before the payload, so a padding probe's payload reads empty.
+VOID TEST(KernelRtcRtpTest, PacketPaddingEncodeAndDecode)
+{
+    srs_error_t err = srs_success;
+
+    string media("\x11\x22\x33\x44", 4);
+    SrsRtpPacket src;
+    src.header_.set_payload_type(96);
+    src.header_.set_sequence(7);
+    src.header_.set_ssrc(0x0a0b0c0d);
+    src.header_.set_padding(4);
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    raw->payload_ = (char *)media.data();
+    raw->nn_payload_ = (int)media.size();
+    src.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+    char b[128];
+    SrsBuffer ebuf(b, sizeof(b));
+    HELPER_ASSERT_SUCCESS(src.encode(&ebuf));
+    int nb = ebuf.pos();
+    EXPECT_EQ(12 + (int)media.size() + 4, nb);
+
+    SrsRtpPacket dst;
+    SrsBuffer dbuf(b, nb);
+    HELPER_ASSERT_SUCCESS(dst.decode(&dbuf));
+    EXPECT_EQ(7, dst.header_.get_sequence());
+    EXPECT_EQ(4, dst.header_.get_padding());
+    ASSERT_TRUE(dst.payload() != NULL);
+    EXPECT_EQ((int)media.size(), (int)dst.payload()->nb_bytes());
+}
+
+// Encoding a packet into a buffer that fits the header but not the payload fails rather than overruns.
+VOID TEST(KernelRtcRtpTest, PacketEncodeShortOfPayloadFails)
+{
+    srs_error_t err = srs_success;
+
+    string media("\x11\x22\x33\x44", 4);
+    SrsRtpPacket pkt;
+    pkt.header_.set_payload_type(96);
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    raw->payload_ = (char *)media.data();
+    raw->nn_payload_ = (int)media.size();
+    pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+    // 14 bytes fit the 12-byte header but not the 4-byte payload.
+    char pb[14];
+    SrsBuffer pbuf(pb, sizeof(pb));
+    err = pkt.encode(&pbuf);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A packet whose padding length is larger than the bytes left is refused by decode.
+VOID TEST(KernelRtcRtpTest, PacketPaddingLongerThanBufferRefused)
+{
+    srs_error_t err = srs_success;
+
+    // Fixed header with the padding bit set, then two payload bytes, the last of which claims 200 padding bytes.
+    string w;
+    w.push_back((char)0xa0); // V=2, P=1
+    w.push_back((char)0x60); // PT=96
+    w += rtcp_be16(1);
+    w += rtcp_be32(0);
+    w += rtcp_be32(0x0a0b0c0d);
+    w.push_back((char)0x11);
+    w.push_back((char)200); // padding length far beyond the packet
+
+    SrsRtpPacket pkt;
+    SrsBuffer buf((char *)w.data(), (int)w.size());
+    err = pkt.decode(&buf);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
