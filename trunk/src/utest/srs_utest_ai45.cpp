@@ -6,6 +6,7 @@
 
 #include <srs_utest_ai45.hpp>
 
+#include <srs_app_dvr.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
@@ -16,12 +17,14 @@
 #include <srs_app_stream_token.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_resource.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai09.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai32.hpp>
@@ -37,7 +40,9 @@
 #include <srs_utest_ai22.hpp>
 #endif
 
+#include <algorithm>
 #include <set>
+#include <sstream>
 #include <string>
 using namespace std;
 
@@ -2266,4 +2271,988 @@ VOID TEST(AppRtmpConnTest, NoCoroutineForClientOrReceiveThread_Refused)
         EXPECT_STREQ(hooks[i], c.hooks_.called().c_str());
         EXPECT_TRUE(c.source_->can_publish_);
     }
+}
+
+// The origin hub's HLS, which fails as a full disk or a codec error makes it fail, and records what the hub asks.
+class RtmpSourceUtestHls : public MockHlsForOriginHub
+{
+public:
+    srs_error_t audio_error_;
+    srs_error_t video_error_;
+    srs_error_t publish_error_;
+    int on_publish_count_;
+    int on_unpublish_count_;
+
+public:
+    RtmpSourceUtestHls()
+    {
+        audio_error_ = video_error_ = publish_error_ = srs_success;
+        on_publish_count_ = on_unpublish_count_ = 0;
+    }
+    virtual ~RtmpSourceUtestHls()
+    {
+        srs_freep(audio_error_);
+        srs_freep(video_error_);
+        srs_freep(publish_error_);
+    }
+
+public:
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
+    {
+        on_audio_count_++;
+        return srs_error_copy(audio_error_);
+    }
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format)
+    {
+        on_video_count_++;
+        return srs_error_copy(video_error_);
+    }
+    virtual srs_error_t on_publish()
+    {
+        on_publish_count_++;
+        return srs_error_copy(publish_error_);
+    }
+    virtual void on_unpublish()
+    {
+        on_unpublish_count_++;
+    }
+};
+
+// The origin hub's DASH, which fails as a full disk makes it fail.
+class RtmpSourceUtestDash : public MockDashForOriginHub
+{
+public:
+    srs_error_t audio_error_;
+    srs_error_t video_error_;
+    srs_error_t publish_error_;
+    int on_publish_count_;
+    int on_unpublish_count_;
+
+public:
+    RtmpSourceUtestDash()
+    {
+        audio_error_ = video_error_ = publish_error_ = srs_success;
+        on_publish_count_ = on_unpublish_count_ = 0;
+    }
+    virtual ~RtmpSourceUtestDash()
+    {
+        srs_freep(audio_error_);
+        srs_freep(video_error_);
+        srs_freep(publish_error_);
+    }
+
+public:
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
+    {
+        on_audio_count_++;
+        return srs_error_copy(audio_error_);
+    }
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format)
+    {
+        on_video_count_++;
+        return srs_error_copy(video_error_);
+    }
+    virtual srs_error_t on_publish()
+    {
+        on_publish_count_++;
+        return srs_error_copy(publish_error_);
+    }
+    virtual void on_unpublish()
+    {
+        on_unpublish_count_++;
+    }
+};
+
+// The origin hub's DVR, which fails as a full disk makes it fail.
+class RtmpSourceUtestDvr : public MockDvrForOriginHub
+{
+public:
+    srs_error_t meta_error_;
+    srs_error_t audio_error_;
+    srs_error_t video_error_;
+    srs_error_t publish_error_;
+    int on_publish_count_;
+    int on_unpublish_count_;
+
+public:
+    RtmpSourceUtestDvr()
+    {
+        meta_error_ = audio_error_ = video_error_ = publish_error_ = srs_success;
+        on_publish_count_ = on_unpublish_count_ = 0;
+    }
+    virtual ~RtmpSourceUtestDvr()
+    {
+        srs_freep(meta_error_);
+        srs_freep(audio_error_);
+        srs_freep(video_error_);
+        srs_freep(publish_error_);
+    }
+
+public:
+    virtual srs_error_t on_meta_data(SrsMediaPacket *metadata)
+    {
+        on_meta_data_count_++;
+        return srs_error_copy(meta_error_);
+    }
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
+    {
+        on_audio_count_++;
+        return srs_error_copy(audio_error_);
+    }
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format)
+    {
+        on_video_count_++;
+        return srs_error_copy(video_error_);
+    }
+    virtual srs_error_t on_publish(ISrsRequest *r)
+    {
+        on_publish_count_++;
+        return srs_error_copy(publish_error_);
+    }
+    virtual void on_unpublish()
+    {
+        on_unpublish_count_++;
+    }
+};
+
+// The origin hub's transcoder, which fails to start its coroutine.
+class RtmpSourceUtestEncoder : public MockMediaEncoderForOriginHub
+{
+public:
+    srs_error_t publish_error_;
+    int on_publish_count_;
+
+public:
+    RtmpSourceUtestEncoder()
+    {
+        publish_error_ = srs_success;
+        on_publish_count_ = 0;
+    }
+    virtual ~RtmpSourceUtestEncoder()
+    {
+        srs_freep(publish_error_);
+    }
+
+public:
+    virtual srs_error_t on_publish(ISrsRequest *req)
+    {
+        on_publish_count_++;
+        return srs_error_copy(publish_error_);
+    }
+};
+
+// The origin hub's exec, which fails to start its process.
+class RtmpSourceUtestExec : public MockNgExecForOriginHub
+{
+public:
+    srs_error_t publish_error_;
+
+public:
+    RtmpSourceUtestExec()
+    {
+        publish_error_ = srs_success;
+    }
+    virtual ~RtmpSourceUtestExec()
+    {
+        srs_freep(publish_error_);
+    }
+
+public:
+    virtual srs_error_t on_publish(ISrsRequest *req)
+    {
+        on_publish_count_++;
+        return srs_error_copy(publish_error_);
+    }
+};
+
+// Makes the stream's origin hub as the server does, reading the test config, with the HLS, DASH, DVR, transcoder and
+// exec above, or with the real DVR.
+class RtmpSourceUtestFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
+    bool real_dvr_;
+    // The last hub made and its parts, owned by the source.
+    SrsOriginHub *hub_;
+    RtmpSourceUtestHls *hls_;
+    RtmpSourceUtestDash *dash_;
+    RtmpSourceUtestDvr *dvr_;
+    RtmpSourceUtestEncoder *encoder_;
+    RtmpSourceUtestExec *exec_;
+
+public:
+    RtmpSourceUtestFactory()
+    {
+        config_ = NULL;
+        stat_ = NULL;
+        real_dvr_ = false;
+        hub_ = NULL;
+        hls_ = NULL;
+        dash_ = NULL;
+        dvr_ = NULL;
+        encoder_ = NULL;
+        exec_ = NULL;
+    }
+
+public:
+    virtual ISrsOriginHub *create_origin_hub()
+    {
+        SrsOriginHub *hub = new SrsOriginHub();
+        hub->config_ = config_;
+        hub->stat_ = stat_;
+
+        srs_freep(hub->hls_);
+        hub->hls_ = hls_ = new RtmpSourceUtestHls();
+        srs_freep(hub->dash_);
+        hub->dash_ = dash_ = new RtmpSourceUtestDash();
+        srs_freep(hub->encoder_);
+        hub->encoder_ = encoder_ = new RtmpSourceUtestEncoder();
+        srs_freep(hub->ng_exec_);
+        hub->ng_exec_ = exec_ = new RtmpSourceUtestExec();
+        if (real_dvr_) {
+            dynamic_cast<SrsDvr *>(hub->dvr_)->config_ = config_;
+        } else {
+            srs_freep(hub->dvr_);
+            hub->dvr_ = dvr_ = new RtmpSourceUtestDvr();
+        }
+
+        hub->assemble();
+        hub_ = hub;
+        return hub;
+    }
+};
+
+// A live stream of the server: the real SrsLiveSource with the vhost from config text, its origin hub, a real
+// statistic and the clock of the test. Encoders publish to it, and players take its messages, as SrsRtmpConn does.
+class RtmpSourceUtestStream
+{
+public:
+    MockSrsConfig conf_;
+    SrsStatistic stat_;
+    MockLiveSourceHandler handler_;
+    MockClockForPithyPrint clock_;
+    RtmpSourceUtestFactory factory_;
+    MockSrsRequest req_;
+    SrsSharedPtr<SrsLiveSource> source_;
+    std::vector<SrsLiveConsumer *> players_;
+
+public:
+    RtmpSourceUtestStream() : req_("__defaultVhost__", "live", "livestream")
+    {
+        clock_.now_ = 100 * SRS_UTIME_SECONDS;
+    }
+    virtual ~RtmpSourceUtestStream()
+    {
+        for (int i = 0; i < (int)players_.size(); i++) {
+            SrsLiveConsumer *player = players_.at(i);
+            srs_freep(player);
+        }
+    }
+
+public:
+    // Creates the source of the stream, as SrsLiveSourceManager::fetch_or_create does.
+    srs_error_t open(std::string text)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(std::string(_MIN_OK_CONF) + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+        factory_.config_ = &conf_;
+        factory_.stat_ = &stat_;
+
+        SrsLiveSource *source = new SrsLiveSource();
+        source->config_ = &conf_;
+        source->stat_ = &stat_;
+        source->handler_ = &handler_;
+        source->app_factory_ = &factory_;
+        source->clk_ = &clock_;
+        source_ = SrsSharedPtr<SrsLiveSource>(source);
+        source->assemble();
+
+        return source->initialize(source_, &req_);
+    }
+    // A player joins, getting the cached metadata, sequence headers and GOP, as SrsRtmpConn::playing does.
+    SrsLiveConsumer *play()
+    {
+        SrsLiveConsumer *player = NULL;
+        srs_error_t err = source_->create_consumer(player);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!player) {
+            return NULL;
+        }
+        players_.push_back(player);
+
+        err = source_->consumer_dumps(player, true, true, true);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        return player;
+    }
+    // The player leaves.
+    void leave(SrsLiveConsumer *player)
+    {
+        players_.erase(std::find(players_.begin(), players_.end(), player));
+        srs_freep(player);
+    }
+    srs_error_t audio(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_audio(size, (uint32_t)timestamp, 1);
+        msg.create_payload(size);
+        memcpy(msg.payload(), data, size);
+        return source_->on_audio(&msg);
+    }
+    srs_error_t video(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_video(size, (uint32_t)timestamp, 1);
+        msg.create_payload(size);
+        memcpy(msg.payload(), data, size);
+        return source_->on_video(&msg);
+    }
+    srs_error_t metadata(int64_t timestamp)
+    {
+        SrsOnMetaDataPacket meta;
+        meta.metadata_->set("width", SrsAmf0Any::number(768));
+        meta.metadata_->set("height", SrsAmf0Any::number(320));
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_amf0_script(0, 1);
+        msg.header_.timestamp_ = timestamp;
+        return source_->on_meta_data(&msg, &meta);
+    }
+    // An RTMP aggregate message holding the FLV tags, as an FMS or Wowza edge sends.
+    srs_error_t aggregate(int64_t timestamp, const std::string &tags)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.message_type_ = RTMP_MSG_AggregateMessage;
+        msg.header_.payload_length_ = (int)tags.size();
+        msg.header_.timestamp_ = timestamp;
+        msg.header_.stream_id_ = 1;
+        msg.create_payload((int)tags.size());
+        memcpy(msg.payload(), tags.data(), tags.size());
+        return source_->on_aggregate(&msg);
+    }
+    // The H.264 and AAC sequence headers and a key frame at the time.
+    srs_error_t start_av(int64_t timestamp)
+    {
+        srs_error_t err = srs_success;
+        if ((err = video(timestamp, flv_utest_avc_sh, sizeof(flv_utest_avc_sh))) != srs_success) {
+            return srs_error_wrap(err, "video sh");
+        }
+        if ((err = audio(timestamp, flv_utest_aac_sh, sizeof(flv_utest_aac_sh))) != srs_success) {
+            return srs_error_wrap(err, "audio sh");
+        }
+        if ((err = video(timestamp, flv_utest_avc_idr, sizeof(flv_utest_avc_idr))) != srs_success) {
+            return srs_error_wrap(err, "idr");
+        }
+        return err;
+    }
+};
+
+// What the player got since it last read: A and V for the sequence headers, a and v for frames, m for the metadata, each
+// with its time.
+static string rtmp_source_utest_got(SrsLiveConsumer *player)
+{
+    SrsMessageArray msgs(256);
+    int count = 0;
+    srs_error_t err = player->dump_packets(&msgs, count);
+    EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+    srs_freep(err);
+
+    std::stringstream ss;
+    for (int i = 0; i < count; i++) {
+        SrsMediaPacket *msg = msgs.msgs_[i];
+        if (i) {
+            ss << ",";
+        }
+        if (msg->is_audio()) {
+            ss << (SrsFlvAudio::sh(msg->payload(), msg->size()) ? "A" : "a");
+        } else if (msg->is_video()) {
+            ss << (SrsFlvVideo::sh(msg->payload(), msg->size()) ? "V" : "v");
+        } else {
+            ss << "m";
+        }
+        ss << msg->timestamp_;
+    }
+    msgs.free(count);
+    return ss.str();
+}
+
+// An FLV tag of an aggregate message: type, data size, time, stream id, the data and the previous tag size.
+static string rtmp_source_utest_tag(uint8_t type, int64_t timestamp, const uint8_t *data, int size)
+{
+    string tag(11 + size + 4, '\0');
+    SrsBuffer b((char *)tag.data(), (int)tag.size());
+    b.write_1bytes(type);
+    b.write_3bytes(size);
+    b.write_3bytes((int32_t)(timestamp & 0xffffff));
+    b.write_1bytes((int8_t)(timestamp >> 24));
+    b.write_3bytes(0);
+    b.write_bytes((char *)data, size);
+    b.write_4bytes(11 + size);
+    return tag;
+}
+
+static const uint8_t rtmp_source_utest_aac_frame2[] = {0xaf, 0x01, 0x21, 0x12, 0x46, 0x00};
+
+// An encoder that writes video ahead of audio, on a vhost with mix_correct. The source holds the messages until it has
+// both, and gives the players audio and video in time order; without it, the players get them as sent.
+VOID TEST(AppRtmpSourceTest, MixCorrectVideoAheadOfAudio_PlayerGetsTimeOrder)
+{
+    srs_error_t err;
+
+    const char *configs[] = {"vhost __defaultVhost__ { play { mix_correct on; time_jitter off; } }",
+                             "vhost __defaultVhost__ { play { time_jitter off; } }"};
+    const char *expects[] = {"V0,A0,v0,a23,v40,a46", "V0,A0,v0,v40,v80,a23,a46,a69,a92"};
+    for (int i = 0; i < 2; i++) {
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open(configs[i]));
+        SrsLiveConsumer *player = s.play();
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+        HELPER_ASSERT_SUCCESS(s.start_av(0));
+        HELPER_ASSERT_SUCCESS(s.video(40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+        HELPER_ASSERT_SUCCESS(s.video(80, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+        HELPER_ASSERT_SUCCESS(s.audio(23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+        HELPER_ASSERT_SUCCESS(s.audio(46, rtmp_source_utest_aac_frame2, sizeof(rtmp_source_utest_aac_frame2)));
+        HELPER_ASSERT_SUCCESS(s.audio(69, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+        HELPER_ASSERT_SUCCESS(s.audio(92, rtmp_source_utest_aac_frame2, sizeof(rtmp_source_utest_aac_frame2)));
+
+        EXPECT_STREQ(expects[i], rtmp_source_utest_got(player).c_str()) << configs[i];
+        s.source_->on_unpublish();
+    }
+}
+
+// An audio-only or a video-only encoder on a vhost with mix_correct. With no message of the other kind to order by, the
+// source holds the first ten, then passes one for each new one.
+VOID TEST(AppRtmpSourceTest, MixCorrectAudioOnlyOrVideoOnly_HeldForTenMessages)
+{
+    srs_error_t err;
+
+    for (int kind = 0; kind < 2; kind++) {
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { mix_correct on; time_jitter off; } }"));
+        SrsLiveConsumer *player = s.play();
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+        for (int i = 0; i < 11; i++) {
+            if (kind == 0) {
+                if (i == 0) {
+                    HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
+                } else {
+                    HELPER_ASSERT_SUCCESS(s.audio(i * 23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+                }
+            } else {
+                if (i == 0) {
+                    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+                } else {
+                    HELPER_ASSERT_SUCCESS(s.video(i * 40, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+                }
+            }
+            if (i == 8) {
+                EXPECT_STREQ("", rtmp_source_utest_got(player).c_str()) << kind;
+            }
+        }
+
+        EXPECT_STREQ(kind == 0 ? "A0,a23" : "V0,v40", rtmp_source_utest_got(player).c_str());
+        s.source_->on_unpublish();
+    }
+}
+
+// An encoder whose timestamps jump back, without mix_correct. The source warns once per publish that the stream may need
+// mix_correct, and passes the messages as sent.
+VOID TEST(AppRtmpSourceTest, TimestampsJumpBack_WarnedOncePerPublish)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+    HELPER_ASSERT_SUCCESS(s.start_av(0));
+    HELPER_ASSERT_SUCCESS(s.video(40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+    HELPER_ASSERT_SUCCESS(s.audio(20, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    HELPER_ASSERT_SUCCESS(s.video(80, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+    HELPER_ASSERT_SUCCESS(s.audio(60, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    EXPECT_EQ(1, log.warns("AUDIO: Timestamp 40=>20, may need mix_correct"));
+    EXPECT_EQ(1, log.warns("may need mix_correct"));
+    EXPECT_STREQ("V0,A0,v0,v40,a20,v80,a60", rtmp_source_utest_got(player).c_str());
+
+    // The encoder publishes again, and its video jumps back.
+    s.source_->on_unpublish();
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.audio(100, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    HELPER_ASSERT_SUCCESS(s.video(90, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    EXPECT_EQ(1, log.warns("VIDEO: Timestamp 100=>90, may need mix_correct"));
+    EXPECT_EQ(2, log.warns("may need mix_correct"));
+    s.source_->on_unpublish();
+}
+
+// An encoder publishing with absolute times on a vhost with ATC, as for HLS from several origins. The cached metadata and
+// sequence headers take the time of the last frame, and a player that joins gets them at the start of the GOP it gets.
+VOID TEST(AppRtmpSourceTest, AtcStream_SequenceHeadersTakeAbsoluteTime)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { atc on; } }"));
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+    int64_t t = 3600 * 1000;
+    HELPER_ASSERT_SUCCESS(s.metadata(0));
+    HELPER_ASSERT_SUCCESS(s.start_av(t));
+    EXPECT_EQ(t, s.source_->meta_->vsh()->timestamp_);
+    EXPECT_EQ(t, s.source_->meta_->data()->timestamp_);
+
+    HELPER_ASSERT_SUCCESS(s.audio(t + 10, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    EXPECT_EQ(t + 10, s.source_->meta_->ash()->timestamp_);
+    EXPECT_EQ(t + 10, s.source_->meta_->data()->timestamp_);
+
+    HELPER_ASSERT_SUCCESS(s.video(t + 40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+    EXPECT_EQ(t + 40, s.source_->meta_->vsh()->timestamp_);
+    EXPECT_EQ(t + 40, s.source_->meta_->data()->timestamp_);
+
+    SrsLiveConsumer *player = s.play();
+    EXPECT_STREQ("m3600000,A3600000,V3600000,v3600000,a3600010,v3600040", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// An encoder that sends its video sequence header again, the same or changed, as at a republish, on a vhost with
+// reduce_sequence_header. A player that stays does not get the same one again, but gets a changed one.
+VOID TEST(AppRtmpSourceTest, RepublishSameVideoSequenceHeader_ReduceDropsIt)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { reduce_sequence_header on; time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    s.source_->on_unpublish();
+    EXPECT_STREQ("V0,v0", rtmp_source_utest_got(player).c_str());
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.video(100, flv_utest_avc_sh, sizeof(flv_utest_avc_sh)));
+    HELPER_ASSERT_SUCCESS(s.video(100, flv_utest_avc_idr, sizeof(flv_utest_avc_idr)));
+    EXPECT_STREQ("v100", rtmp_source_utest_got(player).c_str());
+
+    // The encoder changes its level in the record, as after a resolution change.
+    uint8_t changed[sizeof(flv_utest_avc_sh)];
+    memcpy(changed, flv_utest_avc_sh, sizeof(changed));
+    changed[8] = 0x1f;
+    HELPER_ASSERT_SUCCESS(s.video(200, changed, sizeof(changed)));
+    EXPECT_STREQ("V200", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// A player that waits for a stream, on a vhost with reduce_sequence_header. The encoder publishes and sends its first
+// metadata, which the player should get, as it gets the first sequence headers. The source drops every metadata for the
+// players once it has cached it, and it caches it just before the check, so the player never gets one.
+VOID TEST(AppRtmpSourceTest, DISABLED_PlayerWaitingBeforePublish_ReduceDropsFirstMetadata)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { reduce_sequence_header on; time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.metadata(0));
+    HELPER_ASSERT_SUCCESS(s.start_av(0));
+    EXPECT_STREQ("m0,V0,A0,v0", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// An aggregate message from an FMS or Wowza edge, whose second tag is cut at each byte. The tags before the cut reach the
+// player, and the publisher is refused at the cut.
+VOID TEST(AppRtmpSourceTest, AggregateCutInsideTag_Refused)
+{
+    srs_error_t err;
+
+    string first = rtmp_source_utest_tag(RTMP_MSG_AudioMessage, 0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh));
+    string second = rtmp_source_utest_tag(RTMP_MSG_AudioMessage, 23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame));
+
+    for (int cut = 1; cut < (int)second.size(); cut++) {
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+        SrsLiveConsumer *player = s.play();
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+        err = s.aggregate(1000, first + second.substr(0, cut));
+        EXPECT_EQ(ERROR_RTMP_AGGREGATE, srs_error_code(err)) << "cut=" << cut;
+        srs_freep(err);
+        EXPECT_STREQ("A1000", rtmp_source_utest_got(player).c_str()) << "cut=" << cut;
+        s.source_->on_unpublish();
+    }
+
+    // The whole message is taken, its times made absolute from the message's.
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.aggregate(1000, first + second));
+    EXPECT_STREQ("A1000,a1023", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// An encoder whose sequence header is corrupt: an H.264 header cut inside its SPS, or an AAC header whose
+// AudioSpecificConfig is cut after one byte, sent alone or in an aggregate message. The publisher is refused, and the
+// players get nothing.
+VOID TEST(AppRtmpSourceTest, CorruptSequenceHeader_PublisherRefused)
+{
+    srs_error_t err;
+
+    const uint8_t aac_sh_cut[] = {0xaf, 0x00, 0x12};
+    for (int i = 0; i < 4; i++) {
+        bool is_video = (i % 2) == 0;
+        bool in_aggregate = i >= 2;
+
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+        SrsLiveConsumer *player = s.play();
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+        const uint8_t *data = is_video ? flv_utest_avc_sh : aac_sh_cut;
+        int size = is_video ? 20 : (int)sizeof(aac_sh_cut);
+        if (in_aggregate) {
+            err = s.aggregate(0, rtmp_source_utest_tag(is_video ? RTMP_MSG_VideoMessage : RTMP_MSG_AudioMessage, 0, data, size));
+        } else {
+            err = is_video ? s.video(0, data, size) : s.audio(0, data, size);
+        }
+
+        EXPECT_TRUE(err != srs_success) << i;
+        string desc = srs_error_summary(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find(is_video ? "format consume video" : "format consume audio")) << desc;
+        if (in_aggregate) {
+            EXPECT_NE(string::npos, desc.find(is_video ? "consume video : format" : "consume audio : format")) << desc;
+        }
+        EXPECT_STREQ("", rtmp_source_utest_got(player).c_str()) << i;
+        s.source_->on_unpublish();
+    }
+}
+
+// HLS fails on a frame, as on a full disk or a frame it cannot decode, with each hls_on_error. With ignore, HLS stops and
+// the stream goes on. With continue, a decode error of a frame the size of the sequence header, which may be one, is
+// skipped, and any other error disconnects the publisher, as with disconnect.
+VOID TEST(AppRtmpSourceTest, HlsFailsOnFrame_HlsOnErrorStrategy)
+{
+    srs_error_t err;
+
+    // A frame of each kind the size of its sequence header.
+    const uint8_t aac_frame_sh_size[] = {0xaf, 0x01, 0x21, 0x00};
+    uint8_t avc_frame_sh_size[sizeof(flv_utest_avc_sh)];
+    memset(avc_frame_sh_size, 0, sizeof(avc_frame_sh_size));
+    memcpy(avc_frame_sh_size, flv_utest_avc_inter, sizeof(flv_utest_avc_inter));
+    SrsBuffer nalu((char *)avc_frame_sh_size + 5, 4);
+    nalu.write_4bytes((int)sizeof(avc_frame_sh_size) - 9);
+
+    struct {
+        const char *strategy_;
+        int code_;
+        bool sh_size_;
+        bool accepted_;
+        int hls_unpublish_;
+    } cases[] = {
+        {"ignore", ERROR_SYSTEM_FILE_WRITE, false, true, 1},
+        {"continue", ERROR_HLS_DECODE_ERROR, true, true, 0},
+        {"continue", ERROR_HLS_DECODE_ERROR, false, false, 0},
+        {"continue", ERROR_SYSTEM_FILE_WRITE, false, false, 0},
+        {"disconnect", ERROR_SYSTEM_FILE_WRITE, false, false, 0},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        for (int kind = 0; kind < 2; kind++) {
+            bool is_video = kind == 1;
+            RtmpSourceUtestStream s;
+            HELPER_ASSERT_SUCCESS(s.open(string("vhost __defaultVhost__ { play { time_jitter off; } hls { enabled on; hls_on_error ") + cases[i].strategy_ + "; } }"));
+            SrsLiveConsumer *player = s.play();
+            HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+            HELPER_ASSERT_SUCCESS(s.start_av(0));
+            EXPECT_STREQ("V0,A0,v0", rtmp_source_utest_got(player).c_str());
+
+            srs_error_t *perr = is_video ? &s.factory_.hls_->video_error_ : &s.factory_.hls_->audio_error_;
+            *perr = srs_error_new(cases[i].code_, "hls");
+            if (is_video) {
+                err = cases[i].sh_size_ ? s.video(40, avc_frame_sh_size, sizeof(avc_frame_sh_size)) : s.video(40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter));
+            } else {
+                err = cases[i].sh_size_ ? s.audio(23, aac_frame_sh_size, sizeof(aac_frame_sh_size)) : s.audio(23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame));
+            }
+
+            if (cases[i].accepted_) {
+                HELPER_EXPECT_SUCCESS(err);
+                EXPECT_STREQ(is_video ? "v40" : "a23", rtmp_source_utest_got(player).c_str()) << i;
+            } else {
+                EXPECT_EQ(cases[i].code_, srs_error_code(err)) << i << "," << kind;
+                string desc = srs_error_summary(err);
+                srs_freep(err);
+                EXPECT_NE(string::npos, desc.find(is_video ? "hub consume video" : "consume audio")) << desc;
+                EXPECT_NE(string::npos, desc.find(is_video ? "hls: video" : "hls: audio")) << desc;
+                EXPECT_STREQ("", rtmp_source_utest_got(player).c_str()) << i;
+            }
+            EXPECT_EQ(cases[i].hls_unpublish_, s.factory_.hls_->on_unpublish_count_) << i << "," << kind;
+            s.source_->on_unpublish();
+        }
+    }
+}
+
+// DASH or DVR fails on a frame, as on a full disk. It stops, and the stream goes on for the players and HLS.
+VOID TEST(AppRtmpSourceTest, DashOrDvrFailsOnFrame_StoppedStreamGoesOn)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < 4; i++) {
+        bool is_video = (i % 2) == 1;
+        bool is_dvr = i >= 2;
+
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+        SrsLiveConsumer *player = s.play();
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+        HELPER_ASSERT_SUCCESS(s.start_av(0));
+        EXPECT_STREQ("V0,A0,v0", rtmp_source_utest_got(player).c_str());
+
+        srs_error_t *perr = NULL;
+        if (is_dvr) {
+            perr = is_video ? &s.factory_.dvr_->video_error_ : &s.factory_.dvr_->audio_error_;
+        } else {
+            perr = is_video ? &s.factory_.dash_->video_error_ : &s.factory_.dash_->audio_error_;
+        }
+        *perr = srs_error_new(ERROR_SYSTEM_FILE_WRITE, "full disk");
+
+        int hls_frames = s.factory_.hls_->on_audio_count_ + s.factory_.hls_->on_video_count_;
+        if (is_video) {
+            HELPER_EXPECT_SUCCESS(s.video(40, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+        } else {
+            HELPER_EXPECT_SUCCESS(s.audio(23, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+        }
+
+        EXPECT_STREQ(is_video ? "v40" : "a23", rtmp_source_utest_got(player).c_str()) << i;
+        EXPECT_EQ(hls_frames + 1, s.factory_.hls_->on_audio_count_ + s.factory_.hls_->on_video_count_) << i;
+        EXPECT_EQ(is_dvr ? 0 : 1, s.factory_.dash_->on_unpublish_count_) << i;
+        EXPECT_EQ(is_dvr ? 1 : 0, s.factory_.dvr_->on_unpublish_count_) << i;
+        s.source_->on_unpublish();
+    }
+}
+
+// DVR fails to write the metadata, as on a full disk. As for a frame DVR fails on, DVR should stop and the stream go on.
+// The hub returns the error instead, so the publisher is disconnected.
+VOID TEST(AppRtmpSourceTest, DISABLED_DvrFailsOnMetadata_PublisherDisconnected)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+
+    s.factory_.dvr_->meta_error_ = srs_error_new(ERROR_SYSTEM_FILE_WRITE, "full disk");
+    HELPER_EXPECT_SUCCESS(s.metadata(0));
+    EXPECT_EQ(1, s.factory_.dvr_->on_unpublish_count_);
+    EXPECT_STREQ("m0", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// A part of the origin hub cannot start when the encoder publishes: the transcoder or exec with no coroutine or
+// process, HLS or DASH with no directory, DVR with no file. The publish is refused, and the parts after it, the server's
+// HTTP stream and the stat are not started.
+VOID TEST(AppRtmpSourceTest, HubPartCannotStart_PublishRefused)
+{
+    srs_error_t err;
+
+    const char *wraps[] = {"encoder publish", "hls publish", "dash publish", "dvr publish", "exec publish"};
+    for (int i = 0; i < 5; i++) {
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+        RtmpSourceUtestFactory &f = s.factory_;
+
+        srs_error_t *errs[] = {&f.encoder_->publish_error_, &f.hls_->publish_error_, &f.dash_->publish_error_, &f.dvr_->publish_error_, &f.exec_->publish_error_};
+        *errs[i] = srs_error_new(ERROR_SYSTEM_FILE_WRITE, "cannot start");
+
+        err = s.source_->on_publish();
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << i;
+        string desc = srs_error_summary(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("hub publish")) << desc;
+        EXPECT_NE(string::npos, desc.find(wraps[i])) << desc;
+
+        int started[] = {f.encoder_->on_publish_count_, f.hls_->on_publish_count_, f.dash_->on_publish_count_, f.dvr_->on_publish_count_, f.exec_->on_publish_count_};
+        for (int j = 0; j < 5; j++) {
+            EXPECT_EQ(j <= i ? 1 : 0, started[j]) << i << "," << j;
+        }
+        EXPECT_FALSE(f.hub_->active());
+        EXPECT_EQ(0, s.handler_.on_publish_count_);
+        EXPECT_TRUE(s.stat_.find_stream_by_url(s.req_.get_stream_url()) == NULL);
+
+        // The connection releases the publish, as SrsRtmpConn::release_publish does.
+        s.source_->on_unpublish();
+        EXPECT_TRUE(s.source_->can_publish(false));
+    }
+}
+
+// A vhost whose DVR plan is mistyped. The stream's source cannot be made, so every client of the stream is refused.
+VOID TEST(AppRtmpSourceTest, DvrPlanMistyped_SourceRefused)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    s.factory_.real_dvr_ = true;
+    err = s.open("vhost __defaultVhost__ { dvr { enabled on; dvr_plan sesion; } }");
+    EXPECT_EQ(ERROR_DVR_ILLEGAL_PLAN, srs_error_code(err));
+    string desc = srs_error_summary(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("hub")) << desc;
+    EXPECT_NE(string::npos, desc.find("dvr initialize")) << desc;
+}
+
+// DVR opens a new segment, or DASH resumes after its dispose, and the hub feeds it the cached metadata and sequence
+// headers again, on a full disk. The write that fails is returned to it.
+VOID TEST(AppRtmpSourceTest, DvrNewSegmentOrDashResumeOnFullDisk_RequestShFails)
+{
+    srs_error_t err;
+
+    const char *wraps[] = {"dvr metadata", "dvr video", "dvr audio", "dash video", "dash audio"};
+    for (int i = 0; i < 5; i++) {
+        RtmpSourceUtestStream s;
+        HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+        HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+        HELPER_ASSERT_SUCCESS(s.metadata(0));
+        HELPER_ASSERT_SUCCESS(s.start_av(0));
+
+        RtmpSourceUtestFactory &f = s.factory_;
+        srs_error_t *errs[] = {&f.dvr_->meta_error_, &f.dvr_->video_error_, &f.dvr_->audio_error_, &f.dash_->video_error_, &f.dash_->audio_error_};
+        *errs[i] = srs_error_new(ERROR_SYSTEM_FILE_WRITE, "full disk");
+
+        err = (i < 3) ? f.hub_->on_dvr_request_sh() : f.hub_->on_dash_request_sh();
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << i;
+        string desc = srs_error_summary(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find(wraps[i])) << desc;
+        s.source_->on_unpublish();
+    }
+}
+
+// The source manager's 3s check of a stream. The source is kept while its encoder publishes, while a player stays after
+// the encoder left, and while HLS keeps its files for hls_dispose after the last player left; then it is freed.
+VOID TEST(AppRtmpSourceTest, SourceCleanup_KeptWhilePublishingPlayingOrHlsDisposing)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+    MockStreamPublishTokensForSourceManager tokens;
+    SrsLiveSourceManager manager;
+    manager.stream_publish_tokens_ = &tokens;
+    string url = s.req_.get_stream_url();
+    manager.pool_[url] = s.source_;
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    SrsLiveConsumer *player = s.play();
+    s.clock_.now_ += 10 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(manager.notify(0, 0, 0));
+    EXPECT_EQ(1, (int)manager.pool_.size());
+
+    s.source_->on_unpublish();
+    s.clock_.now_ += 10 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(manager.notify(0, 0, 0));
+    EXPECT_EQ(1, (int)manager.pool_.size());
+
+    s.factory_.hls_->cleanup_delay_ = 30 * SRS_UTIME_SECONDS;
+    s.leave(player);
+    s.clock_.now_ += 10 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(manager.notify(0, 0, 0));
+    EXPECT_EQ(1, (int)manager.pool_.size());
+
+    s.clock_.now_ += 21 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(manager.notify(0, 0, 0));
+    EXPECT_TRUE(manager.pool_.empty());
+}
+
+// A second encoder publishes to an edge stream whose first encoder is proxied to the origin. The edge stream cannot take
+// it, and takes one again once the first left.
+VOID TEST(AppRtmpSourceTest, EdgeStreamProxyingEncoder_SecondEncoderRefused)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { cluster { mode remote; origin 127.0.0.1:19350; } }"));
+    EXPECT_TRUE(s.source_->can_publish(true));
+
+    s.source_->publish_edge_->state_ = SrsEdgeStatePublish;
+    EXPECT_FALSE(s.source_->can_publish(true));
+
+    s.source_->publish_edge_->state_ = SrsEdgeStateInit;
+    EXPECT_TRUE(s.source_->can_publish(true));
+}
+
+// A player of a stream whose encoder publishes again. The player logs the new source id once, with the one before.
+VOID TEST(AppRtmpSourceTest, PlayerOfRepublishedStream_LogsSourceIdOnce)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+    SrsLiveConsumer *player = s.play();
+
+    SrsContextId first = _srs_context->generate_id();
+    SrsContextId second = _srs_context->generate_id();
+    HELPER_ASSERT_SUCCESS(s.source_->on_source_id_changed(first));
+    rtmp_source_utest_got(player);
+    string trace = log.last_trace("update source_id=");
+    EXPECT_STREQ((string("update source_id=") + first.c_str() + "/" + first.c_str()).c_str(), trace.c_str());
+
+    int nb_traces = (int)log.log_.traces_.size();
+    rtmp_source_utest_got(player);
+    EXPECT_EQ(nb_traces, (int)log.log_.traces_.size());
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_source_id_changed(second));
+    rtmp_source_utest_got(player);
+    trace = log.last_trace("update source_id=");
+    EXPECT_STREQ((string("update source_id=") + second.c_str() + "/" + first.c_str()).c_str(), trace.c_str());
+}
+
+// A player that paused. Its play loop waits one pulse instead of waiting for media, and gets nothing while paused.
+VOID TEST(AppRtmpSourceTest, PausedPlayer_WaitsOnePulse)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+    SrsLiveConsumer *player = s.play();
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(player->on_play_client_pause(true));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    player->wait(0, 1 * SRS_UTIME_SECONDS);
+    // ST counts the sleep from its last clock, which may be older than now, so only the bound above is checked.
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+    EXPECT_FALSE(player->mw_waiting_);
+
+    HELPER_ASSERT_SUCCESS(s.start_av(0));
+    EXPECT_STREQ("", rtmp_source_utest_got(player).c_str());
+    HELPER_ASSERT_SUCCESS(player->on_play_client_pause(false));
+    EXPECT_STRNE("", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// An HTTP-FLV player joins a stream with fast_cache before the cache has any message. It gets nothing from the cache.
+VOID TEST(AppRtmpSourceTest, HttpPlayerJoinsBeforeFastCacheFilled_GetsNothing)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { }"));
+    SrsLiveConsumer *player = s.play();
+
+    SrsMessageQueue cache;
+    HELPER_EXPECT_SUCCESS(cache.dump_packets(player, false, SrsRtmpJitterAlgorithmFULL));
+    EXPECT_STREQ("", rtmp_source_utest_got(player).c_str());
 }
