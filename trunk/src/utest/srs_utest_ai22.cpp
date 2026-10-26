@@ -190,10 +190,12 @@ ISrsBasicRtmpClient *MockEdgeAppFactory::create_rtmp_client(std::string url, srs
 
 MockEdgeForwarderFactory::MockEdgeForwarderFactory()
 {
+    coroutine_start_error_ = srs_success;
 }
 
 MockEdgeForwarderFactory::~MockEdgeForwarderFactory()
 {
+    srs_freep(coroutine_start_error_);
 }
 
 ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
@@ -216,7 +218,9 @@ ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string ur
 
 ISrsCoroutine *MockEdgeForwarderFactory::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
 {
-    return new MockCoroutineForForwarder(0);
+    MockCoroutineForForwarder *trd = new MockCoroutineForForwarder(0);
+    trd->start_error_ = srs_error_copy(coroutine_start_error_);
+    return trd;
 }
 
 // Test SrsEdgeRtmpUpstream::connect() - major use scenario

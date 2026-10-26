@@ -10,6 +10,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_edge.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_ffmpeg.hpp>
@@ -19,7 +20,9 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_kbps.hpp>
+#include <srs_kernel_balance.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_amf0.hpp>
@@ -35,7 +38,9 @@
 #include <srs_utest_ai19.hpp>
 #include <srs_utest_ai22.hpp>
 #include <srs_utest_ai06.hpp>
+#include <srs_utest_ai38.hpp>
 #include <srs_utest_ai40.hpp>
+#include <srs_utest_ai41.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -3548,4 +3553,685 @@ VOID TEST(AppDvrTest, DISABLED_Mp4PublishWithNoFrame_TmpFileLeft)
     EXPECT_TRUE(s.async_.tasks_.empty());
     EXPECT_FALSE(s.exists(s.stream_path(".mp4")));
     EXPECT_FALSE(s.exists(s.stream_path(".mp4.tmp")));
+}
+
+// The pithy print stages, with the edge stage set to print at each message, so the kbps line of a pull or a push is
+// logged at once, not after the configured 10s.
+class EdgeUtestPithyPrintScope
+{
+public:
+    SrsStageManager stages_;
+    SrsStageManager *saved_;
+
+public:
+    EdgeUtestPithyPrintScope()
+    {
+        saved_ = _srs_stages;
+        _srs_stages = &stages_;
+
+        SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_edge());
+        pprint->elapse();
+        pprint->cache_->interval_ = 0;
+    }
+    ~EdgeUtestPithyPrintScope()
+    {
+        _srs_stages = saved_;
+    }
+};
+
+// The app factory of an edge whose upstreams are the real RTMP and HTTP-FLV clients, which read the origins from the
+// test config.
+class EdgeUtestUpstreamFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+
+public:
+    EdgeUtestUpstreamFactory(ISrsAppConfig *config)
+    {
+        config_ = config;
+    }
+
+public:
+    virtual ISrsEdgeUpstream *create_edge_rtmp_upstream(std::string redirect)
+    {
+        SrsEdgeRtmpUpstream *upstream = new SrsEdgeRtmpUpstream(redirect);
+        upstream->config_ = config_;
+        return upstream;
+    }
+    virtual ISrsEdgeUpstream *create_edge_flv_upstream(std::string schema)
+    {
+        SrsEdgeFlvUpstream *upstream = new SrsEdgeFlvUpstream(schema);
+        upstream->config_ = config_;
+        return upstream;
+    }
+};
+
+// The origin directive of an edge vhost with one origin.
+static SrsConfDirective *edge_utest_origin(string server)
+{
+    SrsConfDirective *conf = new SrsConfDirective();
+    conf->name_ = "origin";
+    conf->args_.push_back(server);
+    return conf;
+}
+
+// An HTTP-FLV origin on a random local port for one request of an edge: it answers with reply_, the response header
+// and as much of the body as the test wants, then closes.
+class EdgeUtestFlvOrigin : public SrsHttpTestServer
+{
+public:
+    string reply_;
+    string request_;
+
+public:
+    EdgeUtestFlvOrigin(string reply) : SrsHttpTestServer("")
+    {
+        reply_ = reply;
+    }
+
+public:
+    virtual srs_error_t start()
+    {
+        srs_error_t err = SrsHttpTestServer::start();
+        // Let State Threads run once, so its clock is fresh, as RtmpConnTestOrigin does.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        return err;
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd)
+    {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt(cfd);
+        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+        char buf[1024];
+        ssize_t nn = 0;
+        if ((err = skt.read(buf, sizeof(buf), &nn)) != srs_success) {
+            return err;
+        }
+        request_.assign(buf, nn);
+
+        return skt.write((void *)reply_.data(), reply_.size(), NULL);
+    }
+    string server()
+    {
+        return "127.0.0.1:" + srs_strconv_format_int(get_port());
+    }
+};
+
+// The FLV header with audio and video, and the previous tag size 0 after it.
+static string edge_utest_flv_header()
+{
+    return string("FLV\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00", 13);
+}
+
+// An FLV tag, with the previous tag size after it.
+static string edge_utest_flv_tag(char type, uint32_t time, const string &data)
+{
+    int size = (int)data.size();
+    string tag;
+    tag.push_back(type);
+    tag.push_back((char)(size >> 16));
+    tag.push_back((char)(size >> 8));
+    tag.push_back((char)size);
+    tag.push_back((char)(time >> 16));
+    tag.push_back((char)(time >> 8));
+    tag.push_back((char)time);
+    tag.push_back((char)(time >> 24));
+    tag.append(3, '\0');
+    tag.append(data);
+
+    int pts = 11 + size;
+    tag.push_back((char)(pts >> 24));
+    tag.push_back((char)(pts >> 16));
+    tag.push_back((char)(pts >> 8));
+    tag.push_back((char)pts);
+    return tag;
+}
+
+// The AMF0 values, written in order, freed after.
+static string edge_utest_amf0(SrsAmf0Any *a, SrsAmf0Any *b, SrsAmf0Any *c = NULL)
+{
+    vector<SrsAmf0Any *> values;
+    values.push_back(a);
+    values.push_back(b);
+    if (c) {
+        values.push_back(c);
+    }
+
+    int size = 0;
+    for (int i = 0; i < (int)values.size(); i++) {
+        size += values[i]->total_size();
+    }
+
+    string data(size, '\0');
+    SrsBuffer buf((char *)data.data(), size);
+    for (int i = 0; i < (int)values.size(); i++) {
+        SrsAmf0Any *value = values[i];
+        srs_error_t err = value->write(&buf);
+        srs_freep(err);
+        srs_freep(value);
+    }
+    return data;
+}
+
+// The AVC key frame of a pull, 11 bytes.
+static string edge_utest_flv_video()
+{
+    return string("\x17\x01\x00\x00\x00\x00\x00\x00\x02\x09\xf0", 11);
+}
+
+// An HTTP-FLV response of the origin, with a Content-Length, or none for -1.
+static string edge_utest_flv_reply(const string &body, int content_length)
+{
+    string res = "HTTP/1.1 200 OK\r\nContent-Type: video/x-flv\r\n";
+    if (content_length >= 0) {
+        res += "Content-Length: " + srs_strconv_format_int(content_length) + "\r\n";
+    }
+    return res + "\r\n" + body;
+}
+
+// An edge pulls an RTMP stream for its first player: the ingester connects to the origin, plays the stream, feeds the
+// origin's metadata and key frame to the source, and logs the pull's kbps. Then the origin's publisher stops and the
+// origin closes the connection, which the ingester takes as a retry, not an error.
+VOID TEST(AppEdgeTest, RtmpPullFromOrigin_SourceGetsStreamUntilOriginCloses)
+{
+    srs_error_t err;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginServesThenCloses);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    EdgeUtestPithyPrintScope pithy;
+    MockEdgeIngesterFixture f(1000);
+    f.config_.origin_ = edge_utest_origin("127.0.0.1:" + srs_strconv_format_int(origin.get_port()));
+    EdgeUtestUpstreamFactory factory(&f.config_);
+    f.ingester_->app_factory_ = &factory;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+    err = f.ingester_->do_cycle();
+    _srs_log = original_log;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
+    EXPECT_EQ("livestream", origin.stream_);
+    EXPECT_EQ(1, f.edge_.on_ingest_play_count_);
+    EXPECT_EQ(1, f.source_.on_meta_data_count_);
+    EXPECT_EQ(1, f.source_.on_video_count_);
+    EXPECT_EQ(0, f.source_.on_audio_count_);
+
+    int kbps_lines = 0;
+    for (int i = 0; i < (int)log.traces_.size(); i++) {
+        if (log.traces_[i].find("<- EIG time=") == 0) {
+            kbps_lines++;
+        }
+    }
+    EXPECT_GT(kbps_lines, 0);
+
+    f.ingester_->app_factory_ = NULL;
+}
+
+// The origin answered the edge with an RTMP 302 to another origin, so the ingester makes the next upstream with the
+// redirect URL: it pulls from the origin of the redirect, not from the configured one, and reports it as selected.
+VOID TEST(AppEdgeTest, RtmpRedirectedPull_ConnectsToRedirectOrigin)
+{
+    srs_error_t err;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginServes);
+    HELPER_ASSERT_SUCCESS(origin.start());
+    // The configured origin does not listen; the redirect overrides it.
+    RtmpConnTestOrigin configured(RtmpConnOriginServes);
+
+    MockAppConfigForEdgeIngester config;
+    config.origin_ = edge_utest_origin("127.0.0.1:" + srs_strconv_format_int(configured.get_port()));
+    SrsUniquePtr<SrsEdgeRtmpUpstream> upstream(new SrsEdgeRtmpUpstream(origin.rtmp_url("livestream")));
+    upstream->config_ = &config;
+
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    SrsLbRoundRobin lb;
+    HELPER_ASSERT_SUCCESS(upstream->connect(&req, &lb));
+
+    string server;
+    int port = 0;
+    upstream->selected(server, port);
+    EXPECT_EQ("127.0.0.1", server);
+    EXPECT_EQ(origin.get_port(), port);
+
+    for (int i = 0; i < 100 && origin.stream_.empty(); i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
+    EXPECT_EQ("livestream", origin.stream_);
+}
+
+// The RTMP pull fails at the step where the origin side fails, and the ingester retries: the operator removed the edge
+// vhost by a reload while the ingester retried, the origin is down, or the connection drops when the edge sends play.
+VOID TEST(AppEdgeTest, RtmpPullFails_ErrorNamesWhereItFailed)
+{
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    SrsLbRoundRobin lb;
+
+    if (true) {
+        MockAppConfigForEdgeIngester config;
+        SrsUniquePtr<SrsEdgeRtmpUpstream> upstream(new SrsEdgeRtmpUpstream(""));
+        upstream->config_ = &config;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_EDGE_VHOST_REMOVED, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        // Never started, so nothing listens on its port.
+        RtmpConnTestOrigin down(RtmpConnOriginServes);
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin("127.0.0.1:" + srs_strconv_format_int(down.get_port()));
+        SrsUniquePtr<SrsEdgeRtmpUpstream> upstream(new SrsEdgeRtmpUpstream(""));
+        upstream->config_ = &config;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        ASSERT_TRUE(err != srs_success);
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("edge pull rtmp://127.0.0.1:" + srs_strconv_format_int(down.get_port()))) << desc;
+        EXPECT_NE(string::npos, desc.find("failed, cto=5000ms")) << desc;
+    }
+
+    if (true) {
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin("10.0.0.1:1935");
+        MockEdgeAppFactory factory;
+        factory.mock_client_ = new MockRtmpClient();
+        factory.mock_client_->play_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock origin reset");
+        SrsUniquePtr<SrsEdgeRtmpUpstream> upstream(new SrsEdgeRtmpUpstream(""));
+        upstream->config_ = &config;
+        upstream->app_factory_ = &factory;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("stream failed")) << desc;
+        EXPECT_TRUE(factory.mock_client_->connect_called_);
+
+        upstream->app_factory_ = NULL;
+    }
+}
+
+// An edge pulls HTTP-FLV from an origin whose script tags are a @setDataFrame metadata, as RTMP publishers send it and
+// some servers keep it in their FLV, and an onCuePoint, which the edge does not use. The source gets the metadata and
+// the frame, and nothing for the cue point. The origin sends the stream with a Content-Length, or with none and closes
+// at its end; either way the pull ends at the end of the body, for the ingester to retry.
+VOID TEST(AppEdgeTest, FlvPullFromOrigin_SourceGetsMetadataAndFrameUntilBodyEnds)
+{
+    srs_error_t err;
+
+    SrsAmf0Object *meta = SrsAmf0Any::object();
+    meta->set("width", SrsAmf0Any::number(1280));
+    SrsAmf0Object *cue = SrsAmf0Any::object();
+    cue->set("name", SrsAmf0Any::str("ad-break"));
+    string body = edge_utest_flv_header();
+    body += edge_utest_flv_tag(18, 0, edge_utest_amf0(SrsAmf0Any::str("@setDataFrame"), SrsAmf0Any::str("onMetaData"), meta));
+    body += edge_utest_flv_tag(18, 0, edge_utest_amf0(SrsAmf0Any::str("onCuePoint"), cue));
+    body += edge_utest_flv_tag(9, 40, edge_utest_flv_video());
+
+    for (int i = 0; i < 2; i++) {
+        bool with_length = (i == 0);
+        EdgeUtestFlvOrigin origin(edge_utest_flv_reply(body, with_length ? (int)body.size() : -1));
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        MockEdgeIngesterFixture f(1000);
+        f.config_.edge_protocol_ = "flv";
+        f.config_.origin_ = edge_utest_origin(origin.server());
+        EdgeUtestUpstreamFactory factory(&f.config_);
+        f.ingester_->app_factory_ = &factory;
+
+        err = f.ingester_->do_cycle();
+        EXPECT_EQ(ERROR_HTTP_REQUEST_EOF, srs_error_code(err)) << i << ": " << srs_error_desc(err);
+        srs_freep(err);
+
+        EXPECT_EQ(0, (int)origin.request_.find("GET /live/livestream.flv HTTP/1.1\r\n")) << origin.request_;
+        EXPECT_EQ(1, f.edge_.on_ingest_play_count_) << i;
+        EXPECT_EQ(1, f.source_.on_meta_data_count_) << i;
+        EXPECT_EQ(1, f.source_.on_video_count_) << i;
+
+        f.ingester_->app_factory_ = NULL;
+    }
+}
+
+// The origin's HTTP-FLV body stops short of the Content-Length it declared, as when the origin crashes or a proxy cuts
+// the connection, or it is no FLV at all, such as an HTML error page sent with status 200. The pull fails at the read
+// where the body stops.
+VOID TEST(AppEdgeTest, FlvOriginBodyCut_PullFailsWhereItStops)
+{
+    srs_error_t err;
+
+    string header = edge_utest_flv_header();
+    string video = edge_utest_flv_tag(9, 40, edge_utest_flv_video());
+
+    if (true) {
+        string page = "<html>offline</html>";
+        EdgeUtestFlvOrigin origin("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 20\r\n\r\n" + page);
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin(origin.server());
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+        upstream->config_ = &config;
+
+        MockSrsRequest req("test.vhost", "live", "livestream");
+        SrsLbRoundRobin lb;
+        err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_KERNEL_FLV_HEADER, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    // The body, and the step that fails: at connect, or at the first message.
+    string bodies[] = {
+        header.substr(0, 9),
+        header + video.substr(0, 5),
+        header + video.substr(0, 11 + 5),
+        header + video.substr(0, 11 + 11),
+    };
+    bool at_connect[] = {true, false, false, false};
+    const char *steps[] = {"read pts", "read tag header", "read tag data", "read pts"};
+
+    for (int i = 0; i < 4; i++) {
+        EdgeUtestFlvOrigin origin(edge_utest_flv_reply(bodies[i], 1000));
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin(origin.server());
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+        upstream->config_ = &config;
+
+        MockSrsRequest req("test.vhost", "live", "livestream");
+        SrsLbRoundRobin lb;
+        err = upstream->connect(&req, &lb);
+        if (!at_connect[i]) {
+            EXPECT_TRUE(err == srs_success) << i << ": " << srs_error_desc(err);
+            srs_freep(err);
+
+            SrsRtmpCommonMessage *msg = NULL;
+            err = upstream->recv_message(&msg);
+            EXPECT_TRUE(msg == NULL) << i;
+            srs_freep(msg);
+        }
+
+        ASSERT_TRUE(err != srs_success) << i;
+        EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err)) << i;
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find(steps[i])) << i << ": " << desc;
+    }
+}
+
+// The origin's FLV has a script tag that does not start with its name, such as a corrupt one: the edge gets it, but
+// cannot tell what it is, so the pull ends there, for the ingester to retry.
+VOID TEST(AppEdgeTest, FlvOriginScriptTagWithoutName_PullEndsAtIt)
+{
+    srs_error_t err;
+
+    string body = edge_utest_flv_header();
+    body += edge_utest_flv_tag(18, 0, edge_utest_amf0(SrsAmf0Any::number(1), SrsAmf0Any::str("onMetaData")));
+    EdgeUtestFlvOrigin origin(edge_utest_flv_reply(body, (int)body.size()));
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    MockAppConfigForEdgeIngester config;
+    config.origin_ = edge_utest_origin(origin.server());
+    SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+    upstream->config_ = &config;
+
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    SrsLbRoundRobin lb;
+    HELPER_ASSERT_SUCCESS(upstream->connect(&req, &lb));
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(upstream->recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+    EXPECT_TRUE(msg->header_.is_amf0_data());
+
+    SrsRtmpCommand *pkt = NULL;
+    err = upstream->decode_message(msg.get(), &pkt);
+    EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("decode command name")) << desc;
+    EXPECT_TRUE(pkt == NULL);
+}
+
+// The HTTP-FLV pull fails to start: the operator removed the edge vhost by a reload while the ingester retried, the
+// origin is down, or the origin has no such stream and answers 404. An flvs origin listed without a port is pulled at
+// 443, the HTTPS port.
+VOID TEST(AppEdgeTest, FlvPullFails_ErrorNamesWhereItFailed)
+{
+    srs_error_t err;
+
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    SrsLbRoundRobin lb;
+
+    if (true) {
+        MockAppConfigForEdgeIngester config;
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+        upstream->config_ = &config;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_EDGE_VHOST_REMOVED, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        // Never started, so nothing listens on its port.
+        EdgeUtestFlvOrigin down("");
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin(down.server());
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+        upstream->config_ = &config;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        ASSERT_TRUE(err != srs_success);
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("edge get http://" + down.server() + "/live/livestream.flv failed")) << desc;
+    }
+
+    if (true) {
+        EdgeUtestFlvOrigin origin("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        HELPER_ASSERT_SUCCESS(origin.start());
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin(origin.server());
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
+        upstream->config_ = &config;
+
+        srs_error_t err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_RTMP_STREAM_NOT_FOUND, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockAppConfigForEdgeIngester config;
+        config.origin_ = edge_utest_origin("10.0.0.1");
+        MockAppFactoryForEdgeIngester factory;
+        factory.location_ = "https://10.0.0.2:8443/live/livestream.flv";
+        SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("https"));
+        upstream->config_ = &config;
+        upstream->app_factory_ = &factory;
+
+        // The mock origin redirects every request, so the pull ends at the redirect limit.
+        srs_error_t err = upstream->connect(&req, &lb);
+        EXPECT_EQ(ERROR_HTTP_302_INVALID, srs_error_code(err));
+        srs_freep(err);
+        ASSERT_FALSE(factory.http_ports_.empty());
+        EXPECT_EQ("https", factory.http_schemas_.at(0));
+        EXPECT_EQ("10.0.0.1", factory.http_hosts_.at(0));
+        EXPECT_EQ(443, factory.http_ports_.at(0));
+
+        upstream->app_factory_ = NULL;
+    }
+}
+
+// The origin sends a frame that the edge's source refuses, such as a corrupt video frame, or an aggregate message cut
+// short: the pull ends with the source's error, for the ingester to retry.
+VOID TEST(AppEdgeTest, OriginFrameSourceRefuses_PullEndsWithSourceError)
+{
+    int types[] = {RTMP_MSG_VideoMessage, RTMP_MSG_AggregateMessage};
+    int codes[] = {ERROR_HEVC_DECODE_ERROR, ERROR_RTMP_AGGREGATE};
+    const char *steps[] = {"source consume video", "source consume aggregate"};
+
+    for (int i = 0; i < 2; i++) {
+        MockEdgeIngesterFixture f(100);
+        if (i == 0) {
+            f.source_.on_video_error_ = srs_error_new(codes[i], "mock refused");
+        } else {
+            f.source_.on_aggregate_error_ = srs_error_new(codes[i], "mock refused");
+        }
+        MockEdgeUpstreamForIngesterCycle *upstream = new MockEdgeUpstreamForIngesterCycle();
+        upstream->msgs_.push_back(mock_edge_message(types[i], 16, 0x1c));
+        f.factory_.upstreams_.push_back(upstream);
+
+        srs_error_t err = f.ingester_->do_cycle();
+        EXPECT_EQ(codes[i], srs_error_code(err)) << i;
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find(steps[i])) << desc;
+        EXPECT_EQ(1, f.edge_.on_ingest_play_count_) << i;
+    }
+}
+
+// A publisher on the edge sends its chunk size, window size and acknowledgements, which belong to its own connection
+// to the edge: the forwarder pushes only the media to the origin, and logs the push's kbps with the messages it sent.
+VOID TEST(AppEdgeTest, PublisherControlMessages_OnlyMediaPushedToOrigin)
+{
+    srs_error_t err;
+
+    EdgeUtestPithyPrintScope pithy;
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+    forwarder->sdk_ = sdk;
+    srs_freep(forwarder->trd_);
+    forwarder->trd_ = new MockCoroutineForForwarder(1);
+
+    int types[] = {RTMP_MSG_SetChunkSize, RTMP_MSG_WindowAcknowledgementSize, RTMP_MSG_Acknowledgement, RTMP_MSG_VideoMessage};
+    for (int i = 0; i < 4; i++) {
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(mock_edge_message(types[i], 4, 0x17));
+        HELPER_EXPECT_SUCCESS(forwarder->proxy(msg.get()));
+    }
+
+    err = forwarder->do_cycle();
+    EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+    srs_freep(err);
+
+    ASSERT_EQ(1, (int)sdk->sent_.size());
+    EXPECT_EQ(SrsFrameTypeVideo, sdk->sent_.at(0).type_);
+    ASSERT_EQ(1, (int)sdk->kbps_labels_.size());
+    EXPECT_EQ("EPB", sdk->kbps_labels_.at(0));
+    EXPECT_EQ(1, sdk->kbps_msgs_.at(0));
+}
+
+// A publish to the edge that cannot push to the origin, because every origin is down or the server cannot make the
+// push coroutine, is refused, and the edge goes back to its initial state: the next publish of the stream tries again
+// and is accepted once an origin is up.
+VOID TEST(AppEdgeTest, EdgePublishRefused_NextPublishTriesAgain)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = edge_utest_origin("192.168.1.10:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+
+    SrsUniquePtr<SrsPublishEdge> edge(new SrsPublishEdge());
+    SrsEdgeForwarder *forwarder = dynamic_cast<SrsEdgeForwarder *>(edge->forwarder_);
+    ASSERT_TRUE(forwarder != NULL);
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    // The origin is down.
+    factory->down_.push_back("192.168.1.10:1935");
+    err = edge->on_client_publish();
+    EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(SrsEdgeStateInit, edge->state_);
+    EXPECT_TRUE(edge->can_publish());
+
+    // The server cannot make the push coroutine.
+    factory->down_.clear();
+    factory->coroutine_start_error_ = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "mock out of memory");
+    err = edge->on_client_publish();
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(SrsEdgeStateInit, edge->state_);
+    EXPECT_TRUE(edge->can_publish());
+
+    // The origin is up again.
+    srs_freep(factory->coroutine_start_error_);
+    HELPER_EXPECT_SUCCESS(edge->on_client_publish());
+    EXPECT_EQ(SrsEdgeStatePublish, edge->state_);
+    EXPECT_FALSE(edge->can_publish());
+
+    edge->on_proxy_unpublish();
+    EXPECT_EQ(SrsEdgeStateInit, edge->state_);
+
+    forwarder->req_ = NULL;
+}
+
+// The ingester of a play edge, whose stop lets another player's coroutine run, as stopping the real ingester waits for
+// its coroutine to quit.
+class EdgeUtestStoppingIngester : public MockEdgeIngester
+{
+public:
+    SrsPlayEdge *edge_;
+    srs_error_t play_err_;
+
+public:
+    EdgeUtestStoppingIngester()
+    {
+        edge_ = NULL;
+        play_err_ = srs_success;
+    }
+    virtual ~EdgeUtestStoppingIngester()
+    {
+        srs_freep(play_err_);
+    }
+
+public:
+    virtual void stop()
+    {
+        MockEdgeIngester::stop();
+        play_err_ = edge_->on_client_play();
+    }
+};
+
+// The last player of an edge stream leaves, and while the edge stops pulling from the origin, a new player arrives: it
+// is refused, for the pull is going away. Once stopped, the edge is back to its initial state, and the next player
+// starts a new pull.
+VOID TEST(AppEdgeTest, PlayerArrivesWhileEdgeStopsPull_RefusedThenNextPlayerPulls)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsPlayEdge> edge(new SrsPlayEdge());
+    EdgeUtestStoppingIngester *ingester = new EdgeUtestStoppingIngester();
+    ingester->edge_ = edge.get();
+    srs_freep(edge->ingester_);
+    edge->ingester_ = ingester;
+
+    HELPER_EXPECT_SUCCESS(edge->on_client_play());
+    EXPECT_TRUE(ingester->start_called_);
+    HELPER_EXPECT_SUCCESS(edge->on_ingest_play());
+    EXPECT_EQ(SrsEdgeStateIngestConnected, edge->state_);
+
+    ingester->start_called_ = false;
+    edge->on_all_client_stop();
+    EXPECT_TRUE(ingester->stop_called_);
+    EXPECT_EQ(ERROR_RTMP_EDGE_PLAY_STATE, srs_error_code(ingester->play_err_));
+    EXPECT_FALSE(ingester->start_called_);
+    EXPECT_EQ(SrsEdgeStateInit, edge->state_);
+
+    HELPER_EXPECT_SUCCESS(edge->on_client_play());
+    EXPECT_TRUE(ingester->start_called_);
+    EXPECT_EQ(SrsEdgeStatePlay, edge->state_);
 }

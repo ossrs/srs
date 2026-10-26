@@ -259,8 +259,7 @@ ISrsHttpClient *MockAppFactoryForEdgeIngester::create_http_client()
     return new MockHttpClientForEdgeRedirect(this);
 }
 
-// A message of the type, with a payload of size bytes of the value.
-static SrsRtmpCommonMessage *mock_edge_message(int type, int size, char value)
+SrsRtmpCommonMessage *mock_edge_message(int type, int size, char value)
 {
     SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
     msg->header_.message_type_ = type;
@@ -284,39 +283,6 @@ static SrsCallPacket *mock_edge_redirect_call(std::string level, std::string key
     call->arguments_ = args;
     return call;
 }
-
-// The ingester, wired to the mocks of a test.
-class MockEdgeIngesterFixture
-{
-public:
-    MockLiveSourceForOriginHub source_;
-    MockPlayEdgeForIngesterCycle edge_;
-    MockAppConfigForEdgeIngester config_;
-    MockAppFactoryForEdgeIngester factory_;
-    MockSrsRequest req_;
-    SrsEdgeIngester *ingester_;
-
-public:
-    MockEdgeIngesterFixture(int nb_pulls) : req_("test.vhost", "live", "livestream")
-    {
-        ingester_ = new SrsEdgeIngester();
-        ingester_->source_ = &source_;
-        ingester_->edge_ = &edge_;
-        ingester_->req_ = &req_;
-        ingester_->config_ = &config_;
-        ingester_->app_factory_ = &factory_;
-        srs_freep(ingester_->trd_);
-        ingester_->trd_ = new MockCoroutineForForwarder(nb_pulls);
-    }
-    virtual ~MockEdgeIngesterFixture()
-    {
-        srs_freep(ingester_);
-    }
-    MockCoroutineForForwarder *trd()
-    {
-        return dynamic_cast<MockCoroutineForForwarder *>(ingester_->trd_);
-    }
-};
 
 // Start publishes the source, then pulls in a new coroutine, which takes its own cid.
 VOID TEST(EdgeIngesterCycleTest, StartPublishesSourceAndStartsCoroutine)

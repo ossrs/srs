@@ -89,6 +89,8 @@ void MockRtmpClientForForwarder::kbps_sample(const char *label, srs_utime_t age)
 
 void MockRtmpClientForForwarder::kbps_sample(const char *label, srs_utime_t age, int msgs)
 {
+    kbps_labels_.push_back(label);
+    kbps_msgs_.push_back(msgs);
 }
 
 int MockRtmpClientForForwarder::sid()
