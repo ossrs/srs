@@ -10,10 +10,14 @@
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_file.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 #include <fcntl.h>
@@ -560,3 +564,33 @@ VOID TEST(KernelErrorTest, DISABLED_AsanUnsymbolizedFrame_ResolvedNameCutTo7Char
 }
 #endif
 #endif
+
+// An HTTP static file server, such as http_server with dir ./objs/nginx/html, serves a page from disk
+// through its default file reader factory: the player gets the bytes of the file on disk.
+VOID TEST(KernelFileTest, StaticFileServedFromDiskByDefaultReader)
+{
+    srs_error_t err;
+
+    string name = "srs-utest-ai40-static-page.html";
+    string path = srs_utest_tmp_dir() + "/" + name;
+    if (true) {
+        SrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open(path));
+        HELPER_ASSERT_SUCCESS(fw.write((void *)"<h1>SRS</h1>", 12, NULL));
+    }
+
+    SrsHttpMuxEntry e;
+    e.pattern = "/";
+
+    SrsHttpFileServer h(srs_utest_tmp_dir());
+    h.entry_ = &e;
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(r.set_url("/" + name, false));
+
+    HELPER_EXPECT_SUCCESS(h.serve_http(&w, &r));
+    __MOCK_HTTP_EXPECT_STREQ(200, "<h1>SRS</h1>", w);
+
+    ::unlink(path.c_str());
+}
