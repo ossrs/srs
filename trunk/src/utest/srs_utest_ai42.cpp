@@ -2075,17 +2075,6 @@ VOID TEST(AppConfigTest, TranscodeEnginesGiveFfmpegOptions)
 
 extern srs_fopen_t _srs_fopen_fn;
 
-// An H.264 768x320 stream and an AAC 44.1 kHz stereo stream, as FLV tags: the sequence headers, a key frame, an inter
-// frame and an audio frame.
-static const uint8_t dash_avc_sh[] = {
-    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
-    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
-    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
-static const uint8_t dash_avc_idr[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
-static const uint8_t dash_avc_inter[] = {0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x41, 0x9a, 0x21, 0x6c, 0x42};
-static const uint8_t dash_aac_sh[] = {0xaf, 0x00, 0x12, 0x10};
-static const uint8_t dash_aac_frame[] = {0xaf, 0x01, 0x21, 0x11, 0x45, 0x00};
-
 // The DASH segments of a stream read the dash_path of the stream's config, as the server's segments do.
 class DashUtestFactory : public SrsAppFactory
 {
@@ -2214,10 +2203,10 @@ public:
     {
         srs_error_t err = srs_success;
 
-        if ((err = video(0, dash_avc_sh, sizeof(dash_avc_sh))) != srs_success) {
+        if ((err = video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh))) != srs_success) {
             return srs_error_wrap(err, "avc sh");
         }
-        if ((err = audio(0, dash_aac_sh, sizeof(dash_aac_sh))) != srs_success) {
+        if ((err = audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh))) != srs_success) {
             return srs_error_wrap(err, "aac sh");
         }
         return err;
@@ -2228,11 +2217,11 @@ public:
         srs_error_t err = srs_success;
 
         for (int64_t ts = from; ts <= to; ts += 100) {
-            const uint8_t *frame = (ts % 1000) == 0 ? dash_avc_idr : dash_avc_inter;
-            if ((err = video(ts, frame, sizeof(dash_avc_idr))) != srs_success) {
+            const uint8_t *frame = (ts % 1000) == 0 ? flv_utest_avc_idr : flv_utest_avc_inter;
+            if ((err = video(ts, frame, sizeof(flv_utest_avc_idr))) != srs_success) {
                 return srs_error_wrap(err, "video %d", (int)ts);
             }
-            if ((err = audio(ts, dash_aac_frame, sizeof(dash_aac_frame))) != srs_success) {
+            if ((err = audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame))) != srs_success) {
                 return srs_error_wrap(err, "audio %d", (int)ts);
             }
         }
@@ -2347,12 +2336,12 @@ VOID TEST(AppDashTest, DashPathUnderRegularFile_SequenceHeadersFail)
     DashUtestStream s("ai42-dash-file-home");
     HELPER_ASSERT_SUCCESS(s.publish_to(file + "/dash", ""));
 
-    err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+    err = s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh));
     ASSERT_TRUE(err != srs_success);
     EXPECT_NE(string::npos, srs_error_desc(err).find("Create media home failed")) << srs_error_desc(err);
     srs_freep(err);
 
-    err = s.audio(0, dash_aac_sh, sizeof(dash_aac_sh));
+    err = s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh));
     ASSERT_TRUE(err != srs_success);
     EXPECT_NE(string::npos, srs_error_desc(err).find("Consume audio failed")) << srs_error_desc(err);
     srs_freep(err);
@@ -2384,7 +2373,7 @@ VOID TEST(AppDashTest, ReadOnlyVolumeAtPublish_InitFileNotCreated)
 
     srs_fopen_t fopen_fn = _srs_fopen_fn;
     _srs_fopen_fn = dash_fopen_read_only;
-    err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+    err = s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh));
     _srs_fopen_fn = fopen_fn;
 
     EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
@@ -2443,7 +2432,7 @@ VOID TEST(AppDashTest, DiskFullWhileStreaming_WriteFailsStopsDash)
         HELPER_ASSERT_SUCCESS(s.publish(""));
 
         disk.fill();
-        err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+        err = s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh));
         EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
         srs_freep(err);
         EXPECT_FALSE(s.exists("video-init.mp4"));
@@ -2457,7 +2446,7 @@ VOID TEST(AppDashTest, DiskFullWhileStreaming_WriteFailsStopsDash)
         HELPER_ASSERT_SUCCESS(s.av(0, 900));
 
         disk.fill();
-        err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+        err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
         EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
         EXPECT_NE(string::npos, srs_error_desc(err).find("Flush encoder failed")) << srs_error_desc(err);
         srs_freep(err);
@@ -2468,13 +2457,13 @@ VOID TEST(AppDashTest, DiskFullWhileStreaming_WriteFailsStopsDash)
         DashUtestDiskScope disk;
         DashUtestStream s("ai42-dash-full-audio");
         HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5;"));
-        HELPER_ASSERT_SUCCESS(s.audio(0, dash_aac_sh, sizeof(dash_aac_sh)));
+        HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
         for (int ts = 0; ts <= 500; ts += 100) {
-            HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+            HELPER_ASSERT_SUCCESS(s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
         }
 
         disk.fill();
-        err = s.audio(600, dash_aac_frame, sizeof(dash_aac_frame));
+        err = s.audio(600, flv_utest_aac_frame, sizeof(flv_utest_aac_frame));
         EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
         EXPECT_NE(string::npos, srs_error_desc(err).find("Flush encoder failed")) << srs_error_desc(err);
         srs_freep(err);
@@ -2500,7 +2489,7 @@ VOID TEST(AppDashTest, CleanupJobDeletesStreamDir_SegmentNotFinished)
     SrsPath path;
     ASSERT_FALSE(path.exists(s.stream_dir()));
 
-    err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+    err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     EXPECT_EQ(ERROR_SYSTEM_FRAGMENT_RENAME, srs_error_code(err));
     srs_freep(err);
     EXPECT_FALSE(s.exists("video-0.m4s"));
@@ -2590,7 +2579,7 @@ VOID TEST(AppDashTest, IdlePublisherResumesOnFullDisk_ResumeFails)
     EXPECT_FALSE(s.exists("video-init.mp4"));
 
     disk.fill();
-    err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+    err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
     EXPECT_NE(string::npos, srs_error_desc(err).find("dash request sh")) << srs_error_desc(err);
     srs_freep(err);
@@ -2812,10 +2801,10 @@ public:
     {
         srs_error_t err = srs_success;
 
-        if ((err = video(0, dash_avc_sh, sizeof(dash_avc_sh))) != srs_success) {
+        if ((err = video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh))) != srs_success) {
             return srs_error_wrap(err, "avc sh");
         }
-        if ((err = audio(0, dash_aac_sh, sizeof(dash_aac_sh))) != srs_success) {
+        if ((err = audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh))) != srs_success) {
             return srs_error_wrap(err, "aac sh");
         }
         return err;
@@ -2827,11 +2816,11 @@ public:
         srs_error_t err = srs_success;
 
         for (int64_t ts = from; ts <= to; ts += 100) {
-            const uint8_t *frame = ((ts - from) % gop) == 0 ? dash_avc_idr : dash_avc_inter;
-            if ((err = video(ts, frame, sizeof(dash_avc_idr))) != srs_success) {
+            const uint8_t *frame = ((ts - from) % gop) == 0 ? flv_utest_avc_idr : flv_utest_avc_inter;
+            if ((err = video(ts, frame, sizeof(flv_utest_avc_idr))) != srs_success) {
                 return srs_error_wrap(err, "video %d", (int)ts);
             }
-            if ((err = audio(ts, dash_aac_frame, sizeof(dash_aac_frame))) != srs_success) {
+            if ((err = audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame))) != srs_success) {
                 return srs_error_wrap(err, "audio %d", (int)ts);
             }
         }
@@ -3099,13 +3088,13 @@ VOID TEST(AppDvrTest, SegmentPathWithoutTime_SecondSegmentRefused)
 
     DvrUtestStream s("ai42-dvr-radio");
     HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 1; dvr_path " + s.fixed_path(".flv") + ";"));
-    HELPER_ASSERT_SUCCESS(s.audio(0, dash_aac_sh, sizeof(dash_aac_sh)));
+    HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
     for (int64_t ts = 0; ts < 1000; ts += 100) {
-        HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+        HELPER_ASSERT_SUCCESS(s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
     }
     EXPECT_TRUE(s.async_.tasks_.empty());
 
-    err = s.audio(1000, dash_aac_frame, sizeof(dash_aac_frame));
+    err = s.audio(1000, flv_utest_aac_frame, sizeof(flv_utest_aac_frame));
     EXPECT_EQ(ERROR_DVR_CANNOT_APPEND, srs_error_code(err));
     EXPECT_NE(string::npos, srs_error_desc(err).find("segment open")) << srs_error_desc(err);
     srs_freep(err);
@@ -3293,8 +3282,8 @@ VOID TEST(AppDvrTest, PublisherStartsMidGop_FramesBeforeKeyframeDropped)
     HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_wait_keyframe on; dvr_path " + s.fixed_path(".flv") + ";"));
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
     for (int64_t ts = 0; ts < 500; ts += 100) {
-        HELPER_ASSERT_SUCCESS(s.video(ts, dash_avc_inter, sizeof(dash_avc_inter)));
-        HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+        HELPER_ASSERT_SUCCESS(s.video(ts, flv_utest_avc_inter, sizeof(flv_utest_avc_inter)));
+        HELPER_ASSERT_SUCCESS(s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
     }
     HELPER_ASSERT_SUCCESS(s.av(500, 1400));
     s.dvr_->on_unpublish();
