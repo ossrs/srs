@@ -863,70 +863,6 @@ VOID TEST(ProtocolStTest, ListenWithNoFreeFd_TcpAndUdpListenFail)
 }
 #endif
 
-// The interface list of a host, as getifaddrs gives it: one entry per address, in the order added. The
-// interface names are ones the test hosts do not have, because the discovery records each interface's
-// internet flag in a map the process keeps.
-class UtilityIfaceList
-{
-private:
-    struct Entry {
-        ifaddrs ifa_;
-        sockaddr_storage addr_;
-        char name_[16];
-    };
-    vector<Entry *> entries_;
-
-public:
-    UtilityIfaceList()
-    {
-    }
-    ~UtilityIfaceList()
-    {
-        for (int i = 0; i < (int)entries_.size(); i++) {
-            delete entries_[i];
-        }
-    }
-
-public:
-    // Add an address of the interface name with the flags; an empty ip is an interface with no address,
-    // such as a VPN tunnel before it is configured.
-    void add(const char *name, unsigned int flags, const char *ip)
-    {
-        Entry *e = new Entry();
-        memset(e, 0, sizeof(Entry));
-        snprintf(e->name_, sizeof(e->name_), "%s", name);
-        e->ifa_.ifa_name = e->name_;
-        e->ifa_.ifa_flags = flags;
-
-        if (strchr(ip, ':')) {
-            sockaddr_in6 *a6 = (sockaddr_in6 *)&e->addr_;
-            a6->sin6_family = AF_INET6;
-#ifdef __APPLE__
-            a6->sin6_len = sizeof(sockaddr_in6);
-#endif
-            inet_pton(AF_INET6, ip, &a6->sin6_addr);
-            e->ifa_.ifa_addr = (sockaddr *)a6;
-        } else if (ip[0]) {
-            sockaddr_in *a4 = (sockaddr_in *)&e->addr_;
-            a4->sin_family = AF_INET;
-#ifdef __APPLE__
-            a4->sin_len = sizeof(sockaddr_in);
-#endif
-            inet_pton(AF_INET, ip, &a4->sin_addr);
-            e->ifa_.ifa_addr = (sockaddr *)a4;
-        }
-
-        if (!entries_.empty()) {
-            entries_.back()->ifa_.ifa_next = &e->ifa_;
-        }
-        entries_.push_back(e);
-    }
-    ifaddrs *head()
-    {
-        return entries_.empty() ? NULL : &entries_[0]->ifa_;
-    }
-};
-
 // The local IPs the server discovered at startup, swapped in for a test and restored after it, with the
 // cached public address cleared, so the address is chosen again from the test's IPs.
 class UtilityLocalIpsScope
@@ -4440,33 +4376,6 @@ VOID TEST(AppEncoderTest, DISABLED_VhostWithTranscodeOfTwoApps_SecondAppNotTrans
     ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
     EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_copy", s.encoder_->at(0)->output());
 }
-
-// The server's config, loaded from the test's text for the scope of a test, as the server loads its config file: the
-// objects the server's factory makes read it from _srs_config.
-class FactoryUtestServerConfig
-{
-public:
-    MockSrsConfig conf_;
-    SrsConfig *saved_;
-
-public:
-    FactoryUtestServerConfig()
-    {
-        saved_ = _srs_config;
-    }
-    ~FactoryUtestServerConfig()
-    {
-        _srs_config = saved_;
-    }
-
-public:
-    srs_error_t load(string text)
-    {
-        srs_error_t err = conf_.mock_parse(string(_MIN_OK_CONF) + text);
-        _srs_config = &conf_;
-        return err;
-    }
-};
 
 // The edge's pull for its first player, made as the server makes it: the ingester asks the server's app factory for the
 // upstream of the protocol, and the upstream reads the origin from the server's config. Returns the ingester's result.

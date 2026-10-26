@@ -14,13 +14,17 @@
 #include <srs_app_srt_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_app_listener.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_protocol_conn.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
@@ -32,6 +36,14 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
+#ifndef _WIN32
+#include <fcntl.h>
+#include <net/if.h>
+#include <unistd.h>
+#endif
+
+#include <map>
+#include <set>
 #include <vector>
 using namespace std;
 
@@ -1714,5 +1726,371 @@ VOID TEST(AppStreamBridgeTest, DISABLED_RtmpHevcParameterSetsInBandToRtc_Publish
     EXPECT_EQ(4, stream_bridge_utest_rtc_got(player));
 
     s.live_->on_unpublish();
+}
+#endif
+
+// The server's view of each TCP client it accepts, as SrsServer::do_on_tcp_client takes it: the client's address and
+// port, for the security check and the log.
+class UtilityUtestPeerOfClient : public ISrsTcpHandler
+{
+public:
+    string ip_;
+    int port_;
+
+public:
+    UtilityUtestPeerOfClient()
+    {
+        port_ = 0;
+    }
+    virtual ~UtilityUtestPeerOfClient()
+    {
+    }
+
+public:
+    virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
+    {
+        int fd = srs_netfd_fileno(stfd);
+        ip_ = srs_get_peer_ip(fd);
+        port_ = srs_get_peer_port(fd);
+        srs_close_stfd(stfd);
+        return srs_success;
+    }
+};
+
+// A client connecting over IPv6 to a server listening on an IPv6 address: the server has the client's address and port.
+VOID TEST(AppUtilityTest, Ipv6ClientConnects_ServerHasItsPort)
+{
+    srs_error_t err;
+
+    int port = srs_utest_random_port();
+    UtilityUtestPeerOfClient server;
+    SrsTcpListener listener(&server);
+    listener.set_endpoint("::1", port);
+    HELPER_ASSERT_SUCCESS(listener.listen());
+
+    srs_netfd_t stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("::1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+    SrsTcpConnection client(stfd);
+
+    for (int i = 0; i < 100 && !server.port_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_STREQ("::1", server.ip_.c_str());
+    EXPECT_EQ(srs_get_local_port(srs_netfd_fileno(stfd)), server.port_);
+}
+
+#if !defined(SRS_OSX) && !defined(_WIN32) // Linux only: the disk, UDP and network device stats read /proc.
+// The block devices of the host, one per line of /proc/diskstats: the name and the reads completed, as the kernel counts.
+static map<string, unsigned long long> utility_utest_disk_reads()
+{
+    map<string, unsigned long long> disks;
+
+    FILE *f = fopen("/proc/diskstats", "r");
+    if (!f) {
+        return disks;
+    }
+
+    char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        unsigned int major = 0, minor = 0;
+        char name[32] = {0};
+        unsigned long long reads = 0;
+        if (sscanf(buf, "%u %u %31s %llu", &major, &minor, name, &reads) == 4) {
+            disks[name] = reads;
+        }
+    }
+    fclose(f);
+
+    return disks;
+}
+
+static unsigned long long utility_utest_sum(const map<string, unsigned long long> &disks)
+{
+    unsigned long long sum = 0;
+    for (map<string, unsigned long long>::const_iterator it = disks.begin(); it != disks.end(); ++it) {
+        unsigned long long reads = it->second;
+        sum += reads;
+    }
+    return sum;
+}
+
+// A 4MB file written and synced, then dropped from the page cache and read back, so the disk is written and read, as by
+// a DVR writing a recording and a player reading an old one.
+static void utility_utest_disk_write_and_read(const string &path)
+{
+    string data(4 * 1024 * 1024, 'x');
+
+    int fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644);
+    ASSERT_GT(fd, 0);
+    ASSERT_EQ((ssize_t)data.size(), ::write(fd, data.data(), data.size()));
+    ASSERT_EQ(0, ::fsync(fd));
+    ASSERT_EQ(0, ::posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED));
+
+    ASSERT_EQ(0, ::lseek(fd, 0, SEEK_SET));
+    string back(data.size(), '\0');
+    ASSERT_EQ((ssize_t)back.size(), ::read(fd, &back[0], back.size()));
+    EXPECT_TRUE(back == data);
+
+    ::close(fd);
+    ::unlink(path.c_str());
+}
+
+static SrsJsonObject *utility_utest_summaries_system(SrsJsonObject *obj)
+{
+    srs_api_dump_summaries(_srs_config, obj);
+    SrsJsonObject *data = (SrsJsonObject *)obj->get_property("data");
+    return (SrsJsonObject *)data->get_property("system");
+}
+
+// The host's disks listed in `stats { disk }`, written and read between two samples of the server's disk timer: the
+// summaries API reports a read rate and a busy percent, and the counters are the sum of the listed disks.
+VOID TEST(AppUtilityTest, StatsDisksWrittenAndReadBetweenSamples_ApiReportsReadRateAndBusy)
+{
+    srs_error_t err;
+
+    map<string, unsigned long long> disks = utility_utest_disk_reads();
+    ASSERT_FALSE(disks.empty());
+
+    string names;
+    for (map<string, unsigned long long>::iterator it = disks.begin(); it != disks.end(); ++it) {
+        string name = it->first;
+        names += " " + name;
+    }
+
+    FactoryUtestServerConfig server;
+    HELPER_ASSERT_SUCCESS(server.load("stats { disk" + names + "; }"));
+
+    srs_update_disk_stat();
+
+    utility_utest_disk_write_and_read(_srs_tmp_file_prefix + "ai46-disk-stat.data");
+    srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+
+    unsigned long long reads_before = utility_utest_sum(utility_utest_disk_reads());
+    srs_update_disk_stat();
+    unsigned long long reads_after = utility_utest_sum(utility_utest_disk_reads());
+
+    SrsDiskStat *stat = srs_get_disk_stat();
+    EXPECT_TRUE(stat->ok_);
+    EXPECT_LE(reads_before, (unsigned long long)stat->rd_ios_);
+    EXPECT_GE(reads_after, (unsigned long long)stat->rd_ios_);
+    EXPECT_GT(stat->wr_ios_, 0u);
+    EXPECT_GT(stat->ticks_, 0u);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    SrsJsonObject *sys = utility_utest_summaries_system(obj.get());
+    EXPECT_GT(sys->get_property("disk_read_KBps")->to_integer(), 0);
+    EXPECT_GT(sys->get_property("disk_busy_percent")->to_number(), 0);
+}
+
+// A disk listed in `stats { disk }` that the host does not have, such as sda on a host of vda: nothing is counted and the
+// disk is not busy, while the stat is still sampled.
+VOID TEST(AppUtilityTest, StatsDiskTheHostHasNot_CountsNothing)
+{
+    srs_error_t err;
+
+    FactoryUtestServerConfig server;
+    HELPER_ASSERT_SUCCESS(server.load("stats { disk utestnodisk0; }"));
+
+    srs_update_disk_stat();
+    srs_update_disk_stat();
+
+    SrsDiskStat *stat = srs_get_disk_stat();
+    EXPECT_TRUE(stat->ok_);
+    EXPECT_EQ(0u, stat->rd_ios_);
+    EXPECT_EQ(0u, stat->wr_ios_);
+    EXPECT_EQ(0u, stat->ticks_);
+    EXPECT_EQ(0, stat->busy_);
+}
+
+// A UDP socket with the smallest receive buffer that reads nothing, as a WebRTC server falling behind, and a peer sending
+// 1KB datagrams to it on loopback: the kernel drops what the buffer can't hold. Returns the datagrams dropped.
+static int utility_utest_udp_overflow(int n)
+{
+    int rfd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    int size = 1;
+    ::setsockopt(rfd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    socklen_t addrlen = sizeof(addr);
+    ::bind(rfd, (sockaddr *)&addr, sizeof(addr));
+    ::getsockname(rfd, (sockaddr *)&addr, &addrlen);
+
+    int sfd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    int sent = 0;
+    for (int i = 0; i < n; i++) {
+        if (::sendto(sfd, buf, sizeof(buf), 0, (sockaddr *)&addr, sizeof(addr)) == (ssize_t)sizeof(buf)) {
+            sent++;
+        }
+    }
+
+    int kept = 0;
+    while (::recv(rfd, buf, sizeof(buf), MSG_DONTWAIT) > 0) {
+        kept++;
+    }
+
+    ::close(sfd);
+    ::close(rfd);
+    return sent - kept;
+}
+
+// The host dropping UDP datagrams for a full receive buffer, then dropping more before the server's next sample of
+// /proc/net/snmp: the stat has the drops since the last sample, which the RTC server logs as loss, and none once the
+// drops stop.
+VOID TEST(AppUtilityTest, HostDropsUdpForFullReceiveBuffer_DropsSinceLastSample)
+{
+    ASSERT_GT(utility_utest_udp_overflow(100), 0);
+    srs_update_udp_snmp_statistic();
+    SrsSnmpUdpStat *stat = srs_get_udp_snmp_stat();
+    EXPECT_TRUE(stat->ok_);
+    EXPECT_GT(stat->rcv_buf_errors_, 0u);
+
+    int dropped = utility_utest_udp_overflow(100);
+    ASSERT_GT(dropped, 0);
+    srs_update_udp_snmp_statistic();
+    EXPECT_EQ(dropped, srs_get_udp_snmp_stat()->rcv_buf_errors_delta_);
+
+    srs_update_udp_snmp_statistic();
+    EXPECT_EQ(0, srs_get_udp_snmp_stat()->rcv_buf_errors_delta_);
+}
+
+// The first interface of the host that /proc/net/dev lists and that has an IPv4 address other than the loopback, such as
+// eth0, or empty if none.
+static string utility_utest_host_interface()
+{
+    set<string> named;
+    ifaddrs *ifap = NULL;
+    if (srs_getifaddrs(&ifap) != 0) {
+        return "";
+    }
+    for (ifaddrs *p = ifap; p; p = p->ifa_next) {
+        if (p->ifa_addr && p->ifa_addr->sa_family == AF_INET && !(p->ifa_flags & IFF_LOOPBACK)) {
+            named.insert(p->ifa_name);
+        }
+    }
+    srs_freeifaddrs(ifap);
+
+    SrsNetworkDevices *devices = srs_get_network_devices();
+    for (int i = 0; i < srs_get_network_devices_count(); i++) {
+        SrsNetworkDevices &device = devices[i];
+        if (named.find(device.name_) != named.end()) {
+            return device.name_;
+        }
+    }
+    return "";
+}
+
+// The internet flag of each interface, as the server discovers the host's own addresses at startup.
+static void utility_utest_discover_host_ips()
+{
+    ifaddrs *ifap = NULL;
+    if (srs_getifaddrs(&ifap) != 0) {
+        return;
+    }
+
+    SrsProtocolUtility utility;
+    vector<SrsIPAddress *> ips;
+    srs_discover_local_ips(&utility, ifap, ips);
+    srs_freeifaddrs(ifap);
+
+    for (int i = 0; i < (int)ips.size(); i++) {
+        SrsIPAddress *ip = ips[i];
+        srs_freep(ip);
+    }
+}
+
+// A host whose interface has a public address, such as a cloud server's eth0: the summaries API counts that interface's
+// bytes as internet traffic, and the other interfaces', the loopback too, as intranet traffic.
+VOID TEST(AppUtilityTest, InterfaceWithPublicAddress_BytesCountedAsInternet)
+{
+    srs_update_network_devices();
+    string ifname = utility_utest_host_interface();
+    ASSERT_FALSE(ifname.empty());
+
+    // The server discovers the interface with a public address.
+    UtilityIfaceList ifs;
+    ifs.add(ifname.c_str(), IFF_UP | IFF_RUNNING, "203.0.113.10");
+    SrsProtocolUtility utility;
+    vector<SrsIPAddress *> ips;
+    srs_discover_local_ips(&utility, ifs.head(), ips);
+    ASSERT_EQ(1, (int)ips.size());
+    EXPECT_TRUE(ips[0]->is_internet_);
+    srs_freep(ips[0]);
+
+    srs_update_network_devices();
+    int64_t internet_recv = 0, internet_send = 0, intranet_recv = 0, intranet_send = 0;
+    SrsNetworkDevices *devices = srs_get_network_devices();
+    for (int i = 0; i < srs_get_network_devices_count(); i++) {
+        SrsNetworkDevices &device = devices[i];
+        if (ifname == device.name_) {
+            internet_recv += device.rbytes_;
+            internet_send += device.sbytes_;
+        } else {
+            intranet_recv += device.rbytes_;
+            intranet_send += device.sbytes_;
+        }
+    }
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    SrsJsonObject *sys = utility_utest_summaries_system(obj.get());
+
+    // Restore the interface's flag from the host's own addresses, before any assertion can return.
+    utility_utest_discover_host_ips();
+
+    EXPECT_GT(internet_recv, 0);
+    EXPECT_EQ(internet_recv, sys->get_property("net_recv_bytes")->to_integer());
+    EXPECT_EQ(internet_send, sys->get_property("net_send_bytes")->to_integer());
+    EXPECT_EQ(intranet_recv, sys->get_property("net_recvi_bytes")->to_integer());
+    EXPECT_EQ(intranet_send, sys->get_property("net_sendi_bytes")->to_integer());
+}
+
+// The interfaces of a host as /proc/net/dev lists them: the name before the colon, without the padding.
+static vector<string> utility_utest_proc_interfaces()
+{
+    vector<string> names;
+
+    FILE *f = fopen("/proc/net/dev", "r");
+    if (!f) {
+        return names;
+    }
+
+    char buf[1024];
+    for (int i = 0; fgets(buf, sizeof(buf), f); i++) {
+        char *colon = strchr(buf, ':');
+        if (i < 2 || !colon) {
+            continue;
+        }
+        string name(buf, colon - buf);
+        names.push_back(name.substr(name.find_first_not_of(' ')));
+    }
+    fclose(f);
+
+    return names;
+}
+
+// A host with an interface named longer than 6 chars, such as enp0s31f6 on a bare-metal server, or gretap0 and ip6tnl0 in
+// a Docker container: the server lists it by a cut name with no bytes, so a public interface of such a name counts no
+// internet traffic. Bug: SrsNetworkDevices keeps 6 chars of the name, and the parse stops at the cut.
+VOID TEST(AppUtilityTest, DISABLED_InterfaceNamedLongerThan6Chars_NotListed)
+{
+    vector<string> names = utility_utest_proc_interfaces();
+    ASSERT_FALSE(names.empty());
+
+    srs_update_network_devices();
+    set<string> listed;
+    SrsNetworkDevices *devices = srs_get_network_devices();
+    for (int i = 0; i < srs_get_network_devices_count(); i++) {
+        SrsNetworkDevices &device = devices[i];
+        listed.insert(device.name_);
+    }
+
+    for (int i = 0; i < (int)names.size() && i < 16; i++) {
+        string name = names[i];
+        EXPECT_TRUE(listed.find(name) != listed.end()) << "interface " << name << " not listed";
+    }
 }
 #endif
