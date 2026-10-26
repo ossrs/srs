@@ -7,6 +7,8 @@
 
 #include <srs_app_async_call.hpp>
 #include <srs_app_circuit_breaker.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_ffmpeg.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_st.hpp>
@@ -24,7 +26,10 @@
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai19.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai40.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <arpa/inet.h>
@@ -1427,4 +1432,676 @@ VOID TEST(AppCircuitBreakerTest, DISABLED_CriticalBreakerSkipsRtcFeedback_Skippe
     string line = log.traces_[0];
     ASSERT_NE(string::npos, line.find(", snk=5,")) << line;
     EXPECT_STREQ(",3", line.substr(line.rfind(',')).c_str()) << line;
+}
+
+extern bool _srs_in_docker;
+extern srs_fwrite_t _srs_fwrite_fn;
+
+static void config_write_file(string path, string content)
+{
+    FILE *fp = fopen(path.c_str(), "wb");
+    ASSERT_TRUE(fp != NULL);
+    if (!content.empty()) {
+        ASSERT_EQ(content.length(), fwrite(content.data(), 1, content.length(), fp));
+    }
+    fclose(fp);
+}
+
+static string config_read_file(string path)
+{
+    FILE *fp = fopen(path.c_str(), "rb");
+    if (!fp) {
+        return "";
+    }
+
+    string content;
+    char buf[1024];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+        content.append(buf, n);
+    }
+    fclose(fp);
+    return content;
+}
+
+// Loads the config text the way the server does, and returns the check's error, or success.
+static srs_error_t config_load(MockSrsConfig &conf, string text)
+{
+    return conf.mock_parse(string(_MIN_OK_CONF) + text);
+}
+
+// Expects the config to be refused, with the error naming what is wrong.
+static void config_expect_refused(string text, string reason)
+{
+    MockSrsConfig conf;
+    srs_error_t err = config_load(conf, text);
+    ASSERT_TRUE(err != srs_success) << text;
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(err)) << text;
+    string desc = srs_error_desc(err);
+    EXPECT_NE(string::npos, desc.find(reason)) << text << "\n"
+                                               << desc;
+    srs_freep(err);
+}
+
+// SRS in a container on a cgroup v1 host sees /docker/<id> in the cgroup of its init process, and turns on its
+// docker defaults. On a cgroup v2 host, or a host that is no container, it does not. Without the file (macOS, or
+// no /proc), the detection fails, and the server ignores the error.
+VOID TEST(AppConfigTest, DockerDetectedFromInitCgroup)
+{
+    srs_error_t err = srs_success;
+
+    bool in_docker = _srs_in_docker;
+    string path = _srs_tmp_file_prefix + "ai42-cgroup";
+    MockFileRemover remover(path);
+
+    config_write_file(path, "12:pids:/docker/3f1c8a9e2b7d\n11:memory:/docker/3f1c8a9e2b7d\n0::/system.slice/containerd.service\n");
+    err = srs_detect_docker(path);
+    bool v1_container = _srs_in_docker;
+    HELPER_EXPECT_SUCCESS(err);
+
+    config_write_file(path, "0::/\n");
+    err = srs_detect_docker(path);
+    bool v2_container = _srs_in_docker;
+    HELPER_EXPECT_SUCCESS(err);
+
+    config_write_file(path, "12:pids:/user.slice/user-1000.slice\n11:memory:/user.slice\n");
+    _srs_in_docker = true;
+    err = srs_detect_docker(path);
+    bool v1_host = _srs_in_docker;
+    HELPER_EXPECT_SUCCESS(err);
+
+    _srs_in_docker = true;
+    err = srs_detect_docker(_srs_tmp_file_prefix + "ai42-no-cgroup");
+    bool no_proc = _srs_in_docker;
+    _srs_in_docker = in_docker;
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    EXPECT_TRUE(v1_container);
+    EXPECT_FALSE(v2_container);
+    EXPECT_FALSE(v1_host);
+    EXPECT_FALSE(no_proc);
+}
+
+// The full.conf of SRS4 configured GB28181 with options SRS5 dropped (the SIP server moved out) and the SIP
+// candidate as stream_caster.host. Such a config still loads: the dropped options are removed with a warning, and
+// the host becomes sip.candidate, which the GB session uses as the media address in its SDP.
+VOID TEST(AppConfigTest, Srs4Gb28181CasterConfigLoads)
+{
+    srs_error_t err = srs_success;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    MockSrsConfig conf;
+    err = config_load(conf, "stream_caster { enabled on; caster gb28181; output rtmp://127.0.0.1/live/[stream];"
+                            "    listen 9000; host 192.168.1.10; tcp_enable on; rtp_port_min 58200; rtp_port_max 58300;"
+                            "    wait_keyframe on; rtp_idle_timeout 30; audio_enable on; auto_create_channel off;"
+                            "    sip { enabled on; listen 5060; serial 34020000002000000001; realm 3402000000;"
+                            "        ack_timeout 30; keepalive_timeout 120; invite_port_fixed on; query_catalog_interval 60;"
+                            "        auto_play on; timeout 60; reinvite 5; } }");
+    _srs_log = original_log;
+    HELPER_ASSERT_SUCCESS(err);
+
+    vector<SrsConfDirective *> casters = conf.get_stream_casters();
+    ASSERT_EQ(1, (int)casters.size());
+    SrsConfDirective *caster = casters[0];
+    EXPECT_TRUE(conf.get_stream_caster_enabled(caster));
+    EXPECT_EQ(9000, conf.get_stream_caster_listen(caster));
+    EXPECT_TRUE(caster->get("host") == NULL);
+    EXPECT_TRUE(caster->get("tcp_enable") == NULL);
+    EXPECT_TRUE(caster->get("auto_create_channel") == NULL);
+
+    SrsConfDirective *sip = caster->get("sip");
+    ASSERT_TRUE(sip != NULL);
+    ASSERT_TRUE(sip->get("candidate") != NULL);
+    EXPECT_STREQ("192.168.1.10", sip->get("candidate")->arg0().c_str());
+    EXPECT_STREQ("5060", sip->get("listen")->arg0().c_str());
+    EXPECT_TRUE(sip->get("serial") == NULL);
+    EXPECT_TRUE(sip->get("auto_play") == NULL);
+    EXPECT_STREQ("60", sip->get("timeout")->arg0().c_str());
+
+    // 7 dropped caster options, 7 dropped SIP options, and the host moved.
+    int dropped = 0, moved = 0;
+    for (int i = 0; i < (int)log.warns_.size(); i++) {
+        if (log.warns_[i].find("for GB is not used") != string::npos) {
+            dropped++;
+        }
+        if (log.warns_[i].find("move host to sip.candidate") != string::npos) {
+            moved++;
+        }
+    }
+    EXPECT_EQ(14, dropped);
+    EXPECT_EQ(1, moved);
+}
+
+// An SRS2 config with the removed HLS in RAM options still loads, with a warning that they are ignored.
+VOID TEST(AppConfigTest, Srs2HlsRamOptionsWarnAndLoad)
+{
+    srs_error_t err = srs_success;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    MockSrsConfig conf;
+    err = config_load(conf, "vhost __defaultVhost__ { hls { enabled on; hls_storage ram; hls_mount [vhost]/[app]/[stream].m3u8; } }");
+    _srs_log = original_log;
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_TRUE(conf.get_hls_enabled("__defaultVhost__"));
+    int warned = 0;
+    for (int i = 0; i < (int)log.warns_.size(); i++) {
+        if (log.warns_[i].find("HLS RAM is removed") != string::npos) {
+            warned++;
+        }
+    }
+    EXPECT_EQ(2, warned);
+}
+
+// A vhost file included from the main config with a missing brace fails the load, and the error names that file,
+// so the operator knows which file to fix.
+VOID TEST(AppConfigTest, IncludedVhostFileBrokenFailsNamingIt)
+{
+    MockSrsConfig conf;
+    conf.mock_include("vhost.live.conf", "vhost live { hls { enabled on; }");
+
+    srs_error_t err = config_load(conf, "include vhost.live.conf;");
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    EXPECT_NE(string::npos, desc.find("parse include buffer vhost.live.conf")) << desc;
+    srs_freep(err);
+}
+
+// A quoted vhost name may be followed by its brace with no space, and an empty quoted directive, as a template
+// leaves for an empty value, is refused.
+VOID TEST(AppConfigTest, QuotedNamesInConfig)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "vhost \"live.example.com\"{ hls { enabled on; } }"));
+        EXPECT_TRUE(conf.get_vhost("live.example.com", false) != NULL);
+        EXPECT_TRUE(conf.get_hls_enabled("live.example.com"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        err = config_load(conf, "\"\";");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(err));
+        string desc = srs_error_desc(err);
+        EXPECT_NE(string::npos, desc.find("empty directive")) << desc;
+        srs_freep(err);
+    }
+}
+
+// The config file can follow -c with no space, as getopt and nginx (whose ngx_get_options this code follows) allow:
+// ./objs/srs -cconf/srs.conf. SRS takes the file name, then reads it as more options and fails at its first char.
+VOID TEST(AppConfigTest, DISABLED_ConfigFileRightAfterOption_ReadAsOptions)
+{
+    srs_error_t err = srs_success;
+
+    string path = _srs_tmp_file_prefix + "ai42-attached.conf";
+    MockFileRemover remover(path);
+    config_write_file(path, _MIN_OK_CONF);
+
+    SrsConfig conf;
+    // Log to the console, so get_log_tank_file() does not change its process-wide default for docker.
+    SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "console");
+
+    string arg = "-c" + path;
+    char *argv[] = {(char *)"srs", (char *)arg.c_str(), NULL};
+    bool in_docker = _srs_in_docker;
+    err = conf.parse_options(2, argv);
+    _srs_in_docker = in_docker;
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_STREQ(path.c_str(), conf.config().c_str());
+    vector<string> listens = conf.get_listens();
+    ASSERT_EQ(1, (int)listens.size());
+    EXPECT_STREQ("1935", listens[0].c_str());
+}
+
+// A typo in any section is refused at startup and reload, naming the directive, instead of being ignored.
+VOID TEST(AppConfigTest, TypoInSectionRefusedNamingIt)
+{
+    const char *cases[][2] = {
+        {"http_api { enabled on; raw_api { enabled on; allow_reloads on; } }", "illegal http_api.raw_api.allow_reloads"},
+        {"http_api { enabled on; auth { enabled on; type basic; usename admin; } }", "illegal http_api.auth.usename"},
+        {"srt_server { enabled on; latancy 200; }", "illegal srt_server.latancy"},
+        {"heartbeat { enabled on; auth { enabled on; tpye bearer; } }", "illegal heartbeat.auth.tpye"},
+        {"rtc_server { enabled on; listne 8000; }", "illegal rtc_server.listne"},
+        {"rtsp_server { enabled on; listne 554; }", "illegal rtsp_server.listne"},
+        {"rtmps { enabled on; cret ./conf/server.crt; }", "illegal rtmps.cret"},
+        {"exporter { enabled on; lable cn-beijing; }", "illegal exporter.lable"},
+        {"stream_caster { enabled on; cster mpegts_over_udp; }", "illegal stream_caster.cster"},
+        {"stream_caster { enabled on; caster gb28181; sip { enabled on; listne 5060; } }", "illegal stream_caster.sip.listne"},
+        {"vhost v { exec { enabled on; publsh ./objs/ffmpeg/bin/ffmpeg; } }", "illegal vhost.exec.publsh of v"},
+        {"vhost v { play { gop_cahce on; } }", "illegal vhost.play.gop_cahce of v"},
+        {"vhost v { cluster { mdoe remote; } }", "illegal vhost.cluster.mdoe of v"},
+        {"vhost v { publish { mr_latancy 350; } }", "illegal vhost.publish.mr_latancy of v"},
+        {"vhost v { http_remux { enabled on; mout [vhost]/[app]/[stream].flv; } }", "illegal vhost.http_remux.mout of v"},
+        {"vhost v { dash { enabled on; dash_fragmnet 30; } }", "illegal vhost.dash.dash_fragmnet of v"},
+        {"vhost v { forward { enabled on; destinaton 127.0.0.1:19350; } }", "illegal vhost.forward.destinaton of v"},
+        {"vhost v { security { enabled on; alow play all; } }", "illegal vhost.security.alow of v"},
+        {"vhost v { rtc { enabled on; nak on; } }", "illegal vhost.rtc.nak of v"},
+        {"vhost v { srt { enabled on; srt_to_rtmpp on; } }", "illegal vhost.srt.srt_to_rtmpp of v"},
+        {"vhost v { rtsp { enabled on; rtmp_to_rtspp on; } }", "rtmp_to_rtspp of v"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        config_expect_refused(cases[i][0], cases[i][1]);
+    }
+}
+
+// A typo in the vhost rtsp section is refused, but the error names the srt section, so the operator looks for the
+// typo in the wrong place.
+VOID TEST(AppConfigTest, DISABLED_RtspTypoInVhost_ErrorNamesSrtSection)
+{
+    config_expect_refused("vhost v { rtsp { enabled on; rtmp_to_rtspp on; } }", "illegal vhost.rtsp.rtmp_to_rtspp of v");
+}
+
+// HTTP API authentication supports only basic and bearer, and bearer needs a token. When the operator turns it on by
+// env in a container, with no auth section in the config, the missing type or token is refused too.
+VOID TEST(AppConfigTest, ApiAuthNeedsKnownTypeAndToken)
+{
+    config_expect_refused("http_api { enabled on; auth { enabled on; type digest; } }", "invalid SRS_HTTP_API_AUTH_TYPE=digest");
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+        srs_error_t err = config_load(conf, "http_api { enabled on; }");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_NE(string::npos, srs_error_desc(err).find("SRS_HTTP_API_AUTH_TYPE is required"));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+        SrsSetEnvConfig(conf, type, "SRS_HTTP_API_AUTH_TYPE", "bearer");
+        srs_error_t err = config_load(conf, "http_api { enabled on; }");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_NE(string::npos, srs_error_desc(err).find("SRS_HTTP_API_AUTH_TOKEN is required"));
+        srs_freep(err);
+    }
+}
+
+// The heartbeat authenticates to its collector only by bearer token: a config with no type, another type, or no
+// token is refused, from the config or the env, and a full bearer config gives the collector's token.
+VOID TEST(AppConfigTest, HeartbeatAuthNeedsBearerToken)
+{
+    srs_error_t err = srs_success;
+
+    config_expect_refused("heartbeat { enabled on; auth { enabled on; } }", "SRS_HEARTBEAT_AUTH_TYPE is required");
+    config_expect_refused("heartbeat { enabled on; auth { enabled on; type basic; } }", "invalid SRS_HEARTBEAT_AUTH_TYPE=basic");
+    config_expect_refused("heartbeat { enabled on; auth { enabled on; type bearer; } }", "SRS_HEARTBEAT_AUTH_TOKEN is required");
+
+    const char *env_cases[][2] = {
+        {"", "SRS_HEARTBEAT_AUTH_TYPE is required"},
+        {"heartbeat { enabled on; }", "SRS_HEARTBEAT_AUTH_TYPE is required"},
+    };
+    for (int i = 0; i < (int)(sizeof(env_cases) / sizeof(env_cases[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_HEARTBEAT_AUTH_ENABLED", "on");
+        err = config_load(conf, env_cases[i][0]);
+        ASSERT_TRUE(err != srs_success) << env_cases[i][0];
+        EXPECT_NE(string::npos, srs_error_desc(err).find(env_cases[i][1])) << env_cases[i][0];
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_HEARTBEAT_AUTH_ENABLED", "on");
+        SrsSetEnvConfig(conf, type, "SRS_HEARTBEAT_AUTH_TYPE", "bearer");
+        err = config_load(conf, "heartbeat { enabled on; }");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_NE(string::npos, srs_error_desc(err).find("SRS_HEARTBEAT_AUTH_TOKEN is required"));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "heartbeat { enabled on; url http://127.0.0.1:8085/api/v1/servers;"
+                                                "    auth { enabled on; type bearer; token t1; } }"));
+        EXPECT_TRUE(conf.get_heartbeat_auth_enabled());
+        EXPECT_STREQ("bearer", conf.get_heartbeat_auth_type().c_str());
+        EXPECT_STREQ("t1", conf.get_heartbeat_auth_token().c_str());
+    }
+}
+
+// Listen addresses and the HTTP and HTTPS pairs are checked at startup: a bad endpoint, an HTTPS API and stream that
+// do not share a port when their HTTP pair does (or the other way), HTTPS without its HTTP, and a stats NIC index
+// past the host's addresses are refused.
+VOID TEST(AppConfigTest, BadListenOrPortPairRefused)
+{
+    const char *cases[][2] = {
+        {"stats { network 99; }", "invalid stats.network=99"},
+        {"http_api { enabled on; https { enabled on; listen abc; } }", "http_api.https.listen=abc is invalid"},
+        {"http_api { enabled on; https { enabled on; listen 8088; } }"
+         "http_server { enabled on; https { enabled on; listen 8088; } }",
+         "for same https, http api(1985) != server(8080)"},
+        {"http_api { enabled off; https { enabled on; } }", "https api depends on http"},
+        {"http_server { enabled off; https { enabled on; } }", "https stream depends on http"},
+        {"http_server { enabled on; https { enabled on; listen abc; } }", "https_server.listen=abc is invalid"},
+        {"rtsp_server { enabled on; listen abc; }", "rtsp_server.listen=abc is invalid"},
+        {"rtc_server { enabled on; tcp { enabled on; listen abc; } }", "rtc_server.tcp.listen=abc is invalid"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        config_expect_refused(cases[i][0], cases[i][1]);
+    }
+
+    // With the API on the stream server's HTTP port, the HTTPS API follows the HTTPS stream port, so only the env
+    // in a container can set it apart.
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, https_listen, "SRS_HTTP_API_HTTPS_LISTEN", "1990");
+        srs_error_t err = config_load(conf, "http_api { enabled on; listen 8080; https { enabled on; } }"
+                                            "http_server { enabled on; listen 8080; https { enabled on; listen 8088; } }");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_NE(string::npos, srs_error_desc(err).find("for same http, https api(1990) != server(8088)"));
+        srs_freep(err);
+    }
+}
+
+// The full.conf lists every directive for reference, and marks itself with is_full; starting with it is refused.
+VOID TEST(AppConfigTest, StartWithFullConfRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(config_load(conf, "is_full on;"));
+    err = conf.check_config();
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("never use full.conf"));
+    srs_freep(err);
+}
+
+// HLS and HTTP-TS cannot both be on in a vhost, and a vhost has one http_remux; both are refused at startup.
+VOID TEST(AppConfigTest, HlsWithHttpTsOrTwoRemuxesRefused)
+{
+    config_expect_refused("vhost v { hls { enabled on; } http_remux { enabled on; mount [vhost]/[app]/[stream].ts; } }",
+                          "vhost.hls conflict with vhost.http-ts of v");
+    config_expect_refused("vhost v { http_remux { enabled on; mount [vhost]/[app]/[stream].flv; }"
+                          "    http_remux { enabled on; mount [vhost]/[app]/[stream].ts; } }",
+                          "vhost.http_remux only one but count=2 of v");
+
+    // HTTP-TS with HLS off is fine.
+    srs_error_t err = srs_success;
+    MockSrsConfig conf;
+    HELPER_EXPECT_SUCCESS(config_load(conf, "vhost v { hls { enabled off; } http_remux { enabled on; mount [vhost]/[app]/[stream].ts; } }"));
+}
+
+// A server id file left empty, as by a full disk when the server last wrote it, is not taken as the id: the server
+// makes a new id and saves it next to the pid file.
+VOID TEST(AppConfigTest, EmptyServerIdFileGetsNewIdSaved)
+{
+    srs_error_t err = srs_success;
+
+    string pid = _srs_tmp_file_prefix + "ai42-srs.pid";
+    string id = _srs_tmp_file_prefix + "ai42-srs.id";
+    MockFileRemover remover(id);
+    config_write_file(id, "");
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(config_load(conf, "pid " + pid + ";"));
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("abc1234");
+    srs_freep(conf.rand_);
+    conf.rand_ = &rand;
+    string server_id = conf.get_server_id();
+    conf.rand_ = NULL;
+
+    EXPECT_STREQ("vid-abc1234", server_id.c_str());
+    EXPECT_STREQ("vid-abc1234", config_read_file(id).c_str());
+}
+
+static int config_fwrite_calls_ = 0;
+static int config_fwrite_fail_at_ = -1;
+
+// Fails the write numbered config_fwrite_fail_at_, as a disk that fills there.
+static size_t config_fwrite_full_at(const void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+    if (config_fwrite_calls_++ == config_fwrite_fail_at_) {
+        return 0;
+    }
+    return ::fwrite(ptr, size, nitems, stream);
+}
+
+// The operator asks SRS to save its config (the persistence signal). Whichever write the disk fills at, the save
+// fails, the temporary file is removed, and the config file keeps the operator's version. With room, the saved
+// file loads to the same config.
+VOID TEST(AppConfigTest, PersistConfigOnFullDiskKeepsOldFile)
+{
+    srs_error_t err = srs_success;
+
+    string path = _srs_tmp_file_prefix + "ai42-persist.conf";
+    string tmp = path + ".tmp";
+    MockFileRemover remover(path);
+    MockFileRemover tmp_remover(tmp);
+
+    string text = string(_MIN_OK_CONF) + "vhost __defaultVhost__ { hls { enabled on; hls_fragment 10; }"
+                                         "    http_hooks { enabled on; on_publish http://127.0.0.1:8085/api/v1/streams http://127.0.0.1:8086/api/v1/streams; } }";
+    config_write_file(path, text);
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(text));
+    conf.config_file_ = path;
+
+    srs_fwrite_t fwrite_fn = _srs_fwrite_fn;
+    _srs_fwrite_fn = config_fwrite_full_at;
+
+    SrsPath p;
+    int fill_points = 0;
+    for (int k = 0; k < 1000; k++) {
+        config_fwrite_calls_ = 0;
+        config_fwrite_fail_at_ = k;
+        err = conf.persistence();
+        if (err == srs_success) {
+            break;
+        }
+
+        fill_points++;
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << k;
+        srs_freep(err);
+        EXPECT_FALSE(p.exists(tmp)) << k;
+        EXPECT_STREQ(text.c_str(), config_read_file(path).c_str()) << k;
+    }
+    _srs_fwrite_fn = fwrite_fn;
+
+    // Every write of the save was a point the disk filled at, and the last save had room.
+    EXPECT_GT(fill_points, 30);
+    EXPECT_EQ(fill_points, config_fwrite_calls_);
+    EXPECT_FALSE(p.exists(tmp));
+
+    SrsConfig saved;
+    HELPER_ASSERT_SUCCESS(saved.parse_file(path.c_str()));
+    EXPECT_TRUE(srs_directive_equals(conf.root_, saved.root_));
+    EXPECT_STREQ("http://127.0.0.1:8086/api/v1/streams", saved.get_vhost_on_publish("__defaultVhost__")->args_.at(1).c_str());
+}
+
+// A section with only some of its directives uses the documented default for the rest.
+VOID TEST(AppConfigTest, PartialSectionsUseDefaults)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "circuit_breaker { enabled on; }"));
+        EXPECT_TRUE(conf.get_circuit_breaker());
+        EXPECT_EQ(90, conf.get_high_threshold());
+        EXPECT_EQ(2, conf.get_high_pulse());
+        EXPECT_EQ(95, conf.get_critical_threshold());
+        EXPECT_EQ(1, conf.get_critical_pulse());
+        EXPECT_EQ(99, conf.get_dying_threshold());
+        EXPECT_EQ(5, conf.get_dying_pulse());
+    }
+
+    // The Prometheus exporter on with nothing else listens on 9972 with no label or tag; a section with only the
+    // port is off.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "exporter { enabled on; }"));
+        EXPECT_TRUE(conf.get_exporter_enabled());
+        EXPECT_STREQ("9972", conf.get_exporter_listen().c_str());
+        EXPECT_STREQ("", conf.get_exporter_label().c_str());
+        EXPECT_STREQ("", conf.get_exporter_tag().c_str());
+    }
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "exporter { listen 9973; }"));
+        EXPECT_FALSE(conf.get_exporter_enabled());
+    }
+
+    // In a container, the exporter turned on by env with no section in the config listens on 9972.
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, exporter, "SRS_EXPORTER_ENABLED", "on");
+        HELPER_ASSERT_SUCCESS(config_load(conf, ""));
+        EXPECT_TRUE(conf.get_exporter_enabled());
+        EXPECT_STREQ("9972", conf.get_exporter_listen().c_str());
+    }
+
+    // An SRT server with only its port takes the default stream id and mode for a client that sends none.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "srt_server { enabled on; listen 10080; }"));
+        EXPECT_STREQ("#!::r=live/livestream,m=request", conf.get_srt_default_streamid().c_str());
+        EXPECT_STREQ("request", conf.get_srt_default_mode().c_str());
+    }
+
+    // An HTTPS section for the stream server with only its port is off.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(config_load(conf, "http_server { enabled on; https { listen 8088; } }"));
+        EXPECT_FALSE(conf.get_https_stream_enabled());
+    }
+}
+
+// A vhost that sets one directive of its publish, play, rtc, hls, hooks, security, exec or cluster section gets
+// the defaults for the others.
+VOID TEST(AppConfigTest, PartialVhostSectionsUseDefaults)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(config_load(conf, "vhost v { min_latency on; publish { mr on; } play { gop_cache off; } rtc { enabled on; }"
+                                            "    hls { enabled on; } http_hooks { on_publish http://127.0.0.1:8085/api/v1/streams; }"
+                                            "    security { allow publish all; } }"
+                                            "vhost w { publish { parse_sps off; } exec { publish ./objs/ffmpeg/bin/ffmpeg; } }"
+                                            "vhost edge { cluster { mode remote; origin 127.0.0.1:19350; } }"
+                                            "vhost origin { cluster { origin_cluster off; } }"));
+
+    EXPECT_TRUE(conf.get_parse_sps("v"));
+    EXPECT_TRUE(conf.try_annexb_first("v"));
+    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mr_sleep("v"));
+    EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_publish_1stpkt_timeout("v"));
+    EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_publish_normal_timeout("v"));
+    EXPECT_FALSE(conf.get_gop_cache("v"));
+    EXPECT_EQ(350 * SRS_UTIME_MILLISECONDS, conf.get_mw_sleep("v"));
+    EXPECT_EQ(0, conf.get_send_min_interval("v"));
+    EXPECT_FALSE(conf.get_reduce_sequence_header("v"));
+    EXPECT_TRUE(conf.get_realtime_enabled("v", true));
+    EXPECT_FALSE(conf.get_rtc_init_rate_from_sdp("v"));
+    EXPECT_FALSE(conf.get_rtc_keep_original_ssrc("v"));
+    EXPECT_FALSE(conf.get_hls_master_m3u8_path_relative("v"));
+    EXPECT_FALSE(conf.get_vhost_http_hooks_enabled("v"));
+    EXPECT_FALSE(conf.get_security_enabled("v"));
+    EXPECT_FALSE(conf.get_exec_enabled("v"));
+
+    EXPECT_FALSE(conf.get_mr_enabled("w"));
+    EXPECT_FALSE(conf.get_exec_enabled("w"));
+
+    EXPECT_TRUE(conf.get_vhost_is_edge("edge"));
+    EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("edge").c_str());
+    EXPECT_FALSE(conf.get_vhost_origin_cluster("edge"));
+    EXPECT_TRUE(conf.get_vhost_coworkers("edge").empty());
+
+    EXPECT_FALSE(conf.get_vhost_is_edge("origin"));
+
+    // A merged-write delay applies to RTMP and HTTP players, but WebRTC players ignore it.
+    if (true) {
+        MockSrsConfig conf2;
+        HELPER_ASSERT_SUCCESS(config_load(conf2, "vhost v { play { mw_latency 500; } }"));
+        EXPECT_EQ(500 * SRS_UTIME_MILLISECONDS, conf2.get_mw_sleep("v"));
+        EXPECT_EQ(0, conf2.get_mw_sleep("v", true));
+    }
+}
+
+// A copy engine sets only the codecs and output, so FFmpeg gets the defaults for the rest: FLV in and out, and no
+// bitrate, size, filter or extra params. An HD engine as in full.conf passes its per-file, video and audio params
+// to FFmpeg as options.
+VOID TEST(AppConfigTest, TranscodeEnginesGiveFfmpegOptions)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(config_load(conf, "vhost v { transcode live { enabled on; ffmpeg ./objs/ffmpeg/bin/ffmpeg;"
+                                            "    engine copy { enabled on; vcodec copy; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_copy; }"
+                                            "    engine hd { enabled on; perfile { re; ss 10; } vcodec libx264; vbitrate 1500; vfps 25;"
+                                            "        vwidth 1280; vheight 720; vthreads 12; vprofile main; vpreset medium; vparams { t 100; coder 1; }"
+                                            "        acodec libfdk_aac; abitrate 70; asample_rate 44100; achannels 2; aparams { profile:a aac_low; }"
+                                            "        output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } } }"));
+
+    vector<SrsConfDirective *> engines = conf.get_transcode_engines(conf.get_transcode("v", "live"));
+    ASSERT_EQ(2, (int)engines.size());
+
+    if (true) {
+        SrsFFMPEG ffmpeg("./objs/ffmpeg/bin/ffmpeg");
+        ffmpeg.config_ = &conf;
+        HELPER_ASSERT_SUCCESS(ffmpeg.initialize("rtmp://127.0.0.1:1935/live/livestream", "rtmp://127.0.0.1:1935/live/livestream_copy", "/dev/null"));
+        HELPER_ASSERT_SUCCESS(ffmpeg.initialize_transcode(engines[0]));
+        ffmpeg.config_ = NULL;
+
+        EXPECT_STREQ("flv", ffmpeg.iformat_.c_str());
+        EXPECT_STREQ("flv", ffmpeg.oformat_.c_str());
+        EXPECT_STREQ("copy", ffmpeg.vcodec_.c_str());
+        EXPECT_STREQ("copy", ffmpeg.acodec_.c_str());
+        EXPECT_EQ(0, ffmpeg.vbitrate_);
+        EXPECT_EQ(0, ffmpeg.vfps_);
+        EXPECT_EQ(0, ffmpeg.vwidth_);
+        EXPECT_EQ(0, ffmpeg.vheight_);
+        EXPECT_EQ(1, ffmpeg.vthreads_);
+        EXPECT_STREQ("", ffmpeg.vprofile_.c_str());
+        EXPECT_STREQ("", ffmpeg.vpreset_.c_str());
+        EXPECT_EQ(0, ffmpeg.abitrate_);
+        EXPECT_EQ(0, ffmpeg.asample_rate_);
+        EXPECT_EQ(0, ffmpeg.achannels_);
+        EXPECT_TRUE(ffmpeg.perfile_.empty());
+        EXPECT_TRUE(ffmpeg.vfilter_.empty());
+        EXPECT_TRUE(ffmpeg.vparams_.empty());
+        EXPECT_TRUE(ffmpeg.aparams_.empty());
+    }
+
+    if (true) {
+        SrsFFMPEG ffmpeg("./objs/ffmpeg/bin/ffmpeg");
+        ffmpeg.config_ = &conf;
+        HELPER_ASSERT_SUCCESS(ffmpeg.initialize("rtmp://127.0.0.1:1935/live/livestream", "rtmp://127.0.0.1:1935/live/livestream_hd", "/dev/null"));
+        HELPER_ASSERT_SUCCESS(ffmpeg.initialize_transcode(engines[1]));
+        ffmpeg.config_ = NULL;
+
+        ASSERT_EQ(3, (int)ffmpeg.perfile_.size());
+        EXPECT_STREQ("-re", ffmpeg.perfile_[0].c_str());
+        EXPECT_STREQ("-ss", ffmpeg.perfile_[1].c_str());
+        EXPECT_STREQ("10", ffmpeg.perfile_[2].c_str());
+        ASSERT_EQ(4, (int)ffmpeg.vparams_.size());
+        EXPECT_STREQ("-t", ffmpeg.vparams_[0].c_str());
+        EXPECT_STREQ("100", ffmpeg.vparams_[1].c_str());
+        EXPECT_STREQ("-coder", ffmpeg.vparams_[2].c_str());
+        EXPECT_STREQ("1", ffmpeg.vparams_[3].c_str());
+        ASSERT_EQ(2, (int)ffmpeg.aparams_.size());
+        EXPECT_STREQ("-profile:a", ffmpeg.aparams_[0].c_str());
+        EXPECT_STREQ("aac_low", ffmpeg.aparams_[1].c_str());
+        EXPECT_EQ(1500, ffmpeg.vbitrate_);
+        EXPECT_EQ(1280, ffmpeg.vwidth_);
+        EXPECT_EQ(720, ffmpeg.vheight_);
+        EXPECT_EQ(44100, ffmpeg.asample_rate_);
+    }
 }
