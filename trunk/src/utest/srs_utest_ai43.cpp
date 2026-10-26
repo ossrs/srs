@@ -16,8 +16,10 @@
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_static.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
@@ -54,6 +56,7 @@
 #include <stdio.h>
 #include <string>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -3708,4 +3711,425 @@ VOID TEST(AppHttpHooksTest, ClusterCoworkerIsHookServer_NoOriginFound)
     EXPECT_EQ(0, (int)plain.request_.find("POST /api/v1/clusters?")) << plain.request_;
     EXPECT_EQ(0, (int)json.request_.find("POST /api/v1/clusters?")) << json.request_;
     EXPECT_TRUE(o.rtmp_->redirect_urls_.empty());
+}
+
+// The HTTP file server SrsHttpStaticServer mounts at / for the default vhost, serving the files of a temporary dir with
+// the vhost's config text. Its HLS sessions are counted by the server's stream registry, which the HTTP API lists and
+// kicks clients from.
+class StaticUtestVod
+{
+public:
+    string dir_;
+    MockSrsConfig conf_;
+    HttpApiUtestServer api_;
+    SrsHttpMuxEntry entry_;
+    SrsVodStream *stream_;
+
+public:
+    StaticUtestVod()
+    {
+        dir_ = "/tmp/srs-utest-static-" + srs_strconv_format_int(getpid());
+        hls_utest_remove_all(dir_);
+        ::mkdir(dir_.c_str(), 0755);
+        ::mkdir((dir_ + "/live").c_str(), 0755);
+
+        entry_.pattern = "/";
+        stream_ = new SrsVodStream(dir_);
+        stream_->entry_ = &entry_;
+        stream_->config_ = &conf_;
+        stream_->hls_.config_ = &conf_;
+        stream_->hls_.stat_ = &api_.stat_;
+        stream_->hls_.shared_timer_ = NULL;
+
+        SrsSecurity *security = new SrsSecurity();
+        security->config_ = &conf_;
+        srs_freep(stream_->hls_.security_);
+        stream_->hls_.security_ = security;
+    }
+    virtual ~StaticUtestVod()
+    {
+        stream_->config_ = NULL;
+        stream_->hls_.config_ = NULL;
+        stream_->hls_.stat_ = NULL;
+        srs_freep(stream_);
+        hls_utest_remove_all(dir_);
+    }
+
+public:
+    // Loads the config of the default vhost, by the text of its body.
+    srs_error_t initialize(string vhost)
+    {
+        return conf_.mock_parse(string(_MIN_OK_CONF) + "vhost __defaultVhost__ { " + vhost + " }");
+    }
+    // Writes a file at the path under the HTTP dir, such as /live/livestream.m3u8.
+    void write(string path, string content)
+    {
+        hls_utest_write_file(dir_ + path, content);
+    }
+    // A player asks for the url on a connection whose socket is io.
+    srs_error_t get(string url, MockBufferIO *io, string range = "")
+    {
+        srs_error_t err = srs_success;
+
+        SrsHttpMessage r(NULL, NULL);
+        SrsHttpHeader header;
+        header.set("Host", "127.0.0.1:8080");
+        if (!range.empty()) {
+            header.set("Range", range);
+        }
+        r.set_header(&header, false);
+        if ((err = r.set_url(url, false)) != srs_success) {
+            return srs_error_wrap(err, "url");
+        }
+
+        SrsHttpResponseWriter w(io);
+        return stream_->serve_http(&w, &r);
+    }
+    // The HLS session the server keeps for a ctx, or NULL.
+    SrsHlsVirtualConn *session(string ctx)
+    {
+        std::map<std::string, SrsHlsVirtualConn *>::iterator it = stream_->hls_.map_ctx_info_.find(ctx);
+        return it == stream_->hls_.map_ctx_info_.end() ? NULL : it->second;
+    }
+};
+
+// The session id (hls_ctx) a master playlist names, or "" when it names none.
+static string static_utest_ctx(const string &m3u8)
+{
+    size_t pos = m3u8.find("hls_ctx=");
+    if (pos == string::npos) {
+        return "";
+    }
+    pos += 8;
+    return m3u8.substr(pos, m3u8.find_first_of("&\n", pos) - pos);
+}
+
+// The value of a header of the HTTP reply in io, or "".
+static string static_utest_header(MockBufferIO &io, string name)
+{
+    string reply = string(io.out_buffer.bytes(), io.out_buffer.length());
+    string head = reply.substr(0, reply.find("\r\n\r\n"));
+    size_t pos = head.find("\r\n" + name + ": ");
+    if (pos == string::npos) {
+        return "";
+    }
+    pos += name.length() + 4;
+    return head.substr(pos, head.find("\r\n", pos) - pos);
+}
+
+// An FLV tag of the type, 8 audio, 9 video or 18 script, with its data and previous tag size.
+static string static_utest_flv_tag(uint8_t type, const string &data)
+{
+    int size = (int)data.size();
+    char h[11] = {(char)type, (char)(size >> 16), (char)(size >> 8), (char)size, 0, 0, 0, 0, 0, 0, 0};
+    int prev = 11 + size;
+    char p[4] = {(char)(prev >> 24), (char)(prev >> 16), (char)(prev >> 8), (char)prev};
+    return string(h, 11) + data + string(p, 4);
+}
+
+// The FLV header and the first previous tag size, of a file with audio and video.
+static string static_utest_flv_header()
+{
+    const char h[13] = {'F', 'L', 'V', 0x01, 0x05, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00};
+    return string(h, 13);
+}
+
+static const char *static_utest_m3u8 = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXTINF:10.000,\nlivestream-0.ts\n";
+
+// An operator keeps HLS sessions for the API and hooks, but turns hls_ts_ctx off so the segments are plain files a CDN
+// can cache. The player gets the master playlist of its session, then each refresh of its playlist is the file on disk,
+// with the segment URIs as written, and the viewer stays listed.
+VOID TEST(AppHttpStaticTest, HlsTsCtxOff_SessionPlaylistServedAsFile)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; hls_ctx on; hls_ts_ctx off; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    ASSERT_EQ(8, (int)ctx.length()) << http_api_utest_body(master);
+
+    for (int i = 0; i < 2; i++) {
+        MockBufferIO media;
+        HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?hls_ctx=" + ctx, &media));
+        EXPECT_STREQ("HTTP/1.1 200 OK", http_api_utest_status(media).c_str());
+        EXPECT_STREQ(static_utest_m3u8, http_api_utest_body(media).c_str());
+        EXPECT_TRUE(vod.api_.stat_.find_client(ctx) != NULL);
+    }
+}
+
+// B40: with hls_ts_ctx off, a refresh of the session's playlist is served as a file but does not keep the session
+// alive, so the HLS timer ends the session of a player that has refreshed all along: the viewer is dropped from the
+// API, and its next refresh, whose ctx is gone, gets a master playlist instead of the media playlist.
+VOID TEST(AppHttpStaticTest, DISABLED_HlsTsCtxOffPlayerKeepsRefreshing_SessionExpires)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; hls_window 10; hls_ts_ctx off; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    ASSERT_TRUE(vod.session(ctx) != NULL);
+
+    // The player started three windows ago, and refreshes its playlist now.
+    vod.session(ctx)->request_time_ -= 30 * SRS_UTIME_SECONDS;
+    MockBufferIO media;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?hls_ctx=" + ctx, &media));
+    EXPECT_STREQ(static_utest_m3u8, http_api_utest_body(media).c_str());
+
+    // The 5s timer keeps a session refreshed within two windows.
+    HELPER_EXPECT_SUCCESS(vod.stream_->hls_.on_timer(5 * SRS_UTIME_SECONDS));
+    EXPECT_TRUE(vod.session(ctx) != NULL);
+    EXPECT_TRUE(vod.api_.stat_.find_client(ctx) != NULL);
+
+    MockBufferIO next;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?hls_ctx=" + ctx, &next));
+    EXPECT_STREQ(static_utest_m3u8, http_api_utest_body(next).c_str());
+}
+
+// An operator kicks an HLS viewer with the HTTP API, by the session id the API lists. The viewer leaves the API at
+// once, and its next playlist refresh is refused with 404, so the player stops instead of starting a new session.
+VOID TEST(AppHttpStaticTest, HlsViewerKickedByApi_PlaylistRefreshNotFound)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    ASSERT_TRUE(vod.session(ctx) != NULL);
+    ASSERT_TRUE(vod.api_.stat_.find_client(ctx) != NULL);
+    // The server has one stream registry, which the session leaves when kicked.
+    vod.session(ctx)->stat_ = &vod.api_.stat_;
+
+    MockBufferIO kick;
+    HELPER_ASSERT_SUCCESS(vod.api_.serve(HTTP_DELETE, "/api/v1/clients/" + ctx, &kick));
+    EXPECT_EQ(0, http_api_utest_code(kick)) << http_api_utest_body(kick);
+    EXPECT_TRUE(vod.api_.stat_.find_client(ctx) == NULL);
+
+    for (int i = 0; i < 2; i++) {
+        MockBufferIO media;
+        HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?hls_ctx=" + ctx, &media));
+        EXPECT_STREQ("HTTP/1.1 404 Not Found", http_api_utest_status(media).c_str());
+        EXPECT_STREQ(("HLS stream " + ctx + " is EOF").c_str(), http_api_utest_body(media).c_str());
+        EXPECT_TRUE(vod.api_.stat_.find_client(ctx) == NULL);
+    }
+}
+
+// A player with an auth token in its URL: the master playlist names the media playlist with the session id and the
+// token, so each refresh carries the token, and the refreshed playlist names the segments with the session id.
+VOID TEST(AppHttpStaticTest, HlsPlayerWithToken_MasterPlaylistKeepsToken)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?token=abc", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    ASSERT_EQ(8, (int)ctx.length()) << http_api_utest_body(master);
+    string media_url = "/live/livestream.m3u8?hls_ctx=" + ctx + "&token=abc";
+    EXPECT_STREQ(("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\n" + media_url + "\n").c_str(),
+                 http_api_utest_body(master).c_str());
+
+    MockBufferIO media;
+    HELPER_ASSERT_SUCCESS(vod.get(media_url, &media));
+    EXPECT_NE(string::npos, http_api_utest_body(media).find("\nlivestream-0.ts?hls_ctx=" + ctx + "\n")) << http_api_utest_body(media);
+    EXPECT_EQ(1, (int)vod.api_.stat_.clients_.size());
+}
+
+// An operator behind a reverse proxy that serves the server under another path, such as /hls/live/livestream.m3u8,
+// turns on hls_master_m3u8_path_relative: the master playlist names the media playlist by its file name, which the
+// player resolves under the proxy's path.
+VOID TEST(AppHttpStaticTest, HlsMasterPathRelative_MediaPlaylistNamedByFileName)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; hls_master_m3u8_path_relative on; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    EXPECT_STREQ(("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AVERAGE-BANDWIDTH=1\nlivestream.m3u8?hls_ctx=" + ctx + "\n").c_str(),
+                 http_api_utest_body(master).c_str());
+}
+
+// A player that closes its connection before it gets the master playlist, such as a page closed at once: the request
+// fails at the write, the viewer is dropped from the API and no session is kept for it.
+VOID TEST(AppHttpStaticTest, HlsViewerLeavesBeforeMasterPlaylist_NoSessionKept)
+{
+    srs_error_t err;
+
+    for (int fail_at = 1; fail_at <= 2; fail_at++) {
+        StaticUtestVod vod;
+        HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; }"));
+        vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+        HttpApiUtestLeavingClientIO io(fail_at);
+        err = vod.get("/live/livestream.m3u8", &io);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << fail_at;
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("write  bytes=")) << desc;
+
+        EXPECT_TRUE(vod.stream_->hls_.map_ctx_info_.empty()) << fail_at;
+        EXPECT_TRUE(vod.api_.stat_.clients_.empty()) << fail_at;
+    }
+}
+
+// A VOD playlist made by another packager and served from the HTTP dir, whose segment URIs carry a query such as a
+// cache-busting version: the playlist of each session puts the session id before that query, so a segment request
+// carries both, for TS and for fMP4 segments.
+VOID TEST(AppHttpStaticTest, HlsPlaylistWithSegmentQuery_SessionIdBeforeQuery)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; }"));
+    vod.write("/live/movie.m3u8", "#EXTM3U\n#EXTINF:10.000,\nmovie-0.ts?v=2\n#EXTINF:10.000,\nmovie-1.ts?v=2\n#EXT-X-ENDLIST\n");
+    vod.write("/live/show.m3u8", "#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:10.000,\nshow-0.m4s?v=2\n#EXT-X-ENDLIST\n");
+
+    MockBufferIO movie_master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/movie.m3u8", &movie_master));
+    string movie = static_utest_ctx(http_api_utest_body(movie_master));
+    MockBufferIO movie_media;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/movie.m3u8?hls_ctx=" + movie, &movie_media));
+    EXPECT_STREQ(("#EXTM3U\n#EXTINF:10.000,\nmovie-0.ts?hls_ctx=" + movie + "&v=2\n#EXTINF:10.000,\nmovie-1.ts?hls_ctx=" + movie + "&v=2\n#EXT-X-ENDLIST\n").c_str(),
+                 http_api_utest_body(movie_media).c_str());
+
+    MockBufferIO show_master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/show.m3u8", &show_master));
+    string show = static_utest_ctx(http_api_utest_body(show_master));
+    MockBufferIO show_media;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/show.m3u8?hls_ctx=" + show, &show_media));
+    EXPECT_NE(string::npos, http_api_utest_body(show_media).find("\nshow-0.m4s?hls_ctx=" + show + "&v=2\n")) << http_api_utest_body(show_media);
+    EXPECT_NE(movie, show);
+}
+
+// A player seeks in an FLV recording that has no audio or video tag, such as a DVR file of a publish that sent only
+// metadata: there is no sequence header to send first, so the request fails at the tags and nothing is sent.
+VOID TEST(AppHttpStaticTest, FlvWithoutMediaSeeked_NothingServed)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize(""));
+    vod.write("/live/meta.flv", static_utest_flv_header() + static_utest_flv_tag(18, string(20, 'm')));
+
+    MockBufferIO io;
+    err = vod.get("/live/meta.flv?start=13", &io);
+    EXPECT_EQ(ERROR_SYSTEM_FILE_EOF, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("ffd read sps")) << desc;
+    EXPECT_EQ(0, io.out_buffer.length());
+}
+
+// A player seeks in an FLV recording: it gets the FLV header and the sequence headers, then the tags from the start
+// it asked for. A player that seeks again closes this connection, so serving stops at the write that fails, whether
+// the header, the sequence headers or the tags, and nothing more is sent.
+VOID TEST(AppHttpStaticTest, FlvSeekViewerLeaves_ServingStopsAtFailedWrite)
+{
+    srs_error_t err;
+
+    string sh = static_utest_flv_tag(8, string("\xaf\x00\x12\x10", 4)) + static_utest_flv_tag(9, string("\x17\x00\x00\x00\x00", 5));
+    string frame0 = static_utest_flv_tag(9, string("\x17\x01\x00\x00\x00\x65\x88", 7));
+    string frame1 = static_utest_flv_tag(9, string("\x27\x01\x00\x00\x00\x41\x9a", 7));
+    string file = static_utest_flv_header() + sh + frame0 + frame1;
+    int start = (int)(file.size() - frame1.size());
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize(""));
+    vod.write("/live/record.flv", file);
+    string url = "/live/record.flv?start=" + srs_strconv_format_int(start);
+
+    MockBufferIO all;
+    HELPER_ASSERT_SUCCESS(vod.get(url, &all));
+    EXPECT_STREQ("HTTP/1.1 200 OK", http_api_utest_status(all).c_str());
+    string body = static_utest_flv_header() + sh + frame1;
+    EXPECT_STREQ(srs_strconv_format_int(body.size()).c_str(), static_utest_header(all, "Content-Length").c_str());
+    EXPECT_TRUE(body == http_api_utest_body(all));
+
+    const char *stages[] = {"write flv header", "write flv header", "write sequence", "read flv="};
+    for (int fail_at = 1; fail_at <= 4; fail_at++) {
+        HttpApiUtestLeavingClientIO io(fail_at);
+        err = vod.get(url, &io);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << fail_at;
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find(stages[fail_at - 1])) << fail_at << ": " << desc;
+        EXPECT_EQ(fail_at, io.nb_writes_) << fail_at;
+    }
+}
+
+// B41: an FLV file that ends inside its sequence header tags, such as a recording cut short, asked for with a start:
+// the server sends the sequence headers at the size their tags claim, so the reply holds more bytes than the file has,
+// and those come from memory the file never filled.
+VOID TEST(AppHttpStaticTest, DISABLED_FlvCutInsideSequenceHeaders_RepliesBytesPastFileEnd)
+{
+    srs_error_t err;
+
+    string audio = static_utest_flv_tag(8, string("\xaf\x00\x12\x10", 4));
+    char video[11] = {9, 0x00, 0x00, 100, 0, 0, 0, 0, 0, 0, 0};
+    string file = static_utest_flv_header() + audio + string(video, 11) + string(10, 'v');
+    int start = (int)file.size() - 10;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize(""));
+    vod.write("/live/cut.flv", file);
+
+    MockBufferIO io;
+    err = vod.get("/live/cut.flv?start=" + srs_strconv_format_int(start), &io);
+    srs_freep(err);
+
+    // The FLV header, then at most the bytes the file has from the sequence headers on, then the tags from the start.
+    int most = 13 + ((int)file.size() - 13) + ((int)file.size() - start);
+    EXPECT_LE((int)http_api_utest_body(io).size(), most);
+    string length = static_utest_header(io, "Content-Length");
+    EXPECT_TRUE(length.empty() || ::atoi(length.c_str()) <= most) << length;
+}
+
+// A player asks for a range of an MP4 recording, as it does to seek: it gets 206 with the bytes of the range. A player
+// that seeks again closes this connection, so serving stops at the write that fails.
+VOID TEST(AppHttpStaticTest, Mp4RangeViewerLeaves_ServingStops)
+{
+    srs_error_t err;
+
+    string file;
+    for (int i = 0; i < 100; i++) {
+        file.push_back((char)('a' + i % 26));
+    }
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize(""));
+    vod.write("/live/record.mp4", file);
+
+    MockBufferIO all;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/record.mp4", &all, "bytes=10-59"));
+    EXPECT_STREQ("HTTP/1.1 206 Partial Content", http_api_utest_status(all).c_str());
+    EXPECT_STREQ("bytes 10-59/100", static_utest_header(all, "Content-Range").c_str());
+    EXPECT_STREQ(file.substr(10, 50).c_str(), http_api_utest_body(all).c_str());
+
+    for (int fail_at = 1; fail_at <= 2; fail_at++) {
+        HttpApiUtestLeavingClientIO io(fail_at);
+        err = vod.get("/live/record.mp4", &io, "bytes=10-59");
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << fail_at;
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("read mp4=")) << desc;
+        EXPECT_EQ(fail_at, io.nb_writes_) << fail_at;
+    }
 }
