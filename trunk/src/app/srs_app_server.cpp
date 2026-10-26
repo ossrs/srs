@@ -940,9 +940,12 @@ void SrsServer::on_signal(int signo)
 {
     // For signal to quit with coredump.
     if (signo == SRS_SIGNAL_ASSERT_ABORT) {
+        // The process aborts here and never writes its gcov data, so the death test that runs it cannot count it.
+        // LCOV_EXCL_START
         srs_trace("abort with coredump, signo=%d", signo);
         srs_assert(false);
         return;
+        // LCOV_EXCL_STOP
     }
 
     if (signo == SRS_SIGNAL_RELOAD) {
@@ -1066,6 +1069,8 @@ srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
 
+    SrsUniquePtr<ISrsTime> time(app_factory_->create_time());
+
     while (true) {
         if ((err = do2_cycle()) != srs_success) {
             return srs_error_wrap(err, "cycle");
@@ -1077,7 +1082,7 @@ srs_error_t SrsServer::do_cycle()
             break;
         }
 
-        srs_usleep(1 * SRS_UTIME_SECONDS);
+        time->usleep(1 * SRS_UTIME_SECONDS);
     }
 
     return err;

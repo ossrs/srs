@@ -16,6 +16,7 @@
 #include <srs_app_stream_bridge.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_ng_exec.hpp>
+#include <srs_app_server.hpp>
 #include <srs_app_process.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -30,6 +31,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai14.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai24.hpp>
@@ -46,6 +48,9 @@
 #ifndef _WIN32
 #include <fcntl.h>
 #include <net/if.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -2787,3 +2792,186 @@ VOID TEST(AppNgExecTest, ProcessTableFull_ForkFailsThenRetriedUntilCommandsRun)
     exec->on_unpublish();
     EXPECT_TRUE(exec->exec_publishs_.empty());
 }
+
+// The main loop's wait between cycles: it records each wait, and the signals an operator sends while the server waits,
+// one per wait, reach the server as the signal manager hands them over.
+class ServerUtestTime : public ISrsTime
+{
+public:
+    SrsServer *server_;
+    std::vector<srs_utime_t> *waits_;
+    std::vector<int> signals_;
+
+public:
+    ServerUtestTime(SrsServer *server, std::vector<srs_utime_t> *waits)
+    {
+        server_ = server;
+        waits_ = waits;
+    }
+    virtual ~ServerUtestTime()
+    {
+    }
+
+public:
+    virtual void usleep(srs_utime_t duration)
+    {
+        waits_->push_back(duration);
+        if (waits_->size() <= signals_.size()) {
+            server_->on_signal(signals_.at(waits_->size() - 1));
+        }
+    }
+};
+
+// The factory of a server whose main loop waits on a recorded time.
+class ServerUtestFactory : public SrsAppFactory
+{
+public:
+    SrsServer *server_;
+    std::vector<srs_utime_t> waits_;
+    std::vector<int> signals_;
+
+public:
+    ServerUtestFactory(SrsServer *server)
+    {
+        server_ = server;
+    }
+    virtual ~ServerUtestFactory()
+    {
+    }
+
+public:
+    virtual ISrsTime *create_time()
+    {
+        ServerUtestTime *time = new ServerUtestTime(server_, &waits_);
+        time->signals_ = signals_;
+        return time;
+    }
+};
+
+// A running server with no signal cycles once a second. The operator edits the config and sends SIGHUP while the
+// server waits: the next cycle reloads it, and the server goes on. Then SIGTERM: the next cycle sees it and the main
+// loop ends, so the server stops.
+VOID TEST(ServerCycleTest, ReloadThenQuitWhileWaiting_LoopCyclesEachSecondUntilQuit)
+{
+    srs_error_t err;
+
+    MockAppConfigForDo2Cycle config;
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+
+    ServerUtestFactory factory(server.get());
+    factory.signals_.push_back(SRS_SIGNAL_RELOAD);
+    factory.signals_.push_back(SRS_SIGNAL_FAST_QUIT);
+    server->app_factory_ = &factory;
+
+    server->signal_fast_quit_ = false;
+    server->signal_gracefully_quit_ = false;
+    HELPER_EXPECT_SUCCESS(server->do_cycle());
+
+    // Two waits of a second: the reload came in the first, the quit in the second.
+    ASSERT_EQ(2, (int)factory.waits_.size());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory.waits_.at(0));
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory.waits_.at(1));
+
+    // The reload ran once, in the cycle after the first wait, and the server went on to wait again.
+    EXPECT_EQ(1, config.reload_count_);
+    EXPECT_FALSE(server->signal_reload_);
+    EXPECT_TRUE(server->signal_fast_quit_);
+    EXPECT_FALSE(server->signal_gracefully_quit_);
+
+    server->app_factory_ = NULL;
+    server->config_ = NULL;
+}
+
+#ifndef _WIN32 // POSIX only: the death test forks, and abort raises SIGABRT
+// The operator asks for a core dump with SIGABRT (`kill -ABRT`, or the raw API's signal): the server aborts at once,
+// so the system writes the core of the running process.
+VOID TEST(ServerSignalDeathTest, AbortSignal_ServerAbortsForCoreDump)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    EXPECT_EXIT(server->on_signal(SRS_SIGNAL_ASSERT_ABORT), ::testing::KilledBySignal(SIGABRT), "");
+
+    // The test process got no quit or reload from the signal.
+    EXPECT_FALSE(server->signal_fast_quit_);
+    EXPECT_FALSE(server->signal_gracefully_quit_);
+    EXPECT_FALSE(server->signal_reload_);
+}
+
+// The file size limit of the process during a test, put back at the end, with SIGXFSZ ignored, so a write past the
+// limit fails with EFBIG instead of killing the process.
+class ServerUtestFileSizeLimit
+{
+public:
+    struct rlimit old_;
+    void (*old_handler_)(int);
+
+public:
+    ServerUtestFileSizeLimit(rlim_t limit)
+    {
+        old_handler_ = ::signal(SIGXFSZ, SIG_IGN);
+        ::getrlimit(RLIMIT_FSIZE, &old_);
+        struct rlimit r = old_;
+        r.rlim_cur = limit;
+        ::setrlimit(RLIMIT_FSIZE, &r);
+    }
+    virtual ~ServerUtestFileSizeLimit()
+    {
+        ::setrlimit(RLIMIT_FSIZE, &old_);
+        ::signal(SIGXFSZ, old_handler_);
+    }
+};
+
+// SRS starts with no room to write the pid: its file size limit is 0 (`ulimit -f 0`, or `LimitFSIZE=0` in a systemd
+// unit), as a full quota gives. The pid file opens and locks, but writing the pid fails, so the server refuses to
+// start, and the pid file holds no pid.
+VOID TEST(PidFileLockerTest, NoRoomToWritePid_ServerRefusesToStart)
+{
+    srs_error_t err;
+
+    string path = _srs_tmp_file_prefix + "ai46-pid-no-room";
+    ::unlink(path.c_str());
+    MockAppConfigForPidFile config(path);
+
+    // The pid file gets the lowest free fd.
+    int fd = ::open("/dev/null", O_RDONLY);
+    ASSERT_GE(fd, 0);
+    ::close(fd);
+
+    if (true) {
+        ServerUtestFileSizeLimit limit(0);
+
+        SrsPidFileLocker locker;
+        locker.config_ = &config;
+        err = locker.acquire();
+        EXPECT_EQ(ERROR_SYSTEM_PID_WRITE_FILE, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(-1, locker.pid_fd_);
+        locker.config_ = NULL;
+    }
+
+    // The pid file is there, empty.
+    struct stat st;
+    ASSERT_EQ(0, ::stat(path.c_str(), &st));
+    EXPECT_EQ(0, (int)st.st_size);
+
+    // The failed start leaves the file open; the process exits next, which closes it. Close it here as that exit does.
+    EXPECT_NE(-1, ::fcntl(fd, F_GETFD));
+    ::close(fd);
+
+    // With room again, the next start writes its pid.
+    if (true) {
+        SrsPidFileLocker locker;
+        locker.config_ = &config;
+        HELPER_EXPECT_SUCCESS(locker.acquire());
+        EXPECT_NE(-1, locker.pid_fd_);
+        locker.config_ = NULL;
+    }
+    ASSERT_EQ(0, ::stat(path.c_str(), &st));
+    EXPECT_EQ((int)srs_strconv_format_int(getpid()).length(), (int)st.st_size);
+
+    ::unlink(path.c_str());
+}
+#endif
