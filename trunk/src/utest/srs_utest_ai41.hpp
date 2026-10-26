@@ -308,4 +308,8 @@ static std::string rtmp_stack_chunks(int cid, uint8_t type, uint32_t stream_id, 
     return b;
 }
 
+// A binding request as Chrome sends it to an ice-lite server, as the controlling agent, signed with the server's ICE
+// password; with `nominate`, it carries USE-CANDIDATE.
+extern std::string stun_controlling_binding_request(const std::string &username, const std::string &pwd, bool nominate);
+
 #endif

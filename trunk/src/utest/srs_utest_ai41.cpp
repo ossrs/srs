@@ -2237,7 +2237,7 @@ static void stun_set_length(std::string &b, int next_attr_size)
 // A binding request as Chrome sends it to an ice-lite server, which always makes the browser the controlling agent:
 // USERNAME, ICE-CONTROLLING with its tie-breaker, PRIORITY and, on the check that nominates the pair, USE-CANDIDATE,
 // then MESSAGE-INTEGRITY signed with the server's ICE password and FINGERPRINT, see RFC 8445 sections 7.1 and 8.1.1.
-static std::string stun_controlling_binding_request(const std::string &username, const std::string &pwd, bool nominate)
+std::string stun_controlling_binding_request(const std::string &username, const std::string &pwd, bool nominate)
 {
     std::string b;
     stun_put_u16(b, BindingRequest);

@@ -60,6 +60,7 @@
 #include <srs_app_rtc_network.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_sdp.hpp>
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -4523,4 +4524,553 @@ VOID TEST(AppRtcDtlsTest, DISABLED_Dtls12VhostAcceptsDtls10Client)
     EXPECT_EQ(0, scb.handshake_done_count_) << "agreed on version 0x" << std::hex << SSL_version(server.impl_->dtls_);
     ASSERT_FALSE(scb.alerts_.empty());
     EXPECT_STREQ("PV", scb.alerts_[0].second.c_str());
+}
+
+// The server's sessions by the username of their ICE checks, and the client addresses each session took, as the RTC
+// server's resource manager keeps them to route a datagram to its session.
+class RtcNetworkUtestConns : public MockConnectionManager
+{
+public:
+    std::map<std::string, ISrsResource *> names_;
+    std::map<std::string, ISrsResource *> ids_;
+    std::map<uint64_t, ISrsResource *> fast_ids_;
+    int nn_ids_;
+
+public:
+    RtcNetworkUtestConns()
+    {
+        nn_ids_ = 0;
+    }
+
+public:
+    virtual void add_with_id(const std::string &id, ISrsResource *conn)
+    {
+        ids_[id] = conn;
+        nn_ids_++;
+    }
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn)
+    {
+        fast_ids_[id] = conn;
+    }
+    virtual ISrsResource *find_by_name(std::string name)
+    {
+        std::map<std::string, ISrsResource *>::iterator it = names_.find(name);
+        return (it == names_.end()) ? NULL : it->second;
+    }
+};
+
+// Starts the session of a client whose offer was answered, as SrsRtcSessionManager does: the session keeps the offer
+// and the answer, waits for the client's STUN on both networks, and is found by the username of the client's checks.
+// With dtls and srtp off, the client sends and gets plain RTP, as it asks with `?encrypt=false&dtls=false`.
+static srs_error_t rtc_network_utest_start(RtcConnUtestClient &client, RtcNetworkUtestConns &conns, bool dtls, bool srtp)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcConnection *conn = client.conn_;
+    conn->set_remote_sdp(client.ruc_.remote_sdp_);
+    conn->set_local_sdp(client.answer_);
+    conn->set_state_as_waiting_stun();
+
+    std::string username = client.answer_.get_ice_ufrag() + ":" + client.ruc_.remote_sdp_.get_ice_ufrag();
+    if ((err = conn->initialize(client.ruc_.req_, dtls, srtp, username)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    conns.names_[username] = conn;
+
+    SrsRtcUdpNetwork *udp = dynamic_cast<SrsRtcUdpNetwork *>(conn->networks_->udp());
+    udp->conn_manager_ = &conns;
+
+    return err;
+}
+
+// The ICE check of the client, signed with the ICE password of the server's answer.
+static std::string rtc_network_utest_check(RtcConnUtestClient &client)
+{
+    return stun_controlling_binding_request(client.conn_->username(), client.answer_.get_ice_pwd(), true);
+}
+
+// Whether the datagram is the server's binding response to the client's check: for the check's transaction, and
+// signed with the ICE password of the answer, as the browser verifies it.
+static srs_error_t rtc_network_utest_response(const std::string &datagram, RtcConnUtestClient &client)
+{
+    srs_error_t err = srs_success;
+
+    SrsStunPacket response;
+    if ((err = response.decode(datagram.data(), (int)datagram.size())) != srs_success) {
+        return srs_error_wrap(err, "decode %d bytes", (int)datagram.size());
+    }
+    if (!response.is_binding_response()) {
+        return srs_error_new(ERROR_RTC_STUN, "type=%d", response.get_message_type());
+    }
+    if (response.get_transcation_id() != "chrome-tid-1") {
+        return srs_error_new(ERROR_RTC_STUN, "transaction %s", response.get_transcation_id().c_str());
+    }
+    if ((err = response.check_message_integrity(client.answer_.get_ice_pwd())) != srs_success) {
+        return srs_error_wrap(err, "integrity");
+    }
+
+    return err;
+}
+
+// The RTC server's UDP port on loopback, and the client sockets that send to it, each from its own address: a
+// browser's host candidate, or the client again after its network changed.
+class RtcNetworkUtestUdp
+{
+public:
+    srs_netfd_t server_fd_;
+    int server_port_;
+    SrsUdpMuxSocket *skt_;
+    std::vector<srs_netfd_t> clients_;
+
+public:
+    RtcNetworkUtestUdp()
+    {
+        server_fd_ = NULL;
+        server_port_ = 0;
+        skt_ = NULL;
+    }
+    ~RtcNetworkUtestUdp()
+    {
+        srs_freep(skt_);
+        for (size_t i = 0; i < clients_.size(); i++) {
+            srs_close_stfd(clients_[i]);
+        }
+        srs_close_stfd(server_fd_);
+    }
+
+public:
+    srs_error_t listen()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = srs_utest_udp_listen("127.0.0.1", &server_port_, &server_fd_)) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+        skt_ = new SrsUdpMuxSocket(server_fd_);
+
+        return err;
+    }
+
+    // A new client address, on a port the system assigns.
+    srs_error_t client(int *pindex)
+    {
+        srs_error_t err = srs_success;
+
+        srs_netfd_t fd = NULL;
+        if ((err = srs_udp_listen("127.0.0.1", 0, &fd)) != srs_success) {
+            return srs_error_wrap(err, "client");
+        }
+        clients_.push_back(fd);
+        *pindex = (int)clients_.size() - 1;
+
+        return err;
+    }
+
+    std::string peer_id(int index)
+    {
+        int port = srs_get_local_port(srs_netfd_fileno(clients_[index]));
+        return "127.0.0.1:" + srs_strconv_format_int(port);
+    }
+
+    // Sends the datagram from the client, and receives it on the server's port as the UDP listener does.
+    srs_error_t deliver(int index, const std::string &datagram)
+    {
+        sockaddr_in to;
+        memset(&to, 0, sizeof(to));
+        to.sin_family = AF_INET;
+        to.sin_port = htons(server_port_);
+        to.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+        int n = srs_sendto(clients_[index], (void *)datagram.data(), (int)datagram.size(), (sockaddr *)&to, sizeof(to), SRS_UTIME_NO_TIMEOUT);
+        if (n != (int)datagram.size()) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "sendto %d", n);
+        }
+
+        n = skt_->recvfrom(SRS_UTIME_SECONDS);
+        if (n != (int)datagram.size()) {
+            return srs_error_new(ERROR_SOCKET_READ, "recvfrom %d", n);
+        }
+        return srs_success;
+    }
+
+    // The next datagram the client got, or empty if none came in time.
+    std::string recv(int index, srs_utime_t timeout = 100 * SRS_UTIME_MILLISECONDS)
+    {
+        char buf[1500];
+        sockaddr_in from;
+        int fromlen = sizeof(from);
+        int n = srs_recvfrom(clients_[index], buf, sizeof(buf), (sockaddr *)&from, &fromlen, timeout);
+        return (n > 0) ? std::string(buf, n) : std::string();
+    }
+
+    // The client's ICE check, received on the server's port, handed to the session's UDP network as the session
+    // manager does with a binding request.
+    srs_error_t check(int index, RtcConnUtestClient &client)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = deliver(index, rtc_network_utest_check(client))) != srs_success) {
+            return srs_error_wrap(err, "deliver");
+        }
+
+        SrsStunPacket ping;
+        if ((err = ping.decode(skt_->data(), skt_->size())) != srs_success) {
+            return srs_error_wrap(err, "decode");
+        }
+
+        SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(client.conn_->udp());
+        return network->on_stun(skt_, &ping, skt_->data(), skt_->size());
+    }
+};
+
+// A browser's first ICE check reaches the session of its WHIP offer: the server answers it at the browser's address,
+// signed with the answer's ICE password, routes the browser's address to the session from now on, and waits for the
+// browser's DTLS ClientHello, as the passive DTLS side by default.
+VOID TEST(AppRtcNetworkTest, BrowserFirstCheck_AnsweredAtItsAddressThenWaitsForDtls)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int browser = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&browser));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(publisher, conns, true, true));
+
+    HELPER_ASSERT_SUCCESS(udp.check(browser, publisher));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(browser), publisher));
+
+    EXPECT_TRUE(conns.ids_[udp.peer_id(browser)] == publisher.conn_);
+    EXPECT_EQ(1, (int)conns.fast_ids_.size());
+
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(publisher.conn_->udp());
+    EXPECT_EQ(SrsRtcNetworkStateDtls, network->state_);
+    EXPECT_FALSE(network->is_establelished());
+    EXPECT_TRUE(udp.recv(browser, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// With `dtls_role active`, the server is the DTLS client of a browser that offers `a=setup:actpass`: right after the
+// response to the browser's first check, it sends its ClientHello to the browser's address.
+VOID TEST(AppRtcNetworkTest, ActiveDtlsRole_ClientHelloSentAfterFirstCheck)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int browser = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&browser));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize("vhost __defaultVhost__ { rtc { enabled on; dtls_role active; } }"));
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    EXPECT_STREQ("active", publisher.answer_.get_dtls_role().c_str());
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(publisher, conns, true, true));
+
+    HELPER_ASSERT_SUCCESS(udp.check(browser, publisher));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(browser), publisher));
+
+    // A DTLS handshake record (22) holding a ClientHello (1).
+    std::string hello = udp.recv(browser);
+    ASSERT_GE((int)hello.size(), 14);
+    EXPECT_EQ(22, (uint8_t)hello[0]);
+    EXPECT_EQ(1, (uint8_t)hello[13]);
+
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(publisher.conn_->udp());
+    EXPECT_EQ(SrsRtcNetworkStateDtls, network->state_);
+}
+
+// A client's network changes during the session, from Wi-Fi to cellular and back, so its ICE checks come from a new
+// address, then from the first one again. Each check is answered at the address it came from, and the session sends to
+// that address from then on. The first address is taken again from the session's cache, not routed again, and every
+// address the session took is released with it.
+VOID TEST(AppRtcNetworkTest, ClientAddressChangesAndBack_SessionFollowsIt)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int wifi = 0, cellular = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&wifi));
+    HELPER_ASSERT_SUCCESS(udp.client(&cellular));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+
+    HELPER_ASSERT_SUCCESS(udp.check(cellular, player));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(cellular), player));
+    EXPECT_TRUE(udp.recv(wifi, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+    EXPECT_TRUE(udp.recv(cellular, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    EXPECT_EQ(2, conns.nn_ids_);
+    EXPECT_TRUE(conns.ids_[udp.peer_id(wifi)] == player.conn_);
+    EXPECT_TRUE(conns.ids_[udp.peer_id(cellular)] == player.conn_);
+    EXPECT_EQ(2, (int)network->peer_addresses_.size());
+
+    // The media the server sends goes to the address of the last check.
+    char media[] = "media";
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(wifi).c_str());
+    EXPECT_TRUE(udp.recv(cellular, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// A publisher with encryption off is published at its first ICE check, with no DTLS. The packets the session refuses
+// fail at the UDP network with the session's error: RTP of an SSRC the offer did not name, RTP whose padding is longer
+// than the packet, and a receiver report longer than its datagram. Each still counts as bytes from the client.
+VOID TEST(AppRtcNetworkTest, PlainUdpPublisherPacketsRefusedBySession)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int client = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&client));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(publisher, conns, false, false));
+
+    HELPER_ASSERT_SUCCESS(udp.check(client, publisher));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(client), publisher));
+    ISrsRtcNetwork *network = publisher.conn_->udp();
+    EXPECT_TRUE(network->is_establelished());
+    EXPECT_TRUE(publisher.publisher()->is_sender_started_);
+
+    int64_t in = 0, out = 0;
+    publisher.conn_->networks_->delta()->remark(&in, &out);
+
+    std::string rtp = rtc_conn_utest_rtp(2001, 106, 100);
+    HELPER_EXPECT_SUCCESS(network->on_rtp((char *)rtp.data(), (int)rtp.size()));
+    EXPECT_EQ(1, server.source_->rtp_video_count_);
+
+    std::string unknown = rtc_conn_utest_rtp(3001, 106, 101);
+    err = network->on_rtp((char *)unknown.data(), (int)unknown.size());
+    EXPECT_EQ(ERROR_RTC_NO_PUBLISHER, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+
+    uint8_t padded[] = {0xA0, 106, 0x00, 0x66, 0x00, 0x01, 0x5F, 0x90, 0x00, 0x00, 0x07, 0xD1, 0x65, 0x88, 0x09};
+    err = network->on_rtp((char *)padded, sizeof(padded));
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+
+    uint8_t rr[] = {0x81, 201, 0x00, 0x07, 0x00, 0x00, 0x03, 0xE9, 0x00, 0x00, 0x07, 0xD1};
+    err = network->on_rtcp((char *)rr, sizeof(rr));
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_NE(ERROR_SUCCESS, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+
+    EXPECT_EQ(1, server.source_->rtp_video_count_);
+    publisher.conn_->networks_->delta()->remark(&in, &out);
+    EXPECT_EQ((int64_t)(rtp.size() + unknown.size() + sizeof(padded) + sizeof(rr)), in);
+}
+
+// A frame of WebRTC over TCP, as RFC 4571 sends a packet: its size in 2 bytes, then the packet.
+static std::string rtc_network_utest_frame(const std::string &packet)
+{
+    std::string b;
+    b.push_back((char)(packet.size() >> 8));
+    b.push_back((char)(packet.size() & 0xff));
+    return b + packet;
+}
+
+// The RTC server's connection from a TCP client, whose socket reads the bytes the client sent; the connection's
+// coroutine and context are the test's.
+class RtcNetworkUtestTcp
+{
+public:
+    MockProtocolReadWriterForTcpNetwork io_;
+    MockContextForRtmpConn context_;
+    MockInterruptableForRtcTcpConn coroutine_;
+    MockContextIdSetterForRtcTcpConn cid_setter_;
+    SrsRtcTcpConn *conn_;
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper_;
+
+public:
+    RtcNetworkUtestTcp(RtcNetworkUtestConns *conns, const std::string &bytes, std::string ip = "10.0.0.1", int port = 50000)
+    {
+        io_.set_read_data(bytes);
+        conn_ = new SrsRtcTcpConn(&io_, ip, port);
+        conn_->context_ = &context_;
+        conn_->assemble();
+        conn_->conn_manager_ = conns;
+        wrapper_ = new SrsSharedResource<ISrsRtcTcpConn>(conn_);
+        conn_->setup_owner(wrapper_, &coroutine_, &cid_setter_);
+    }
+    // Declared after the session, so freed before it: the session's TCP network lets go of the connection, as when it
+    // closes, and the socket stays the test's.
+    ~RtcNetworkUtestTcp()
+    {
+        if (conn_->session_) {
+            ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(conn_->session_->tcp());
+            if (network->owner().get() == conn_) {
+                network->update_sendonly_socket(NULL);
+                network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+            }
+        }
+        conn_->skt_ = NULL;
+        conn_->context_ = NULL;
+        conn_->conn_manager_ = NULL;
+        srs_freep(wrapper_);
+    }
+};
+
+// A WebRTC publisher with encryption off connects over TCP, is published at its ICE check, and its RTP reaches the
+// stream; then it sends the packet, and returns the error that ended the connection.
+static srs_error_t rtc_network_utest_tcp_publisher_sends(const std::string &packet, int *nn_video, int *nn_written)
+{
+    srs_error_t err = srs_success;
+
+    RtcConnUtestServer server;
+    if ((err = server.initialize()) != srs_success) {
+        return srs_error_wrap(err, "server");
+    }
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient publisher(&server);
+    if ((err = publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher()))) != srs_success) {
+        return srs_error_wrap(err, "publish");
+    }
+    if ((err = rtc_network_utest_start(publisher, conns, false, false)) != srs_success) {
+        return srs_error_wrap(err, "start");
+    }
+
+    std::string bytes = rtc_network_utest_frame(rtc_network_utest_check(publisher));
+    bytes += rtc_network_utest_frame(rtc_conn_utest_rtp(2001, 106, 100));
+    bytes += rtc_network_utest_frame(packet);
+    RtcNetworkUtestTcp tcp(&conns, bytes);
+
+    err = tcp.conn_->do_cycle();
+    *nn_video = server.source_->rtp_video_count_;
+    *nn_written = (int)tcp.io_.written_data_.size();
+    if (!publisher.conn_->tcp()->is_establelished()) {
+        srs_freep(err);
+        return srs_error_new(ERROR_RTC_TCP_PACKET, "not established");
+    }
+    return err;
+}
+
+// A WebRTC publisher over TCP sends a packet the session refuses after its RTP was published: the connection ends with
+// the session's error. The packets: RTP of an SSRC the offer did not name, RTP whose padding is longer than the packet,
+// a receiver report longer than its frame, and an ICE check cut short.
+VOID TEST(AppRtcNetworkTest, TcpPublisherRefusedPacketEndsConnection)
+{
+    int nn_video = 0, nn_written = 0;
+
+    srs_error_t err = rtc_network_utest_tcp_publisher_sends(rtc_conn_utest_rtp(3001, 106, 101), &nn_video, &nn_written);
+    EXPECT_EQ(ERROR_RTC_NO_PUBLISHER, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, nn_video);
+    EXPECT_EQ(1, nn_written);
+
+    uint8_t padded[] = {0xA0, 106, 0x00, 0x66, 0x00, 0x01, 0x5F, 0x90, 0x00, 0x00, 0x07, 0xD1, 0x65, 0x88, 0x09};
+    err = rtc_network_utest_tcp_publisher_sends(std::string((char *)padded, sizeof(padded)), &nn_video, &nn_written);
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, nn_video);
+
+    uint8_t rr[] = {0x81, 201, 0x00, 0x07, 0x00, 0x00, 0x03, 0xE9, 0x00, 0x00, 0x07, 0xD1};
+    err = rtc_network_utest_tcp_publisher_sends(std::string((char *)rr, sizeof(rr)), &nn_video, &nn_written);
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_NE(ERROR_RTC_TCP_PACKET, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, nn_video);
+
+    std::string check = stun_controlling_binding_request("srvufrag:cliufrag", "pwd", true);
+    err = rtc_network_utest_tcp_publisher_sends(check.substr(0, check.size() - 8), &nn_video, &nn_written);
+    EXPECT_EQ(ERROR_RTC_STUN, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, nn_video);
+    EXPECT_EQ(1, nn_written);
+}
+
+// Someone who saw the username, but not the answer's ICE password, connects over TCP before the client, with a check
+// not signed with it. The check is refused and not answered, and the connection lets go of the session's TCP network,
+// so the client then connects over TCP and is answered.
+VOID TEST(AppRtcNetworkTest, TcpCheckNotSignedWithAnswerPassword_RefusedThenClientConnects)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(publisher, conns, true, true));
+    ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(publisher.conn_->tcp());
+
+    std::string forged = stun_controlling_binding_request(publisher.conn_->username(), "not-the-answer-ice-password-123", true);
+    RtcNetworkUtestTcp attacker(&conns, rtc_network_utest_frame(forged), "10.0.0.66", 40000);
+    HELPER_EXPECT_SUCCESS(attacker.conn_->cycle());
+    EXPECT_TRUE(attacker.io_.written_data_.empty());
+    EXPECT_TRUE(NULL == network->owner().get());
+    EXPECT_FALSE(network->is_establelished());
+
+    RtcNetworkUtestTcp client(&conns, rtc_network_utest_frame(rtc_network_utest_check(publisher)));
+    HELPER_EXPECT_SUCCESS(client.conn_->handshake());
+    ASSERT_EQ(1, (int)client.io_.written_data_.size());
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(client.io_.written_data_[0].substr(2), publisher));
+    EXPECT_TRUE(client.conn_ == network->owner().get());
+    EXPECT_STREQ("10.0.0.1", dynamic_cast<SrsRtcTcpNetwork *>(network)->peer_ip_.c_str());
+}
+
+// A browser or a scanner sends an HTTP request to the WebRTC TCP port. Its first two bytes, "GE", read as a frame of
+// 18245 bytes, more than a packet, so the connection is refused before it reads the rest.
+VOID TEST(AppRtcNetworkTest, HttpRequestToRtcTcpPort_RefusedByFrameSize)
+{
+    RtcNetworkUtestConns conns;
+    RtcNetworkUtestTcp tcp(&conns, "GET / HTTP/1.1\r\nHost: 10.0.0.1:8000\r\n\r\n");
+
+    srs_error_t err = tcp.conn_->handshake();
+    EXPECT_EQ(ERROR_RTC_TCP_SIZE, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(2, (int)tcp.io_.read_pos_);
+    EXPECT_TRUE(tcp.io_.written_data_.empty());
+}
+
+// A client connects over TCP with the ICE check of a session the server no longer has, as after the session timed out:
+// it is refused, and nothing is sent back.
+VOID TEST(AppRtcNetworkTest, TcpCheckOfGoneSession_Refused)
+{
+    RtcNetworkUtestConns conns;
+    std::string check = stun_controlling_binding_request("gonesrv:utst", "utestpassword1234567890ab", true);
+    RtcNetworkUtestTcp tcp(&conns, rtc_network_utest_frame(check));
+
+    srs_error_t err = tcp.conn_->handshake();
+    EXPECT_EQ(ERROR_RTC_TCP_STUN, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_TRUE(NULL == tcp.conn_->session_);
+    EXPECT_TRUE(tcp.io_.written_data_.empty());
+}
+
+// A client's first packet over TCP is an ICE check whose header counts more bytes than its frame holds, as a client
+// that frames the message without its FINGERPRINT: it is refused before any session is looked up.
+VOID TEST(AppRtcNetworkTest, TcpFirstCheckLongerThanItsFrame_Refused)
+{
+    RtcNetworkUtestConns conns;
+    std::string check = stun_controlling_binding_request("srvufrag:utst", "utestpassword1234567890ab", true);
+    RtcNetworkUtestTcp tcp(&conns, rtc_network_utest_frame(check.substr(0, check.size() - 8)));
+
+    srs_error_t err = tcp.conn_->handshake();
+    EXPECT_EQ(ERROR_RTC_STUN, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_TRUE(NULL == tcp.conn_->session_);
 }
