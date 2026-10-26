@@ -4118,6 +4118,40 @@ VOID TEST(KernelRTCPTest, SrsRtcpTWCC_Decode)
     // It just reads the payload into a buffer for later processing
 }
 
+// A packet lost right after a feedback must be reported in the next one. The
+// next feedback's base sequence number continues from the packet after the
+// previous feedback, not the next packet received, so the lost one in between
+// is covered.
+VOID TEST(KernelRTCPTest, SrsRtcpTWCC_LostAfterFeedback)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcpTWCC twcc(0x11223344);
+    twcc.set_media_ssrc(0x55667788);
+
+    // First feedback: packets 0..3 all received.
+    for (uint16_t sn = 0; sn <= 3; sn++) {
+        HELPER_EXPECT_SUCCESS(twcc.recv_packet(sn, sn * 10 * SRS_UTIME_MILLISECONDS));
+    }
+    char buf1[kMaxUDPDataSize];
+    SrsBuffer b1(buf1, sizeof(buf1));
+    twcc.set_feedback_count(0);
+    HELPER_EXPECT_SUCCESS(twcc.encode(&b1));
+    EXPECT_FALSE(twcc.need_feedback());
+
+    // Packet 4 is lost; 5..7 arrive after the first feedback.
+    for (uint16_t sn = 5; sn <= 7; sn++) {
+        HELPER_EXPECT_SUCCESS(twcc.recv_packet(sn, sn * 10 * SRS_UTIME_MILLISECONDS));
+    }
+    char buf2[kMaxUDPDataSize];
+    SrsBuffer b2(buf2, sizeof(buf2));
+    twcc.set_feedback_count(1);
+    HELPER_EXPECT_SUCCESS(twcc.encode(&b2));
+
+    // The second feedback starts at the lost packet 4, not the received 5.
+    EXPECT_EQ(4, twcc.get_base_sn());
+}
+
 VOID TEST(KernelRTCPTest, SrsRtcpTWCC_EncodeChunk)
 {
     // Test SrsRtcpTWCC::encode_chunk function (indirectly through encode)

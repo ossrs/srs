@@ -712,6 +712,8 @@ SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : pkt_len_(0)
     reference_time_ = 0;
     fb_pkt_count_ = 0;
     next_base_sn_ = 0;
+    last_feedback_sn_ = 0;
+    feedback_started_ = false;
 }
 
 SrsRtcpTWCC::~SrsRtcpTWCC()
@@ -1079,20 +1081,31 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     pkt_len_ = kTwccFbPktHeaderSize;
 
     set<uint16_t, SrsSeqCompareLess>::iterator it_sn = recv_sns_.begin();
+    uint16_t first_recv_sn = *it_sn;
     if (!next_base_sn_) {
-        base_sn_ = *it_sn;
+        // A fresh feedback continues from the packet after the last one the
+        // previous feedback reported, so a packet lost in between is covered,
+        // not skipped; the very first feedback starts at the first received.
+        if (feedback_started_ && srs_seq_is_newer(first_recv_sn, last_feedback_sn_ + 1)) {
+            base_sn_ = last_feedback_sn_ + 1;
+        } else {
+            base_sn_ = first_recv_sn;
+        }
     } else {
         base_sn_ = next_base_sn_;
         it_sn = recv_sns_.find(base_sn_);
     }
 
-    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(base_sn_);
+    // The reference time and deltas come from received packets; it_sn points at
+    // the first one this feedback encodes. base_sn_ may precede it when packets
+    // were lost since the last feedback, which are reported as not received.
+    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(*it_sn);
     srs_utime_t ts = it_ts->second;
 
     reference_time_ = (ts % kTwccFbReferenceTimeDivisor) / kTwccFbTimeMultiplier;
     srs_utime_t last_ts = (srs_utime_t)(reference_time_)*kTwccFbTimeMultiplier;
 
-    uint16_t last_sn = base_sn_;
+    uint16_t last_sn = base_sn_ - 1;
     uint16_t packet_count = 0;
 
     // encode chunk
@@ -1144,6 +1157,11 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     if (it_sn != recv_sns_.end()) {
         next_base_sn_ = *it_sn;
     }
+
+    // Remember the last reported packet, so the next feedback continues from
+    // the one after it even after clear() drops the per-feedback state.
+    feedback_started_ = true;
+    last_feedback_sn_ = last_sn;
 
     if (0 < chunk.size_) {
         if ((err = encode_remaining_chunk(chunk)) != srs_success) {
