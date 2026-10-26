@@ -11,7 +11,10 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_conn.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_srt.hpp>
+#include <srs_protocol_st.hpp>
 #include <srs_utest_ai15.hpp>
 
 #include <arpa/inet.h>
@@ -19,6 +22,10 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/resource.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -565,3 +572,307 @@ VOID TEST(ProtocolSrtTest, PublisherWithWrongPassphrase_RejectLoggedAsSrtWarning
     EXPECT_TRUE(rejected);
     EXPECT_STREQ("SRT", log.last_warn_tag_.c_str());
 }
+
+// A player connected to a server port over loopback: the listen socket, the player's socket, and the
+// server's side of the connection as the listener accepts it.
+class StUtestTcpPair
+{
+public:
+    srs_netfd_t lfd_;
+    srs_netfd_t client_;
+    srs_netfd_t server_;
+
+public:
+    StUtestTcpPair()
+    {
+        lfd_ = client_ = server_ = NULL;
+    }
+    ~StUtestTcpPair()
+    {
+        srs_close_stfd(client_);
+        srs_close_stfd(server_);
+        srs_close_stfd(lfd_);
+    }
+
+public:
+    srs_error_t open()
+    {
+        srs_error_t err = srs_success;
+
+        int port = 0;
+        if ((err = srs_utest_tcp_listen("127.0.0.1", &port, &lfd_)) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+
+        if ((err = srs_tcp_connect("127.0.0.1", port, 3 * SRS_UTIME_SECONDS, &client_)) != srs_success) {
+            return srs_error_wrap(err, "connect");
+        }
+
+        if ((server_ = srs_accept(lfd_, NULL, NULL, 3 * SRS_UTIME_SECONDS)) == NULL) {
+            return srs_error_new(ERROR_SOCKET_ACCEPT, "accept");
+        }
+
+        return err;
+    }
+    // The server's connection takes the accepted socket, and closes it when it goes.
+    srs_netfd_t take_server()
+    {
+        srs_netfd_t fd = server_;
+        server_ = NULL;
+        return fd;
+    }
+};
+
+// A player downloads an HLS segment, or a static file, then stops reading but keeps the connection,
+// as a paused or stuck client does. The server writes the body with its length; when the socket
+// buffers are full, the write waits for the send timeout and fails with a timeout, so the server
+// drops the player instead of waiting for ever.
+VOID TEST(ProtocolStTest, HttpDownloadPlayerStopsReading_WriteTimesOut)
+{
+    srs_error_t err = srs_success;
+
+    StUtestTcpPair pair;
+    HELPER_ASSERT_SUCCESS(pair.open());
+
+    SrsTcpConnection conn(pair.take_server());
+    conn.set_send_timeout(100 * SRS_UTIME_MILLISECONDS);
+
+    const int chunk = 64 * 1024;
+    const int nn_chunks = 1024;
+    string data(chunk, 'x');
+
+    SrsHttpResponseWriter w(&conn);
+    w.header()->set_content_type("video/MP2T");
+    w.header()->set_content_length((int64_t)chunk * nn_chunks);
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    int i = 0;
+    for (; i < nn_chunks; i++) {
+        if ((err = w.write((char *)data.data(), chunk)) != srs_success) {
+            break;
+        }
+    }
+
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+
+    // The socket buffers took some of the body before the player's window closed.
+    EXPECT_LT(i, nn_chunks);
+    EXPECT_GT(conn.get_send_bytes(), 0);
+}
+
+// A player resets its connection in the middle of a download, as a browser does when the user
+// closes the tab. The next write of the body fails with a write error, not a timeout, so the
+// server ends the connection at once.
+VOID TEST(ProtocolStTest, HttpDownloadPlayerResets_WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    StUtestTcpPair pair;
+    HELPER_ASSERT_SUCCESS(pair.open());
+
+    SrsTcpConnection conn(pair.take_server());
+    conn.set_send_timeout(3 * SRS_UTIME_SECONDS);
+
+    const int chunk = 1024;
+    string data(chunk, 'x');
+
+    SrsHttpResponseWriter w(&conn);
+    w.header()->set_content_type("video/MP2T");
+    w.header()->set_content_length(chunk * 2);
+    w.write_header(SRS_CONSTS_HTTP_OK);
+    HELPER_EXPECT_SUCCESS(w.write((char *)data.data(), chunk));
+    int64_t sent = conn.get_send_bytes();
+    EXPECT_GT(sent, chunk);
+
+    // The player closes with a reset, without reading what the server sent.
+    struct linger l;
+    l.l_onoff = 1;
+    l.l_linger = 0;
+    EXPECT_EQ(0, setsockopt(srs_netfd_fileno(pair.client_), SOL_SOCKET, SO_LINGER, (const char *)&l, sizeof(l)));
+    srs_close_stfd(pair.client_);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    err = w.write((char *)data.data(), chunk);
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+
+    // Nothing of the failed write is counted as sent.
+    EXPECT_EQ(sent, conn.get_send_bytes());
+}
+
+// An HTTP-FLV player stops reading the live stream but keeps the connection. The server sends each
+// batch of FLV tags as one chunk with writev; when the socket buffers are full, the writev waits for
+// the send timeout and fails with a timeout, so the server drops the player and the stream goes on
+// for the others.
+VOID TEST(ProtocolStTest, HttpFlvPlayerStopsReading_WritevTimesOut)
+{
+    srs_error_t err = srs_success;
+
+    StUtestTcpPair pair;
+    HELPER_ASSERT_SUCCESS(pair.open());
+
+    SrsTcpConnection conn(pair.take_server());
+    conn.set_send_timeout(100 * SRS_UTIME_MILLISECONDS);
+
+    // No content length, so the live stream goes in chunked encoding, as SrsLiveStream serves it.
+    SrsHttpResponseWriter w(&conn);
+    w.header()->set_content_type("video/x-flv");
+    w.write_header(SRS_CONSTS_HTTP_OK);
+
+    // A video tag: the 11-byte FLV tag header, the frame, and the 4-byte previous tag size.
+    char tag_header[11];
+    memset(tag_header, 0, sizeof(tag_header));
+    tag_header[0] = 9;
+    string frame(64 * 1024, 'x');
+    char previous_tag_size[4];
+    memset(previous_tag_size, 0, sizeof(previous_tag_size));
+
+    iovec iovs[3];
+    iovs[0].iov_base = tag_header;
+    iovs[0].iov_len = sizeof(tag_header);
+    iovs[1].iov_base = (char *)frame.data();
+    iovs[1].iov_len = frame.size();
+    iovs[2].iov_base = previous_tag_size;
+    iovs[2].iov_len = sizeof(previous_tag_size);
+
+    const int nn_batches = 1024;
+    int i = 0;
+    for (; i < nn_batches; i++) {
+        if ((err = w.writev(iovs, 3, NULL)) != srs_success) {
+            break;
+        }
+    }
+
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_LT(i, nn_batches);
+    EXPECT_GT(conn.get_send_bytes(), 0);
+}
+
+#ifndef _WIN32 // POSIX only: RLIMIT_NOFILE
+// The lowest file descriptor the process would get for its next socket or file.
+static int st_utest_lowest_free_fd()
+{
+    int fd = ::open("/dev/null", O_RDONLY);
+    if (fd >= 0) {
+        ::close(fd);
+    }
+    return fd;
+}
+
+// While it lives, the process can open no more file descriptors, as a server that serves as many
+// clients as its ulimit -n allows: the soft RLIMIT_NOFILE is set to the lowest free descriptor, so
+// the next socket() fails with EMFILE. The limit is set back when it goes.
+class StUtestNoFreeFdScope
+{
+private:
+    struct rlimit saved_;
+    bool ok_;
+
+public:
+    StUtestNoFreeFdScope()
+    {
+        ok_ = false;
+        if (getrlimit(RLIMIT_NOFILE, &saved_) != 0) {
+            return;
+        }
+
+        int fd = st_utest_lowest_free_fd();
+        if (fd < 0) {
+            return;
+        }
+
+        struct rlimit limit = saved_;
+        limit.rlim_cur = fd;
+        ok_ = (setrlimit(RLIMIT_NOFILE, &limit) == 0);
+    }
+    ~StUtestNoFreeFdScope()
+    {
+        if (ok_) {
+            setrlimit(RLIMIT_NOFILE, &saved_);
+        }
+    }
+
+public:
+    bool ok()
+    {
+        return ok_;
+    }
+};
+
+// The server has used every file descriptor its ulimit -n allows, by its players, when an HTTP hook,
+// or an edge pulling from its origin, connects to the backend. The client cannot create its socket,
+// so the hook or the pull fails with the socket error, and nothing is left open. Once players leave
+// and free descriptors, the next connect works again.
+VOID TEST(ProtocolStTest, HookConnectWithNoFreeFd_FailsThenRecovers)
+{
+    srs_error_t err = srs_success;
+
+    // The hook backend, up and listening.
+    StUtestTcpPair backend;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &backend.lfd_));
+
+    int free_fd = st_utest_lowest_free_fd();
+    ASSERT_GE(free_fd, 0);
+
+    if (true) {
+        StUtestNoFreeFdScope scope;
+        ASSERT_TRUE(scope.ok());
+
+        SrsTcpClient client("127.0.0.1", port, 1 * SRS_UTIME_SECONDS);
+        err = client.connect();
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    // No descriptor leaked by the failed connect.
+    EXPECT_EQ(free_fd, st_utest_lowest_free_fd());
+
+    SrsTcpClient client("127.0.0.1", port, 1 * SRS_UTIME_SECONDS);
+    HELPER_EXPECT_SUCCESS(client.connect());
+}
+
+// The operator starts SRS with a ulimit -n too low for all its listeners, such as in a container
+// with a tight limit and many WebRTC reuseport listeners or stream casters. The next TCP or UDP
+// listener cannot create its socket, so it fails with the socket error and startup reports it,
+// with nothing left open.
+VOID TEST(ProtocolStTest, ListenWithNoFreeFd_TcpAndUdpListenFail)
+{
+    srs_error_t err = srs_success;
+
+    int tcp_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &tcp_port));
+    int udp_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &udp_port));
+
+    int free_fd = st_utest_lowest_free_fd();
+    ASSERT_GE(free_fd, 0);
+
+    if (true) {
+        StUtestNoFreeFdScope scope;
+        ASSERT_TRUE(scope.ok());
+
+        srs_netfd_t fd = NULL;
+        err = srs_tcp_listen("127.0.0.1", tcp_port, &fd);
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
+        EXPECT_TRUE(fd == NULL);
+        srs_freep(err);
+
+        err = srs_udp_listen("127.0.0.1", udp_port, &fd);
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
+        EXPECT_TRUE(fd == NULL);
+        srs_freep(err);
+    }
+
+    EXPECT_EQ(free_fd, st_utest_lowest_free_fd());
+}
+#endif
