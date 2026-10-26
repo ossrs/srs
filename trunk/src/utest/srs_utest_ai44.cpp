@@ -13,6 +13,8 @@
 #include <srs_app_listener.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_mpegts_udp.hpp>
+#include <srs_app_ng_exec.hpp>
+#include <srs_app_process.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
@@ -34,6 +36,7 @@
 #include <srs_utest_ai41.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_service.hpp>
 #ifdef SRS_GB28181
@@ -1661,3 +1664,78 @@ VOID TEST(AppMpegtsUdpTest, DISABLED_VideoOnlyWithoutPts_QueuedFramesReplacedAnd
     EXPECT_EQ(13, queue->nb_videos_);
     EXPECT_EQ(13, (int)queue->msgs_.size());
 }
+
+#ifndef _WIN32 // POSIX only: the exec runs /bin/echo and /bin/sleep
+// The text of the file, or "" if there is none.
+static string ng_exec_utest_read(string path)
+{
+    FILE *f = fopen(path.c_str(), "r");
+    if (!f) {
+        return "";
+    }
+    char buf[4096];
+    size_t n = fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+    return string(buf, n);
+}
+
+// A vhost with `exec { enabled on; publish ...; }`, as nginx-rtmp's exec_push: when an encoder publishes, each command
+// runs with the stream's names in its arguments, the exec logs how many commands run for which stream, and when the
+// encoder stops, each command that still runs is killed.
+VOID TEST(AppNgExecTest, EncoderPublishes_CommandsRunWithStreamNamesUntilUnpublish)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_exec);
+
+    string out = "/tmp/srs-utest-ng-exec-echo.txt";
+    ::unlink(out.c_str());
+
+    MockSrsConfig conf;
+    string text = "vhost __defaultVhost__ { exec { enabled on; publish /bin/echo [app]/[stream] 1>" + out + "; publish /bin/sleep 30; } }";
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + text));
+
+    SrsUniquePtr<SrsNgExec> exec(new SrsNgExec());
+    exec->config_ = &conf;
+    exec->assemble();
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_ASSERT_SUCCESS(exec->on_publish(&req));
+
+    // The exec's coroutine starts both commands, each with a 10ms wait, then logs.
+    for (int i = 0; i < 100 && log.last_trace("-> EXE ").empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    string line = log.last_trace("-> EXE ");
+    EXPECT_NE(string::npos, line.find("publish=2, input=__defaultVhost__/live/livestream")) << line;
+
+    // The sleep runs; the echo may have quit already, for the next loop to run it again.
+    ASSERT_EQ(2, (int)exec->exec_publishs_.size());
+    SrsProcess *sleeper = exec->exec_publishs_[1];
+    EXPECT_TRUE(sleeper->started());
+    pid_t pid = sleeper->get_pid();
+    ASSERT_GT(pid, 0);
+    EXPECT_EQ(0, srs_kill(pid, 0));
+
+    // The echo wrote the stream's app and name to its stdout file, after the lines the child logs on its start.
+    string echoed;
+    for (int i = 0; i < 100 && !srs_strings_ends_with(echoed, "\nlive/livestream\n"); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        echoed = ng_exec_utest_read(out);
+    }
+    EXPECT_NE(string::npos, echoed.find("process actual cli: /bin/echo live/livestream\n")) << echoed;
+    EXPECT_TRUE(srs_strings_ends_with(echoed, "\nlive/livestream\n")) << echoed;
+
+    // The encoder stops: the sleep is killed and reaped, and the exec holds no command. Each command is forked with
+    // SIGTERM ignored, so the sleep, which sets no handler of its own, stays until the SIGKILL 1s later.
+    exec->on_unpublish();
+    EXPECT_TRUE(exec->exec_publishs_.empty());
+    EXPECT_EQ(-1, srs_kill(pid, 0));
+    EXPECT_EQ(ESRCH, errno);
+    string killed = log.last_trace("stop process pid=");
+    EXPECT_NE(string::npos, killed.find("SIGKILL stop process pid=" + srs_strconv_format_int(pid) + " ok")) << killed;
+
+    ::unlink(out.c_str());
+}
+#endif
