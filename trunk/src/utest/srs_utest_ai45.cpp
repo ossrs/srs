@@ -35,6 +35,7 @@
 #include <srs_utest_ai44.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_protocol.hpp>
 #include <srs_utest_manual_service.hpp>
@@ -4356,3 +4357,363 @@ VOID TEST(AppSecurityTest, DenyPublishBySubnet_EncodersInNetworkDenied)
     EXPECT_EQ(0, security_utest_check(&conf, SrsSrtConnPublish, "172.15.255.255"));
     EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnPlay, "172.20.1.1"));
 }
+
+// A server started as the real one is, initialize then listen, from a config of its listens, with the TCP listeners
+// and the parts that touch the host (pid file, HTTP server, black hole, SRT poller) replaced by mocks.
+class ServerUtestStart
+{
+public:
+    MockAppConfigForServerListen config_;
+    MockConnectionManagerForServerQuit conn_manager_;
+    MockHttpServerForServer http_server_;
+    MockRtcBlackholeForServer blackhole_;
+    MockSrtEventLoopForServer srt_eventloop_;
+    SrsServer *server_;
+    Ai36ServerListenersInjector *listeners_;
+
+public:
+    ServerUtestStart()
+    {
+        server_ = new SrsServer();
+
+        ISrsPidFileLocker *locker = server_->pid_file_locker_;
+        server_->pid_file_locker_ = new MockPidFileLocker();
+        srs_freep(locker);
+
+        srs_freep(server_->http_server_);
+        server_->http_server_ = &http_server_;
+        server_->assemble();
+
+        server_->blackhole_ = &blackhole_;
+        server_->srt_eventloop_ = &srt_eventloop_;
+        server_->config_ = &config_;
+        server_->conn_manager_ = &conn_manager_;
+        listeners_ = new Ai36ServerListenersInjector(server_);
+    }
+    ~ServerUtestStart()
+    {
+        srs_freep(listeners_);
+        if (server_->http_api_mux_ == &http_server_) {
+            server_->http_api_mux_ = NULL;
+        }
+        server_->http_server_ = NULL;
+        server_->blackhole_ = NULL;
+        server_->srt_eventloop_ = NULL;
+        server_->config_ = NULL;
+        server_->conn_manager_ = NULL;
+        srs_freep(server_);
+    }
+
+public:
+    srs_error_t start()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = server_->initialize()) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+
+        if ((err = server_->listen()) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+
+        return err;
+    }
+};
+
+// WebRTC over TCP configured on the HTTP server's port (`http_server{listen 8080;}` and
+// `rtc_server{protocol tcp; tcp{enabled on; listen 8080;}}`), so a browser reaches WebRTC through the HTTP port: the
+// server opens no WebRTC listener of its own, and the HTTP listener on 8080 takes both kinds of clients.
+VOID TEST(ServerStartTest, WebRtcTcpOnHttpPort_SharesHttpListener)
+{
+    srs_error_t err;
+
+    ServerUtestStart s;
+    s.config_.rtmp_listens_.push_back("1935");
+    s.config_.http_stream_enabled_ = true;
+    s.config_.http_stream_listens_.push_back("8080");
+    s.config_.rtc_server_enabled_ = true;
+    s.config_.rtc_server_protocol_ = "tcp";
+    s.config_.rtc_server_tcp_enabled_ = true;
+    s.config_.rtc_server_tcp_listens_.push_back("8080");
+
+    HELPER_EXPECT_SUCCESS(s.start());
+
+    EXPECT_TRUE(s.server_->reuse_rtc_over_server_);
+    EXPECT_EQ(0, s.listeners_->webrtc_.add_count_ + s.listeners_->webrtc_.listen_count_);
+    EXPECT_STREQ("8080", srs_strings_join(s.listeners_->http_.endpoints_, ",").c_str());
+    EXPECT_EQ(1, s.listeners_->http_.listen_count_);
+}
+
+// WebRTC over TCP configured on the HTTPS server's port (`https{listen 8088;}` and `tcp{listen 8088;}`), as a site
+// that serves its pages and WebRTC only over TLS port 8088 does: the HTTPS listener takes the WebRTC clients, and no
+// WebRTC listener is opened, while the HTTP server keeps its own port.
+VOID TEST(ServerStartTest, WebRtcTcpOnHttpsPort_SharesHttpsListener)
+{
+    srs_error_t err;
+
+    ServerUtestStart s;
+    s.config_.rtmp_listens_.push_back("1935");
+    s.config_.http_stream_enabled_ = true;
+    s.config_.http_stream_listens_.push_back("8080");
+    s.config_.https_stream_enabled_ = true;
+    s.config_.https_stream_listens_.push_back("8088");
+    s.config_.rtc_server_enabled_ = true;
+    s.config_.rtc_server_protocol_ = "tcp";
+    s.config_.rtc_server_tcp_enabled_ = true;
+    s.config_.rtc_server_tcp_listens_.push_back("8088");
+
+    HELPER_EXPECT_SUCCESS(s.start());
+
+    EXPECT_TRUE(s.server_->reuse_rtc_over_server_);
+    EXPECT_EQ(0, s.listeners_->webrtc_.add_count_ + s.listeners_->webrtc_.listen_count_);
+    EXPECT_STREQ("8088", srs_strings_join(s.listeners_->https_.endpoints_, ",").c_str());
+    EXPECT_EQ(1, s.listeners_->https_.listen_count_);
+    EXPECT_STREQ("8080", srs_strings_join(s.listeners_->http_.endpoints_, ",").c_str());
+}
+
+// WebRTC over TCP on a port no HTTP server serves gets its own listener: a TCP port of its own (8000 beside the HTTP
+// server's 8080), or the HTTP server's port number while the HTTP server is disabled.
+VOID TEST(ServerStartTest, WebRtcTcpWithoutHttpServerOnItsPort_ListensItself)
+{
+    srs_error_t err;
+
+    if (true) {
+        ServerUtestStart s;
+        s.config_.rtmp_listens_.push_back("1935");
+        s.config_.http_stream_enabled_ = true;
+        s.config_.http_stream_listens_.push_back("8080");
+        s.config_.rtc_server_enabled_ = true;
+        s.config_.rtc_server_protocol_ = "tcp";
+        s.config_.rtc_server_tcp_enabled_ = true;
+        s.config_.rtc_server_tcp_listens_.push_back("8000");
+
+        HELPER_EXPECT_SUCCESS(s.start());
+
+        EXPECT_FALSE(s.server_->reuse_rtc_over_server_);
+        EXPECT_STREQ("8000", srs_strings_join(s.listeners_->webrtc_.endpoints_, ",").c_str());
+        EXPECT_EQ(1, s.listeners_->webrtc_.listen_count_);
+        EXPECT_EQ(1, s.listeners_->http_.listen_count_);
+    }
+
+    if (true) {
+        ServerUtestStart s;
+        s.config_.rtmp_listens_.push_back("1935");
+        s.config_.http_stream_listens_.push_back("8080");
+        s.config_.rtc_server_enabled_ = true;
+        s.config_.rtc_server_protocol_ = "tcp";
+        s.config_.rtc_server_tcp_enabled_ = true;
+        s.config_.rtc_server_tcp_listens_.push_back("8080");
+
+        HELPER_EXPECT_SUCCESS(s.start());
+
+        EXPECT_FALSE(s.server_->reuse_rtc_over_server_);
+        EXPECT_STREQ("8080", srs_strings_join(s.listeners_->webrtc_.endpoints_, ",").c_str());
+        EXPECT_EQ(1, s.listeners_->webrtc_.listen_count_);
+        EXPECT_EQ(0, s.listeners_->http_.listen_count_);
+    }
+}
+
+// A reload (SIGHUP or the reload API) whose new config fails while it is being applied, such as a new listen port
+// already in use: some changes may be applied and others not, so the server cycle fails and the server stops, after
+// recording the applying state and the error for the reload API.
+VOID TEST(ServerCycleTest, ReloadFailsWhileApplying_ServerStops)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForDo2Cycle config;
+    server->config_ = &config;
+    MockReloadStatusForServer status;
+    server->reload_status_ = &status;
+
+    server->signal_fast_quit_ = false;
+    server->signal_gracefully_quit_ = false;
+    server->signal_reload_ = true;
+    config.reload_state_ = SrsReloadStateApplying;
+    config.reload_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock bind");
+
+    err = server->do2_cycle();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("reload fatal error") != string::npos);
+    srs_freep(err);
+
+    EXPECT_FALSE(server->signal_reload_);
+    EXPECT_EQ(1, config.reload_count_);
+    EXPECT_EQ(1, status.update_count_);
+    EXPECT_EQ(SrsReloadStateApplying, status.update_state_);
+    EXPECT_EQ(ERROR_SOCKET_BIND, status.update_error_code_);
+
+    server->reload_status_ = NULL;
+    server->config_ = NULL;
+}
+
+// Config for the worker that watches the config file to reload it on a change.
+class InotifyUtestConfig : public MockAppConfig
+{
+public:
+    bool inotify_auto_reload_;
+    bool auto_reload_for_docker_;
+    std::string config_path_;
+
+public:
+    InotifyUtestConfig()
+    {
+        inotify_auto_reload_ = false;
+        auto_reload_for_docker_ = false;
+    }
+    virtual ~InotifyUtestConfig()
+    {
+    }
+
+public:
+    virtual bool inotify_auto_reload() { return inotify_auto_reload_; }
+    virtual bool auto_reload_for_docker() { return auto_reload_for_docker_; }
+    virtual std::string config() { return config_path_; }
+};
+
+extern bool _srs_in_docker;
+
+// The default config has no `inotify_auto_reload`, and `auto_reload_for_docker` is off, so a server, in Docker or
+// not, watches no config file: editing it does nothing until a reload is asked for.
+VOID TEST(ServerInotifyTest, NoAutoReload_WatchesNothing)
+{
+    srs_error_t err;
+
+    InotifyUtestConfig config;
+    config.config_path_ = _srs_tmp_file_prefix + "inotify-off.conf";
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    bool in_docker = _srs_in_docker;
+    bool dockers[] = {false, true};
+    for (int i = 0; i < 2; i++) {
+        _srs_in_docker = dockers[i];
+
+        SrsInotifyWorker worker(server.get());
+        worker.config_ = &config;
+        HELPER_EXPECT_SUCCESS(worker.start());
+        EXPECT_TRUE(worker.inotify_fd_ == NULL);
+        worker.config_ = NULL;
+    }
+    _srs_in_docker = in_docker;
+}
+
+// inotify is Linux only; on macOS the worker never watches.
+#if !defined(SRS_OSX) && !defined(_WIN32)
+// Writes the config file the worker watches, as an operator editing it does.
+static void inotify_utest_write(string path)
+{
+    FILE *f = fopen(path.c_str(), "w");
+    if (f) {
+        fputs("listen 1935;\n", f);
+        fclose(f);
+    }
+}
+
+// Ends the worker's coroutine so the worker can be freed. After a change the worker sleeps, and a stop that comes
+// then only ends the sleep: the worker reads again, and a coroutine is interrupted only once, so its read is
+// interrupted again here.
+static void inotify_utest_end(SrsInotifyWorker *worker)
+{
+    SrsSTCoroutine *trd = dynamic_cast<SrsSTCoroutine *>(worker->trd_);
+    trd->interrupt();
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    if (!trd->impl_->cycle_done_) {
+        srs_thread_interrupt(trd->impl_->trd_);
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
+// With `inotify_auto_reload on`, an operator editing the config file makes the server reload it, as a reload signal
+// does.
+VOID TEST(ServerInotifyTest, AutoReload_ConfigEditSignalsReload)
+{
+    srs_error_t err;
+
+    string path = _srs_tmp_file_prefix + "inotify-on.conf";
+    MockFileRemover mfr(path);
+
+    InotifyUtestConfig config;
+    config.inotify_auto_reload_ = true;
+    config.config_path_ = path;
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->signal_reload_ = false;
+
+    SrsInotifyWorker worker(server.get());
+    worker.config_ = &config;
+    HELPER_ASSERT_SUCCESS(worker.start());
+    EXPECT_TRUE(worker.inotify_fd_ != NULL);
+
+    inotify_utest_write(path);
+    for (int i = 0; i < 100 && !server->signal_reload_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(server->signal_reload_);
+
+    inotify_utest_end(&worker);
+    worker.config_ = NULL;
+}
+
+// The server quits (SIGTERM or SIGQUIT) within 3s after an operator edits the config file: the quit stops the
+// worker as it frees it, and the worker must end, or the server never exits.
+VOID TEST(ServerInotifyTest, DISABLED_QuitSoonAfterConfigEdit_WorkerNeverEnds)
+{
+    srs_error_t err;
+
+    string path = _srs_tmp_file_prefix + "inotify-quit.conf";
+    MockFileRemover mfr(path);
+
+    InotifyUtestConfig config;
+    config.inotify_auto_reload_ = true;
+    config.config_path_ = path;
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->signal_reload_ = false;
+
+    SrsInotifyWorker worker(server.get());
+    worker.config_ = &config;
+    HELPER_ASSERT_SUCCESS(worker.start());
+
+    inotify_utest_write(path);
+    for (int i = 0; i < 100 && !server->signal_reload_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    ASSERT_TRUE(server->signal_reload_);
+
+    // The stop's interrupt, which SrsSTCoroutine::stop sends before it joins.
+    SrsSTCoroutine *trd = dynamic_cast<SrsSTCoroutine *>(worker.trd_);
+    trd->interrupt();
+    for (int i = 0; i < 50 && !trd->impl_->cycle_done_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(trd->impl_->cycle_done_);
+
+    inotify_utest_end(&worker);
+    worker.config_ = NULL;
+}
+
+// In Docker with `auto_reload_for_docker on`, as a Kubernetes ConfigMap mount is used, the server watches the config
+// file though `inotify_auto_reload` is not set.
+VOID TEST(ServerInotifyTest, AutoReloadForDocker_WatchesInDocker)
+{
+    srs_error_t err;
+
+    InotifyUtestConfig config;
+    config.auto_reload_for_docker_ = true;
+    config.config_path_ = _srs_tmp_file_prefix + "inotify-docker.conf";
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    bool in_docker = _srs_in_docker;
+    _srs_in_docker = true;
+
+    SrsInotifyWorker worker(server.get());
+    worker.config_ = &config;
+    HELPER_EXPECT_SUCCESS(worker.start());
+    EXPECT_TRUE(worker.inotify_fd_ != NULL);
+
+    inotify_utest_end(&worker);
+    worker.config_ = NULL;
+    _srs_in_docker = in_docker;
+}
+#endif
