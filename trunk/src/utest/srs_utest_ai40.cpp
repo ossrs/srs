@@ -32,6 +32,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_utest_ai05.hpp>
+#include <srs_utest_ai07.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai23.hpp>
@@ -2828,3 +2829,245 @@ VOID TEST(KernelResourceTest, GbSessionEndsAndManagerLogsItBySessionDesc)
     EXPECT_TRUE(manager.find_by_fast_id(1234567890) == NULL);
 }
 #endif
+
+// A WebRTC publisher's video track as SrsRtcPublishStream builds it: a 1000-packet ring buffer and a NACK list of
+// up to 666 lost packets, with the circuit breaker below its high water level so NACK is on.
+class RtcQueueVideoTrack
+{
+public:
+    MockRtcPacketReceiver receiver_;
+    MockCircuitBreaker breaker_;
+    SrsRtcVideoRecvTrack *track_;
+
+public:
+    RtcQueueVideoTrack()
+    {
+        SrsRtcTrackDescription desc;
+        desc.type_ = "video";
+        desc.id_ = "video-track";
+        desc.ssrc_ = 0x2345;
+        desc.is_active_ = true;
+        track_ = new SrsRtcVideoRecvTrack(&receiver_, &desc, false);
+        breaker_.hybrid_high_water_level_ = false;
+        track_->circuit_breaker_ = &breaker_;
+    }
+    ~RtcQueueVideoTrack()
+    {
+        srs_freep(track_);
+    }
+
+public:
+    // The publisher's RTP packet arrives; the track keeps a copy in its ring buffer.
+    srs_error_t receive(uint16_t seq)
+    {
+        SrsRtpPacket pkt;
+        pkt.header_.set_ssrc(0x2345);
+        pkt.header_.set_sequence(seq);
+        SrsRtpPacket *p = &pkt;
+        return track_->on_nack(&p);
+    }
+    // The 20ms NACK timer asks for the lost packets that are due.
+    vector<uint16_t> due_nacks(uint32_t &timeout_nacks)
+    {
+        SrsRtcpNack nack(0x2345);
+        track_->nack_receiver_->get_nack_seqs(nack, timeout_nacks);
+        return nack.get_lost_sns();
+    }
+    // Make every lost packet due at each timer tick, as if each tick came after every NACK interval.
+    void nack_at_every_tick()
+    {
+        SrsNackOption &opts = track_->nack_receiver_->opts_;
+        opts.first_nack_interval_ = 0;
+        opts.nack_interval_ = 0;
+        opts.min_nack_interval_ = 0;
+        opts.nack_check_interval_ = 0;
+    }
+};
+
+// A publisher's RTP sequence numbers wrap from 65535 to 0 every 65536 packets, about every 10 minutes for a 1 Mbps
+// video. When packet 65535 is lost at the wrap, the next packet 0 counts the wrap in the high 16 bits of the
+// receiver report's extended highest sequence, and 65535 is NACKed.
+VOID TEST(KernelRtcQueueTest, PublisherSequenceWrapsWithLastPacketLost)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+    SrsRtpNackForReceiver *nack = t.track_->nack_receiver_;
+
+    HELPER_ASSERT_SUCCESS(t.receive(65533));
+    HELPER_ASSERT_SUCCESS(t.receive(65534));
+    EXPECT_EQ(65534u, queue->get_extended_highest_sequence());
+
+    HELPER_ASSERT_SUCCESS(t.receive(0));
+    EXPECT_EQ(65536u, queue->get_extended_highest_sequence());
+    EXPECT_TRUE(nack->find(65535) != NULL);
+    EXPECT_EQ(1u, nack->queue_.size());
+
+    HELPER_ASSERT_SUCCESS(t.receive(1));
+    EXPECT_EQ(65537u, queue->get_extended_highest_sequence());
+    EXPECT_EQ(65533, queue->begin_);
+    EXPECT_EQ(5, queue->size());
+
+    // The lost packet arrives late; it does not count the wrap again.
+    HELPER_ASSERT_SUCCESS(t.receive(65535));
+    EXPECT_TRUE(nack->queue_.empty());
+    EXPECT_EQ(65537u, queue->get_extended_highest_sequence());
+}
+
+// B10: when packet 65535 arrives in order, the end of the ring buffer wraps to 0 before packet 0 arrives, so packet
+// 0 is not seen as a wrap. The receiver report's extended highest sequence is then 0xffffffff after 65535 and 0
+// after packet 0, instead of 65535 and 65536: every in-order wrap is lost, and the number jumps back.
+VOID TEST(KernelRtcQueueTest, DISABLED_PublisherSequenceWrapsInOrder_WrapNotCounted)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+
+    HELPER_ASSERT_SUCCESS(t.receive(65534));
+    HELPER_ASSERT_SUCCESS(t.receive(65535));
+    EXPECT_EQ(65535u, queue->get_extended_highest_sequence());
+
+    HELPER_ASSERT_SUCCESS(t.receive(0));
+    EXPECT_EQ(65536u, queue->get_extended_highest_sequence());
+    EXPECT_TRUE(t.track_->nack_receiver_->queue_.empty());
+}
+
+// The first packets of a publisher can arrive out of order, so a packet older than the first one received arrives
+// next. The packets between it and the first one are lost or still on the way, so they go in the NACK list, and
+// the ring buffer starts from the older packet. A NACKed packet that arrives is taken off the list.
+VOID TEST(KernelRtcQueueTest, PublisherStartupPacketsOutOfOrderNackTheGap)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+    SrsRtpNackForReceiver *nack = t.track_->nack_receiver_;
+
+    HELPER_ASSERT_SUCCESS(t.receive(100));
+    HELPER_ASSERT_SUCCESS(t.receive(97));
+    EXPECT_EQ(97, queue->begin_);
+    EXPECT_EQ(101, queue->end_);
+    EXPECT_TRUE(nack->find(98) != NULL);
+    EXPECT_TRUE(nack->find(99) != NULL);
+    EXPECT_TRUE(nack->find(100) == NULL);
+    EXPECT_TRUE(queue->at(97) != NULL);
+
+    // 98 arrives late, 99 stays lost.
+    HELPER_ASSERT_SUCCESS(t.receive(98));
+    EXPECT_TRUE(nack->find(98) == NULL);
+    EXPECT_TRUE(nack->find(99) != NULL);
+    EXPECT_TRUE(queue->at(98) != NULL);
+
+    // The highest sequence for the receiver report is still the first packet's.
+    EXPECT_EQ(100u, queue->get_extended_highest_sequence());
+}
+
+// B9: a packet older than the ring buffer's start, such as a startup packet out of order, puts itself in the NACK
+// list with the gap: the range is [seq, begin), while a packet after the end gives [end, seq). The server then
+// NACKs a packet it already has, so the publisher resends it, until the NACK times out after 15 requests or 1s.
+VOID TEST(KernelRtcQueueTest, DISABLED_PublisherStartupPacketOutOfOrder_ArrivedPacketNacked)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    t.nack_at_every_tick();
+
+    HELPER_ASSERT_SUCCESS(t.receive(100));
+    HELPER_ASSERT_SUCCESS(t.receive(99));
+    EXPECT_TRUE(t.track_->nack_receiver_->find(99) == NULL);
+
+    uint32_t timeout_nacks = 0;
+    vector<uint16_t> seqs = t.due_nacks(timeout_nacks);
+    EXPECT_TRUE(seqs.empty());
+}
+
+// A publisher that jumps its sequence forward, such as an encoder restart that keeps the SSRC, or a loss burst of
+// more packets than the NACK list holds, fills the list. The track then gives up: the NACK list is cleared, the
+// buffered packets are freed, and the ring buffer starts again from the next packet, which NACKs nothing.
+VOID TEST(KernelRtcQueueTest, PublisherSequenceJumpFillsNackListAndResetsQueue)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+    SrsRtpNackForReceiver *nack = t.track_->nack_receiver_;
+
+    for (uint16_t seq = 1; seq <= 10; seq++) {
+        HELPER_ASSERT_SUCCESS(t.receive(seq));
+    }
+    EXPECT_TRUE(queue->at(1) != NULL);
+
+    // 11 to 899 lost: 889 packets, over the 666 the list holds.
+    HELPER_ASSERT_SUCCESS(t.receive(900));
+    EXPECT_TRUE(nack->queue_.empty());
+    for (uint16_t seq = 1; seq <= 10; seq++) {
+        EXPECT_TRUE(queue->at(seq) == NULL);
+    }
+    EXPECT_TRUE(queue->at(900) != NULL);
+
+    // The next packet starts the ring buffer again.
+    HELPER_ASSERT_SUCCESS(t.receive(901));
+    EXPECT_EQ(901, queue->begin_);
+    EXPECT_EQ(902, queue->end_);
+    EXPECT_TRUE(nack->queue_.empty());
+
+    // A loss after the restart is NACKed as usual.
+    HELPER_ASSERT_SUCCESS(t.receive(903));
+    EXPECT_TRUE(nack->find(902) != NULL);
+}
+
+// A lost packet the publisher never resends, such as one its own buffer no longer holds, is NACKed at each timer
+// tick up to 15 times more. Then the track gives it up: it is counted as a timed-out NACK, no longer requested, and
+// the ring buffer moves past it.
+VOID TEST(KernelRtcQueueTest, LostPacketNeverResentGivenUpAfterMaxNacks)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    t.nack_at_every_tick();
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+
+    HELPER_ASSERT_SUCCESS(t.receive(1));
+    HELPER_ASSERT_SUCCESS(t.receive(3));
+    EXPECT_EQ(1, queue->begin_);
+
+    uint32_t timeout_nacks = 0;
+    for (int i = 0; i < 16; i++) {
+        vector<uint16_t> seqs = t.due_nacks(timeout_nacks);
+        ASSERT_EQ(1, (int)seqs.size()) << "tick " << i;
+        EXPECT_EQ(2, seqs.at(0));
+    }
+    EXPECT_EQ(0u, timeout_nacks);
+
+    vector<uint16_t> seqs = t.due_nacks(timeout_nacks);
+    EXPECT_TRUE(seqs.empty());
+    EXPECT_EQ(1u, timeout_nacks);
+    EXPECT_TRUE(t.track_->nack_receiver_->find(2) == NULL);
+    EXPECT_EQ(3, queue->begin_);
+    EXPECT_TRUE(queue->at(3) != NULL);
+
+    // Nothing more to request or time out.
+    seqs = t.due_nacks(timeout_nacks);
+    EXPECT_TRUE(seqs.empty());
+    EXPECT_EQ(1u, timeout_nacks);
+}
+
+// The shared 20ms timer can tick again less than 20ms after the last NACK check, when one tick ran late and the next
+// is on time. That tick sends no NACK, so a lost packet is not requested twice in a row.
+VOID TEST(KernelRtcQueueTest, NackTimerTicksEarlyRequestsNothing)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    t.nack_at_every_tick();
+    t.track_->nack_receiver_->opts_.nack_check_interval_ = 20 * SRS_UTIME_MILLISECONDS;
+
+    HELPER_ASSERT_SUCCESS(t.receive(1));
+    HELPER_ASSERT_SUCCESS(t.receive(3));
+
+    uint32_t timeout_nacks = 0;
+    vector<uint16_t> seqs = t.due_nacks(timeout_nacks);
+    ASSERT_EQ(1, (int)seqs.size());
+    EXPECT_EQ(2, seqs.at(0));
+
+    // The next tick, at once.
+    seqs = t.due_nacks(timeout_nacks);
+    EXPECT_TRUE(seqs.empty());
+    EXPECT_EQ(1, t.track_->nack_receiver_->find(2)->req_nack_count_);
+    EXPECT_EQ(0u, timeout_nacks);
+}
