@@ -1168,18 +1168,21 @@ VOID TEST(AppStatisticTest, WhipVp9AndAv1Publishers_ListedWithoutProfileOrLevel)
 
 #ifdef SRS_FFMPEG_FIT
 // Makes the origin hub of a live stream as the server does, reading the test config, so it forwards as the vhost says;
-// its HLS, DASH, DVR, transcoder and exec do nothing.
+// its DASH, DVR, transcoder and exec do nothing. Its HLS does nothing too, unless real_hls_ asks for the server's TS
+// HLS, which writes where the vhost says.
 class StreamBridgeUtestHubFactory : public SrsAppFactory
 {
 public:
     ISrsAppConfig *config_;
     ISrsStatistic *stat_;
+    bool real_hls_;
 
 public:
     StreamBridgeUtestHubFactory()
     {
         config_ = NULL;
         stat_ = NULL;
+        real_hls_ = false;
     }
 
 public:
@@ -1190,7 +1193,18 @@ public:
         hub->stat_ = stat_;
 
         srs_freep(hub->hls_);
-        hub->hls_ = new MockHlsForOriginHub();
+        if (real_hls_) {
+            SrsHls *hls = new SrsHls();
+            hls->assemble();
+            hls->config_ = config_;
+            SrsHlsController *controller = new SrsHlsController();
+            controller->config_ = config_;
+            dynamic_cast<SrsHlsMuxer *>(controller->muxer_)->config_ = config_;
+            hls->controller_ = controller;
+            hub->hls_ = hls;
+        } else {
+            hub->hls_ = new MockHlsForOriginHub();
+        }
         srs_freep(hub->dash_);
         hub->dash_ = new MockDashForOriginHub();
         srs_freep(hub->dvr_);
@@ -1667,6 +1681,115 @@ VOID TEST(AppStreamBridgeTest, SrtToRtmpAndRtcCorruptAacFrame_OnlyWebrtcLosesTha
     EXPECT_EQ(1, s.warned("rtp builder on frame"));
 
     s.srt_->on_unpublish();
+}
+
+// An SRT encoder of a radio station starts to publish, with HLS on under home with `hls_on_error disconnect`, besides
+// `srt_to_rtmp on` and `rtmp_to_rtc on`.
+static srs_error_t stream_bridge_utest_hls_radio(StreamBridgeUtestStream &s, const string &home)
+{
+    srs_error_t err = srs_success;
+
+    s.factory_.real_hls_ = true;
+    if ((err = s.open("vhost __defaultVhost__ { srt { enabled on; srt_to_rtmp on; } rtc { enabled on; rtmp_to_rtc on; } "
+                      "hls { enabled on; hls_fragment 1; hls_on_error disconnect; hls_path " +
+                      home + "; } }")) != srs_success) {
+        return srs_error_wrap(err, "open");
+    }
+
+    return s.srt_publish();
+}
+
+// An SRT radio station converted to RTMP and WebRTC, with HLS on, when the HLS disk fills. The live source refuses
+// each frame that HLS can not write, as for an RTMP encoder, before any player gets it: from the first frame HLS fails
+// on, the RTMP and the WebRTC players get none of the frames, not only the HLS players. AAC is written to HLS in runs,
+// so the frames until the next run still reach the players.
+VOID TEST(AppStreamBridgeTest, SrtToRtmpAndRtcHlsDiskFull_PlayersGetNoFrameHlsFailed)
+{
+    srs_error_t err;
+
+    vector<string> aac;
+    encode_aac_adts_frames(90, aac);
+    ASSERT_EQ(90, (int)aac.size());
+
+    string home = _srs_tmp_file_prefix + "ai46-bridge-hls-full";
+    hls_utest_remove_all(home);
+    if (true) {
+        HlsUtestVolumeScope volume;
+        StreamBridgeUtestStream s;
+        HELPER_ASSERT_SUCCESS(stream_bridge_utest_hls_radio(s, home));
+        SrsLiveConsumer *rtmp_player = s.rtmp_play();
+        SrsRtcConsumer *rtc_player = s.rtc_play();
+        ASSERT_TRUE(rtmp_player != NULL);
+        ASSERT_TRUE(rtc_player != NULL);
+
+        for (int i = 0; i < 50; i++) {
+            HELPER_ASSERT_SUCCESS(s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i)));
+        }
+        EXPECT_EQ("A" + string(50, 'a'), stream_bridge_utest_rtmp_got(rtmp_player));
+        EXPECT_GT(stream_bridge_utest_rtc_got(rtc_player), 40);
+
+        // Each frame reaches both players until HLS fails on one; from then on, none does.
+        volume.fill();
+        int failed_at = -1;
+        for (int i = 50; i < 90; i++) {
+            err = s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i));
+            srs_freep(err);
+            string rtmp_got = stream_bridge_utest_rtmp_got(rtmp_player);
+            int rtc_got = stream_bridge_utest_rtc_got(rtc_player);
+            if (failed_at < 0 && rtmp_got.empty()) {
+                failed_at = i;
+            }
+            if (failed_at < 0) {
+                EXPECT_EQ("a", rtmp_got) << i;
+                EXPECT_GT(rtc_got, 0) << i;
+            } else {
+                EXPECT_EQ("", rtmp_got) << i;
+                EXPECT_EQ(0, rtc_got) << i;
+            }
+        }
+        EXPECT_GT(failed_at, 50);
+        EXPECT_LT(failed_at, 80);
+
+        s.srt_->on_unpublish();
+    }
+    hls_utest_remove_all(home);
+}
+
+// The same SRT radio station, with `hls_on_error disconnect`, when the HLS disk fills. As for an RTMP encoder, the
+// frame HLS fails on should end the publish, so the encoder republishes, as the config asks. The SRT frame builder
+// instead logs the live source's error as a bad TS packet and goes on, so the encoder stays while no player gets a
+// frame, and the server logs a warning per TS packet until the disk has room (B65).
+VOID TEST(AppStreamBridgeTest, DISABLED_SrtHlsDiskFullWithOnErrorDisconnect_EncoderNotDisconnected)
+{
+    srs_error_t err;
+
+    vector<string> aac;
+    encode_aac_adts_frames(90, aac);
+    ASSERT_EQ(90, (int)aac.size());
+
+    string home = _srs_tmp_file_prefix + "ai46-bridge-hls-full-dis";
+    hls_utest_remove_all(home);
+    if (true) {
+        HlsUtestVolumeScope volume;
+        StreamBridgeUtestStream s;
+        HELPER_ASSERT_SUCCESS(stream_bridge_utest_hls_radio(s, home));
+        for (int i = 0; i < 50; i++) {
+            HELPER_ASSERT_SUCCESS(s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i)));
+        }
+
+        volume.fill();
+        int code = ERROR_SUCCESS;
+        for (int i = 50; i < 90 && code == ERROR_SUCCESS; i++) {
+            err = s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i));
+            code = srs_error_code(err);
+            srs_freep(err);
+        }
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, code);
+        EXPECT_EQ(0, s.warned("rtmp target on frame"));
+
+        s.srt_->on_unpublish();
+    }
+    hls_utest_remove_all(home);
 }
 
 // An RTMP encoder to a vhost with `rtmp_to_rtc on` sends one corrupt AAC frame, its ADTS data garbage. As for SRT, the
