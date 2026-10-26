@@ -16,8 +16,12 @@
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_process.hpp>
 #include <srs_app_recv_thread.hpp>
+#include <srs_app_rtc_api.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -33,6 +37,7 @@
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai17.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai30.hpp>
@@ -42,6 +47,7 @@
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
@@ -2185,4 +2191,574 @@ VOID TEST(AppRecvThreadTest, EncoderSendsFcUnpublish_ThreadEndsAndWakesPublishLo
         replies.append(buf, nread);
     }
     EXPECT_NE(string::npos, replies.find("NetStream.Unpublish.Success"));
+}
+
+// A WebRTC session the RTC server made for a WHIP or WHEP client, which only its owner's token may stop.
+class RtcApiUtestSession : public MockRtcConnectionForUpdateSessions
+{
+public:
+    std::string token_;
+    int expire_count_;
+    int nack_drop_;
+
+public:
+    RtcApiUtestSession()
+    {
+        username_ = "srvufrag:cliufrag";
+        token_ = "owner-token";
+        expire_count_ = 0;
+        nack_drop_ = 0;
+    }
+    virtual ~RtcApiUtestSession()
+    {
+    }
+
+public:
+    virtual void expire()
+    {
+        expire_count_++;
+    }
+    virtual std::string token()
+    {
+        return token_;
+    }
+    virtual void simulate_nack_drop(int nn)
+    {
+        nack_drop_ = nn;
+    }
+};
+
+// The RTC server as the API sees it: it makes the session of an offer, or refuses it, and finds the session by its
+// username until it is gone.
+class RtcApiUtestServer : public ISrsRtcApiServer
+{
+public:
+    RtcApiUtestSession session_;
+    srs_error_t create_error_;
+    int create_count_;
+    bool created_;
+    std::string ip_;
+    std::string vhost_;
+    std::string app_;
+    std::string stream_;
+    std::string ice_ufrag_;
+    std::string ice_pwd_;
+    bool publish_;
+
+public:
+    RtcApiUtestServer()
+    {
+        create_error_ = srs_success;
+        create_count_ = 0;
+        created_ = false;
+        publish_ = false;
+    }
+    virtual ~RtcApiUtestServer()
+    {
+        srs_freep(create_error_);
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        if (create_error_ != srs_success) {
+            return srs_error_copy(create_error_);
+        }
+
+        ip_ = ruc->req_->ip_;
+        vhost_ = ruc->req_->vhost_;
+        app_ = ruc->req_->app_;
+        stream_ = ruc->req_->stream_;
+        ice_ufrag_ = ruc->req_->ice_ufrag_;
+        ice_pwd_ = ruc->req_->ice_pwd_;
+        publish_ = ruc->publish_;
+
+        created_ = true;
+        *psession = &session_;
+        return srs_success;
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        if (!created_ || ufrag != session_.username_) {
+            return NULL;
+        }
+        return &session_;
+    }
+};
+
+// The hooks of a vhost, counting the publishers and players they are asked about.
+class RtcApiUtestHooks : public MockHttpHooksForRtcPlay
+{
+public:
+    int on_publish_count_;
+
+public:
+    RtcApiUtestHooks()
+    {
+        on_publish_count_ = 0;
+    }
+    virtual ~RtcApiUtestHooks()
+    {
+    }
+
+public:
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
+    {
+        on_publish_count_++;
+        return srs_success;
+    }
+};
+
+// A response writer that keeps the Location header, which the mock writer leaves out of the response.
+class RtcApiUtestWriter : public MockResponseWriter
+{
+public:
+    std::string location_;
+
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h)
+    {
+        location_ = h->get("Location");
+        return MockResponseWriter::filter(h);
+    }
+};
+
+// The WHIP and WHEP API of a server from config text, with the RTC server, sources, stats and hooks it reaches.
+class RtcApiUtestWhip
+{
+public:
+    MockSrsConfig conf_;
+    SrsStatistic stat_;
+    MockRtcSourceManager rtc_sources_;
+    MockLiveSourceManager live_sources_;
+    RtcApiUtestHooks hooks_;
+    RtcApiUtestServer server_;
+    SrsGoApiRtcWhip *api_;
+    // The Location header of the last response.
+    std::string location_;
+
+public:
+    RtcApiUtestWhip()
+    {
+        api_ = NULL;
+    }
+    ~RtcApiUtestWhip()
+    {
+        if (api_) {
+            api_->config_ = NULL;
+            api_->publish_->config_ = NULL;
+            api_->publish_->stat_ = NULL;
+            api_->publish_->hooks_ = NULL;
+            api_->play_->config_ = NULL;
+            api_->play_->stat_ = NULL;
+            api_->play_->rtc_sources_ = NULL;
+            api_->play_->live_sources_ = NULL;
+            api_->play_->hooks_ = NULL;
+        }
+        srs_freep(api_);
+    }
+
+public:
+    srs_error_t initialize(std::string text)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + "rtc_server { enabled on; listen 8000; } " + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+
+        api_ = new SrsGoApiRtcWhip(&server_);
+        api_->config_ = &conf_;
+        api_->publish_->config_ = &conf_;
+        api_->publish_->stat_ = &stat_;
+        api_->publish_->hooks_ = &hooks_;
+        dynamic_cast<SrsSecurity *>(api_->publish_->security_)->config_ = &conf_;
+        api_->play_->config_ = &conf_;
+        api_->play_->stat_ = &stat_;
+        api_->play_->rtc_sources_ = &rtc_sources_;
+        api_->play_->live_sources_ = &live_sources_;
+        api_->play_->hooks_ = &hooks_;
+        dynamic_cast<SrsSecurity *>(api_->play_->security_)->config_ = &conf_;
+
+        return err;
+    }
+
+    // Sends one HTTP request of a WHIP or WHEP client at 10.0.0.1, and returns the response it gets.
+    std::string request(uint8_t method, std::string url, std::string body, std::string forwarded_for = "")
+    {
+        MockHttpMessageForRtcApi message;
+        srs_error_t err = message.set_url(url, false);
+        srs_freep(err);
+        message.query_params_ = message.query_;
+        message.set_method(method);
+        message.body_content_ = body;
+        message.mock_conn_->remote_ip_ = "10.0.0.1";
+        if (!forwarded_for.empty()) {
+            message.header()->set("X-Forwarded-For", forwarded_for);
+        }
+
+        RtcApiUtestWriter writer;
+        err = api_->serve_http(&writer, &message);
+        location_ = writer.location_;
+        srs_freep(err);
+        return string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    }
+
+    std::string post(std::string url, std::string body, std::string forwarded_for = "")
+    {
+        return request(SRS_CONSTS_HTTP_POST, url, body, forwarded_for);
+    }
+};
+
+#define RTC_API_UTEST_WHIP "http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream"
+#define RTC_API_UTEST_WHEP "http://127.0.0.1:1985/rtc/v1/whep/?app=live&stream=livestream"
+#define RTC_API_UTEST_VHOST "vhost __defaultVhost__ { rtc { enabled on; } } "
+
+// The offer of a WebRTC client with one Opus track, which sends with a=sendonly, plays with a=recvonly, or does both.
+static std::string rtc_api_utest_offer(std::string direction)
+{
+    return "v=0\r\n"
+           "o=- 0 0 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:test\r\n"
+           "a=ice-pwd:testpasswordtestpassword\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:0\r\n"
+           "a=" +
+           direction + "\r\n"
+                       "a=rtcp-mux\r\n"
+                       "a=rtpmap:111 opus/48000/2\r\n";
+}
+
+static bool rtc_api_utest_status(const std::string &response, int status)
+{
+    return response.find("HTTP/1.1 " + srs_strconv_format_int(status) + " ") == 0;
+}
+
+static bool rtc_api_utest_code(const std::string &response, int code)
+{
+    return response.find(srs_strconv_format_int(code) + ": ") != string::npos;
+}
+
+// Offers SRS cannot answer, from a client that is not a browser or that asks for what SRS does not do: no BUNDLE
+// group, no media, a data channel, no rtcp-mux, a publisher's offer to WHEP or a player's to WHIP. Each is answered 400
+// before any session is made, so nothing holds the stream.
+VOID TEST(AppRtcApiTest, UnservableOffers_Refused400WithNoSession)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    string sendrecv = rtc_api_utest_offer("sendrecv");
+    string no_bundle = srs_strings_replace(sendrecv, "a=group:BUNDLE 0\r\n", "");
+    string no_media = sendrecv.substr(0, sendrecv.find("m=audio"));
+    string data_channel = srs_strings_replace(sendrecv, "a=group:BUNDLE 0\r\n", "a=group:BUNDLE 0 1\r\n") +
+                          "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n"
+                          "c=IN IP4 0.0.0.0\r\n"
+                          "a=mid:1\r\n"
+                          "a=sctp-port:5000\r\n";
+    string no_mux = srs_strings_replace(sendrecv, "a=rtcp-mux\r\n", "");
+
+    const char *urls[] = {RTC_API_UTEST_WHIP, RTC_API_UTEST_WHEP};
+    for (int i = 0; i < 2; i++) {
+        string url = urls[i];
+        string offers[] = {no_bundle, no_media, data_channel, no_mux, rtc_api_utest_offer(i == 0 ? "recvonly" : "sendonly")};
+        for (int j = 0; j < 5; j++) {
+            string response = w.post(url, offers[j]);
+            EXPECT_TRUE(rtc_api_utest_status(response, 400)) << url << " offer " << j << ": " << response;
+            EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_SDP_EXCHANGE)) << url << " offer " << j << ": " << response;
+        }
+    }
+    EXPECT_EQ(0, w.server_.create_count_);
+    EXPECT_EQ(0, (int)w.stat_.clients_.size());
+
+    // The same client with a sendrecv offer is served by both.
+    EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHIP, sendrecv), 201));
+    EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHEP, sendrecv), 201));
+    EXPECT_EQ(2, w.server_.create_count_);
+}
+
+// An edge vhost pulls its streams from the origin by RTMP and cannot serve WebRTC, even with rtc and rtmp_to_rtc on,
+// so both a WHIP publisher and a WHEP player are refused.
+VOID TEST(AppRtcApiTest, EdgeVhost_WhipAndWhepRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize("vhost __defaultVhost__ { cluster { mode remote; origin 127.0.0.1:19350; } "
+                                       "rtc { enabled on; rtmp_to_rtc on; } } "));
+
+    string response = w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_DISABLED)) << response;
+
+    response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_DISABLED)) << response;
+
+    EXPECT_EQ(0, w.server_.create_count_);
+    EXPECT_EQ(0, (int)w.stat_.clients_.size());
+}
+
+// The RTC server is on, but this vhost has no rtc section: WebRTC clients of the vhost are refused both ways.
+VOID TEST(AppRtcApiTest, VhostWithoutRtc_WhipAndWhepRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize("vhost __defaultVhost__ { } "));
+
+    string response = w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_DISABLED)) << response;
+
+    response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_DISABLED)) << response;
+
+    EXPECT_EQ(0, w.server_.create_count_);
+}
+
+// With rtmp_to_rtc off, a WHEP player of a stream an RTMP encoder publishes is refused, for no WebRTC stream will
+// ever come (#2728). A player of the same stream from a WHIP publisher is served.
+VOID TEST(AppRtcApiTest, WhepPlayerOfRtmpStreamWithRtmpToRtcOff_Refused)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize("vhost __defaultVhost__ { rtc { enabled on; rtmp_to_rtc off; } } "));
+
+    // An RTMP encoder publishes the stream.
+    w.live_sources_.mock_source_->can_publish_ = false;
+
+    string response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_DISABLED)) << response;
+    EXPECT_EQ(0, w.server_.create_count_);
+    EXPECT_EQ(0, (int)w.stat_.clients_.size());
+
+    // A WHIP publisher publishes the stream, so it has a WebRTC source.
+    w.rtc_sources_.mock_source_ = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
+    w.rtc_sources_.mock_source_->is_created_ = true;
+
+    response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_EQ(1, w.server_.create_count_);
+    EXPECT_FALSE(w.server_.publish_);
+}
+
+// A WHEP player whose offer the RTC server cannot answer, such as one with no codec the stream has, gets the server's
+// error, and leaves the stats it was counted in for its hooks.
+VOID TEST(AppRtcApiTest, WhepOfferServerCannotAnswer_PlayerLeavesStats)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+    w.server_.create_error_ = srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no track found");
+
+    string response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 400)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_SDP_EXCHANGE)) << response;
+    EXPECT_EQ(1, w.server_.create_count_);
+    EXPECT_EQ(0, (int)w.stat_.clients_.size());
+}
+
+// A vhost whose hooks check only publishers lets WHEP players in without asking, and one whose hooks check only
+// players lets WHIP publishers in without asking.
+VOID TEST(AppRtcApiTest, HooksForOneDirectionOnly_OtherDirectionNotAsked)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        RtcApiUtestWhip w;
+        HELPER_ASSERT_SUCCESS(w.initialize("vhost __defaultVhost__ { rtc { enabled on; } "
+                                           "http_hooks { enabled on; on_publish http://127.0.0.1:8085/api/v1/streams; } } "));
+
+        EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly")), 201));
+        EXPECT_EQ(0, w.hooks_.on_play_count_);
+        EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly")), 201));
+        EXPECT_EQ(1, w.hooks_.on_publish_count_);
+    }
+
+    if (true) {
+        RtcApiUtestWhip w;
+        HELPER_ASSERT_SUCCESS(w.initialize("vhost __defaultVhost__ { rtc { enabled on; } "
+                                           "http_hooks { enabled on; on_play http://127.0.0.1:8085/api/v1/sessions; } } "));
+
+        EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly")), 201));
+        EXPECT_EQ(0, w.hooks_.on_publish_count_);
+        EXPECT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly")), 201));
+        EXPECT_EQ(1, w.hooks_.on_play_count_);
+    }
+}
+
+// A second WHIP publisher of a stream that already has one is answered 409, as WHIP asks for a busy resource.
+VOID TEST(AppRtcApiTest, WhipToStreamWithPublisher_Conflict409)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+    w.server_.create_error_ = srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "stream /live/livestream busy");
+
+    string response = w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 409)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_SYSTEM_STREAM_BUSY)) << response;
+    EXPECT_EQ(1, w.server_.create_count_);
+}
+
+// A WHIP client stops its session with a DELETE of the Location it was given. A DELETE without the token, or with
+// another token, such as from someone who guessed the session's username, is refused and the session goes on.
+VOID TEST(AppRtcApiTest, WhipDelete_OnlyTokenOwnerStopsSession)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    string response = w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly"));
+    ASSERT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    string location = "/rtc/v1/whip/?action=delete&token=owner-token&app=live&stream=livestream&session=srvufrag:cliufrag";
+    EXPECT_STREQ(location.c_str(), w.location_.c_str());
+
+    string base = "http://127.0.0.1:1985/rtc/v1/whip/?action=delete&app=live&stream=livestream&session=srvufrag:cliufrag";
+    response = w.request(SRS_CONSTS_HTTP_DELETE, base, "");
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_INVALID_SESSION)) << response;
+
+    response = w.request(SRS_CONSTS_HTTP_DELETE, base + "&token=guessed-token", "");
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_INVALID_SESSION)) << response;
+    EXPECT_EQ(0, w.server_.session_.expire_count_);
+
+    response = w.request(SRS_CONSTS_HTTP_DELETE, "http://127.0.0.1:1985" + location, "");
+    EXPECT_TRUE(rtc_api_utest_status(response, 200)) << response;
+    EXPECT_EQ(1, w.server_.session_.expire_count_);
+}
+
+// A WHIP client that goes away while it sends its offer gets no session.
+VOID TEST(AppRtcApiTest, WhipClientGoneWhileSendingOffer_NoSession)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    MockHttpMessageForRtcApi message;
+    HELPER_ASSERT_SUCCESS(message.set_url(RTC_API_UTEST_WHIP, false));
+    message.query_params_ = message.query_;
+    message.body_read_all_error_ = srs_error_new(ERROR_SOCKET_READ, "connection reset by peer");
+
+    MockResponseWriter writer;
+    HELPER_EXPECT_SUCCESS(w.api_->serve_http(&writer, &message));
+    string response(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    EXPECT_TRUE(rtc_api_utest_status(response, 500)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_SOCKET_READ)) << response;
+    EXPECT_EQ(0, w.server_.create_count_);
+}
+
+// A WHIP publisher behind a reverse proxy, to a host that is a vhost of the config: the session is for the client the
+// proxy names, not the proxy, and for that vhost. A host that is no vhost is the default vhost.
+VOID TEST(AppRtcApiTest, WhipBehindProxyToNamedVhost_ClientAndVhostResolved)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST "vhost cdn.example.com { rtc { enabled on; } } "));
+
+    string response = w.post("http://cdn.example.com/rtc/v1/whip/?app=live&stream=show", rtc_api_utest_offer("sendonly"), "1.2.3.4, 10.0.0.1");
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_STREQ("1.2.3.4", w.server_.ip_.c_str());
+    EXPECT_STREQ("cdn.example.com", w.server_.vhost_.c_str());
+    EXPECT_STREQ("live", w.server_.app_.c_str());
+    EXPECT_STREQ("show", w.server_.stream_.c_str());
+    EXPECT_TRUE(w.server_.publish_);
+
+    response = w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_STREQ("10.0.0.1", w.server_.ip_.c_str());
+    EXPECT_STREQ("__defaultVhost__", w.server_.vhost_.c_str());
+}
+
+// A client may set its own ICE ufrag and pwd in the query, as a test tool does to know the session's username.
+// Those a browser would fail with, or that are too long, are refused; those at the limits are used.
+VOID TEST(AppRtcApiTest, WhipCustomIceCredentials_OutOfRangeRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    string pwd22 = "abcdefghijklmnopqrstuv";
+    string ufrag32 = "abcdefghijklmnopqrstuvwxyz012345";
+    string queries[] = {"ice-ufrag=abc", "ice-ufrag=" + ufrag32 + "6", "ice-pwd=" + pwd22.substr(1), "ice-pwd=" + pwd22 + "abcdefghijk"};
+    for (int i = 0; i < 4; i++) {
+        string response = w.post(RTC_API_UTEST_WHIP "&" + queries[i], rtc_api_utest_offer("sendonly"));
+        EXPECT_TRUE(rtc_api_utest_status(response, 500)) << queries[i] << ": " << response;
+        EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_INVALID_ICE)) << queries[i] << ": " << response;
+    }
+    EXPECT_EQ(0, w.server_.create_count_);
+
+    string response = w.post(RTC_API_UTEST_WHIP "&ice-ufrag=abcd&ice-pwd=" + pwd22, rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_STREQ("abcd", w.server_.ice_ufrag_.c_str());
+    EXPECT_STREQ(pwd22.c_str(), w.server_.ice_pwd_.c_str());
+
+    response = w.post(RTC_API_UTEST_WHEP "&ice-ufrag=" + ufrag32 + "&ice-pwd=" + pwd22 + "abcdefghij", rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_STREQ(ufrag32.c_str(), w.server_.ice_ufrag_.c_str());
+}
+
+// A WHIP POST with no offer, or a body that is no SDP, is answered 400.
+VOID TEST(AppRtcApiTest, WhipEmptyOrGarbageOffer_Refused400)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    string response = w.post(RTC_API_UTEST_WHIP, "");
+    EXPECT_TRUE(rtc_api_utest_status(response, 400)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_INVALID_SDP)) << response;
+
+    response = w.post(RTC_API_UTEST_WHIP, "{\"sdp\":\"v=0\"}");
+    EXPECT_TRUE(rtc_api_utest_status(response, 400)) << response;
+    EXPECT_TRUE(rtc_api_utest_code(response, ERROR_RTC_SDP_DECODE)) << response;
+
+    EXPECT_EQ(0, w.server_.create_count_);
+}
+
+// The NACK API makes the session of a username drop the next packets, to test NACK recovery of a live client. A drop
+// count that is no positive number, or a username with no session, is refused with its error code.
+VOID TEST(AppRtcApiTest, NackApi_DropsOnNamedSessionOnly)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+    ASSERT_TRUE(rtc_api_utest_status(w.post(RTC_API_UTEST_WHIP, rtc_api_utest_offer("sendonly")), 201));
+
+    SrsGoApiRtcNACK api(&w.server_);
+    string queries[] = {"username=srvufrag:cliufrag", "username=srvufrag:cliufrag&drop=0", "username=other&drop=3",
+                        "username=srvufrag:cliufrag&drop=3"};
+    int codes[] = {ERROR_RTC_INVALID_PARAMS, ERROR_RTC_INVALID_PARAMS, ERROR_RTC_NO_SESSION, ERROR_SUCCESS};
+    for (int i = 0; i < 4; i++) {
+        MockHttpMessageForRtcApi message;
+        HELPER_ASSERT_SUCCESS(message.set_url("http://127.0.0.1:1985/rtc/v1/nack/?" + queries[i], false));
+        message.query_params_ = message.query_;
+        message.set_method(SRS_CONSTS_HTTP_GET);
+
+        MockResponseWriter writer;
+        HELPER_EXPECT_SUCCESS(api.serve_http(&writer, &message));
+        string response(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+        EXPECT_NE(string::npos, response.find("\"code\":" + srs_strconv_format_int(codes[i]))) << queries[i] << ": " << response;
+        EXPECT_EQ(i == 3 ? 3 : 0, w.server_.session_.nack_drop_) << queries[i];
+    }
 }
