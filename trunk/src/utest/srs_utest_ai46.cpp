@@ -1997,7 +1997,8 @@ VOID TEST(AppUtilityTest, StatsDisksWrittenAndReadBetweenSamples_ApiReportsReadR
 
     srs_update_disk_stat();
 
-    utility_utest_disk_write_and_read(_srs_tmp_file_prefix + "ai46-disk-stat.data");
+    // In the build dir, on the checkout's disk: /tmp can be a tmpfs, as on Ubuntu 25.10 and later, which no disk counts.
+    utility_utest_disk_write_and_read("./objs/srs-utest-ai46-disk-stat.data");
     srs_usleep(50 * SRS_UTIME_MILLISECONDS);
 
     unsigned long long reads_before = utility_utest_sum(utility_utest_disk_reads());

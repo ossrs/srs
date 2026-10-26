@@ -95,6 +95,7 @@ Windows tests:
   - Prints `RESULT windows-x64` lines, with the logs in `trunk/objs/windows-*.log` on the host.
   - It refuses to start off native Windows, WSL included.
   - Opt in with `SRS_TEST_WINDOWS_HOST`.
+- `srs-utest-wsl.sh [--wip] [gtest-filter]` — the C++ utest on Linux x64, in WSL on the Windows test host, through `windows-host-run.sh`; its header lists the details. Opt in with `SRS_TEST_WINDOWS_HOST`.
 - `srs-windows-env-check.sh` — the Windows test host has every tool the runner needs, over SSH.
   - Visual Studio 2022 or its Build Tools with cl, CMake and vcpkg.
   - Git Bash with make, Go and FFmpeg; OBS; MSYS2 with make, nasm and pkgconf.
