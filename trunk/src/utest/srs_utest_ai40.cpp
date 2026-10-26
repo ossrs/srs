@@ -6,6 +6,7 @@
 #include <srs_utest_ai40.hpp>
 
 #include <srs_app_factory.hpp>
+#include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_core_platform.hpp>
@@ -21,6 +22,7 @@
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_mp4.hpp>
 #include <srs_kernel_ps.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
@@ -3070,4 +3072,625 @@ VOID TEST(KernelRtcQueueTest, NackTimerTicksEarlyRequestsNothing)
     EXPECT_TRUE(seqs.empty());
     EXPECT_EQ(1, t.track_->nack_receiver_->find(2)->req_nack_count_);
     EXPECT_EQ(0u, timeout_nacks);
+}
+
+static string rtcp_be16(uint16_t v)
+{
+    char b[2] = {(char)(v >> 8), (char)(v & 0xff)};
+    return string(b, 2);
+}
+
+static string rtcp_be32(uint32_t v)
+{
+    return rtcp_be16((uint16_t)(v >> 16)) + rtcp_be16((uint16_t)(v & 0xffff));
+}
+
+// One RTCP packet: version 2, the count or feedback format, the packet type, the sender's SSRC, and a body of whole
+// 32-bit words.
+static string rtcp_packet(uint8_t rc, uint8_t pt, uint32_t sender_ssrc, const string &body)
+{
+    string p;
+    p.push_back((char)(0x80 | rc));
+    p.push_back((char)pt);
+    p += rtcp_be16((uint16_t)((8 + body.size()) / 4 - 1));
+    p += rtcp_be32(sender_ssrc);
+    return p + body;
+}
+
+// A report block: fraction lost 1/256, 2 packets lost, the highest sequence, jitter 30, no LSR and DLSR yet.
+static string rtcp_report_block(uint32_t ssrc, uint32_t highest_sn)
+{
+    return rtcp_be32(ssrc) + rtcp_be32(0x01000002) + rtcp_be32(highest_sn) + rtcp_be32(30) + rtcp_be32(0) + rtcp_be32(0);
+}
+
+// The packets of one compound RTCP datagram from a peer, in wire order, decoded as SrsRtcConnection::on_rtcp does.
+class RtcpDatagram
+{
+public:
+    string bytes_;
+    vector<SrsRtcpCommon *> packets_;
+
+public:
+    RtcpDatagram(const string &bytes) : bytes_(bytes) {}
+    ~RtcpDatagram()
+    {
+        for (size_t i = 0; i < packets_.size(); i++) {
+            srs_freep(packets_[i]);
+        }
+    }
+    srs_error_t decode()
+    {
+        srs_error_t err = srs_success;
+        SrsRtcpCompound compound;
+        SrsBuffer buffer((char *)bytes_.data(), (int)bytes_.size());
+        if ((err = compound.decode(&buffer)) != srs_success) {
+            return err;
+        }
+        SrsRtcpCommon *rtcp = NULL;
+        while ((rtcp = compound.get_next_rtcp()) != NULL) {
+            packets_.insert(packets_.begin(), rtcp);
+        }
+        return err;
+    }
+    // Where packet i starts, for the handlers that parse its raw bytes, such as the publisher's XR handler.
+    int offset_of(int i)
+    {
+        return (int)(packets_.at(i)->data() - bytes_.data());
+    }
+};
+
+// A Chrome player's receiver feedback in one datagram: its receiver report, a NACK for the packets it lost, and a PLI
+// asking for a key frame. SrsRtcConnection::dispatch_rtcp finds the player by each one's media SSRC.
+VOID TEST(KernelRtcRtcpTest, PlayerReportWithNackAndPliDecodedPerPacket)
+{
+    srs_error_t err = srs_success;
+
+    string rr = rtcp_packet(1, SrsRtcpType_rr, 0x1001, rtcp_report_block(0xa001, 5000));
+    // PID 100 with BLP 0b101: 100, 101 and 103 lost.
+    string nack = rtcp_packet(1, SrsRtcpType_rtpfb, 0x1001, rtcp_be32(0xa001) + rtcp_be16(100) + rtcp_be16(0x0005));
+    string pli = rtcp_packet(1, SrsRtcpType_psfb, 0x1001, rtcp_be32(0xa001));
+    RtcpDatagram d(rr + nack + pli);
+    HELPER_ASSERT_SUCCESS(d.decode());
+    ASSERT_EQ(3, (int)d.packets_.size());
+
+    SrsRtcpRR *r = dynamic_cast<SrsRtcpRR *>(d.packets_.at(0));
+    ASSERT_TRUE(r != NULL);
+    EXPECT_EQ(0xa001u, r->get_rb_ssrc());
+    EXPECT_EQ(5000u, r->get_highest_sn());
+
+    SrsRtcpNack *n = dynamic_cast<SrsRtcpNack *>(d.packets_.at(1));
+    ASSERT_TRUE(n != NULL);
+    EXPECT_EQ(0xa001u, n->get_media_ssrc());
+    vector<uint16_t> lost = n->get_lost_sns();
+    ASSERT_EQ(3, (int)lost.size());
+    EXPECT_EQ(100, lost.at(0));
+    EXPECT_EQ(101, lost.at(1));
+    EXPECT_EQ(103, lost.at(2));
+    EXPECT_EQ((int)rr.size(), d.offset_of(1));
+
+    SrsRtcpPli *p = dynamic_cast<SrsRtcpPli *>(d.packets_.at(2));
+    ASSERT_TRUE(p != NULL);
+    EXPECT_EQ(0xa001u, p->get_media_ssrc());
+    EXPECT_EQ((int)(rr.size() + nack.size()), d.offset_of(2));
+}
+
+// A player's bandwidth feedback: a REMB estimate (PSFB format 15) and a transport-wide CC report (RTPFB format 15).
+// The connection handles both itself; the TWCC handler gets the packet's raw bytes from data().
+VOID TEST(KernelRtcRtcpTest, PlayerBandwidthFeedbackRembAndTwccDecoded)
+{
+    srs_error_t err = srs_success;
+
+    string rr = rtcp_packet(1, SrsRtcpType_rr, 0x1001, rtcp_report_block(0xa001, 5000));
+    // Media SSRC 0, "REMB", 1 SSRC, exponent 0 and mantissa 250000 (250 kbps), the SSRC.
+    string remb = rtcp_packet(15, SrsRtcpType_psfb, 0x1001, rtcp_be32(0) + "REMB" + rtcp_be32(0x0103d090) + rtcp_be32(0xa001));
+    // Base 200, 2 packets, reference time 10, feedback 3, a run of 2 small deltas, deltas 4 and 4.
+    string twcc = rtcp_packet(15, SrsRtcpType_rtpfb, 0x1001,
+                              rtcp_be32(0xa001) + rtcp_be16(200) + rtcp_be16(2) + rtcp_be32((10 << 8) | 3) + rtcp_be16(0x2002) + rtcp_be16(0x0404));
+    RtcpDatagram d(rr + remb + twcc);
+    HELPER_ASSERT_SUCCESS(d.decode());
+    ASSERT_EQ(3, (int)d.packets_.size());
+
+    SrsRtcpFbCommon *e = dynamic_cast<SrsRtcpFbCommon *>(d.packets_.at(1));
+    ASSERT_TRUE(e != NULL);
+    EXPECT_TRUE(dynamic_cast<SrsRtcpPli *>(e) == NULL);
+    EXPECT_EQ(SrsRtcpType_psfb, e->type());
+    EXPECT_EQ(15, e->get_rc());
+    EXPECT_EQ(0u, e->get_media_ssrc());
+
+    SrsRtcpTWCC *t = dynamic_cast<SrsRtcpTWCC *>(d.packets_.at(2));
+    ASSERT_TRUE(t != NULL);
+    EXPECT_EQ(SrsRtcpType_rtpfb, t->type());
+    EXPECT_EQ(15, t->get_rc());
+    EXPECT_EQ((int)(rr.size() + remb.size()), d.offset_of(2));
+    ASSERT_EQ((int)twcc.size(), t->size());
+    EXPECT_EQ(0, memcmp(twcc.data(), t->data(), twcc.size()));
+}
+
+// Feedback SRS does not act on: a TMMBR bitrate request (RTPFB format 3, RFC 5104), and the SLI and RPSI of older
+// VP8 endpoints (PSFB formats 2 and 3, RFC 4585). Each is skipped whole, so the PLI after them is still read right.
+VOID TEST(KernelRtcRtcpTest, PeerTmmbrSliAndRpsiSkippedWhole)
+{
+    srs_error_t err = srs_success;
+
+    string tmmbr = rtcp_packet(3, SrsRtcpType_rtpfb, 0x1001, rtcp_be32(0) + rtcp_be32(0xa001) + rtcp_be32(0x0c0186a0));
+    // First MB 0, 100 MBs, picture ID 5.
+    string sli = rtcp_packet(2, SrsRtcpType_psfb, 0x1001, rtcp_be32(0xa001) + rtcp_be32((0 << 19) | (100 << 6) | 5));
+    // 16 padding bits, payload type 96, a 2-byte bit string.
+    string rpsi = rtcp_packet(3, SrsRtcpType_psfb, 0x1001, rtcp_be32(0xa001) + rtcp_be32(0x10601234) + rtcp_be32(0x56780000));
+    string pli = rtcp_packet(1, SrsRtcpType_psfb, 0x1001, rtcp_be32(0xa001));
+    RtcpDatagram d(tmmbr + sli + rpsi + pli);
+    HELPER_ASSERT_SUCCESS(d.decode());
+    ASSERT_EQ(4, (int)d.packets_.size());
+
+    SrsRtcpFbCommon *m = dynamic_cast<SrsRtcpFbCommon *>(d.packets_.at(0));
+    ASSERT_TRUE(m != NULL);
+    EXPECT_TRUE(dynamic_cast<SrsRtcpNack *>(m) == NULL);
+    EXPECT_EQ(SrsRtcpType_rtpfb, m->type());
+    EXPECT_EQ(3, m->get_rc());
+
+    SrsRtcpSli *s = dynamic_cast<SrsRtcpSli *>(d.packets_.at(1));
+    ASSERT_TRUE(s != NULL);
+    EXPECT_EQ(0xa001u, s->get_media_ssrc());
+
+    SrsRtcpRpsi *r = dynamic_cast<SrsRtcpRpsi *>(d.packets_.at(2));
+    ASSERT_TRUE(r != NULL);
+    EXPECT_EQ(0xa001u, r->get_media_ssrc());
+
+    SrsRtcpPli *p = dynamic_cast<SrsRtcpPli *>(d.packets_.at(3));
+    ASSERT_TRUE(p != NULL);
+    EXPECT_EQ(0xa001u, p->get_media_ssrc());
+    EXPECT_EQ((int)(tmmbr.size() + sli.size() + rpsi.size()), d.offset_of(3));
+}
+
+// A publisher that also receives (sendrecv) puts a report block in its sender report, then its SDES, then the XR DLRR
+// answering the server's RRTR. The SR keeps its sender info for the A/V sync; the XR handler reads the XR's raw bytes.
+VOID TEST(KernelRtcRtcpTest, PublisherSenderReportWithReportBlockThenXrDecoded)
+{
+    srs_error_t err = srs_success;
+
+    string sender_info = rtcp_be32(0xe5a1b2c3) + rtcp_be32(0x40000000) + rtcp_be32(90000) + rtcp_be32(120) + rtcp_be32(96000);
+    string sr = rtcp_packet(1, SrsRtcpType_sr, 0xb001, sender_info + rtcp_report_block(0x1001, 77));
+    string sdes_item = string("\x01\x04" "abcd" "\x00\x00", 8);
+    string sdes = rtcp_packet(1, SrsRtcpType_sdes, 0xb001, sdes_item);
+    // A DLRR block (type 5, 3 words): the server's SSRC, its last RRTR and the delay since.
+    string xr = rtcp_packet(0, SrsRtcpType_xr, 0xb001, rtcp_be32(0x05000003) + rtcp_be32(0x2001) + rtcp_be32(0x12345678) + rtcp_be32(0x00010000));
+    RtcpDatagram d(sr + sdes + xr);
+    HELPER_ASSERT_SUCCESS(d.decode());
+    ASSERT_EQ(3, (int)d.packets_.size());
+
+    SrsRtcpSR *s = dynamic_cast<SrsRtcpSR *>(d.packets_.at(0));
+    ASSERT_TRUE(s != NULL);
+    EXPECT_EQ(0xb001u, s->get_ssrc());
+    EXPECT_EQ(0xe5a1b2c340000000ull, s->get_ntp());
+    EXPECT_EQ(90000u, s->get_rtp_ts());
+    EXPECT_EQ(120u, s->get_rtp_send_packets());
+    EXPECT_EQ(96000u, s->get_rtp_send_bytes());
+
+    EXPECT_EQ(SrsRtcpType_sdes, d.packets_.at(1)->type());
+    EXPECT_EQ((int)sr.size(), d.offset_of(1));
+
+    SrsRtcpXr *x = dynamic_cast<SrsRtcpXr *>(d.packets_.at(2));
+    ASSERT_TRUE(x != NULL);
+    EXPECT_EQ((int)(sr.size() + sdes.size()), d.offset_of(2));
+    ASSERT_EQ((int)xr.size(), x->size());
+    EXPECT_EQ(0, memcmp(xr.data(), x->data(), xr.size()));
+}
+
+// A player that receives audio and video reports both SSRCs in one receiver report. SRS keeps the first block for
+// dispatch and skips the others, so the packet after the report is still read right.
+VOID TEST(KernelRtcRtcpTest, PlayerReportWithTwoReportBlocksDecodedWhole)
+{
+    srs_error_t err = srs_success;
+
+    string rr = rtcp_packet(2, SrsRtcpType_rr, 0x1001, rtcp_report_block(0xa001, 5000) + rtcp_report_block(0xa002, 900));
+    string pli = rtcp_packet(1, SrsRtcpType_psfb, 0x1001, rtcp_be32(0xa002));
+    RtcpDatagram d(rr + pli);
+    HELPER_ASSERT_SUCCESS(d.decode());
+    ASSERT_EQ(2, (int)d.packets_.size());
+
+    SrsRtcpRR *r = dynamic_cast<SrsRtcpRR *>(d.packets_.at(0));
+    ASSERT_TRUE(r != NULL);
+    EXPECT_EQ(0xa001u, r->get_rb_ssrc());
+    EXPECT_EQ(5000u, r->get_highest_sn());
+
+    SrsRtcpPli *p = dynamic_cast<SrsRtcpPli *>(d.packets_.at(1));
+    ASSERT_TRUE(p != NULL);
+    EXPECT_EQ(0xa002u, p->get_media_ssrc());
+    EXPECT_EQ((int)rr.size(), d.offset_of(1));
+}
+
+// A feedback packet whose length field claims more than the datagram holds, as a peer that cuts or corrupts it sends.
+// The whole datagram is refused, whatever the feedback type, and nothing after the bad packet is read.
+VOID TEST(KernelRtcRtcpTest, FeedbackLongerThanDatagramRefused)
+{
+    srs_error_t err = srs_success;
+
+    struct {
+        uint8_t rc;
+        uint8_t pt;
+    } types[] = {
+        {15, SrsRtcpType_rtpfb}, // TWCC
+        {1, SrsRtcpType_rtpfb},  // NACK
+        {3, SrsRtcpType_rtpfb},  // TMMBR
+        {1, SrsRtcpType_psfb},   // PLI
+        {2, SrsRtcpType_psfb},   // SLI
+        {3, SrsRtcpType_psfb},   // RPSI
+        {15, SrsRtcpType_psfb},  // REMB
+        {0, SrsRtcpType_xr},
+    };
+
+    string rr = rtcp_packet(1, SrsRtcpType_rr, 0x1001, rtcp_report_block(0xa001, 5000));
+    for (int i = 0; i < (int)(sizeof(types) / sizeof(types[0])); i++) {
+        // Length 5 claims 24 bytes, but only the header and the sender's SSRC arrived.
+        string cut = rtcp_packet(types[i].rc, types[i].pt, 0x1001, "");
+        cut[3] = 5;
+        RtcpDatagram d(rr + cut);
+        err = d.decode();
+        ASSERT_TRUE(err != srs_success) << "rc=" << (int)types[i].rc << ", pt=" << (int)types[i].pt;
+        EXPECT_EQ(ERROR_RTC_RTCP, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_TRUE(d.packets_.empty());
+    }
+}
+
+// A WebRTC player can crash the server with one RTCP packet. The SDP answer gives the player the SSRCs SRS sends with.
+// An RTPFB packet of a format other than NACK and TWCC, such as a TMMBR, is decoded as SrsRtcpFbCommon. If its sender
+// SSRC is one of those SSRCs, SrsRtcConnection::dispatch_rtcp finds the player by it, and SrsRtcPlayStream::on_rtcp
+// casts it to SrsRtcpNack. The cast gives NULL, and on_rtcp_nack reads through it.
+VOID TEST(KernelRtcRtcpTest, DISABLED_PlayerSendsTmmbrWithServerSsrcAsSender_ServerCrashes)
+{
+    srs_error_t err = srs_success;
+
+    MockRtcAsyncTaskExecutor exec;
+    MockRtcPacketSender sender;
+    MockExpire expire;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&exec, cid));
+    SrsUniquePtr<SrsRtcPlayStream> player(new SrsRtcPlayStream(&exec, &expire, &sender, cid));
+    // The player plays a track that SRS sends with SSRC 0xa001.
+    conn->players_ssrc_map_[0xa001] = player.get();
+
+    string tmmbr = rtcp_packet(3, SrsRtcpType_rtpfb, 0xa001, rtcp_be32(0) + rtcp_be32(0xa001) + rtcp_be32(0x0c0186a0));
+    err = conn->on_rtcp((char *)tmmbr.data(), (int)tmmbr.size());
+    conn->players_ssrc_map_.clear();
+
+    // An unsupported feedback is ignored or refused, never a crash.
+    srs_freep(err);
+    SUCCEED();
+}
+
+// One TWCC feedback as the publisher's congestion controller reads it (draft-holmer-rmcat-transport-wide-cc-extensions-01
+// section 3.1): the base sequence, the status of each packet, and the arrival time of each received packet.
+class TwccFeedbackRead
+{
+public:
+    int size_;
+    int length_;
+    uint16_t base_sn_;
+    uint16_t count_;
+    uint32_t reference_time_;
+    vector<uint16_t> chunks_;
+    // 0 not received, 1 a small delta, 2 a large or negative delta.
+    vector<int> statuses_;
+    // Each received packet's arrival time, rebuilt from the reference time and the deltas.
+    map<uint16_t, srs_utime_t> arrivals_;
+
+public:
+    TwccFeedbackRead() : size_(0), length_(0), base_sn_(0), count_(0), reference_time_(0) {}
+    srs_error_t parse(char *data, int size)
+    {
+        SrsBuffer b(data, size);
+        size_ = size;
+        if (!b.require(20)) {
+            return srs_error_new(ERROR_RTC_RTCP, "header");
+        }
+        b.skip(2);
+        length_ = b.read_2bytes();
+        b.skip(8);
+        base_sn_ = b.read_2bytes();
+        count_ = b.read_2bytes();
+        reference_time_ = b.read_3bytes();
+        b.skip(1);
+
+        while ((int)statuses_.size() < count_) {
+            if (!b.require(2)) {
+                return srs_error_new(ERROR_RTC_RTCP, "chunk");
+            }
+            uint16_t c = b.read_2bytes();
+            chunks_.push_back(c);
+            if ((c & 0x8000) == 0) {
+                for (int i = 0; i < (c & 0x1fff); i++) {
+                    statuses_.push_back((c >> 13) & 0x03);
+                }
+            } else if ((c & 0x4000) == 0) {
+                for (int i = 0; i < 14; i++) {
+                    statuses_.push_back((c >> (13 - i)) & 0x01);
+                }
+            } else {
+                for (int i = 0; i < 7; i++) {
+                    statuses_.push_back((c >> (2 * (6 - i))) & 0x03);
+                }
+            }
+        }
+        statuses_.resize(count_);
+
+        srs_utime_t t = (srs_utime_t)reference_time_ * 64 * SRS_UTIME_MILLISECONDS;
+        for (int i = 0; i < count_; i++) {
+            if (statuses_[i] == 0) {
+                continue;
+            }
+            int16_t delta = 0;
+            if (statuses_[i] == 1) {
+                if (!b.require(1)) {
+                    return srs_error_new(ERROR_RTC_RTCP, "small delta");
+                }
+                delta = (uint8_t)b.read_1bytes();
+            } else {
+                if (!b.require(2)) {
+                    return srs_error_new(ERROR_RTC_RTCP, "large delta");
+                }
+                delta = (int16_t)b.read_2bytes();
+            }
+            t += delta * 250;
+            arrivals_[(uint16_t)(base_sn_ + i)] = t;
+        }
+        return srs_success;
+    }
+};
+
+// Sends one feedback as SrsRtcPublishStream::send_periodic_twcc does, into one UDP datagram, and reads it back.
+static srs_error_t twcc_send_feedback(SrsRtcpTWCC &twcc, uint8_t fb_count, TwccFeedbackRead &fb)
+{
+    srs_error_t err = srs_success;
+    char pkt[kMaxUDPDataSize];
+    SrsBuffer buffer(pkt, sizeof(pkt));
+    twcc.set_feedback_count(fb_count);
+    if ((err = twcc.encode(&buffer)) != srs_success) {
+        return err;
+    }
+    return fb.parse(pkt, buffer.pos());
+}
+
+// Each packet the publisher sent and SRS received is in the feedback with its arrival time, to the 250us unit, and the
+// feedback is whole 32-bit words as its length says.
+static void twcc_expect_arrivals(const TwccFeedbackRead &fb, const map<uint16_t, srs_utime_t> &received)
+{
+    EXPECT_EQ(0, fb.size_ % 4);
+    EXPECT_EQ((fb.length_ + 1) * 4, fb.size_);
+    ASSERT_EQ(received.size(), fb.arrivals_.size());
+    for (map<uint16_t, srs_utime_t>::const_iterator it = received.begin(); it != received.end(); ++it) {
+        map<uint16_t, srs_utime_t>::const_iterator got = fb.arrivals_.find(it->first);
+        ASSERT_TRUE(got != fb.arrivals_.end()) << "sn=" << it->first;
+        srs_utime_t diff = got->second - it->second;
+        EXPECT_LE(diff < 0 ? -diff : diff, 125) << "sn=" << it->first;
+    }
+}
+
+// The publisher's packets come in 1ms apart, then one comes 100ms late, a delta over 63.75ms. The steady run goes
+// out as one run-length chunk, and the late packet as a 2-byte delta.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackSteadyRunThenLatePacket)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    // 640ms is 10 reference time units of 64ms.
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    map<uint16_t, srs_utime_t> received;
+    for (uint16_t sn = 0; sn < 20; sn++) {
+        received[sn] = base + sn * SRS_UTIME_MILLISECONDS;
+    }
+    received[20] = base + 119 * SRS_UTIME_MILLISECONDS;
+    for (map<uint16_t, srs_utime_t>::iterator it = received.begin(); it != received.end(); ++it) {
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(it->first, it->second));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(0, fb.base_sn_);
+    EXPECT_EQ(21, fb.count_);
+    EXPECT_EQ(10u, fb.reference_time_);
+    ASSERT_EQ(2, (int)fb.chunks_.size());
+    EXPECT_EQ(0x2014, fb.chunks_.at(0)); // 20 small deltas
+    EXPECT_EQ(0x4001, fb.chunks_.at(1)); // 1 large delta
+    twcc_expect_arrivals(fb, received);
+    EXPECT_FALSE(twcc.need_feedback());
+}
+
+// Every other packet of the publisher is lost. 14 statuses that mix lost and small go out as one 1-bit status vector
+// chunk.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackEveryOtherPacketLostUsesOneBitChunk)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    map<uint16_t, srs_utime_t> received;
+    for (uint16_t sn = 0; sn <= 14; sn += 2) {
+        received[sn] = base + sn * SRS_UTIME_MILLISECONDS;
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(sn, received[sn]));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(0, fb.base_sn_);
+    EXPECT_EQ(15, fb.count_);
+    ASSERT_EQ(2, (int)fb.chunks_.size());
+    EXPECT_EQ(0xaaaa, fb.chunks_.at(0)); // 1-bit vector: 1,0,1,0,...,1,0
+    EXPECT_EQ(0x2001, fb.chunks_.at(1)); // the last packet, received
+    for (int i = 0; i < 15; i++) {
+        EXPECT_EQ(i % 2 == 0 ? 1 : 0, fb.statuses_.at(i)) << "sn=" << i;
+    }
+    twcc_expect_arrivals(fb, received);
+}
+
+// A packet is lost and the next two arrive swapped, a negative delta. Statuses that mix lost, small and large go out
+// as a 2-bit status vector chunk of 7.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackLossAndReorderUsesTwoBitChunk)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    map<uint16_t, srs_utime_t> received;
+    received[0] = base;
+    // 1 is lost; 3 arrives before 2.
+    received[2] = base + 3 * SRS_UTIME_MILLISECONDS;
+    received[3] = base + 2 * SRS_UTIME_MILLISECONDS;
+    for (uint16_t sn = 4; sn <= 7; sn++) {
+        received[sn] = base + sn * SRS_UTIME_MILLISECONDS;
+    }
+    for (map<uint16_t, srs_utime_t>::iterator it = received.begin(); it != received.end(); ++it) {
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(it->first, it->second));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(8, fb.count_);
+    ASSERT_EQ(2, (int)fb.chunks_.size());
+    EXPECT_EQ(0xd195, fb.chunks_.at(0)); // 2-bit vector: 1,0,1,2,1,1,1
+    EXPECT_EQ(0x2001, fb.chunks_.at(1));
+    EXPECT_EQ(2, fb.statuses_.at(3));
+    twcc_expect_arrivals(fb, received);
+}
+
+// A packet is lost, eight arrive in order, then two arrive swapped. The first 7 statuses go out as a 2-bit chunk when
+// the negative delta comes, and the 4 statuses after them stay for the next chunk, which ends the feedback.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackLossThenLaterReorderCarriesStatusesOver)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    map<uint16_t, srs_utime_t> received;
+    received[0] = base;
+    // 1 is lost; 11 arrives before 10.
+    for (uint16_t sn = 2; sn <= 12; sn++) {
+        received[sn] = base + sn * SRS_UTIME_MILLISECONDS;
+    }
+    received[10] = base + 11 * SRS_UTIME_MILLISECONDS;
+    received[11] = base + 10 * SRS_UTIME_MILLISECONDS;
+    for (map<uint16_t, srs_utime_t>::iterator it = received.begin(); it != received.end(); ++it) {
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(it->first, it->second));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(13, fb.count_);
+    ASSERT_EQ(2, (int)fb.chunks_.size());
+    EXPECT_EQ(0xd155, fb.chunks_.at(0)); // 2-bit vector: 1,0,1,1,1,1,1
+    EXPECT_EQ(0xd564, fb.chunks_.at(1)); // 2-bit vector: 1,1,1,1,2,1
+    EXPECT_EQ(0, fb.statuses_.at(1));
+    EXPECT_EQ(2, fb.statuses_.at(11));
+    twcc_expect_arrivals(fb, received);
+}
+
+// The feedback ends in 10 statuses that mix lost and small, more than a 2-bit chunk holds. They go out as a 1-bit
+// chunk.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackEndingInMixedLossUsesOneBitChunk)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    uint16_t sns[] = {0, 2, 4, 6, 8, 9};
+    map<uint16_t, srs_utime_t> received;
+    for (int i = 0; i < (int)(sizeof(sns) / sizeof(sns[0])); i++) {
+        received[sns[i]] = base + sns[i] * SRS_UTIME_MILLISECONDS;
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(sns[i], received[sns[i]]));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(10, fb.count_);
+    ASSERT_EQ(1, (int)fb.chunks_.size());
+    EXPECT_EQ(0xaab0, fb.chunks_.at(0)); // 1-bit vector: 1,0,1,0,1,0,1,0,1,1
+    twcc_expect_arrivals(fb, received);
+}
+
+static void twcc_receive_burst(SrsRtcpTWCC &twcc, uint16_t first_sn, int count, map<uint16_t, srs_utime_t> &received)
+{
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    for (int i = 0; i < count; i++) {
+        uint16_t sn = (uint16_t)(first_sn + i);
+        received[sn] = base + i * 100;
+        srs_error_t err = twcc.recv_packet(sn, received[sn]);
+        EXPECT_TRUE(err == srs_success);
+        srs_freep(err);
+    }
+}
+
+static srs_error_t twcc_send_all(SrsRtcpTWCC &twcc, vector<TwccFeedbackRead> &fbs)
+{
+    srs_error_t err = srs_success;
+    for (int i = 0; i < 1024 && twcc.need_feedback(); i++) {
+        TwccFeedbackRead fb;
+        if ((err = twcc_send_feedback(twcc, (uint8_t)i, fb)) != srs_success) {
+            return err;
+        }
+        fbs.push_back(fb);
+    }
+    return err;
+}
+
+// A high bitrate publisher while the 100ms TWCC timer runs late: 1500 packets wait for one feedback, more than one UDP
+// datagram holds. The timer should send feedbacks until all are reported, the second continuing where the first
+// stopped. But SrsRtcpTWCC::do_encode stops adding packets when their 1-byte deltas fill the datagram, then requires 2
+// bytes for each delta, so the encode fails and clears every packet: the publisher gets no feedback for any of them.
+// Any feedback of more than about 725 packets with small deltas fails so.
+VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackForLateTimerBurst_EncodeFailsAndDropsAll)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    map<uint16_t, srs_utime_t> received;
+    twcc_receive_burst(twcc, 0, 1500, received);
+
+    vector<TwccFeedbackRead> fbs;
+    HELPER_ASSERT_SUCCESS(twcc_send_all(twcc, fbs));
+    ASSERT_EQ(2, (int)fbs.size());
+    EXPECT_EQ(0, fbs.at(0).base_sn_);
+    EXPECT_LE(fbs.at(0).size_, kMaxUDPDataSize);
+    EXPECT_EQ(fbs.at(0).count_, fbs.at(1).base_sn_);
+    EXPECT_EQ(1500, fbs.at(0).count_ + fbs.at(1).count_);
+
+    TwccFeedbackRead all = fbs.at(1);
+    all.arrivals_.insert(fbs.at(0).arrivals_.begin(), fbs.at(0).arrivals_.end());
+    twcc_expect_arrivals(all, received);
+}
+
+// The same late burst, when the first feedback stops right before sequence 0. The rest must go out in the next
+// feedback, but SrsRtcpTWCC::encode takes next_base_sn_ 0 for "nothing left" and clears them, so the publisher never
+// hears of them; the next feedback reports them as lost. Until the encode failure of the test above is fixed, this
+// test fails on that error first, in the probe.
+VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackSplitAtSequenceZero_RestNeverReported)
+{
+    srs_error_t err = srs_success;
+
+    // Learn how many packets of this burst one feedback holds.
+    uint16_t first_sn = 0;
+    if (true) {
+        SrsRtcpTWCC probe(0x2001);
+        map<uint16_t, srs_utime_t> received;
+        twcc_receive_burst(probe, 0, 1500, received);
+        TwccFeedbackRead fb;
+        HELPER_ASSERT_SUCCESS(twcc_send_feedback(probe, 0, fb));
+        first_sn = (uint16_t)(0 - fb.count_);
+    }
+
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+    map<uint16_t, srs_utime_t> received;
+    twcc_receive_burst(twcc, first_sn, 1500, received);
+
+    vector<TwccFeedbackRead> fbs;
+    HELPER_ASSERT_SUCCESS(twcc_send_all(twcc, fbs));
+    ASSERT_EQ(2, (int)fbs.size());
+    EXPECT_EQ(0, fbs.at(1).base_sn_);
+    EXPECT_EQ(1500, fbs.at(0).count_ + fbs.at(1).count_);
 }
