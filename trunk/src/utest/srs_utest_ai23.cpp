@@ -3532,15 +3532,20 @@ MockHttpMessageForGbPublish::MockHttpMessageForGbPublish()
     mock_conn_ = new MockHttpConn();
     set_connection(mock_conn_);
     body_content_ = "";
+    body_error_ = srs_success;
 }
 
 MockHttpMessageForGbPublish::~MockHttpMessageForGbPublish()
 {
     srs_freep(mock_conn_);
+    srs_freep(body_error_);
 }
 
 srs_error_t MockHttpMessageForGbPublish::body_read_all(std::string &body)
 {
+    if (body_error_ != srs_success) {
+        return srs_error_copy(body_error_);
+    }
     body = body_content_;
     return srs_success;
 }

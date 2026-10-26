@@ -51,4 +51,9 @@ public:
 // The counters srs_global_rtc_update reads for the RTC server's stats line.
 extern std::vector<SrsPps *> kbps_rtc_line_pps();
 
+// The PS pack header and system header of a GB28181 camera, and a PES packet of the stream id holding the body.
+extern std::string ps_pack_header();
+extern std::string ps_system_header();
+extern std::string ps_pes(uint8_t sid, const std::string &body);
+
 #endif

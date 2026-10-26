@@ -2442,7 +2442,7 @@ VOID TEST(KernelPacketTest, DISABLED_RtcHevcLaterSliceOfPFrame_DroppedAsBframe)
 }
 
 // The pack header of a GB28181 camera: 14 bytes and 6 stuffing bytes.
-static string ps_pack_header()
+string ps_pack_header()
 {
     return string("\x00\x00\x01\xba\x44\x68\x6e\x4c\x94\x01\x01\x30\x13\xfe\xff\xff\x00\x00\xa0\x05", 20);
 }
@@ -2454,7 +2454,7 @@ static string ps_system_fields()
 }
 
 // The system header of the same camera, listing streams 0xe0, 0xc0, 0xbd and 0xbf.
-static string ps_system_header()
+string ps_system_header()
 {
     return string("\x00\x00\x01\xbb\x00\x12", 6) + ps_system_fields() +
            string("\xe0\xe0\x80\xc0\xc0\x08\xbd\xe0\x80\xbf\xe0\x80", 12);
@@ -2471,7 +2471,7 @@ static string ps_system_header_with(const string &after_fields)
 }
 
 // A PES packet of the stream id, with PES_packet_length as the size of the body.
-static string ps_pes(uint8_t sid, const string &body)
+string ps_pes(uint8_t sid, const string &body)
 {
     string pes("\x00\x00\x01", 3);
     pes.push_back((char)sid);

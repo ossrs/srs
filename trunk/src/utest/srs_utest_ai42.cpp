@@ -609,56 +609,6 @@ VOID TEST(ProtocolSrtTest, PublisherWithWrongPassphrase_RejectLoggedAsSrtWarning
     EXPECT_STREQ("SRT", log.last_warn_tag_.c_str());
 }
 
-// A player connected to a server port over loopback: the listen socket, the player's socket, and the
-// server's side of the connection as the listener accepts it.
-class StUtestTcpPair
-{
-public:
-    srs_netfd_t lfd_;
-    srs_netfd_t client_;
-    srs_netfd_t server_;
-
-public:
-    StUtestTcpPair()
-    {
-        lfd_ = client_ = server_ = NULL;
-    }
-    ~StUtestTcpPair()
-    {
-        srs_close_stfd(client_);
-        srs_close_stfd(server_);
-        srs_close_stfd(lfd_);
-    }
-
-public:
-    srs_error_t open()
-    {
-        srs_error_t err = srs_success;
-
-        int port = 0;
-        if ((err = srs_utest_tcp_listen("127.0.0.1", &port, &lfd_)) != srs_success) {
-            return srs_error_wrap(err, "listen");
-        }
-
-        if ((err = srs_tcp_connect("127.0.0.1", port, 3 * SRS_UTIME_SECONDS, &client_)) != srs_success) {
-            return srs_error_wrap(err, "connect");
-        }
-
-        if ((server_ = srs_accept(lfd_, NULL, NULL, 3 * SRS_UTIME_SECONDS)) == NULL) {
-            return srs_error_new(ERROR_SOCKET_ACCEPT, "accept");
-        }
-
-        return err;
-    }
-    // The server's connection takes the accepted socket, and closes it when it goes.
-    srs_netfd_t take_server()
-    {
-        srs_netfd_t fd = server_;
-        server_ = NULL;
-        return fd;
-    }
-};
-
 // A player downloads an HLS segment, or a static file, then stops reading but keeps the connection,
 // as a paused or stuck client does. The server writes the body with its length; when the socket
 // buffers are full, the write waits for the send timeout and fails with a timeout, so the server
