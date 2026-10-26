@@ -34,6 +34,7 @@
 #include <srs_utest_ai37.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_ai42.hpp>
+#include <srs_utest_ai43.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -2222,4 +2223,401 @@ VOID TEST(ProtocolRtmpHandshakeTest, DhPublicKeyWithLeadingZeroByte_ServerMakesA
     HELPER_EXPECT_SUCCESS(client.copy_shared_key(pkey, pkey_size, client_shared, client_shared_size));
     ASSERT_EQ(server_shared_size, client_shared_size);
     EXPECT_TRUE(srs_bytes_equal(server_shared, client_shared, server_shared_size));
+}
+
+// The HLS volume is remounted read-only after an I/O error right as the server finishes a segment at a key frame: the
+// segment and the playlist that lists it are written, but the next segment can not be created. The frame fails and
+// the hub stops HLS for the stream; players have the playlist with the finished segment. For TS and for fMP4.
+VOID TEST(AppHlsTest, ReadOnlyVolumeAfterSegmentFinished_NextSegmentNotOpened)
+{
+    srs_error_t err;
+
+    if (true) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-ro-next");
+        HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1;"));
+        HELPER_ASSERT_SUCCESS(s.sequence_headers());
+        HELPER_ASSERT_SUCCESS(s.av(0, 900));
+
+        volume.read_only_at("livestream-1.ts.tmp");
+        err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+        EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("hls: segment open")) << srs_error_desc(err);
+        srs_freep(err);
+
+        string m3u8 = s.m3u8();
+        EXPECT_NE(string::npos, m3u8.find("\nlivestream-0.ts\n")) << m3u8;
+        EXPECT_EQ(1, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
+        EXPECT_TRUE(s.exists("livestream-0.ts"));
+        EXPECT_FALSE(s.exists("livestream-1.ts.tmp"));
+    }
+
+    if (true) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-fmp4-ro-next");
+        HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
+        HELPER_ASSERT_SUCCESS(s.sequence_headers());
+        HELPER_ASSERT_SUCCESS(s.av(0, 1900));
+
+        volume.read_only_at("livestream-1.m4s.tmp");
+        err = s.video(2000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+        EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("open segment")) << srs_error_desc(err);
+        srs_freep(err);
+
+        string m3u8 = s.m3u8();
+        EXPECT_NE(string::npos, m3u8.find("\nlivestream-0.m4s\n")) << m3u8;
+        EXPECT_EQ(1, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
+        EXPECT_TRUE(s.exists("livestream-0.m4s"));
+        EXPECT_FALSE(s.exists("livestream-1.m4s.tmp"));
+    }
+}
+
+// A radio station publishes AAC only, a frame each 23ms, to a vhost with fMP4 HLS segments of 1s, so a segment is cut
+// once it passes 2.1s. The fMP4 segment keeps its samples in memory until it is cut. When the disk fills before the
+// cut, the segment can not be written at the cut; when the volume is remounted read-only right after the cut wrote the
+// segment and the playlist, the next segment can not be created. Either way the frame fails and the hub stops HLS for
+// the stream.
+VOID TEST(AppHlsTest, Fmp4RadioVolumeFailsAtSegmentCut_FrameFails)
+{
+    srs_error_t err;
+
+    for (int full = 0; full < 2; full++) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-fmp4-radio");
+        HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
+        HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
+        int64_t ts = 0;
+        for (; ts <= 2070; ts += 23) {
+            HELPER_ASSERT_SUCCESS(s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+        }
+
+        if (full) {
+            volume.fill();
+        } else {
+            volume.read_only_at("livestream-1.m4s.tmp");
+        }
+        // The frames before the cut are kept in memory, so the first one to fail is the one that cuts the segment.
+        err = srs_success;
+        for (; err == srs_success && ts <= 2300; ts += 23) {
+            err = s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame));
+        }
+        EXPECT_EQ(full ? ERROR_SYSTEM_FILE_WRITE : ERROR_SYSTEM_FILE_OPENE, srs_error_code(err)) << full;
+        EXPECT_NE(string::npos, srs_error_desc(err).find(full ? "segment close" : "open segment")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_GE(ts, 2100) << full;
+
+        if (full) {
+            EXPECT_FALSE(s.exists("livestream.m3u8"));
+            EXPECT_FALSE(s.exists("livestream-0.m4s"));
+        } else {
+            string m3u8 = s.m3u8();
+            EXPECT_NE(string::npos, m3u8.find("\nlivestream-0.m4s\n")) << m3u8;
+            EXPECT_TRUE(s.exists("livestream-0.m4s"));
+            EXPECT_FALSE(s.exists("livestream-1.m4s.tmp"));
+        }
+    }
+}
+
+// The disk fills while a publisher streams fMP4 HLS, right after a key frame's segment is written, at the playlist.
+// The new playlist can not be written, so players keep the old one, which lists the earlier segments only, and no
+// temporary playlist is left. The frame should fail too, but B38 loses the error, so the test does not check it.
+VOID TEST(AppHlsTest, Fmp4DiskFillsAtPlaylist_PlayersKeepOldPlaylist)
+{
+    srs_error_t err;
+
+    HlsUtestVolumeScope volume;
+    HlsUtestStream s("ai46-hls-fmp4-full-m3u8");
+    HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 3900));
+    string m3u8 = s.m3u8();
+    ASSERT_EQ(1, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
+
+    volume.fill_at("livestream.m3u8.temp");
+    err = s.video(4000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+    srs_freep(err);
+
+    EXPECT_STREQ(m3u8.c_str(), s.m3u8().c_str());
+    EXPECT_FALSE(s.exists("livestream.m3u8.temp"));
+}
+
+// The fMP4 HLS volume is remounted read-only after an I/O error while a new stream starts, and the stream needs a dir
+// of its own that is not there yet. With the default init file in the stream's dir, hls_init_file
+// [app]/[stream]/init.mp4, the publisher's first sequence header can not make that dir for the init file. With the init
+// file beside the playlist and the segments in the stream's dir, such as hls_init_file [app]/[stream]-init.mp4 with
+// hls_fmp4_file [app]/[stream]/[seq].m4s, the init file is written before the volume fails, and the first frame can not
+// make the dir for its segment. Either way the media fails and the hub stops HLS for the stream.
+VOID TEST(AppHlsTest, Fmp4ReadOnlyVolumeAtNewStreamDir_MediaFails)
+{
+    srs_error_t err;
+
+    if (true) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-fmp4-ro-init-dir");
+        HELPER_ASSERT_SUCCESS(s.publish("hls_use_fmp4 on;"));
+
+        volume.read_only();
+        err = s.video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh));
+        EXPECT_EQ(ERROR_SYSTEM_CREATE_DIR, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("Create init mp4 dir failed")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("livestream"));
+    }
+
+    if (true) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-fmp4-ro-dir");
+        HELPER_ASSERT_SUCCESS(s.publish("hls_use_fmp4 on; hls_init_file [app]/[stream]-init.mp4; hls_fmp4_file [app]/[stream]/[seq].m4s;"));
+        HELPER_ASSERT_SUCCESS(s.sequence_headers());
+        EXPECT_TRUE(s.exists("livestream-init.mp4"));
+
+        volume.read_only();
+        err = s.video(0, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+        EXPECT_EQ(ERROR_SYSTEM_CREATE_DIR, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("create hls m4s segment dir")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("livestream"));
+    }
+}
+
+// The server restarts while a stream is live, and the publisher publishes again, but the playlist the last run wrote
+// can not be read: it was written by a packager running as another user, with no read permission for the server, or
+// the disk has bad sectors under it. The server can not recover the stream's segments, so it refuses the publish
+// with the error, rather than overwrite a playlist it could not read; the playlist is not touched.
+VOID TEST(AppHlsTest, UnreadablePlaylistAtRepublish_PublishRefused)
+{
+    srs_error_t err;
+
+    for (int bad_sectors = 0; bad_sectors < 2; bad_sectors++) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai46-hls-unreadable");
+        SrsPath p;
+        HELPER_ASSERT_SUCCESS(p.mkdir_all(s.path("")));
+        string playlist = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:7\n#EXT-X-TARGETDURATION:1\n"
+                          "#EXTINF:1.000, no desc\nlivestream-7.ts\n";
+        hls_utest_write_file(s.path("livestream.m3u8"), playlist);
+
+        if (bad_sectors) {
+            volume.bad_sectors();
+        } else {
+            volume.unreadable();
+        }
+        err = s.publish("hls_fragment 1;");
+        EXPECT_EQ(bad_sectors ? ERROR_SYSTEM_FILE_READ : ERROR_SYSTEM_FILE_OPENE, srs_error_code(err)) << bad_sectors;
+        EXPECT_NE(string::npos, srs_error_desc(err).find(bad_sectors ? "read data" : "open file")) << srs_error_desc(err);
+        EXPECT_NE(string::npos, srs_error_desc(err).find("hls: recover stream")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_STREQ(playlist.c_str(), hls_utest_read_file(s.path("livestream.m3u8")).c_str());
+        EXPECT_FALSE(s.exists("livestream-8.ts.tmp"));
+    }
+}
+
+// The PTS of each PES of the stream id, such as 0xc0 for audio or 0xe0 for video, in a TS file, in order, in 90kHz
+// ticks.
+static vector<int64_t> hls_utest_pes_pts(const string &ts, uint8_t sid)
+{
+    vector<int64_t> pts;
+    for (size_t pos = 0; pos + 188 <= ts.size(); pos += 188) {
+        const uint8_t *p = (const uint8_t *)ts.data() + pos;
+        // Only a packet that starts a PES has its header, after the adaptation field, if any.
+        int afc = (p[3] >> 4) & 0x03;
+        if (p[0] != 0x47 || !(p[1] & 0x40) || afc == 2) {
+            continue;
+        }
+        int offset = (afc == 3) ? 5 + p[4] : 4;
+        if (offset + 14 > 188) {
+            continue;
+        }
+        const uint8_t *pes = p + offset;
+        if (pes[0] != 0x00 || pes[1] != 0x00 || pes[2] != 0x01 || pes[3] != sid || !(pes[7] & 0x80)) {
+            continue;
+        }
+        const uint8_t *b = pes + 9;
+        pts.push_back((((int64_t)b[0] >> 1) & 0x07) << 30 | (int64_t)b[1] << 22 | ((int64_t)b[2] >> 1) << 15 | (int64_t)b[3] << 7 | (b[4] >> 1));
+    }
+    return pts;
+}
+
+// The segment files the playlist lists, in order.
+static vector<string> hls_utest_listed_files(HlsUtestStream &s)
+{
+    vector<string> files;
+    vector<string> lines = srs_strings_split(s.m3u8(), "\n");
+    for (int i = 0; i < (int)lines.size(); i++) {
+        string line = lines.at(i);
+        if (srs_strings_ends_with(line, ".ts")) {
+            files.push_back(s.path(line));
+        }
+    }
+    return files;
+}
+
+// A publisher sends H.264 and AAC to a vhost that times audio by the guessed samples of each frame
+// (hls_dts_directly off), with HLS segments of 1s. Its encoder restarts its clocks in the second segment, without
+// publishing again, so the timestamps of both tracks go back to 0. The video in the segments follows the new clock, and
+// so does the audio: the guessed samples restart with the clock, so the audio goes back to 0 with the video, once,
+// then goes on by the guessed samples of each frame, as from the start.
+VOID TEST(AppHlsTest, EncoderRestartsClocksWithoutDtsDirectly_AudioRestartsWithVideo)
+{
+    srs_error_t err;
+
+    HlsUtestStream s("ai46-hls-audio-reset");
+    HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_dts_directly off;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 1500));
+    HELPER_ASSERT_SUCCESS(s.av(0, 3500));
+
+    vector<string> files = hls_utest_listed_files(s);
+    ASSERT_EQ(4, (int)files.size()) << s.m3u8();
+    vector<int64_t> audio, video;
+    for (int i = 0; i < (int)files.size(); i++) {
+        string body = hls_utest_read_file(files.at(i));
+        vector<int64_t> a = hls_utest_pes_pts(body, 0xc0);
+        vector<int64_t> v = hls_utest_pes_pts(body, 0xe0);
+        audio.insert(audio.end(), a.begin(), a.end());
+        video.insert(video.end(), v.begin(), v.end());
+    }
+    // A frame each 100ms of both tracks, 16 before the restart and 30 after it in the listed segments.
+    ASSERT_EQ(46, (int)audio.size());
+    ASSERT_EQ(46, (int)video.size());
+
+    for (int i = 1; i < 46; i++) {
+        if (i == 16) {
+            EXPECT_EQ(0, video[i]);
+            EXPECT_EQ(0, audio[i]);
+        } else {
+            EXPECT_EQ(9000, video[i] - video[i - 1]) << i;
+            // Each AAC frame 100ms after the last is guessed as 4096 samples of 44.1kHz, 8359.18 ticks.
+            EXPECT_NEAR(8359, audio[i] - audio[i - 1], 1) << i;
+        }
+    }
+}
+
+// A publisher sends H.264 and AAC to a vhost with HLS segments of 1s, and its encoder restarts its clocks in the second
+// segment, without publishing again, so the timestamps go back to 0. That segment holds the 0.6s before the restart
+// and the 1s after it, but it is listed as 1s: the segment's duration is measured from its least timestamp, so the
+// time before the restart is lost. Players are told a shorter segment than they get. Each segment should be listed
+// as at least the frames it holds, which holds for a fix that measures the time of both clocks or that cuts the
+// segment at the restart.
+VOID TEST(AppHlsTest, DISABLED_EncoderRestartsClocksMidSegment_SegmentListedShort)
+{
+    srs_error_t err;
+
+    HlsUtestStream s("ai46-hls-clock-restart");
+    HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 1500));
+    HELPER_ASSERT_SUCCESS(s.av(0, 3500));
+
+    string m3u8 = s.m3u8();
+    vector<int> durations = hls_utest_extinf_ms(m3u8);
+    vector<string> files = hls_utest_listed_files(s);
+    ASSERT_EQ(files.size(), durations.size()) << m3u8;
+    for (int i = 0; i < (int)files.size(); i++) {
+        // A video frame each 100ms: a segment of n frames lasts at least (n - 1) * 100ms.
+        int nb_frames = (int)hls_utest_pes_pts(hls_utest_read_file(files.at(i)), 0xe0).size();
+        EXPECT_GE(durations.at(i), (nb_frames - 1) * 100) << files.at(i) << "\n" << m3u8;
+    }
+}
+
+// A slow HTTP callback server for the on_hls hook, which takes a while to answer each segment, and notes the sequence
+// number of each segment it is called for.
+class HlsUtestSlowOnHls : public MockHttpHooks
+{
+public:
+    vector<int> seqs_;
+
+public:
+    virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
+                               std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration)
+    {
+        seqs_.push_back(sn);
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        return srs_success;
+    }
+};
+
+// The server quits, by a SIGTERM, while a stream unpublishes: its timer runs the HLS cycle of each stream, then
+// disposes every stream.
+class HlsUtestServerQuit : public ISrsCoroutineHandler
+{
+public:
+    HlsUtestStream *s_;
+    srs_error_t cycle_err_;
+    bool m3u8_at_cycle_;
+    bool done_;
+    SrsSTCoroutine *trd_;
+
+public:
+    HlsUtestServerQuit(HlsUtestStream *s)
+    {
+        s_ = s;
+        cycle_err_ = srs_success;
+        m3u8_at_cycle_ = false;
+        done_ = false;
+        trd_ = new SrsSTCoroutine("hls-quit", this);
+    }
+    virtual ~HlsUtestServerQuit()
+    {
+        srs_freep(trd_);
+        srs_freep(cycle_err_);
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        cycle_err_ = s_->hls_->cycle();
+        m3u8_at_cycle_ = s_->exists("livestream.m3u8");
+        s_->hls_->dispose();
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// A publisher unpublishes a stream whose segments call a slow on_hls callback server: the unpublish waits for the
+// callbacks of the segments. Meanwhile the server quits: its timer runs the HLS cycle, which waits for the unpublish
+// rather than dispose the stream, though the stream is past hls_dispose, and the quit disposes the stream, which skips
+// the unpublish already running and removes the stream's HLS files. Each segment is called back once, and the
+// unpublish ends after the callbacks.
+VOID TEST(AppHlsTest, ServerQuitsWhileUnpublishWaitsOnHlsCallbacks_UnpublishedOnce)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + "vhost __defaultVhost__ { http_hooks { enabled on; "
+                                                                 "on_hls http://127.0.0.1:8085/api/v1/hls; } }"));
+    HlsUtestSlowOnHls hooks;
+    SrsConfig *saved_config = _srs_config;
+    ISrsHttpHooks *saved_hooks = _srs_hooks;
+    _srs_config = &conf;
+    _srs_hooks = &hooks;
+
+    if (true) {
+        HlsUtestStream s("ai46-hls-quit");
+        HELPER_EXPECT_SUCCESS(s.publish("hls_fragment 1; hls_dispose 1;"));
+        HELPER_EXPECT_SUCCESS(s.sequence_headers());
+        HELPER_EXPECT_SUCCESS(s.av(0, 2500));
+        EXPECT_TRUE(hooks.seqs_.empty());
+
+        // The stream is past hls_dispose since its last frame, so the timer would dispose it but for the unpublish.
+        s.hls_->last_update_time_ = 1;
+        HlsUtestServerQuit quit(&s);
+        HELPER_EXPECT_SUCCESS(quit.trd_->start());
+        s.hls_->on_unpublish();
+
+        EXPECT_TRUE(quit.done_);
+        HELPER_EXPECT_SUCCESS(srs_error_copy(quit.cycle_err_));
+        EXPECT_TRUE(quit.m3u8_at_cycle_);
+        EXPECT_FALSE(s.exists("livestream.m3u8"));
+        EXPECT_FALSE(s.exists("livestream-0.ts"));
+
+        EXPECT_EQ(3, (int)hooks.seqs_.size());
+        for (int i = 0; i < (int)hooks.seqs_.size(); i++) {
+            EXPECT_EQ(i, hooks.seqs_[i]);
+        }
+    }
+
+    _srs_config = saved_config;
+    _srs_hooks = saved_hooks;
 }

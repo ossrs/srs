@@ -1316,11 +1316,8 @@ VOID TEST(AppHeartbeatTest, CollectorClosesMidBody_TickWarnsReadBody)
     EXPECT_NE(string::npos, warn.find("read body")) << warn;
 }
 
-extern srs_fopen_t _srs_fopen_fn;
-extern srs_fwrite_t _srs_fwrite_fn;
-
 // Removes a dir and everything in it, as an operator's cleanup job does.
-static void hls_utest_remove_all(const string &dir)
+void hls_utest_remove_all(const string &dir)
 {
     DIR *d = opendir(dir.c_str());
     if (!d) {
@@ -1339,7 +1336,7 @@ static void hls_utest_remove_all(const string &dir)
     ::rmdir(dir.c_str());
 }
 
-static string hls_utest_read_file(const string &path)
+string hls_utest_read_file(const string &path)
 {
     FILE *fp = fopen(path.c_str(), "rb");
     if (!fp) {
@@ -1356,7 +1353,7 @@ static string hls_utest_read_file(const string &path)
     return content;
 }
 
-static void hls_utest_write_file(const string &path, const string &content)
+void hls_utest_write_file(const string &path, const string &content)
 {
     FILE *fp = fopen(path.c_str(), "wb");
     if (fp) {
@@ -1365,7 +1362,7 @@ static void hls_utest_write_file(const string &path, const string &content)
     }
 }
 
-static int hls_utest_count(const string &s, const string &sub)
+int hls_utest_count(const string &s, const string &sub)
 {
     int n = 0;
     for (size_t pos = s.find(sub); pos != string::npos; pos = s.find(sub, pos + sub.length())) {
@@ -1374,13 +1371,26 @@ static int hls_utest_count(const string &s, const string &sub)
     return n;
 }
 
-static bool hls_volume_read_only_ = false;
-static bool hls_volume_full_ = false;
+bool hls_volume_read_only_ = false;
+bool hls_volume_full_ = false;
+string hls_volume_read_only_at_;
+string hls_volume_full_at_;
+bool hls_volume_unreadable_ = false;
+bool hls_volume_bad_sectors_ = false;
 
-// Creates no file for writing once the volume is read-only.
-static FILE *hls_utest_fopen(const char *path, const char *mode)
+// Creates no file for writing once the volume is read-only. Opening the file the volume fails at for writing makes it
+// read-only, so that open fails, or full, so its writes fail.
+FILE *hls_utest_fopen(const char *path, const char *mode)
 {
-    if (hls_volume_read_only_ && (mode[0] == 'w' || mode[0] == 'a')) {
+    bool writing = (mode[0] == 'w' || mode[0] == 'a');
+    if (writing && !hls_volume_read_only_at_.empty() && srs_strings_ends_with(path, hls_volume_read_only_at_)) {
+        hls_volume_read_only_ = true;
+    }
+    if (writing && !hls_volume_full_at_.empty() && srs_strings_ends_with(path, hls_volume_full_at_)) {
+        hls_volume_full_ = true;
+    }
+
+    if (hls_volume_read_only_ && writing) {
         errno = EROFS;
         return NULL;
     }
@@ -1388,7 +1398,7 @@ static FILE *hls_utest_fopen(const char *path, const char *mode)
 }
 
 // Fails every write once the disk is full.
-static size_t hls_utest_fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream)
+size_t hls_utest_fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream)
 {
     if (hls_volume_full_) {
         errno = ENOSPC;
@@ -1397,270 +1407,35 @@ static size_t hls_utest_fwrite(const void *ptr, size_t size, size_t nitems, FILE
     return ::fwrite(ptr, size, nitems, stream);
 }
 
-// The volume HLS writes to, which a test remounts read-only or fills.
-class HlsUtestVolumeScope
+// Creates no dir once the volume is read-only.
+int hls_utest_mkdir(const char *path)
 {
-public:
-    srs_fopen_t fopen_fn_;
-    srs_fwrite_t fwrite_fn_;
+    if (hls_volume_read_only_) {
+        errno = EROFS;
+        return -1;
+    }
+    return srs_mkdir(path);
+}
 
-public:
-    HlsUtestVolumeScope()
-    {
-        fopen_fn_ = _srs_fopen_fn;
-        fwrite_fn_ = _srs_fwrite_fn;
-        _srs_fopen_fn = hls_utest_fopen;
-        _srs_fwrite_fn = hls_utest_fwrite;
-        hls_volume_read_only_ = hls_volume_full_ = false;
-    }
-    virtual ~HlsUtestVolumeScope()
-    {
-        _srs_fopen_fn = fopen_fn_;
-        _srs_fwrite_fn = fwrite_fn_;
-        hls_volume_read_only_ = hls_volume_full_ = false;
-    }
-    void read_only()
-    {
-        hls_volume_read_only_ = true;
-    }
-    void fill()
-    {
-        hls_volume_full_ = true;
-    }
-};
-
-// A path that fails every delete, as on a volume remounted read-only, and notes each path it was asked to delete.
-class HlsUtestReadOnlyPath : public SrsPath
+// Opens no file for reading once its permissions deny the server.
+int hls_utest_open(const char *path, int oflag, ...)
 {
-public:
-    vector<string> *unlinks_;
-
-public:
-    HlsUtestReadOnlyPath(vector<string> *unlinks)
-    {
-        unlinks_ = unlinks;
+    if (hls_volume_unreadable_) {
+        errno = EACCES;
+        return -1;
     }
-    virtual srs_error_t unlink(std::string path)
-    {
-        unlinks_->push_back(path);
-        return srs_error_new(ERROR_SYSTEM_FILE_UNLINK, "unlink %s, read-only file system", path.c_str());
-    }
-};
+    return srs_file_open(path, oflag);
+}
 
-// The server's factory, but its paths fail every delete.
-class HlsUtestReadOnlyFactory : public SrsAppFactory
+// Reads nothing once the disk has bad sectors.
+ssize_t hls_utest_read(int fd, void *buf, size_t count)
 {
-public:
-    vector<string> unlinks_;
-
-public:
-    virtual SrsPath *create_path()
-    {
-        return new HlsUtestReadOnlyPath(&unlinks_);
+    if (hls_volume_bad_sectors_) {
+        errno = EIO;
+        return -1;
     }
-};
-
-// A stream published with HLS on, its files under home, fed the packets of an RTMP publisher as the origin hub feeds
-// them: each packet is parsed by the stream's format first. As the hub, it caches the sequence headers and feeds them
-// again when HLS asks, after a reload or when a disposed HLS resumes.
-class HlsUtestStream : public MockOriginHub
-{
-public:
-    string home_;
-    MockSrsConfig conf_;
-    MockSrsRequest req_;
-    SrsHls *hls_;
-    SrsFormat format_;
-    SrsMediaPacket *vsh_;
-    SrsFormat vsh_format_;
-    SrsMediaPacket *ash_;
-    SrsFormat ash_format_;
-    // The factory of the muxer's files and paths, or NULL for the server's.
-    ISrsAppFactory *factory_;
-
-public:
-    HlsUtestStream(string name) : req_("__defaultVhost__", "live", "livestream")
-    {
-        home_ = _srs_tmp_file_prefix + name;
-        hls_utest_remove_all(home_);
-        hls_ = new SrsHls();
-        hls_->assemble();
-        vsh_ = ash_ = NULL;
-        factory_ = NULL;
-    }
-    virtual ~HlsUtestStream()
-    {
-        srs_freep(hls_);
-        srs_freep(vsh_);
-        srs_freep(ash_);
-        hls_utest_remove_all(home_);
-    }
-
-public:
-    // Loads the config of the vhost, whose hls section has these options, and hls_path under home. HLS is on, unless
-    // the options turn it off.
-    srs_error_t load(MockSrsConfig &conf, string options)
-    {
-        return conf.mock_parse(string(_MIN_OK_CONF) + "vhost __defaultVhost__ { hls { " + options + " hls_path " + home_ + "; enabled on; } }");
-    }
-    // Points HLS, its controller and muxer at this config, and the muxer at the test's factory, if any.
-    void use(ISrsAppConfig *conf)
-    {
-        hls_->config_ = conf;
-        SrsHlsController *ts = dynamic_cast<SrsHlsController *>(hls_->controller_);
-        if (ts) {
-            ts->config_ = conf;
-            SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(ts->muxer_);
-            muxer->config_ = conf;
-            if (factory_) {
-                muxer->app_factory_ = factory_;
-            }
-        }
-        SrsHlsMp4Controller *mp4 = dynamic_cast<SrsHlsMp4Controller *>(hls_->controller_);
-        if (mp4) {
-            mp4->config_ = conf;
-            mp4->muxer_->config_ = conf;
-            if (factory_) {
-                mp4->muxer_->app_factory_ = factory_;
-            }
-        }
-    }
-    srs_error_t publish(string options)
-    {
-        srs_error_t err = srs_success;
-
-        if ((err = load(conf_, options)) != srs_success) {
-            return srs_error_wrap(err, "config");
-        }
-        if ((err = format_.initialize()) != srs_success) {
-            return srs_error_wrap(err, "format");
-        }
-        if ((err = vsh_format_.initialize()) != srs_success) {
-            return srs_error_wrap(err, "vsh format");
-        }
-        if ((err = ash_format_.initialize()) != srs_success) {
-            return srs_error_wrap(err, "ash format");
-        }
-
-        hls_->config_ = &conf_;
-        if ((err = hls_->initialize(this, &req_)) != srs_success) {
-            return srs_error_wrap(err, "initialize");
-        }
-        use(&conf_);
-
-        return hls_->on_publish();
-    }
-    srs_error_t video(int64_t ts, const uint8_t *data, int size)
-    {
-        srs_error_t err = srs_success;
-
-        SrsMediaPacket msg;
-        char *payload = new char[size];
-        memcpy(payload, data, size);
-        msg.wrap(payload, size);
-        msg.timestamp_ = ts;
-        msg.message_type_ = SrsFrameTypeVideo;
-
-        if ((err = format_.on_video(ts, msg.payload(), msg.size())) != srs_success) {
-            return srs_error_wrap(err, "format");
-        }
-        if (format_.is_avc_sequence_header()) {
-            srs_freep(vsh_);
-            vsh_ = msg.copy();
-            if ((err = vsh_format_.on_video(ts, vsh_->payload(), vsh_->size())) != srs_success) {
-                return srs_error_wrap(err, "vsh format");
-            }
-        }
-
-        return hls_->on_video(&msg, &format_);
-    }
-    srs_error_t audio(int64_t ts, const uint8_t *data, int size)
-    {
-        srs_error_t err = srs_success;
-
-        SrsMediaPacket msg;
-        char *payload = new char[size];
-        memcpy(payload, data, size);
-        msg.wrap(payload, size);
-        msg.timestamp_ = ts;
-        msg.message_type_ = SrsFrameTypeAudio;
-
-        if ((err = format_.on_audio(ts, msg.payload(), msg.size())) != srs_success) {
-            return srs_error_wrap(err, "format");
-        }
-        if (format_.is_aac_sequence_header()) {
-            srs_freep(ash_);
-            ash_ = msg.copy();
-            if ((err = ash_format_.on_audio(ts, ash_->payload(), ash_->size())) != srs_success) {
-                return srs_error_wrap(err, "ash format");
-            }
-        }
-
-        return hls_->on_audio(&msg, &format_);
-    }
-    // Sends the sequence headers of both tracks.
-    srs_error_t sequence_headers()
-    {
-        srs_error_t err = srs_success;
-
-        if ((err = video(0, flv_utest_avc_sh, sizeof(flv_utest_avc_sh))) != srs_success) {
-            return srs_error_wrap(err, "avc sh");
-        }
-        if ((err = audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh))) != srs_success) {
-            return srs_error_wrap(err, "aac sh");
-        }
-        return err;
-    }
-    // Sends the media from one time to another, in ms: 10 video and 10 audio frames a second, a key frame each second.
-    srs_error_t av(int64_t from, int64_t to)
-    {
-        srs_error_t err = srs_success;
-
-        for (int64_t ts = from; ts <= to; ts += 100) {
-            const uint8_t *frame = (ts % 1000) == 0 ? flv_utest_avc_idr : flv_utest_avc_inter;
-            if ((err = video(ts, frame, sizeof(flv_utest_avc_idr))) != srs_success) {
-                return srs_error_wrap(err, "video %d", (int)ts);
-            }
-            if ((err = audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame))) != srs_success) {
-                return srs_error_wrap(err, "audio %d", (int)ts);
-            }
-        }
-        return err;
-    }
-    // On HLS's request, feeds the cached sequence headers again, as SrsOriginHub does.
-    virtual srs_error_t on_hls_request_sh()
-    {
-        srs_error_t err = srs_success;
-
-        on_hls_request_sh_count_++;
-        if (on_hls_request_sh_error_) {
-            return srs_error_copy(on_hls_request_sh_error_);
-        }
-
-        if (vsh_ && (err = hls_->on_video(vsh_, &vsh_format_)) != srs_success) {
-            return srs_error_wrap(err, "hls video sh");
-        }
-        if (ash_ && (err = hls_->on_audio(ash_, &ash_format_)) != srs_success) {
-            return srs_error_wrap(err, "hls audio sh");
-        }
-        return err;
-    }
-
-public:
-    string path(string name)
-    {
-        return home_ + "/live/" + name;
-    }
-    bool exists(string name)
-    {
-        SrsPath p;
-        return p.exists(path(name));
-    }
-    string m3u8()
-    {
-        return hls_utest_read_file(path("livestream.m3u8"));
-    }
-};
+    return srs_file_read(fd, buf, count);
+}
 
 // A publisher streams H.264 and AAC for 10 seconds to a vhost with HLS segments of 1s and a window of 3s. A key frame
 // each second cuts a segment. The playlist lists the last segments that cover the window, the first with the sequence
@@ -1817,21 +1592,29 @@ VOID TEST(AppHlsTest, HlsPathUnderRegularFile_PublishRefused)
     }
 }
 
-// The HLS volume was remounted read-only after an I/O error, and a publisher publishes to a TS stream. The first
-// segment can not be created, so the publish fails.
+// The HLS volume was remounted read-only after an I/O error, and a publisher publishes a new TS stream to an app other
+// streams publish to, so the app's dir is there. With the segments beside the playlist, the first segment can not be
+// created; with each stream's segments in a dir of its own, such as hls_ts_file [app]/[stream]/[seq].ts, that dir can
+// not be made. The publish fails either way, leaving nothing.
 VOID TEST(AppHlsTest, ReadOnlyVolumeAtPublish_TsPublishRefused)
 {
     srs_error_t err;
 
-    HlsUtestVolumeScope volume;
-    HlsUtestStream s("ai43-hls-ro-publish");
-    volume.read_only();
+    const char *options[] = {"", "hls_ts_file [app]/[stream]/[seq].ts;"};
+    for (int i = 0; i < 2; i++) {
+        HlsUtestVolumeScope volume;
+        HlsUtestStream s("ai43-hls-ro-publish");
+        SrsPath p;
+        HELPER_ASSERT_SUCCESS(p.mkdir_all(s.path("")));
+        volume.read_only();
 
-    err = s.publish("");
-    EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
-    EXPECT_NE(string::npos, srs_error_desc(err).find("hls: segment open")) << srs_error_desc(err);
-    srs_freep(err);
-    EXPECT_FALSE(s.exists("livestream-0.ts.tmp"));
+        err = s.publish(options[i]);
+        EXPECT_EQ(i == 0 ? ERROR_SYSTEM_FILE_OPENE : ERROR_SYSTEM_CREATE_DIR, srs_error_code(err)) << options[i];
+        EXPECT_NE(string::npos, srs_error_desc(err).find("hls: segment open")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("livestream-0.ts.tmp"));
+        EXPECT_FALSE(s.exists("livestream"));
+    }
 }
 
 // The HLS volume is remounted read-only while a publisher streams. At the next key frame, the segment is finished, but
@@ -2033,7 +1816,7 @@ VOID TEST(AppHlsTest, DISABLED_Fmp4SegmentOfOneGop_CutAtSecondKeyFrame)
 }
 
 // The EXTINF durations of a playlist, in ms.
-static vector<int> hls_utest_extinf_ms(const string &m3u8)
+vector<int> hls_utest_extinf_ms(const string &m3u8)
 {
     vector<int> durations;
     for (size_t pos = m3u8.find("#EXTINF:"); pos != string::npos; pos = m3u8.find("#EXTINF:", pos + 1)) {
@@ -2076,7 +1859,7 @@ VOID TEST(AppHlsTest, Fmp4AudioOnlyStream_SegmentsCutByDuration)
 // The fMP4 HLS volume fails while a publisher sends its sequence headers: it is remounted read-only, or the disk fills.
 // The init file of the video sequence header, of both tracks when the audio one follows, or of the audio track of an
 // audio-only stream, can not be written, so the sequence header fails and the hub stops HLS for the stream; no init
-// file is left for players.
+// file is left for players. The stream was published before, so its dir is there.
 VOID TEST(AppHlsTest, Fmp4VolumeFailsAtSequenceHeader_InitFileNotWritten)
 {
     srs_error_t err;
@@ -2085,6 +1868,8 @@ VOID TEST(AppHlsTest, Fmp4VolumeFailsAtSequenceHeader_InitFileNotWritten)
         for (int track = 0; track < 3; track++) {
             HlsUtestVolumeScope volume;
             HlsUtestStream s("ai43-hls-fmp4-init");
+            SrsPath p;
+            HELPER_ASSERT_SUCCESS(p.mkdir_all(s.path("livestream")));
             HELPER_ASSERT_SUCCESS(s.publish("hls_use_fmp4 on;"));
 
             // The video sequence header, then the audio one, or the audio one only.
