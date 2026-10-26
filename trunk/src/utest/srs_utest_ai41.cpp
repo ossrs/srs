@@ -10,6 +10,7 @@
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
+#include <srs_app_srt_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
@@ -23,6 +24,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
+#include <srs_utest_ai08.hpp>
 #include <srs_utest_ai29.hpp>
 #include <srs_utest_ai30.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -2102,4 +2104,86 @@ VOID TEST(ProtocolLogTest, HlsPlayerWithOversizedCtx_LogLineDropped)
     EXPECT_TRUE(writer.console_.find("[k3j9x2ab] HLS: play stream=live/livestream\n") != string::npos) << writer.console_;
 
     log.writer_ = NULL;
+}
+
+// Feeds one PES of an SRT publisher to its frame builder, the way SrsSrtSource does for each
+// message its TS context completes.
+static srs_error_t raw_avc_srt_pes(SrsSrtFrameBuilder *builder, SrsTsStream stream, const string &payload)
+{
+    SrsTsChannel channel;
+    channel.apply_ = (stream == SrsTsStreamAudioAAC) ? SrsTsPidApplyAudio : SrsTsPidApplyVideo;
+    channel.stream_ = stream;
+
+    SrsTsMessage msg(&channel, NULL);
+    msg.sid_ = (stream == SrsTsStreamAudioAAC) ? SrsTsPESStreamIdAudioCommon : SrsTsPESStreamIdVideoCommon;
+    msg.dts_ = msg.pts_ = 90000;
+    msg.payload_->append(payload.data(), (int)payload.length());
+
+    return builder->on_ts_message(&msg);
+}
+
+// An SRT publisher's HEVC key frame whose SPS is cut after its profile, tier and level, as from
+// an encoder or a relay that truncates the parameter sets. The VPS parses, so the builder makes
+// the sequence header and refuses it at the SPS, and no frame reaches the source.
+VOID TEST(ProtocolRawAvcTest, SrtHevcKeyframeWithCutSps_SequenceHeaderRefused)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsSrtFrameBuilder builder(&target);
+    builder.assemble();
+    MockRtcAsyncCallRequest req("test.vhost", "live", "hevc");
+    HELPER_ASSERT_SUCCESS(builder.initialize(&req));
+
+    const uint8_t vps[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+                           0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
+    // The first 22 bytes of a 720p SPS: the NALU header, the ids and the profile, tier and level,
+    // but none of the fields after them.
+    const uint8_t sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+                           0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80};
+    const uint8_t pps[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
+    const uint8_t idr[] = {0x26, 0x01, 0xaf, 0x06, 0xb8, 0x63, 0xef, 0x3a, 0x7f, 0x3c, 0x00, 0x01, 0x00, 0x80};
+    string start_code("\x00\x00\x00\x01", 4);
+
+    string au;
+    au += start_code + string((const char *)vps, sizeof(vps));
+    au += start_code + string((const char *)sps, sizeof(sps));
+    au += start_code + string((const char *)pps, sizeof(pps));
+    au += start_code + string((const char *)idr, sizeof(idr));
+
+    err = raw_avc_srt_pes(&builder, SrsTsStreamVideoHEVC, au);
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_TRUE(srs_error_desc(err).find("sps demux failed, len=22") != string::npos) << srs_error_desc(err);
+    srs_freep(err);
+
+    EXPECT_EQ(0, target.on_frame_count_);
+}
+
+// An SRT publisher's audio PES of two AAC frames, whose second ADTS header says 10 bytes but
+// only 8 arrived, as when the encoder or a relay cuts the PES. The first frame goes to the
+// source with its sequence header, and the cut frame is refused, not read past the PES.
+VOID TEST(ProtocolRawAvcTest, SrtAacPesWithCutAdtsFrame_CutFrameRefused)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsSrtFrameBuilder builder(&target);
+    builder.assemble();
+    MockRtcAsyncCallRequest req("test.vhost", "live", "aac");
+    HELPER_ASSERT_SUCCESS(builder.initialize(&req));
+
+    // AAC-LC, 44.1kHz, stereo, frame_length 10: a 7-byte ADTS header and 3 bytes of raw data.
+    const uint8_t adts[] = {0xff, 0xf9, 0x50, 0x80, 0x01, 0x5f, 0xfc, 0xaa, 0xbb, 0xcc};
+    string pes = string((const char *)adts, sizeof(adts)) + string((const char *)adts, 8);
+
+    err = raw_avc_srt_pes(&builder, SrsTsStreamAudioAAC, pes);
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_AAC_ADTS_HEADER, srs_error_code(err)) << srs_error_desc(err);
+    EXPECT_TRUE(srs_error_desc(err).find("requires 3 only 1 bytes") != string::npos) << srs_error_desc(err);
+    srs_freep(err);
+
+    // The sequence header and the first frame, both at the PES time.
+    ASSERT_EQ(2, target.on_frame_count_);
+    EXPECT_EQ(1000, target.timestamps_[0]);
+    EXPECT_EQ(1000, target.timestamps_[1]);
 }
