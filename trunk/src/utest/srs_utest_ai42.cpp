@@ -3557,30 +3557,6 @@ VOID TEST(AppDvrTest, DISABLED_Mp4PublishWithNoFrame_TmpFileLeft)
     EXPECT_FALSE(s.exists(s.stream_path(".mp4.tmp")));
 }
 
-// The pithy print stages, with one stage set to print at each call, so its line, such as the kbps line of an edge pull
-// or push, is logged at once, not after the configured 10s. Objects of the stage must be made inside the scope.
-class PithyPrintAtOnceScope
-{
-public:
-    SrsStageManager stages_;
-    SrsStageManager *saved_;
-
-public:
-    PithyPrintAtOnceScope(SrsPithyPrint *(*create_stage)())
-    {
-        saved_ = _srs_stages;
-        _srs_stages = &stages_;
-
-        SrsUniquePtr<SrsPithyPrint> pprint(create_stage());
-        pprint->elapse();
-        pprint->cache_->interval_ = 0;
-    }
-    ~PithyPrintAtOnceScope()
-    {
-        _srs_stages = saved_;
-    }
-};
-
 // The app factory of an edge whose upstreams are the real RTMP and HTTP-FLV clients, which read the origins from the
 // test config.
 class EdgeUtestUpstreamFactory : public SrsAppFactory
