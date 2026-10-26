@@ -2094,3 +2094,48 @@ VOID TEST(AppUtilityTest, DISABLED_InterfaceNamedLongerThan6Chars_NotListed)
     }
 }
 #endif
+
+// A client connects to the RTMP port and resets the connection at once, as a load balancer's TCP health probe or a
+// port scanner does, before the server sets TCP_NODELAY and the send buffer of the accepted socket. macOS refuses
+// both options on a reset socket, so the server gets a socket option error; Linux keeps the options. Either way the
+// first read of the handshake fails, so the server drops the connection.
+VOID TEST(ProtocolConnTest, ClientResetsBeforeSocketOptions_ConnectionDropped)
+{
+    srs_error_t err = srs_success;
+
+    StUtestTcpPair pair;
+    HELPER_ASSERT_SUCCESS(pair.open());
+
+    SrsTcpConnection conn(pair.take_server());
+    conn.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+
+    // The client closes with a reset, before the server reads anything.
+    struct linger l;
+    l.l_onoff = 1;
+    l.l_linger = 0;
+    EXPECT_EQ(0, setsockopt(srs_netfd_fileno(pair.client_), SOL_SOCKET, SO_LINGER, (const char *)&l, sizeof(l)));
+    srs_close_stfd(pair.client_);
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    srs_error_t nodelay_err = conn.set_tcp_nodelay(true);
+    srs_error_t sndbuf_err = conn.set_socket_buffer(350 * SRS_UTIME_MILLISECONDS);
+#ifdef SRS_OSX
+    EXPECT_EQ(ERROR_SOCKET_NO_NODELAY, srs_error_code(nodelay_err));
+    EXPECT_EQ(ERROR_SOCKET_SNDBUF, srs_error_code(sndbuf_err));
+#else
+    HELPER_EXPECT_SUCCESS(nodelay_err);
+    HELPER_EXPECT_SUCCESS(sndbuf_err);
+    nodelay_err = sndbuf_err = srs_success;
+#endif
+    srs_freep(nodelay_err);
+    srs_freep(sndbuf_err);
+
+    // The RTMP handshake reads C0C1 first, and gets the reset.
+    char c0c1[1537];
+    ssize_t nread = 0;
+    err = conn.read_fully(c0c1, sizeof(c0c1), &nread);
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_NE(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, conn.get_recv_bytes());
+}
