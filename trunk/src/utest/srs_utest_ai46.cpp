@@ -20,6 +20,7 @@
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_srt.hpp>
@@ -2138,4 +2139,87 @@ VOID TEST(ProtocolConnTest, ClientResetsBeforeSocketOptions_ConnectionDropped)
     EXPECT_NE(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
     srs_freep(err);
     EXPECT_EQ(0, conn.get_recv_bytes());
+}
+
+// A DH key pair for the RTMP complex handshake whose first key is one OpenSSL gives about 1 in 256 times: the public
+// key 2^x mod p has a leading zero byte, so it is 127 bytes. The keys after it are random, as OpenSSL makes them.
+class RtmpHandshakeShortFirstKeyDH : public srs_internal::SrsDH
+{
+public:
+    int nn_keys_;
+    int first_key_size_;
+
+public:
+    RtmpHandshakeShortFirstKeyDH()
+    {
+        nn_keys_ = 0;
+        first_key_size_ = 0;
+    }
+    virtual ~RtmpHandshakeShortFirstKeyDH()
+    {
+    }
+
+public:
+    virtual srs_error_t do_initialize()
+    {
+        srs_error_t err = srs_internal::SrsDH::do_initialize();
+        if (err != srs_success || nn_keys_++ > 0) {
+            return err;
+        }
+
+        // A 1023-bit private key, as OpenSSL makes for the 1024-bit RFC 2409 prime, with a 127-byte public key.
+        BIGNUM *priv = NULL;
+        BN_hex2bn(&priv, "4C6A44610B1E94452244EF6D67EC70DF938279A9749E1116548A68E19998D0FE"
+                         "5386CB9047FF145B20BCC539A053F71BAAB3463EA4F887505C25BF60EDCD6E16"
+                         "1FB5AC2628FE1F8121C5D60E679EF6A22DA2A8520D21E35F0E34CCD0AA95AB1A"
+                         "45A50FF6A273CE0A551339A51A061B9B534B7601A227ADBC9B9C88AB7271B86B");
+        const BIGNUM *p = NULL;
+        const BIGNUM *g = NULL;
+        DH_get0_pqg(pdh, &p, NULL, &g);
+
+        BIGNUM *pub = BN_new();
+        BN_CTX *ctx = BN_CTX_new();
+        BN_mod_exp(pub, g, priv, p, ctx);
+        BN_CTX_free(ctx);
+
+        DH_set0_key(pdh, pub, priv);
+        first_key_size_ = BN_num_bytes(pub);
+        return err;
+    }
+};
+
+// A Flash or FFmpeg publisher does the complex handshake, and the server makes a DH key pair for S1. When OpenSSL
+// gives a public key with a leading zero byte, 127 bytes, the server drops it and makes another, so the key it sends
+// fills all 128 bytes of the S1 key field.
+VOID TEST(ProtocolRtmpHandshakeTest, DhPublicKeyWithLeadingZeroByte_ServerMakesAnother)
+{
+    srs_error_t err = srs_success;
+
+    RtmpHandshakeShortFirstKeyDH dh;
+    HELPER_ASSERT_SUCCESS(dh.initialize(true));
+
+    // The first key was the short one, so the server made a second.
+    EXPECT_EQ(127, dh.first_key_size_);
+    EXPECT_GE(dh.nn_keys_, 2);
+
+    char pkey[128];
+    int32_t pkey_size = sizeof(pkey);
+    HELPER_EXPECT_SUCCESS(dh.copy_public_key(pkey, pkey_size));
+    EXPECT_EQ(128, pkey_size);
+
+    // The new key works for the handshake: the client and the server get the same shared key from each other's keys.
+    srs_internal::SrsDH client;
+    HELPER_ASSERT_SUCCESS(client.initialize(true));
+    char ckey[128];
+    int32_t ckey_size = sizeof(ckey);
+    HELPER_EXPECT_SUCCESS(client.copy_public_key(ckey, ckey_size));
+
+    char server_shared[128];
+    int32_t server_shared_size = sizeof(server_shared);
+    HELPER_EXPECT_SUCCESS(dh.copy_shared_key(ckey, ckey_size, server_shared, server_shared_size));
+    char client_shared[128];
+    int32_t client_shared_size = sizeof(client_shared);
+    HELPER_EXPECT_SUCCESS(client.copy_shared_key(pkey, pkey_size, client_shared, client_shared_size));
+    ASSERT_EQ(server_shared_size, client_shared_size);
+    EXPECT_TRUE(srs_bytes_equal(server_shared, client_shared, server_shared_size));
 }
