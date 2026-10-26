@@ -6,21 +6,25 @@
 #include <srs_utest_ai41.hpp>
 
 #include <srs_app_http_stream.hpp>
+#include <srs_app_log.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_conn.hpp>
+#include <srs_protocol_log.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai29.hpp>
+#include <srs_utest_ai30.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -28,6 +32,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -2027,4 +2032,74 @@ VOID TEST(ProtocolHttpStackTest, HookUrlWithNoHost_Refused)
         EXPECT_EQ(ERROR_HTTP_PARSE_URI, srs_error_code(err)) << urls[i];
         srs_freep(err);
     }
+}
+
+// Log a line the way the tagged SRS log macros (srs_trace2, srs_warn2) do, through a va_list.
+static void protocol_log_tagged(SrsFileLog &log, SrsLogLevel level, const char *tag, const SrsContextId &cid, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    log.log(level, tag, cid, fmt, args);
+    va_end(args);
+}
+
+// A WebRTC player's track gives up on lost packets and the source asks the publisher for a key frame,
+// logged with srs_trace2(TAG_MAYBE): the trace line names the session and the tag, with no errno,
+// while a late TWCC timer, srs_warn2(TAG_LARGE_TIMER), also logs the errno before the tag.
+VOID TEST(ProtocolLogTest, RtcNackTimeoutTraceTagged_NoErrnoBeforeTag)
+{
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.log_to_file_tank_ = false;
+    log.level_ = SrsLogLevelTrace;
+
+    SrsContextId cid;
+    cid.set_value("k3j9x2ab");
+
+    errno = EAGAIN;
+    protocol_log_tagged(log, SrsLogLevelTrace, TAG_MAYBE, cid, "RTC: NACK timeout=%u, request PLI, track=%s, ssrc=%u", 3, "video-0", 12345);
+    ASSERT_EQ(1, writer.write_console_count_);
+    string trace = writer.console_;
+    EXPECT_TRUE(trace.find("[k3j9x2ab][MAYBE] RTC: NACK timeout=3, request PLI, track=video-0, ssrc=12345\n") != string::npos) << trace;
+    EXPECT_EQ('[', trace[0]);
+
+    char warn_head[64];
+    snprintf(warn_head, sizeof(warn_head), "[k3j9x2ab][%d][LARGE_TIMER] twcc delay", EAGAIN);
+    errno = EAGAIN;
+    protocol_log_tagged(log, SrsLogLevelWarn, TAG_LARGE_TIMER, cid, "twcc delay %dms > 100ms, count=%u/%u", 150, 1, 10);
+    ASSERT_EQ(2, writer.write_console_count_);
+    EXPECT_TRUE(writer.console_.find(warn_head) != string::npos) << writer.console_;
+
+    log.writer_ = NULL;
+}
+
+// An HLS player picks its own session with ?hls_ctx=xxx, and the server logs the session with that
+// id. An id longer than the 64 KB log line (the HTTP reader takes a URL of 128 KB) makes the header
+// overflow, so the line is dropped rather than written cut, and the next session logs as usual.
+VOID TEST(ProtocolLogTest, HlsPlayerWithOversizedCtx_LogLineDropped)
+{
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.log_to_file_tank_ = false;
+    log.level_ = SrsLogLevelTrace;
+
+    SrsContextId huge;
+    huge.set_value(string(70000, 'h'));
+    protocol_log_tagged(log, SrsLogLevelTrace, NULL, huge, "HLS: play stream=%s", "live/livestream");
+    protocol_log_tagged(log, SrsLogLevelWarn, NULL, huge, "HLS: play stream=%s", "live/livestream");
+    EXPECT_EQ(0, writer.write_console_count_);
+
+    SrsContextId normal;
+    normal.set_value("k3j9x2ab");
+    protocol_log_tagged(log, SrsLogLevelTrace, NULL, normal, "HLS: play stream=%s", "live/livestream");
+    ASSERT_EQ(1, writer.write_console_count_);
+    EXPECT_TRUE(writer.console_.find("[k3j9x2ab] HLS: play stream=live/livestream\n") != string::npos) << writer.console_;
+
+    log.writer_ = NULL;
 }
