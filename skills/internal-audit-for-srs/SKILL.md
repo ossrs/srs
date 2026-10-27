@@ -1,11 +1,11 @@
 ---
 name: internal-audit-for-srs
-description: Use to check one SRS commit or review group for defects before the user reads it or before a merge, when the srs-autopilot review workflow or the srs-develop Review a PR and Scan PRs workflows ask for an audit, or when the user asks to audit a commit. Reports what does not hold up; fixing, committing and the review result stay with the caller.
+description: Use to check one SRS commit or review group for defects before the user reads it or before a merge, when the srs-autopilot review workflow or the srs-develop Review a PR and Scan PRs workflows ask for an audit, after a cherry-pick to another branch, or when the user asks to audit a commit. Reports what does not hold up; fixing, committing and the review result stay with the caller.
 ---
 
 # SRS Internal Change Audit
 
-An audit is a second reading of a change by an agent that did not write it and does not share its context. It reads the code first, commits to what the code should do, and only then reads the commit message and the tests. The parent workflow (the `srs-autopilot` review, or the `srs-develop` Review a PR or Scan PRs) owns the review; this skill owns the audit's method, its report, and the list of smells.
+An audit is a second reading of a change by an agent that did not write it and does not share its context. It reads the code first, commits to what the code should do, and only then reads the commit message and the tests. The parent workflow (the `srs-autopilot` review, or the `srs-develop` Review a PR, Scan PRs or a cherry-pick) owns the review; this skill owns the audit's method, its report, and the list of smells.
 
 ## Why the order matters
 

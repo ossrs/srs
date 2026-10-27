@@ -129,6 +129,7 @@ Apply these rules whenever a task produces a commit:
 - Never run `git add`; the user stages the files they approve. The exception is a resolved conflict in a merge or cherry-pick the user asked for.
 - Never run `git push` unless the user explicitly asks.
 - Commit only when the user explicitly asks. Asking for a step that makes a commit, such as a merge or a cherry-pick, asks for that commit.
+- After a cherry-pick to another branch, such as a release branch, audit the new commit with `internal-audit-for-srs` before reporting it, and report its findings with the pick.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, `Codex:`, or `Kiro:`.
 - If Claude made changes, use this commit message format. End it with the co-author line the Claude Code harness gives; it names the current model, so do not hard-code one:
