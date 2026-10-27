@@ -13,15 +13,21 @@ using namespace std;
 #include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_kernel_balance.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_mock.hpp>
 #include <vector>
 
 // External function declarations for testing
@@ -2035,6 +2041,170 @@ VOID TEST(SrsLiveStreamTest, StreamingSendMessagesWithMixedPackets)
     }
 }
 
+// An origin stream with one HTTP player: the publisher's messages go into the live source as
+// SrsRtmpConn::process_publish_message passes them, and the player's consumer is drained into its encoder
+// as SrsLiveStream does.
+class AudioPlayerStream
+{
+public:
+    MockAppConfig config_;
+    SrsUniquePtr<SrsLiveSource> source_;
+    SrsLiveConsumer *consumer_;
+    MockSrsRequest req_;
+
+public:
+    AudioPlayerStream() : source_(new SrsLiveSource()), consumer_(NULL), req_("test.vhost", "live", "livestream")
+    {
+        source_->config_ = &config_;
+        source_->req_ = new MockSrsRequest("test.vhost", "live", "livestream");
+        source_->assemble();
+    }
+    virtual ~AudioPlayerStream()
+    {
+        srs_freep(consumer_);
+    }
+
+public:
+    // An RTMP audio message.
+    srs_error_t publish(int64_t timestamp, const char *data, int size)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_audio(size, (uint32_t)timestamp, 1);
+        msg.create_payload(size);
+        memcpy(msg.payload(), data, size);
+        return source_->on_audio(&msg);
+    }
+    // An RTMP aggregate message, as an FMS or Wowza edge sends, holding one FLV audio tag whose DataSize
+    // is 0. SrsProtocol drops an empty RTMP message, but not an empty tag inside an aggregate.
+    srs_error_t publish_empty_audio_in_aggregate(int64_t timestamp)
+    {
+        // TagType 8, DataSize 0, Timestamp and TimestampExtended, StreamID 0, PreviousTagSize 11.
+        char tag[] = {0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b};
+        SrsBuffer b(tag, sizeof(tag));
+        b.skip(4);
+        b.write_3bytes((int32_t)timestamp);
+
+        SrsRtmpCommonMessage msg;
+        msg.header_.message_type_ = RTMP_MSG_AggregateMessage;
+        msg.header_.payload_length_ = sizeof(tag);
+        msg.header_.timestamp_ = timestamp;
+        msg.header_.stream_id_ = 1;
+        msg.create_payload(sizeof(tag));
+        memcpy(msg.payload(), tag, sizeof(tag));
+        return source_->on_aggregate(&msg);
+    }
+    // Sends every queued message to the player's encoder; nb_msgs is how many the consumer had.
+    srs_error_t play(ISrsBufferEncoder *enc, int &nb_msgs)
+    {
+        srs_error_t err = srs_success;
+
+        SrsMessageArray msgs(16);
+        nb_msgs = 0;
+        if ((err = consumer_->dump_packets(&msgs, nb_msgs)) != srs_success) {
+            return srs_error_wrap(err, "dump");
+        }
+
+        SrsLiveStream stream(&req_, NULL);
+        err = stream.streaming_send_messages(enc, msgs.msgs_, nb_msgs);
+        msgs.free(nb_msgs);
+        return err;
+    }
+};
+
+// An RTMP publisher of MP3 audio sends an aggregate message holding an audio tag with no data. The live
+// source skips the empty tag, as SrsProtocol skips an empty RTMP message, so the HTTP .mp3 player, whose
+// SrsMp3Transmuxer::write_audio asserts that the payload is not NULL, never gets it and keeps playing.
+VOID TEST(KernelMp3Test, HttpMp3PlayerGetsEmptyAudioMessage_MessageSkipped)
+{
+    srs_error_t err;
+
+    AudioPlayerStream s;
+    HELPER_EXPECT_SUCCESS(s.source_->create_consumer(s.consumer_));
+
+    // The FLV audio tag byte (MP3, 44 kHz, 16-bit, stereo), then an MP3 frame header.
+    const char frame[] = {0x2f, (char)0xff, (char)0xfb, (char)0x90, 0x00};
+    HELPER_EXPECT_SUCCESS(s.publish(0, frame, sizeof(frame)));
+    HELPER_EXPECT_SUCCESS(s.publish_empty_audio_in_aggregate(26));
+
+    MockSrsFileWriter writer;
+    HELPER_EXPECT_SUCCESS(writer.open("livestream.mp3"));
+    SrsMp3StreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&writer, NULL));
+    int64_t id3_size = writer.filesize();
+
+    // Only the MP3 frame is queued.
+    int nb_msgs = 0;
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(1, nb_msgs);
+
+    // Only the MP3 frame, without the tag byte, follows the ID3 header.
+    EXPECT_EQ(id3_size + 4, writer.filesize());
+}
+
+// The same for an HTTP .aac player of an RTMP AAC stream, whose SrsAacTransmuxer::write_audio asserts the
+// payload too: the empty audio tag is skipped and the player keeps playing.
+VOID TEST(KernelMp3Test, HttpAacPlayerGetsEmptyAudioMessage_MessageSkipped)
+{
+    srs_error_t err;
+
+    AudioPlayerStream s;
+    HELPER_EXPECT_SUCCESS(s.source_->create_consumer(s.consumer_));
+
+    // AAC sequence header (AAC LC, 44.1 kHz, stereo), then a raw frame of 2 bytes.
+    const char sh[] = {(char)0xaf, 0x00, 0x12, 0x10};
+    const char frame[] = {(char)0xaf, 0x01, 0x21, 0x00};
+    HELPER_EXPECT_SUCCESS(s.publish(0, sh, sizeof(sh)));
+    HELPER_EXPECT_SUCCESS(s.publish(0, frame, sizeof(frame)));
+    HELPER_EXPECT_SUCCESS(s.publish_empty_audio_in_aggregate(23));
+
+    MockSrsFileWriter writer;
+    HELPER_EXPECT_SUCCESS(writer.open("livestream.aac"));
+    SrsAacStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&writer, NULL));
+
+    // Only the sequence header and the frame are queued.
+    int nb_msgs = 0;
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(2, nb_msgs);
+
+    // One ADTS frame: the 7-byte header and the 2 raw bytes.
+    EXPECT_EQ(9, writer.filesize());
+}
+
+// An RTMP publisher of AAC audio sends an aggregate message holding an audio tag with no data, after a frame. An
+// HTTP-TS player must not get it: SrsFormat::on_audio returns early for an empty tag and keeps the previous frame,
+// whose samples point into the previous message's payload, so SrsTsTransmuxer would write that frame again, from
+// memory that may be freed. The live source skips the empty tag, so the player gets nothing more.
+VOID TEST(KernelTsTest, HttpTsEmptyAudioAfterFrame_NothingWritten)
+{
+    srs_error_t err = srs_success;
+
+    // AAC sequence header (AAC LC, 44.1 kHz, stereo), then a raw frame of 4 bytes.
+    const uint8_t aac_sh[] = {0xaf, 0x00, 0x12, 0x10};
+    const uint8_t aac_frame[] = {0xaf, 0x01, 0x21, 0x11, 0x45, 0x00};
+
+    AudioPlayerStream s;
+    HELPER_EXPECT_SUCCESS(s.source_->create_consumer(s.consumer_));
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+
+    HELPER_EXPECT_SUCCESS(s.publish(0, (const char *)aac_sh, sizeof(aac_sh)));
+    HELPER_EXPECT_SUCCESS(s.publish(23, (const char *)aac_frame, sizeof(aac_frame)));
+
+    int nb_msgs = 0;
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(2, nb_msgs);
+    int64_t size = w.filesize();
+    EXPECT_LT(0, size);
+
+    HELPER_EXPECT_SUCCESS(s.publish_empty_audio_in_aggregate(46));
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(0, nb_msgs);
+    EXPECT_EQ(size, w.filesize());
+}
+
 VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithDisabledEntry)
 {
     srs_error_t err;
@@ -2269,6 +2439,70 @@ VOID TEST(SrsHttpStreamServerTest, UnmountNotHeldByOtherStreamViewer)
     watched->alive_ = false;
     srs_usleep(150 * SRS_UTIME_MILLISECONDS);
     EXPECT_TRUE(server->streamHandlers_.find(watched_req->get_stream_url()) == server->streamHandlers_.end());
+}
+
+// Finds the handler of a GET of the url, as the server does for each HTTP request before the static files.
+static srs_error_t http_stream_match(SrsHttpStreamServer *server, string url, ISrsHttpHandler **ph)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    if ((err = r.set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "url");
+    }
+
+    *ph = NULL;
+    return server->mux()->find_handler(&r, ph);
+}
+
+// The live stream handler mounted for the stream url, or NULL.
+static ISrsHttpHandler *http_stream_mounted(SrsHttpStreamServer *server, string stream_url)
+{
+    std::map<std::string, SrsLiveEntry *>::iterator it = server->streamHandlers_.find(stream_url);
+    return (it == server->streamHandlers_.end()) ? NULL : it->second->stream_;
+}
+
+// The mount of http_remux has no [app], so the same stream name in two apps maps to one mount. The second encoder's
+// publish is refused, as the mount is taken, then the refused publish is released, as the RTMP connection releases a
+// publish the source refused: the source's unpublish unmounts the second stream. The refused mount left nothing to tear
+// down, so the first stream's players are still served at the mount until the first stream unpublishes, and then the
+// mount is free for the second stream's next publish.
+VOID TEST(AppHttpStreamTest, RefusedPublishOnSharedMount_FirstStreamStillServed)
+{
+    srs_error_t err;
+
+    MockAppConfigForHttpStreamServer config;
+    SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
+    server->config_ = &config;
+    server->templateHandlers_["__defaultVhost__"] = new SrsLiveEntry("[vhost]/[stream].flv");
+
+    MockRequest live("__defaultVhost__", "live", "livestream");
+    HELPER_ASSERT_SUCCESS(server->http_mount(&live));
+
+    MockRequest game("__defaultVhost__", "game", "livestream");
+    err = server->http_mount(&game);
+    EXPECT_EQ(ERROR_HTTP_PATTERN_DUPLICATED, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_TRUE(http_stream_mounted(server.get(), game.get_stream_url()) == NULL);
+    server->http_unmount(&game);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    ISrsHttpHandler *h = NULL;
+    HELPER_ASSERT_SUCCESS(http_stream_match(server.get(), "http://127.0.0.1/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == http_stream_mounted(server.get(), live.get_stream_url()));
+
+    // The first stream unpublishes, and its teardown frees the mount.
+    server->http_unmount(&live);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(http_stream_mounted(server.get(), live.get_stream_url()) == NULL);
+
+    // The second stream publishes again, and is served at the mount.
+    HELPER_ASSERT_SUCCESS(server->http_mount(&game));
+    HELPER_ASSERT_SUCCESS(http_stream_match(server.get(), "http://127.0.0.1/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == http_stream_mounted(server.get(), game.get_stream_url()));
+    server->http_unmount(&game);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 }
 
 VOID TEST(SrsBufferCacheTest, StopAndAlive)

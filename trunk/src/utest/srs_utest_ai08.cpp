@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_format.hpp>
+#include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
@@ -1588,6 +1589,178 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringHEVC)
 
     HELPER_EXPECT_SUCCESS(builder.filter(&msg, &format, has_idr, samples));
     EXPECT_EQ(1, (int)samples.size()); // VPS sample should be included
+}
+
+// The HEVC sequence header of a 720p stream as an FLV video tag with the codec id 12: the HEVCDecoderConfigurationRecord
+// of one VPS, SPS and PPS. pps_flags is the PPS's first byte: its id, its SPS id, dependent_slice_segments_enabled_flag,
+// output_flag_present_flag, num_extra_slice_header_bits and sign_data_hiding_enabled_flag.
+static srs_error_t mp4_hevc_sh(int nb_pps, string &tag, uint8_t pps_flags = 0xc1)
+{
+    srs_error_t err = srs_success;
+
+    const uint8_t vps[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+                           0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
+    const uint8_t sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+                           0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40, 0x40,
+                           0x00, 0x00, 0xfa, 0x40, 0x00, 0x17, 0x70, 0x02};
+    const uint8_t pps[] = {0x44, 0x01, pps_flags, 0x72, 0xb4, 0x62, 0x40};
+
+    vector<string> ppss(nb_pps, string((const char *)pps, sizeof(pps)));
+    string record;
+    SrsRawHEVCStream hevc;
+    if ((err = hevc.mux_sequence_header(string((const char *)vps, sizeof(vps)), string((const char *)sps, sizeof(sps)), ppss, record)) != srs_success) {
+        return srs_error_wrap(err, "mux hevc sequence header");
+    }
+
+    tag = string("\x1c\x00\x00\x00\x00", 5) + record;
+    return err;
+}
+
+// Expects err to fail with the error code, and frees it.
+static void packet_expect_error_code(int code, srs_error_t err)
+{
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(code, srs_error_code(err));
+    srs_freep(err);
+}
+
+// An H.264 inter frame as an FLV video tag, holding the NALUs each after its 4-byte length.
+static string packet_avc_ibmf_tag(const vector<string> &nalus)
+{
+    string tag("\x27\x01\x00\x00\x00", 5);
+    for (size_t i = 0; i < nalus.size(); i++) {
+        uint32_t size = (uint32_t)nalus[i].size();
+        tag.push_back((char)(size >> 24));
+        tag.push_back((char)(size >> 16));
+        tag.push_back((char)(size >> 8));
+        tag.push_back((char)size);
+        tag += nalus[i];
+    }
+    return tag;
+}
+
+// An HEVC inter frame of one TRAIL_R slice as an FLV video tag: the 2-byte NALU header, then the slice header bits given
+// as '0' and '1' characters, padded with zero bits to whole bytes.
+static string packet_hevc_trail_r_tag(const string &bits)
+{
+    string nalu("\x02\x01", 2);
+    uint8_t v = 0;
+    int n = 0;
+    for (size_t i = 0; i < bits.size(); i++) {
+        v = (uint8_t)((v << 1) | (bits[i] == '1' ? 1 : 0));
+        if (++n == 8) {
+            nalu.push_back((char)v);
+            v = 0;
+            n = 0;
+        }
+    }
+    if (n) {
+        nalu.push_back((char)(v << (8 - n)));
+    }
+
+    vector<string> nalus(1, nalu);
+    string tag = packet_avc_ibmf_tag(nalus);
+    tag[0] = (char)0x2c; // Inter frame, codec id 12.
+    return tag;
+}
+
+// The RTMP to WebRTC bridge of a stream with keep_bframe off, the default: WebRTC cannot play B frames, so the bridge
+// reads the slice header of each NALU and drops the B slices.
+class PacketRtcBridge
+{
+public:
+    MockStreamBridgeRequest req_;
+    MockRtpTarget target_;
+    SrsSharedPtr<SrsRtcSource> source_;
+    SrsRtcRtpBuilder builder_;
+
+public:
+    PacketRtcBridge() : source_(new SrsRtcSource()), builder_(_srs_app_factory, &target_, source_)
+    {
+    }
+
+    srs_error_t initialize()
+    {
+        srs_error_t err = srs_success;
+        if ((err = source_->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "rtc source");
+        }
+        if ((err = builder_.initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "rtc builder");
+        }
+        builder_.keep_bframe_ = false;
+        return err;
+    }
+
+    srs_error_t sequence_header(const string &tag)
+    {
+        return builder_.format_->on_video(0, (char *)tag.data(), (int)tag.size());
+    }
+
+    // Demuxes one FLV video frame as SrsRtcRtpBuilder::on_video does, and returns the NALUs the bridge keeps.
+    srs_error_t video(const string &tag, vector<SrsNaluSample *> &kept)
+    {
+        srs_error_t err = srs_success;
+        kept.clear();
+        if ((err = builder_.format_->on_video(0, (char *)tag.data(), (int)tag.size())) != srs_success) {
+            return srs_error_wrap(err, "demux");
+        }
+        bool has_idr = false;
+        SrsMediaPacket msg;
+        return builder_.filter(&msg, builder_.format_, has_idr, kept);
+    }
+};
+
+// The RTMP demuxer passes an HEVC slice NALU of any size from 1 byte. A slice of only its 2-byte NALU header, or of
+// only the first byte of it, has no slice header to read: the bridge refuses the frame, as a slice cut inside its
+// header is, and the server keeps running.
+VOID TEST(KernelPacketTest, RtcHevcSliceWithOnlyNaluHeader_Refused)
+{
+    srs_error_t err;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+
+    PacketRtcBridge bridge;
+    HELPER_ASSERT_SUCCESS(bridge.initialize());
+    HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
+
+    vector<SrsNaluSample *> kept;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag(""), kept));
+
+    // One byte, the first of a TRAIL_R NALU header.
+    string tag = packet_avc_ibmf_tag(vector<string>(1, string("\x02", 1)));
+    tag[0] = (char)0x2c; // Inter frame, codec id 12.
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(tag, kept));
+
+    // The stream goes on: the next whole P slice passes.
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("1" "1" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+}
+
+// A slice header that ends right before the bits its PPS asks for, the dependent_slice_segment_flag or the extra slice
+// header bits, is refused like any slice cut inside its header.
+VOID TEST(KernelPacketTest, RtcHevcSliceEndsBeforeItsPpsBits_Refused)
+{
+    srs_error_t err;
+
+    // The PPS's first byte with num_extra_slice_header_bits "111": id "1", SPS id "1", "0", "0", "111", "1".
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh, 0xcf));
+
+    PacketRtcBridge bridge;
+    HELPER_ASSERT_SUCCESS(bridge.initialize());
+    HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
+    EXPECT_EQ(7, bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[0].num_extra_slice_header_bits_);
+
+    // first_slice_segment_in_pic_flag, PPS 0, then 6 bits of the byte left for 7 extra bits.
+    vector<SrsNaluSample *> kept;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("1" "1"), kept));
+
+    // An encoder's PPS 7 that enables dependent slice segments. A later slice segment names it: the flag "0" and PPS
+    // ue(v) "0001000" fill the byte, so no byte is left for the dependent_slice_segment_flag.
+    bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[7].dependent_slice_segments_enabled_flag_ = 1;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("0" "0001000"), kept));
 }
 
 // Test SrsRtcRtpBuilder filter method - Combined SEI and B-frame filtering

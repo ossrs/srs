@@ -3869,6 +3869,29 @@ VOID TEST(KernelCodecTest, CoverAll)
     }
 }
 
+// An RTMP publisher sends an AAC sequence header whose AudioSpecificConfig carries a sample rate index, which the
+// origin turns into a sample rate for the stream API. An AAC stream at 32000 Hz, an index the encoders of some IP
+// cameras use, or at 96000, 88200, 64000 or 7350 Hz: every index of ISO/IEC 14496-3 is reported as its rate, never
+// as 0.
+VOID TEST(KernelCodecTest, AacSequenceHeaderRateReportedByStreamApi_EveryAacRateReported)
+{
+    for (int index = 0; index <= 12; index++) {
+        SrsAudioSampleRate rate = srs_audio_sample_rate_from_number(srs_aac_srates[index]);
+        EXPECT_EQ((uint32_t)srs_aac_srates[index], srs_audio_sample_rate2number(rate)) << "index " << index;
+    }
+}
+
+// An MP4 file for VoD or DVR has its AAC track at 32000 Hz, or another rate only AAC uses. The MP4 decoder keeps
+// the exact rate instead of guessing a near one, and logs the track with its rate, not as "Other".
+VOID TEST(KernelCodecTest, Mp4AudioAtAacOnlyRateLoggedWithItsRate)
+{
+    EXPECT_EQ("7350", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(7350)));
+    EXPECT_EQ("32000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(32000)));
+    EXPECT_EQ("64000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(64000)));
+    EXPECT_EQ("88200", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(88200)));
+    EXPECT_EQ("96000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(96000)));
+}
+
 VOID TEST(KernelCodecTest, AVFrame)
 {
     srs_error_t err;

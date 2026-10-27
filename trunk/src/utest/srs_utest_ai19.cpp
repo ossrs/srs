@@ -869,6 +869,83 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoKeepsCompositionTime)
     EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
 }
 
+// The H.264 NALUs of an encoder: its SPS and PPS, an IDR slice and a P slice.
+static const string mpegts_utest_sps("\x67\x64\x00\x1f\xac\xd9\x40\x50\x05\xbb\x01\x10", 12);
+static const string mpegts_utest_pps("\x68\xeb\xe3\xcb\x22\xc0", 6);
+static const string mpegts_utest_idr("\x65\x88\x84\x00\x10", 5);
+static const string mpegts_utest_p("\x41\x9a\x21\x6c\x42", 5);
+
+// An H.264 key frame with its SPS and PPS, as an encoder sends each key frame.
+static vector<string> mpegts_utest_key_frame()
+{
+    vector<string> nalus;
+    nalus.push_back(mpegts_utest_sps);
+    nalus.push_back(mpegts_utest_pps);
+    nalus.push_back(mpegts_utest_idr);
+    return nalus;
+}
+
+static vector<string> mpegts_utest_nalus(const string &nalu)
+{
+    return vector<string>(1, nalu);
+}
+
+// The caster gets the video PES of an encoder at the time in ms, the NALUs each after a start code.
+static srs_error_t mpegts_utest_video(SrsMpegtsOverUdp *caster, int64_t ms, const vector<string> &nalus)
+{
+    string pes;
+    for (int i = 0; i < (int)nalus.size(); i++) {
+        mock_append_annexb_nalu(pes, nalus[i].data(), (int)nalus[i].size());
+    }
+
+    SrsTsMessage msg;
+    msg.dts_ = msg.pts_ = ms * 90;
+    SrsBuffer avs((char *)pes.data(), (int)pes.size());
+    return caster->on_ts_video(&msg, &avs);
+}
+
+// An encoder, or any host that reaches the caster's UDP port, sends a key frame, then a PES whose SPS is cut to 3 bytes
+// and whose PPS is new. The cut SPS has no profile or level to build a sequence header from, so the caster skips it,
+// keeps the SPS it has and goes on.
+VOID TEST(AppMpegtsUdpTest, CutSpsThenNewPps_CutSpsSkipped)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+    caster->sdk_ = new MockRtmpClient();
+
+    HELPER_ASSERT_SUCCESS(mpegts_utest_video(caster.get(), 0, mpegts_utest_key_frame()));
+    vector<string> nalus;
+    nalus.push_back(mpegts_utest_sps.substr(0, 3));
+    nalus.push_back(string("\x68\xee\x3c\x80", 4));
+    nalus.push_back(mpegts_utest_idr);
+    HELPER_ASSERT_SUCCESS(mpegts_utest_video(caster.get(), 40, nalus));
+    HELPER_ASSERT_SUCCESS(mpegts_utest_video(caster.get(), 80, mpegts_utest_nalus(mpegts_utest_p)));
+
+    EXPECT_EQ(mpegts_utest_sps, caster->h264_sps_);
+    EXPECT_TRUE(caster->h264_sps_pps_sent_);
+}
+
+// An encoder, or any host that reaches the caster's UDP port, sends a PES with two start codes in a row, an empty NALU,
+// then a PES that ends with a start code. The caster skips each empty NALU and goes on with the frame.
+VOID TEST(AppMpegtsUdpTest, TwoStartCodesInARow_EmptyNaluSkipped)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+    caster->sdk_ = new MockRtmpClient();
+
+    vector<string> nalus = mpegts_utest_key_frame();
+    nalus.insert(nalus.begin(), string());
+    HELPER_ASSERT_SUCCESS(mpegts_utest_video(caster.get(), 0, nalus));
+    nalus = mpegts_utest_nalus(mpegts_utest_p);
+    nalus.push_back(string());
+    HELPER_ASSERT_SUCCESS(mpegts_utest_video(caster.get(), 40, nalus));
+
+    EXPECT_EQ(mpegts_utest_sps, caster->h264_sps_);
+    EXPECT_TRUE(caster->h264_sps_pps_sent_);
+}
+
 // Count the video and audio sequence headers the caster queued, of the
 // times from start to before end in ms.
 static void mock_queued_sequence_headers(SrsMpegtsQueue *queue, int64_t start, int64_t end, int &nb_video, int &nb_audio)

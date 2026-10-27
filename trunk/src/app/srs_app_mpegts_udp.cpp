@@ -442,6 +442,11 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             return srs_error_wrap(err, "demux annexb");
         }
 
+        // Two start codes in a row, or one at the end of the PES, give an empty NALU.
+        if (frame == NULL || frame_size == 0) {
+            continue;
+        }
+
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
@@ -459,7 +464,8 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
                 return srs_error_wrap(err, "demux sps");
             }
 
-            if (h264_sps_ == sps) {
+            // A cut SPS has no profile or level to build a sequence header from, so keep the SPS we have.
+            if (sps.empty() || h264_sps_ == sps) {
                 continue;
             }
             h264_sps_changed_ = true;

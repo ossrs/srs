@@ -2665,6 +2665,106 @@ VOID TEST(ProtocolSdpTest, SrsSdpUpdateMsid)
     EXPECT_STREQ("new_stream_id", audio_descs[0]->ssrc_infos_[0].mslabel_.c_str());
 }
 
+// A WHIP offer as a browser publishes it: Opus audio and H.264 video, sendonly, with the
+// transport-wide-cc extension. The caller gives the H.264 fmtp.
+static string sdp_whip_offer(const string &h264_fmtp)
+{
+    return "v=0\r\n"
+           "o=- 4611731400430051336 2 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0 1\r\n"
+           "a=msid-semantic: WMS\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:Vx3d\r\n"
+           "a=ice-pwd:fA0Ttk8rMDpEgG4e5w3bU1xq\r\n"
+           "a=fingerprint:sha-256 4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB:3B:45:7D:DD:61:8F:0C:5E:6B:0A:9A:B1\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:0\r\n"
+           "a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n"
+           "a=sendonly\r\n"
+           "a=msid:- a1\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtpmap:111 opus/48000/2\r\n"
+           "a=rtcp-fb:111 transport-cc\r\n"
+           "a=fmtp:111 minptime=10;useinbandfec=1\r\n"
+           "a=ssrc:1001 cname:browser\r\n"
+           "m=video 9 UDP/TLS/RTP/SAVPF 102\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:Vx3d\r\n"
+           "a=ice-pwd:fA0Ttk8rMDpEgG4e5w3bU1xq\r\n"
+           "a=fingerprint:sha-256 4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB:3B:45:7D:DD:61:8F:0C:5E:6B:0A:9A:B1\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:1\r\n"
+           "a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n"
+           "a=sendonly\r\n"
+           "a=msid:- v1\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtcp-rsize\r\n"
+           "a=rtpmap:102 H264/90000\r\n"
+           "a=rtcp-fb:102 nack\r\n"
+           "a=rtcp-fb:102 nack pli\r\n"
+           "a=rtcp-fb:102 transport-cc\r\n"
+           "a=fmtp:102 " +
+           h264_fmtp + "\r\n"
+                       "a=ssrc:2001 cname:browser\r\n";
+}
+
+// An offer whose ssrc-group, rtcp-fb or ssrc line ends right after its first word. The parser
+// takes the rest of the line after that word, but the word read to the end of the line, so there
+// is no rest. SrsGoApiRtcPublish and SrsGoApiRtcPlay parse the HTTP body before any hook, so any
+// client of the WHIP or WHEP API can send it. The parser refuses the line, and the same lines with
+// their values still parse.
+VOID TEST(ProtocolSdpTest, OfferLineEndingAfterFirstWord_Refused)
+{
+    const char *lines[] = {
+        "a=ssrc-group:FID",
+        "a=rtcp-fb:102",
+        "a=ssrc:2002 cname",
+    };
+
+    for (size_t i = 0; i < sizeof(lines) / sizeof(lines[0]); ++i) {
+        string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f") + lines[i] + "\r\n";
+
+        SrsSdp sdp;
+        srs_error_t err = srs_success;
+        bool thrown = false;
+        try {
+            err = sdp.parse(offer);
+        } catch (const std::exception &e) {
+            thrown = true;
+        }
+        EXPECT_FALSE(thrown) << lines[i];
+        EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err)) << lines[i];
+        srs_freep(err);
+    }
+
+    string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f") +
+                   "a=ssrc-group:FID 2002 2003\r\n"
+                   "a=rtcp-fb:102 goog-remb\r\n"
+                   "a=ssrc:2002 cname:browser\r\n";
+    srs_error_t err = srs_success;
+    SrsSdp sdp;
+    HELPER_ASSERT_SUCCESS(sdp.parse(offer));
+    ASSERT_EQ(2, (int)sdp.media_descs_.size());
+    SrsMediaDesc &video = sdp.media_descs_[1];
+    ASSERT_EQ(1, (int)video.ssrc_groups_.size());
+    EXPECT_STREQ("FID", video.ssrc_groups_[0].semantic_.c_str());
+    ASSERT_EQ(2, (int)video.ssrc_groups_[0].ssrcs_.size());
+    EXPECT_EQ(2003u, video.ssrc_groups_[0].ssrcs_[1]);
+    SrsMediaPayloadType *payload = video.find_media_with_payload_type(102);
+    ASSERT_TRUE(payload != NULL);
+    EXPECT_STREQ("goog-remb", payload->rtcp_fb_.back().c_str());
+    string cname;
+    for (size_t i = 0; i < video.ssrc_infos_.size(); ++i) {
+        if (video.ssrc_infos_[i].ssrc_ == 2002) {
+            cname = video.ssrc_infos_[i].cname_;
+        }
+    }
+    EXPECT_STREQ("browser", cname.c_str());
+}
+
 VOID TEST(RawHEVCStreamTest, VpsDemux)
 {
     srs_error_t err;

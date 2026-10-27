@@ -23,18 +23,22 @@
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_sdp.hpp>
 #include <srs_utest_manual_protocol.hpp>
 
 #include <algorithm>
 #include <openssl/aes.h>
 #include <stdio.h>
 #include <vector>
+#if defined(SRS_BACKTRACE) && defined(__linux)
+#include <dlfcn.h>
+#endif
 
 // Forward declarations for functions that are not in headers
 #if defined(SRS_BACKTRACE) && defined(__linux)
 extern void *parse_symbol_offset(char *frame);
 #endif
-extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
+extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf, int nn_buf);
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char *str);
 #endif
@@ -1202,6 +1206,22 @@ VOID TEST(KernelErrorTest, SrsCplxErrorCreate)
     srs_freep(err);
 }
 
+// A huge callback body in a new error, such as the cluster discovery's "load json from %s", keeps the start
+// of the message, cut to the buffer, as the wrap does.
+VOID TEST(KernelErrorTest, NewErrorWithHugeHookResponse_MessageKeepsStart)
+{
+    std::string res(5 * 1024 * 1024, 'x');
+    srs_error_t err = srs_error_new(ERROR_OCLUSTER_DISCOVER, "load json from %s", res.c_str());
+
+    EXPECT_EQ(ERROR_OCLUSTER_DISCOVER, srs_error_code(err));
+    EXPECT_EQ((size_t)(4 * 1024 * 1024 - 1), err->msg_.size());
+    EXPECT_TRUE(srs_strings_starts_with(err->msg_, "load json from xxx"));
+    EXPECT_EQ(std::string::npos, err->msg_.find('\0'));
+    EXPECT_TRUE(srs_strings_contains(srs_error_summary(err), " : load json from xxx"));
+
+    srs_freep(err);
+}
+
 VOID TEST(KernelErrorTest, SrsCplxErrorWrap)
 {
     srs_error_t err;
@@ -1614,37 +1634,37 @@ VOID TEST(KernelErrorTest, SrsParseAsanBacktraceSymbols)
 #if defined(SRS_BACKTRACE) && defined(__linux)
     // Test with valid backtrace symbol
     char symbol1[] = "/tools/backtrace(foo+0x1820) [0x555555555820]";
-    int result1 = srs_parse_asan_backtrace_symbols(symbol1, out_buf);
+    int result1 = srs_parse_asan_backtrace_symbols(symbol1, out_buf, sizeof(out_buf));
     // Should return ERROR_SUCCESS or ERROR_BACKTRACE_ADDR2LINE depending on addr2line availability
     EXPECT_TRUE(result1 == ERROR_SUCCESS || result1 == ERROR_BACKTRACE_ADDR2LINE);
 
     // Test with invalid symbol format
     char symbol2[] = "invalid backtrace format";
-    int result2 = srs_parse_asan_backtrace_symbols(symbol2, out_buf);
+    int result2 = srs_parse_asan_backtrace_symbols(symbol2, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for invalid format
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result2);
 
     // Test with empty symbol
     char symbol3[] = "";
-    int result3 = srs_parse_asan_backtrace_symbols(symbol3, out_buf);
+    int result3 = srs_parse_asan_backtrace_symbols(symbol3, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for empty symbol
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result3);
 
     // Test with symbol containing only offset
     char symbol4[] = "/tools/backtrace(+0x1820) [0x555555555820]";
-    int result4 = srs_parse_asan_backtrace_symbols(symbol4, out_buf);
+    int result4 = srs_parse_asan_backtrace_symbols(symbol4, out_buf, sizeof(out_buf));
     // Should return ERROR_SUCCESS or ERROR_BACKTRACE_ADDR2LINE
     EXPECT_TRUE(result4 == ERROR_SUCCESS || result4 == ERROR_BACKTRACE_ADDR2LINE);
 
     // Test with malformed symbol
     char symbol5[] = "/tools/backtrace(foo+invalid) [0x555555555820]";
-    int result5 = srs_parse_asan_backtrace_symbols(symbol5, out_buf);
+    int result5 = srs_parse_asan_backtrace_symbols(symbol5, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for malformed offset
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result5);
 #else
     // On non-Linux or non-backtrace builds, should return not supported
     char symbol[] = "/tools/backtrace(foo+0x1820) [0x555555555820]";
-    int result = srs_parse_asan_backtrace_symbols(symbol, out_buf);
+    int result = srs_parse_asan_backtrace_symbols(symbol, out_buf, sizeof(out_buf));
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_NOT_SUPPORT, result);
 #endif
 }
@@ -1713,6 +1733,71 @@ VOID TEST(KernelErrorTest, AsanReportCallback)
     EXPECT_TRUE(true);
 #endif
 }
+
+#if defined(SRS_BACKTRACE) && defined(__linux) && defined(SRS_SANITIZER_LOG)
+extern const char *_srs_binary;
+
+// A function of the SRS binary, exported by -rdynamic like every server function, so a backtrace names it.
+extern "C" int srs_utest_ai05_backtrace_marker(int v)
+{
+    int r = v * 3;
+    if (r > 100) {
+        r -= 7;
+    }
+    return r;
+}
+
+// The offset of an address inside srs_utest_ai05_backtrace_marker in the binary file, as ASan prints it.
+static void *kernel_error_marker_file_offset()
+{
+    Dl_info info;
+    if (dladdr((void *)srs_utest_ai05_backtrace_marker, &info) == 0) {
+        return NULL;
+    }
+    return (void *)(uintptr_t)((char *)(void *)srs_utest_ai05_backtrace_marker - (char *)info.dli_fbase + 8);
+}
+
+// The log of the server, keeping the text of each error log.
+class KernelErrorMockLog : public ISrsLog
+{
+public:
+    std::vector<std::string> errors_;
+
+public:
+    virtual srs_error_t initialize()
+    {
+        return srs_success;
+    }
+    virtual void reopen()
+    {
+    }
+    virtual void log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
+    {
+        if (level == SrsLogLevelError) {
+            char buf[1024];
+            int r0 = vsnprintf(buf, sizeof(buf), fmt, args);
+            errors_.push_back(std::string(buf, r0 > 0 ? srs_min(r0, (int)sizeof(buf) - 1) : 0));
+        }
+    }
+};
+
+// An ASan frame it cannot symbolize is logged with the function and source line from addr2line, as a failed assert
+// logs its frames.
+VOID TEST(KernelErrorTest, AsanUnsymbolizedFrame_ResolvedNameLogged)
+{
+    char frame0[128];
+    snprintf(frame0, sizeof(frame0), "    #0 0x55d0c1a2b3c4  (%s+%p)", _srs_binary, kernel_error_marker_file_offset());
+
+    KernelErrorMockLog log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    asan_report_callback(frame0);
+    _srs_log = original;
+
+    ASSERT_EQ((size_t)1, log.errors_.size());
+    EXPECT_TRUE(srs_strings_contains(log.errors_[0], "srs_utest_ai05_backtrace_marker at srs_utest_ai05.cpp:")) << log.errors_[0];
+}
+#endif
 
 // RTCP Tests
 VOID TEST(KernelRtcpTest, SrsRtcpHeader)
@@ -2373,6 +2458,114 @@ VOID TEST(KernelRtcRtpTest, SrsRtpHeader)
     // Test ignore padding
     header.ignore_padding(true);
     header.ignore_padding(false);
+}
+
+static std::string rtcp_be16(uint16_t v)
+{
+    char b[2] = {(char)(v >> 8), (char)(v & 0xff)};
+    return std::string(b, 2);
+}
+
+static std::string rtcp_be32(uint32_t v)
+{
+    return rtcp_be16((uint16_t)(v >> 16)) + rtcp_be16((uint16_t)(v & 0xffff));
+}
+
+// A WebRTC publisher's RTP packet declares a header extension longer than the packet carries, for the one-byte
+// (0xBEDE) and the two-byte (0x1000) profile. The packet is refused with an error, as other malformed packets are,
+// and the server goes on; an extension that ends exactly at the packet end is still accepted.
+VOID TEST(KernelRtcRtpTest, RtpExtensionLengthBeyondPacket_Refused)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    // Fixed header with X=1, then the extension profile and its length in 4-byte words, then the extension bytes.
+    uint16_t profiles[] = {0xBEDE, 0x1000};
+    for (int i = 0; i < 2; i++) {
+        std::string fixed;
+        fixed.push_back((char)0x90); // V=2, X=1, CC=0
+        fixed.push_back((char)0x60); // PT=96
+        fixed += rtcp_be16(0x2233);
+        fixed += rtcp_be32(0);
+        fixed += rtcp_be32(0x0a0b0c0d);
+
+        // 255 words of extension declared, none present.
+        if (true) {
+            std::string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(0x00ff);
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            err = dst.decode(&dbuf);
+            EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+            srs_freep(err);
+        }
+
+        // 2 words declared, 1 word (4 bytes of padding) present.
+        if (true) {
+            std::string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(2) + std::string(4, '\0');
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            err = dst.decode(&dbuf);
+            EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+            srs_freep(err);
+        }
+
+        // 1 word declared and present: the extension ends at the packet end.
+        if (true) {
+            std::string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(1) + std::string(4, '\0');
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            HELPER_EXPECT_SUCCESS(dst.decode(&dbuf));
+            EXPECT_TRUE(dbuf.empty());
+        }
+    }
+}
+
+// A WebRTC publisher's RTP packet has a 0xBEDE block of 1 word whose element, an ID not in the SDP's extmap, declares
+// 16 bytes. The element is longer than its block, so the packet is refused with an error, as other malformed packets
+// are, and the server goes on; an element that ends exactly at the block end is still skipped and the packet accepted.
+VOID TEST(KernelRtcRtpTest, RtpExtensionElementBeyondBlock_Refused)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    // Fixed header with X=1, then profile 0xBEDE, 1 word of extension and the payload after it.
+    std::string fixed;
+    fixed.push_back((char)0x90); // V=2, X=1, CC=0
+    fixed.push_back((char)0x60); // PT=96
+    fixed += rtcp_be16(0x2233);
+    fixed += rtcp_be32(0);
+    fixed += rtcp_be32(0x0a0b0c0d);
+    fixed += rtcp_be16(0xBEDE) + rtcp_be16(1);
+    std::string payload("\x01\x02\x03\x04", 4);
+
+    // ID 1, len 15+1: 17 bytes for the element in a 4-byte block.
+    if (true) {
+        std::string w = fixed + std::string("\x1F\x00\x00\x00", 4) + payload;
+        SrsRtpHeader dst;
+        dst.set_extensions(&types);
+        SrsBuffer dbuf((char *)w.data(), (int)w.size());
+        err = dst.decode(&dbuf);
+        EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    // ID 1, len 2+1: the element ends at the block end, the payload follows.
+    if (true) {
+        std::string w = fixed + std::string("\x12\xaa\xbb\xcc", 4) + payload;
+        SrsRtpHeader dst;
+        dst.set_extensions(&types);
+        SrsBuffer dbuf((char *)w.data(), (int)w.size());
+        HELPER_EXPECT_SUCCESS(dst.decode(&dbuf));
+        EXPECT_EQ(4, dbuf.left());
+        EXPECT_EQ(0x01, (uint8_t)*dbuf.head());
+    }
 }
 
 VOID TEST(KernelRtcRtpTest, SrsRtpPacketBasics)
@@ -3090,6 +3283,69 @@ VOID TEST(KernelKbpsTest, SrsPps_MockClockUpdate)
         // Should calculate PPS: (700-500) packets in 10 seconds = 20 PPS
         EXPECT_EQ(20, pps.r10s());
     }
+}
+
+// The global counters of a stats line, each reset to a fresh one on a mock clock for the scope of a test, and
+// restored after it.
+class KbpsGlobalPpsScope
+{
+public:
+    MockWallClock clock_;
+    std::vector<SrsPps *> pps_;
+    std::vector<SrsPps> saved_;
+
+public:
+    KbpsGlobalPpsScope(const std::vector<SrsPps *> &pps)
+    {
+        pps_ = pps;
+        for (int i = 0; i < (int)pps.size(); i++) {
+            SrsPps *p = pps[i];
+            saved_.push_back(*p);
+
+            SrsPps fresh;
+            fresh.clk_ = &clock_;
+            *p = fresh;
+        }
+    }
+    ~KbpsGlobalPpsScope()
+    {
+        for (int i = 0; i < (int)pps_.size(); i++) {
+            *pps_[i] = saved_[i];
+        }
+    }
+};
+
+// The counters srs_global_rtc_update reads for the RTC server's stats line.
+static std::vector<SrsPps *> kbps_rtc_line_pps()
+{
+    SrsPps *all[] = {_srs_pps_rpkts, _srs_pps_rrtps, _srs_pps_rstuns, _srs_pps_rrtcps, _srs_pps_spkts,
+                     _srs_pps_srtps, _srs_pps_sstuns, _srs_pps_srtcps, _srs_pps_pli, _srs_pps_twcc, _srs_pps_rr,
+                     _srs_pps_snack, _srs_pps_snack2, _srs_pps_sanack, _srs_pps_svnack, _srs_pps_rnack,
+                     _srs_pps_rnack2, _srs_pps_rhnack, _srs_pps_rmnack, _srs_pps_ids, _srs_pps_fids,
+                     _srs_pps_fids_level0, _srs_pps_addrs, _srs_pps_fast_addrs};
+    return std::vector<SrsPps *>(all, all + sizeof(all) / sizeof(all[0]));
+}
+
+// With WebRTC over TCP only, no UDP packet arrives, so no address gets a fast id; each TCP client still
+// finds its session by the STUN username, so the RTC stats line shows the fid group with the id
+// lookups, although the fast id count is 0.
+VOID TEST(KernelKbpsTest, RtcStatsLineWithTcpClientsOnly_FidGroupShown)
+{
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
+
+    scope.clock_.set_clock(0);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    // 50 WebRTC clients connect over TCP in 10s, each looking up its session by name once.
+    _srs_pps_ids->sugar_ += 50;
+
+    scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+    SrsKbsRtcStats stats;
+    srs_global_rtc_update(&stats);
+    EXPECT_STREQ(", fid=(id:5,fid:0,ffid:0,addr:0,faddr:0)", stats.fid_desc_.c_str());
 }
 
 MockRtpRingBuffer::MockRtpRingBuffer() : SrsRtpRingBuffer(100)

@@ -12,6 +12,7 @@ using namespace std;
 #include <srs_app_st.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_sdp.hpp>
@@ -2614,6 +2615,62 @@ VOID TEST(SrsRtcConnectionTest, OnRtcpTypicalScenario)
     // 2. Invalid RTCP data is properly handled with error return
     // 3. Empty buffers are handled gracefully
     // 4. Error context includes relevant debugging information
+}
+
+static string rtcp_be16(uint16_t v)
+{
+    char b[2] = {(char)(v >> 8), (char)(v & 0xff)};
+    return string(b, 2);
+}
+
+static string rtcp_be32(uint32_t v)
+{
+    return rtcp_be16((uint16_t)(v >> 16)) + rtcp_be16((uint16_t)(v & 0xffff));
+}
+
+// One RTCP packet: version 2, the count or feedback format, the packet type, the sender's SSRC, and a body of whole
+// 32-bit words.
+static string rtcp_packet(uint8_t rc, uint8_t pt, uint32_t sender_ssrc, const string &body)
+{
+    string p;
+    p.push_back((char)(0x80 | rc));
+    p.push_back((char)pt);
+    p += rtcp_be16((uint16_t)((8 + body.size()) / 4 - 1));
+    p += rtcp_be32(sender_ssrc);
+    return p + body;
+}
+
+// The SDP answer gives a WebRTC player the SSRCs SRS sends with, and a client may use one as the sender SSRC of its
+// RTCP. An RTPFB packet of a format other than NACK and TWCC, such as a TMMBR (RFC 5104), a TMMBN or an RFC 8888
+// congestion control feedback, is decoded as SrsRtcpFbCommon, and SrsRtcConnection::dispatch_rtcp finds the player by
+// its sender SSRC. The player ignores it, and a NACK after it is still handled.
+VOID TEST(KernelRtcRtcpTest, PlayerSendsTmmbrWithServerSsrcAsSender_Ignored)
+{
+    srs_error_t err = srs_success;
+
+    MockRtcAsyncTaskExecutor exec;
+    MockRtcPacketSender sender;
+    MockExpire expire;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&exec, cid));
+    SrsUniquePtr<SrsRtcPlayStream> player(new SrsRtcPlayStream(&exec, &expire, &sender, cid));
+    // The player plays a track that SRS sends with SSRC 0xa001.
+    conn->players_ssrc_map_[0xa001] = player.get();
+
+    int64_t nacks = _srs_pps_rnack->sugar_;
+    uint8_t formats[] = {3, 4, 11}; // TMMBR, TMMBN, CCFB
+    for (int i = 0; i < (int)sizeof(formats); i++) {
+        string fb = rtcp_packet(formats[i], SrsRtcpType_rtpfb, 0xa001, rtcp_be32(0) + rtcp_be32(0xa001) + rtcp_be32(0x0c0186a0));
+        HELPER_EXPECT_SUCCESS(conn->on_rtcp((char *)fb.data(), (int)fb.size()));
+        EXPECT_EQ(nacks, _srs_pps_rnack->sugar_) << "fmt=" << (int)formats[i];
+    }
+
+    // A NACK for packet 100 of the same track, from the player's own SSRC, still reaches the player.
+    string nack = rtcp_packet(1, SrsRtcpType_rtpfb, 0x1001, rtcp_be32(0xa001) + rtcp_be32(0x00640000));
+    HELPER_EXPECT_SUCCESS(conn->on_rtcp((char *)nack.data(), (int)nack.size()));
+    EXPECT_EQ(nacks + 1, _srs_pps_rnack->sugar_);
+
+    conn->players_ssrc_map_.clear();
 }
 
 VOID TEST(RtcConnectionTest, DispatchRtcp)
