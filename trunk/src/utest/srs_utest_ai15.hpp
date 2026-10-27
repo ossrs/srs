@@ -107,11 +107,16 @@ class MockLogForSignal : public ISrsLog
 {
 public:
     int reopen_count_;
-    // The error logs and the tag of the last one.
+    // The error logs, the tag of the last one, and the text of each.
     int error_count_;
     std::string last_error_tag_;
-    // The warning logs.
+    std::vector<std::string> errors_;
+    // The warning logs, the tag of the last one, and the text of each.
     int warn_count_;
+    std::string last_warn_tag_;
+    std::vector<std::string> warns_;
+    // The text of each trace log.
+    std::vector<std::string> traces_;
 
 public:
     MockLogForSignal();

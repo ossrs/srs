@@ -118,14 +118,14 @@ bool is_common_space(char ch)
 extern bool _srs_in_docker;
 
 // Detect docker by https://stackoverflow.com/a/41559867
-srs_error_t srs_detect_docker()
+srs_error_t srs_detect_docker(string cgroup_file)
 {
     srs_error_t err = srs_success;
 
     _srs_in_docker = false;
 
     SrsFileReader fr;
-    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
+    if ((err = fr.open(cgroup_file)) != srs_success) {
         return err;
     }
 
@@ -1615,7 +1615,7 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
     }
 
     // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
+    if ((err = srs_detect_docker("/proc/1/cgroup")) != srs_success) {
         srs_freep(err);
     }
 

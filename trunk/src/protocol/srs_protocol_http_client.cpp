@@ -32,9 +32,9 @@ int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-SrsSslClient::SrsSslClient(SrsTcpClient *tcp)
+SrsSslClient::SrsSslClient(ISrsProtocolReadWriter *transport)
 {
-    transport_ = tcp;
+    transport_ = transport;
     ssl_ctx_ = NULL;
     ssl_ = NULL;
 }

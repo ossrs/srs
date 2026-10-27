@@ -46,12 +46,13 @@ extern "C" const char *__asan_default_options();
 extern bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader *payload);
 extern bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader *payload);
 
-MockSrsReader::MockSrsReader(const std::string &data) : data_(data), pos_(0), read_error_(srs_success)
+MockSrsReader::MockSrsReader(const std::string &data) : data_(data), pos_(0), read_error_(srs_success), drained_error_(srs_success)
 {
 }
 
 MockSrsReader::~MockSrsReader()
 {
+    srs_freep(drained_error_);
 }
 
 srs_error_t MockSrsReader::read(void *buf, size_t size, ssize_t *nread)
@@ -62,6 +63,10 @@ srs_error_t MockSrsReader::read(void *buf, size_t size, ssize_t *nread)
 
     size_t available = data_.size() - pos_;
     size_t to_read = std::min(size, available);
+
+    if (to_read == 0 && drained_error_ != srs_success) {
+        return srs_error_copy(drained_error_);
+    }
 
     if (to_read > 0) {
         memcpy(buf, data_.data() + pos_, to_read);
@@ -76,6 +81,12 @@ srs_error_t MockSrsReader::read(void *buf, size_t size, ssize_t *nread)
 void MockSrsReader::set_error(srs_error_t err)
 {
     read_error_ = err;
+}
+
+void MockSrsReader::set_drained_error(srs_error_t err)
+{
+    srs_freep(drained_error_);
+    drained_error_ = err;
 }
 
 MockSrsWriter::MockSrsWriter() : write_error_(srs_success)

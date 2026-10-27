@@ -18,6 +18,7 @@
 #include <srs_app_hls.hpp>
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_app_process.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -235,6 +236,11 @@ ISrsFFMPEG *SrsAppFactory::create_ffmpeg(std::string ffmpeg_bin)
 ISrsIngesterFFMPEG *SrsAppFactory::create_ingester_ffmpeg()
 {
     return new SrsIngesterFFMPEG();
+}
+
+ISrsProcess *SrsAppFactory::create_process()
+{
+    return new SrsProcess();
 }
 
 ISrsProtocolUtility *SrsAppFactory::create_protocol_utility()

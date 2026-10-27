@@ -609,17 +609,8 @@ void discover_network_iface(SrsProtocolUtility *utility, ifaddrs *cur, vector<Sr
 
 vector<SrsIPAddress *> _srs_system_ips;
 
-void retrieve_local_ips(SrsProtocolUtility *utility)
+void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<SrsIPAddress *> &ips)
 {
-    vector<SrsIPAddress *> &ips = _srs_system_ips;
-
-    // Get the addresses.
-    ifaddrs *ifap;
-    if (srs_getifaddrs(&ifap) == -1) {
-        srs_warn("retrieve local ips, getifaddrs failed.");
-        return;
-    }
-
     stringstream ss0;
     ss0 << "ips";
 
@@ -694,6 +685,20 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
 
     srs_trace("%s", ss0.str().c_str());
     srs_trace("%s", ss1.str().c_str());
+}
+
+void retrieve_local_ips(SrsProtocolUtility *utility)
+{
+    vector<SrsIPAddress *> &ips = _srs_system_ips;
+
+    // Get the addresses.
+    ifaddrs *ifap;
+    if (srs_getifaddrs(&ifap) == -1) {
+        srs_warn("retrieve local ips, getifaddrs failed.");
+        return;
+    }
+
+    srs_discover_local_ips(utility, ifap, ips);
 
     srs_freeifaddrs(ifap);
 }

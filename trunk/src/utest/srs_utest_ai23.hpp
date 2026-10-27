@@ -622,6 +622,8 @@ class MockHttpMessageForGbPublish : public SrsHttpMessage
 {
 public:
     std::string body_content_;
+    // The error of reading the body, owned by the mock, such as a client that closes before the body ends.
+    srs_error_t body_error_;
     MockHttpConn *mock_conn_;
 
 public:

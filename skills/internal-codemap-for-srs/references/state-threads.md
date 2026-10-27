@@ -147,7 +147,7 @@ The whole run holds the global `st` lock, `full-tier-lock.sh --product st`, so t
 On a Windows host, test both platforms in the same checkout:
 
 - Windows: in Git Bash started from the MSVC environment (`vcvars64.bat`), run `make win64-debug-utest && ./obj/st_utest.exe`, then build and run every tool that builds with MSVC. Report the tools that do not build or run on Windows yet.
-- Linux: run the Linux utest and tools in WSL on the same folder, not in the Docker image. `wsl` starts in the current Windows folder, so run it from `state-threads/`: `(cd state-threads && wsl -e bash -lc 'make linux-debug-utest && ./obj/st_utest && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh')`.
+- Linux: run the Linux utest and tools in the SRS development image, as above, never in WSL.
 
 CI:
 

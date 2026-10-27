@@ -728,15 +728,21 @@ srs_error_t SrsDvrPlan::on_reap_segment()
 // for the same stream when context switches occurred during initialization.
 srs_error_t SrsDvrPlan::create_plan(ISrsAppConfig *config, string vhost, ISrsDvrPlan **pplan)
 {
+    SrsDvrPlan *dvr_plan = NULL;
+
     std::string plan = config->get_dvr_plan(vhost);
     if (srs_config_dvr_is_plan_segment(plan)) {
-        *pplan = new SrsDvrSegmentPlan();
+        dvr_plan = new SrsDvrSegmentPlan();
     } else if (srs_config_dvr_is_plan_session(plan)) {
-        *pplan = new SrsDvrSessionPlan();
+        dvr_plan = new SrsDvrSessionPlan();
     } else {
         return srs_error_new(ERROR_DVR_ILLEGAL_PLAN, "illegal plan=%s, vhost=%s",
                              plan.c_str(), vhost.c_str());
     }
+
+    // The plan reads the config its DVR reads.
+    dvr_plan->config_ = config;
+    *pplan = dvr_plan;
 
     return srs_success;
 }

@@ -529,7 +529,7 @@ VOID TEST(FFmpegLogHelperTest, LogCallback)
 
 // Encode n frames of a 440Hz tone as AAC-LC, 44.1kHz stereo, each frame with
 // its ADTS header, as SRS feeds the transcoder from RTMP.
-static void encode_aac_adts_frames(int n, std::vector<std::string> &frames)
+void encode_aac_adts_frames(int n, std::vector<std::string> &frames)
 {
     const AVCodec *codec = avcodec_find_encoder_by_name("aac");
     ASSERT_TRUE(codec != NULL);

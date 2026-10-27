@@ -839,6 +839,11 @@ check "utest: passes, with the gtest summary shown" \
   'out | grep -q "^RESULT windows-x64 utest PASS" && out | grep -q "^\[==========\] 3 tests from 2 test suites ran" && out | grep -q "^\[  PASSED  \] 3 tests\.$"'
 check "utest: the build and test output goes to the logs, not the console" \
   '! out | grep -q "fake cmake output" && ! out | grep -q "fake utest output" && grep -q "fake cmake output" $FAKE/trunk/objs/windows-utest-build.log && grep -q "fake utest output" $FAKE/trunk/objs/windows-utest.log'
+run utest 'WindowsPlatformTest.*:PlatformTest.*'
+check "utest: a filter runs only those tests, as --gtest_filter" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest" ]] && [[ $(utest_calls) == "--gtest_filter=WindowsPlatformTest.*:PlatformTest.* DIR=$FAKE/trunk" ]]'
+run utest 'PlatformTest.*' extra
+check "two arguments to utest: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: .*utest \[filter\]"'
 STUB_UTEST_FAIL=1 run integ
 check "utest: two tests fail, exit 1, the failed tests shown, the later steps do not run" \
   '[[ $CODE == 1 ]] && [[ $(steps) == "deps build utest" ]] && out | grep -q "^RESULT windows-x64 utest FAIL" && out | grep -q "^\[  FAILED  \] KernelTest.B$" && out | grep -q "windows-utest.log" && [[ ! -s /tmp/srs-windows-runner-test/go.log ]]'
@@ -916,8 +921,8 @@ STUB_GO_TEST_EXIT=1 run --alone integ 'TestRtmp_'
 check "--alone integ: a case fails, exit 1" '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 integ FAIL"'
 run --alone
 check "--alone without a step: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
-run --alone utest extra
-check "--alone, argument to utest: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
+run --alone utest 'PlatformTest.*' extra
+check "--alone, two arguments to utest: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
 
 # The full step runs the Full tier from the checkout root, which runs the build, utest, integ and OBS
 # steps itself, so the runner does not run them first.
