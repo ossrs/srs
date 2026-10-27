@@ -30,6 +30,14 @@ const std::string kCRLF = "\r\n";
         return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed"); \
     }
 
+// Fetch the rest of the line. When the last word read to the end of the line, there is no rest
+// and tellg() is -1, so the line is refused.
+#define FETCH_REST(is, word)                                             \
+    if (is.tellg() < 0) {                                                \
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch rest failed"); \
+    }                                                                    \
+    word = is.str().substr(is.tellg());
+
 std::vector<std::string> split_str(const std::string &str, const std::string &delim)
 {
     std::vector<std::string> ret;
@@ -658,7 +666,8 @@ srs_error_t SrsMediaDesc::parse_attr_rtcp_fb(const std::string &value)
         return srs_error_new(ERROR_RTC_SDP_DECODE, "can not find payload %d when pase rtcp-fb", payload_type);
     }
 
-    std::string rtcp_fb = is.str().substr(is.tellg());
+    std::string rtcp_fb;
+    FETCH_REST(is, rtcp_fb);
     skip_first_spaces(rtcp_fb);
 
     payload->rtcp_fb_.push_back(rtcp_fb);
@@ -727,7 +736,8 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc(const std::string &value)
     FETCH_WITH_DELIM(is, ssrc_attr, ':');
     skip_first_spaces(ssrc_attr);
 
-    std::string ssrc_value = is.str().substr(is.tellg());
+    std::string ssrc_value;
+    FETCH_REST(is, ssrc_value);
     skip_first_spaces(ssrc_value);
 
     SrsSSRCInfo &ssrc_info = fetch_or_create_ssrc_info(ssrc);
@@ -767,7 +777,8 @@ srs_error_t SrsMediaDesc::parse_attr_ssrc_group(const std::string &value)
     std::string semantics;
     FETCH(is, semantics);
 
-    std::string ssrc_ids = is.str().substr(is.tellg());
+    std::string ssrc_ids;
+    FETCH_REST(is, ssrc_ids);
     skip_first_spaces(ssrc_ids);
 
     std::vector<std::string> vec = split_str(ssrc_ids, " ");

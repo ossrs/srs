@@ -242,6 +242,13 @@ enum SrsAudioSampleRate {
     SrsAudioSampleRate24000 = 24,
     SrsAudioSampleRate48000 = 48,
 
+    // For AAC, the other rates of the sampling frequency index, see srs_aac_srates.
+    SrsAudioSampleRate7350 = 7,
+    SrsAudioSampleRate32000 = 32,
+    SrsAudioSampleRate64000 = 64,
+    SrsAudioSampleRate88200 = 88,
+    SrsAudioSampleRate96000 = 96,
+
     // For Opus, support 8, 12, 16, 24, 48KHz
     // We will write a UINT8 sampling rate after FLV audio tag header.
     // @doc https://tools.ietf.org/html/rfc6716#section-2

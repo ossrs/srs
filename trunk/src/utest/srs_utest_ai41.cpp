@@ -4305,11 +4305,11 @@ VOID TEST(ProtocolSdpTest, DISABLED_WhipPublisherH264WithoutLevelAsymmetry_Publi
 }
 
 // An offer whose ssrc-group, rtcp-fb or ssrc line ends right after its first word. The parser
-// takes the rest of the line with is.str().substr(is.tellg()), but the first word read to the end
-// of the line, so tellg() gives -1 and substr throws std::out_of_range. Nothing in the server
-// catches it: SrsGoApiRtcPublish and SrsGoApiRtcPlay parse the HTTP body before any hook, so one
-// request to the WHIP or WHEP API ends the process. The parser must refuse the line instead.
-VOID TEST(ProtocolSdpTest, DISABLED_OfferLineEndingAfterFirstWord_ParserThrows)
+// takes the rest of the line after that word, but the word read to the end of the line, so there
+// is no rest. SrsGoApiRtcPublish and SrsGoApiRtcPlay parse the HTTP body before any hook, so any
+// client of the WHIP or WHEP API can send it. The parser refuses the line, and the same lines with
+// their values still parse.
+VOID TEST(ProtocolSdpTest, OfferLineEndingAfterFirstWord_Refused)
 {
     const char *lines[] = {
         "a=ssrc-group:FID",
@@ -4332,4 +4332,28 @@ VOID TEST(ProtocolSdpTest, DISABLED_OfferLineEndingAfterFirstWord_ParserThrows)
         EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err)) << lines[i];
         srs_freep(err);
     }
+
+    string offer = sdp_whip_offer("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f") +
+                   "a=ssrc-group:FID 2002 2003\r\n"
+                   "a=rtcp-fb:102 goog-remb\r\n"
+                   "a=ssrc:2002 cname:browser\r\n";
+    srs_error_t err = srs_success;
+    SrsSdp sdp;
+    HELPER_ASSERT_SUCCESS(sdp.parse(offer));
+    ASSERT_EQ(2, (int)sdp.media_descs_.size());
+    SrsMediaDesc &video = sdp.media_descs_[1];
+    ASSERT_EQ(1, (int)video.ssrc_groups_.size());
+    EXPECT_STREQ("FID", video.ssrc_groups_[0].semantic_.c_str());
+    ASSERT_EQ(2, (int)video.ssrc_groups_[0].ssrcs_.size());
+    EXPECT_EQ(2003u, video.ssrc_groups_[0].ssrcs_[1]);
+    SrsMediaPayloadType *payload = video.find_media_with_payload_type(102);
+    ASSERT_TRUE(payload != NULL);
+    EXPECT_STREQ("goog-remb", payload->rtcp_fb_.back().c_str());
+    string cname;
+    for (size_t i = 0; i < video.ssrc_infos_.size(); ++i) {
+        if (video.ssrc_infos_[i].ssrc_ == 2002) {
+            cname = video.ssrc_infos_[i].cname_;
+        }
+    }
+    EXPECT_STREQ("browser", cname.c_str());
 }

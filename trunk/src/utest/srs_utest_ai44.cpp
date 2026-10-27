@@ -1569,9 +1569,9 @@ VOID TEST(AppMpegtsUdpTest, CasterPortHeldByAnotherProgram_ListenFails)
 }
 
 // An encoder, or any host that reaches the caster's UDP port, sends a key frame, then a PES whose SPS is cut to 3 bytes
-// and whose PPS is new. The caster should keep the SPS it has and go on. It takes the cut SPS as an empty one, and the
-// new PPS then makes it build a sequence header from that empty SPS, whose assert aborts the server.
-VOID TEST(AppMpegtsUdpTest, DISABLED_CutSpsThenNewPps_ServerAborts)
+// and whose PPS is new. The cut SPS has no profile or level to build a sequence header from, so the caster skips it,
+// keeps the SPS it has and goes on.
+VOID TEST(AppMpegtsUdpTest, CutSpsThenNewPps_CutSpsSkipped)
 {
     srs_error_t err;
 
@@ -1592,10 +1592,9 @@ VOID TEST(AppMpegtsUdpTest, DISABLED_CutSpsThenNewPps_ServerAborts)
     EXPECT_TRUE(c.caster_->h264_sps_pps_sent_);
 }
 
-// An encoder, or any host that reaches the caster's UDP port, sends a PES with two start codes in a row, an empty NALU.
-// The caster should skip it and publish the frame. It reads the empty NALU's type and asks whether it is an SPS, whose
-// assert of a non-empty NALU aborts the server.
-VOID TEST(AppMpegtsUdpTest, DISABLED_TwoStartCodesInARow_ServerAborts)
+// An encoder, or any host that reaches the caster's UDP port, sends a PES with two start codes in a row, an empty NALU,
+// then a PES that ends with a start code. The caster skips each empty NALU and goes on with the frame.
+VOID TEST(AppMpegtsUdpTest, TwoStartCodesInARow_EmptyNaluSkipped)
 {
     srs_error_t err;
 
@@ -1606,7 +1605,9 @@ VOID TEST(AppMpegtsUdpTest, DISABLED_TwoStartCodesInARow_ServerAborts)
     vector<string> nalus = mpegts_utest_key_frame();
     nalus.insert(nalus.begin(), string());
     HELPER_ASSERT_SUCCESS(enc.video(0, nalus, true));
-    HELPER_ASSERT_SUCCESS(enc.video(40, mpegts_utest_nalus(mpegts_utest_p), false));
+    nalus = mpegts_utest_nalus(mpegts_utest_p);
+    nalus.push_back(string());
+    HELPER_ASSERT_SUCCESS(enc.video(40, nalus, false));
     HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
 
     EXPECT_EQ(mpegts_utest_sps, c.caster_->h264_sps_);

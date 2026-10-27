@@ -4843,11 +4843,10 @@ VOID TEST(AppHttpStreamTest, TwoStreamsOnOneMount_SecondPublishRefused)
 }
 
 // The same as above, then the refused publish is released, as the RTMP connection releases a publish the source
-// refused: the source's unpublish unmounts the second stream, whose teardown unmounts the mount by its pattern alone.
-// It removes the first stream's mount, and the mux entry frees its handler, the first stream's live stream, while the
-// stream is published and may serve players. The first stream's players should still be served at the mount; instead,
-// the next one mounts a new stream of another app there, and the first stream's unpublish reads the freed stream.
-VOID TEST(AppHttpStreamTest, DISABLED_RefusedPublishOnSharedMount_UnmountsFirstStream)
+// refused: the source's unpublish unmounts the second stream. The refused mount left nothing to tear down, so the
+// first stream's players are still served at the mount until the first stream unpublishes, and then the mount is
+// free for the second stream's next publish.
+VOID TEST(AppHttpStreamTest, RefusedPublishOnSharedMount_FirstStreamStillServed)
 {
     srs_error_t err;
 
@@ -4859,13 +4858,22 @@ VOID TEST(AppHttpStreamTest, DISABLED_RefusedPublishOnSharedMount_UnmountsFirstS
     err = server.mount(&game);
     EXPECT_EQ(ERROR_HTTP_PATTERN_DUPLICATED, srs_error_code(err)) << srs_error_desc(err);
     srs_freep(err);
+    EXPECT_TRUE(server.mounted(game.get_stream_url()) == NULL);
     server.unmount(&game);
 
     ISrsHttpHandler *h = NULL;
     HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/livestream.flv", &h));
     EXPECT_TRUE(h != NULL && h == server.mounted(server.req_.get_stream_url()));
 
-    // Not unmounted: the first stream's teardown would read the freed stream.
+    // The first stream unpublishes, and its teardown frees the mount.
+    server.unmount(&server.req_);
+    EXPECT_TRUE(server.mounted(server.req_.get_stream_url()) == NULL);
+
+    // The second stream publishes again, and is served at the mount.
+    HELPER_ASSERT_SUCCESS(server.mount(&game));
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(game.get_stream_url()));
+    server.unmount(&game);
 }
 
 // The process is out of memory when an encoder unpublishes, so the teardown of its HTTP stream cannot start. The stream

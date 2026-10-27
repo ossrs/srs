@@ -1223,14 +1223,18 @@ srs_error_t SrsHttpStreamServer::http_mount(ISrsRequest *r)
 
         tmpl->req_ = r->copy()->as_http();
 
-        streamHandlers_[sid] = entry;
-
         // mount the http flv stream.
         // we must register the handler, then start the thread,
         // for the thread will cause thread switch context.
         if ((err = mux_->handle(mount, entry->stream_)) != srs_success) {
+            // Keep no entry of a stream not mounted, or its unmount removes the stream of another app at the mount.
+            srs_freep(entry->stream_);
+            srs_freep(entry->cache_);
+            srs_freep(entry);
             return srs_error_wrap(err, "http: mount flv stream for vhost=%s failed", sid.c_str());
         }
+
+        streamHandlers_[sid] = entry;
 
         // start http stream cache thread
         if ((err = entry->cache_->start()) != srs_success) {

@@ -34,7 +34,7 @@
 #if defined(SRS_BACKTRACE) && defined(__linux)
 extern void *parse_symbol_offset(char *frame);
 #endif
-extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
+extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf, int nn_buf);
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char *str);
 #endif
@@ -1868,37 +1868,37 @@ VOID TEST(KernelErrorTest, SrsParseAsanBacktraceSymbols)
 #if defined(SRS_BACKTRACE) && defined(__linux)
     // Test with valid backtrace symbol
     char symbol1[] = "/tools/backtrace(foo+0x1820) [0x555555555820]";
-    int result1 = srs_parse_asan_backtrace_symbols(symbol1, out_buf);
+    int result1 = srs_parse_asan_backtrace_symbols(symbol1, out_buf, sizeof(out_buf));
     // Should return ERROR_SUCCESS or ERROR_BACKTRACE_ADDR2LINE depending on addr2line availability
     EXPECT_TRUE(result1 == ERROR_SUCCESS || result1 == ERROR_BACKTRACE_ADDR2LINE);
 
     // Test with invalid symbol format
     char symbol2[] = "invalid backtrace format";
-    int result2 = srs_parse_asan_backtrace_symbols(symbol2, out_buf);
+    int result2 = srs_parse_asan_backtrace_symbols(symbol2, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for invalid format
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result2);
 
     // Test with empty symbol
     char symbol3[] = "";
-    int result3 = srs_parse_asan_backtrace_symbols(symbol3, out_buf);
+    int result3 = srs_parse_asan_backtrace_symbols(symbol3, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for empty symbol
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result3);
 
     // Test with symbol containing only offset
     char symbol4[] = "/tools/backtrace(+0x1820) [0x555555555820]";
-    int result4 = srs_parse_asan_backtrace_symbols(symbol4, out_buf);
+    int result4 = srs_parse_asan_backtrace_symbols(symbol4, out_buf, sizeof(out_buf));
     // Should return ERROR_SUCCESS or ERROR_BACKTRACE_ADDR2LINE
     EXPECT_TRUE(result4 == ERROR_SUCCESS || result4 == ERROR_BACKTRACE_ADDR2LINE);
 
     // Test with malformed symbol
     char symbol5[] = "/tools/backtrace(foo+invalid) [0x555555555820]";
-    int result5 = srs_parse_asan_backtrace_symbols(symbol5, out_buf);
+    int result5 = srs_parse_asan_backtrace_symbols(symbol5, out_buf, sizeof(out_buf));
     // Should return ERROR_BACKTRACE_PARSE_OFFSET for malformed offset
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_OFFSET, result5);
 #else
     // On non-Linux or non-backtrace builds, should return not supported
     char symbol[] = "/tools/backtrace(foo+0x1820) [0x555555555820]";
-    int result = srs_parse_asan_backtrace_symbols(symbol, out_buf);
+    int result = srs_parse_asan_backtrace_symbols(symbol, out_buf, sizeof(out_buf));
     EXPECT_EQ(ERROR_BACKTRACE_PARSE_NOT_SUPPORT, result);
 #endif
 }

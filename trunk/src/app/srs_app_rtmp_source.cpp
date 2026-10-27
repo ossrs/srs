@@ -2408,6 +2408,11 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
         }
         stream->read_4bytes();
 
+        // Ignore an empty tag, as SrsProtocol ignores an empty message; the players and muxers expect a payload.
+        if (data_size == 0) {
+            continue;
+        }
+
         // process parsed message
         if (o.header_.is_audio()) {
             if ((err = on_audio(&o)) != srs_success) {

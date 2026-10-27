@@ -899,6 +899,10 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon *rtcp)
         return on_rtcp_rr(rr);
     } else if (SrsRtcpType_rtpfb == rtcp->type()) {
         // currently rtpfb of nack will be handle by player. TWCC will be handled by SrsRtcConnection
+        // Other formats, such as TMMBR, are decoded as SrsRtcpFbCommon, not SrsRtcpNack.
+        if (1 != rtcp->get_rc()) {
+            return srs_success;
+        }
         SrsRtcpNack *nack = dynamic_cast<SrsRtcpNack *>(rtcp);
         return on_rtcp_nack(nack);
     } else if (SrsRtcpType_psfb == rtcp->type()) {

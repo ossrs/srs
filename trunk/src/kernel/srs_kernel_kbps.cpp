@@ -565,7 +565,7 @@ void srs_global_rtc_update(SrsKbsRtcStats *stats)
     _srs_pps_fids_level0->update();
     _srs_pps_addrs->update();
     _srs_pps_fast_addrs->update();
-    if (_srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s()) {
+    if (_srs_pps_ids->r10s() || _srs_pps_fids->r10s() || _srs_pps_fids_level0->r10s() || _srs_pps_addrs->r10s() || _srs_pps_fast_addrs->r10s()) {
         snprintf(buf, sizeof(buf), ", fid=(id:%d,fid:%d,ffid:%d,addr:%d,faddr:%d)", _srs_pps_ids->r10s(), _srs_pps_fids->r10s(), _srs_pps_fids_level0->r10s(), _srs_pps_addrs->r10s(), _srs_pps_fast_addrs->r10s());
         fid_desc = buf;
     }

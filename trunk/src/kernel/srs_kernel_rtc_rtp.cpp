@@ -360,15 +360,22 @@ srs_error_t SrsRtpExtensions::decode(SrsBuffer *buf)
     uint16_t extension_length = buf->read_2bytes();
 
     // @see: https://tools.ietf.org/html/rfc5285#section-4.2
+    if (profile_id != 0xBEDE && profile_id != 0x1000) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "fail to parse extension");
+    }
+
+    // The length is in 32-bit words, and must not exceed the packet.
+    if (!buf->require(extension_length * 4)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", extension_length * 4);
+    }
+
     if (profile_id == 0xBEDE) {
         SrsBuffer xbuf(buf->head(), extension_length * 4);
         buf->skip(extension_length * 4);
         return decode_0xbede(&xbuf);
-    } else if (profile_id == 0x1000) {
-        buf->skip(extension_length * 4);
-    } else {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "fail to parse extension");
     }
+
+    buf->skip(extension_length * 4);
     return err;
 }
 

@@ -263,10 +263,6 @@ VOID TEST(KernelCodecTest, AacSequenceHeaderRateReportedByStreamApi)
 {
     // Index 3 (48000) to 11 (8000) of ISO/IEC 14496-3, the rates encoders such as OBS, FFmpeg and phones use.
     for (int index = 3; index <= 11; index++) {
-        if (srs_aac_srates[index] == 32000) {
-            continue; // The enum has no 32000, see DISABLED_AacSequenceHeaderRateReportedByStreamApi_32kHzReportsZero.
-        }
-
         SrsAudioSampleRate rate = srs_audio_sample_rate_from_number(srs_aac_srates[index]);
         EXPECT_NE(SrsAudioSampleRateForbidden, rate) << "index " << index;
         EXPECT_EQ((uint32_t)srs_aac_srates[index], srs_audio_sample_rate2number(rate)) << "index " << index;
@@ -274,13 +270,24 @@ VOID TEST(KernelCodecTest, AacSequenceHeaderRateReportedByStreamApi)
 }
 
 // The same for an AAC stream at 32000 Hz, an index the encoders of some IP cameras use, or at 96000, 88200, 64000
-// or 7350 Hz. The enum has no value for these rates, so the stream API reports a sample rate of 0.
-VOID TEST(KernelCodecTest, DISABLED_AacSequenceHeaderRateReportedByStreamApi_32kHzReportsZero)
+// or 7350 Hz: every index of ISO/IEC 14496-3 is reported as its rate, never as 0.
+VOID TEST(KernelCodecTest, AacSequenceHeaderRateReportedByStreamApi_EveryAacRateReported)
 {
     for (int index = 0; index <= 12; index++) {
         SrsAudioSampleRate rate = srs_audio_sample_rate_from_number(srs_aac_srates[index]);
         EXPECT_EQ((uint32_t)srs_aac_srates[index], srs_audio_sample_rate2number(rate)) << "index " << index;
     }
+}
+
+// An MP4 file for VoD or DVR has its AAC track at 32000 Hz, or another rate only AAC uses. The MP4 decoder keeps
+// the exact rate instead of guessing a near one, and logs the track with its rate, not as "Other".
+VOID TEST(KernelCodecTest, Mp4AudioAtAacOnlyRateLoggedWithItsRate)
+{
+    EXPECT_EQ("7350", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(7350)));
+    EXPECT_EQ("32000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(32000)));
+    EXPECT_EQ("64000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(64000)));
+    EXPECT_EQ("88200", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(88200)));
+    EXPECT_EQ("96000", srs_audio_sample_rate2str(srs_audio_sample_rate_from_number(96000)));
 }
 
 // An RTMP publisher sends MP3, whose sample rate is the FLV tag header's SoundRate: 5.5, 11, 22 or 44 kHz. The
@@ -400,15 +407,18 @@ VOID TEST(KernelErrorTest, WrapKeepsTheStartOfAHugeHookResponse)
     srs_freep(err);
 }
 
-// The same huge callback body in a new error, such as the cluster discovery's "load json from %s", should keep the
-// start of the message as the wrap does; it loses the whole message instead.
-VOID TEST(KernelErrorTest, DISABLED_NewErrorWithHugeHookResponse_MessageIsEmpty)
+// The same huge callback body in a new error, such as the cluster discovery's "load json from %s", keeps the start
+// of the message, cut to the buffer, as the wrap does.
+VOID TEST(KernelErrorTest, NewErrorWithHugeHookResponse_MessageKeepsStart)
 {
     string res(5 * 1024 * 1024, 'x');
     srs_error_t err = srs_error_new(ERROR_OCLUSTER_DISCOVER, "load json from %s", res.c_str());
 
     EXPECT_EQ(ERROR_OCLUSTER_DISCOVER, srs_error_code(err));
+    EXPECT_EQ((size_t)(4 * 1024 * 1024 - 1), err->msg_.size());
     EXPECT_TRUE(srs_strings_starts_with(err->msg_, "load json from xxx"));
+    EXPECT_EQ(string::npos, err->msg_.find('\0'));
+    EXPECT_TRUE(srs_strings_contains(srs_error_summary(err), " : load json from xxx"));
 
     srs_freep(err);
 }
@@ -416,7 +426,7 @@ VOID TEST(KernelErrorTest, DISABLED_NewErrorWithHugeHookResponse_MessageIsEmpty)
 #if defined(SRS_BACKTRACE) && defined(__linux)
 extern void *parse_symbol_offset(char *frame);
 extern char *addr2line_format(void *addr, char *symbol, char *buffer, int nn_buffer);
-extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
+extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf, int nn_buf);
 extern void srs_backtrace_log();
 extern const char *_srs_binary;
 
@@ -539,7 +549,7 @@ VOID TEST(KernelErrorTest, AsanFrameNotResolvedWhenTheBinaryIsGone)
 
     const char *original = _srs_binary;
     _srs_binary = "/tmp/srs-utest-ai40-binary-is-gone";
-    int r0 = srs_parse_asan_backtrace_symbols(symbol, out_buf);
+    int r0 = srs_parse_asan_backtrace_symbols(symbol, out_buf, sizeof(out_buf));
     _srs_binary = original;
 
     EXPECT_EQ(ERROR_BACKTRACE_ADDR2LINE, r0);
@@ -570,9 +580,9 @@ VOID TEST(KernelErrorTest, AsanReportLogsEachLine)
     EXPECT_TRUE(srs_strings_ends_with(log.errors_[2], ":1011, r0=1093"));
 }
 
-// The unsymbolized ASan frame should be logged with the function and source line from addr2line, as a failed assert
-// logs its frames; only the first 7 characters of the address are kept.
-VOID TEST(KernelErrorTest, DISABLED_AsanUnsymbolizedFrame_ResolvedNameCutTo7Chars)
+// An ASan frame it cannot symbolize is logged with the function and source line from addr2line, as a failed assert
+// logs its frames.
+VOID TEST(KernelErrorTest, AsanUnsymbolizedFrame_ResolvedNameLogged)
 {
     char frame0[128];
     snprintf(frame0, sizeof(frame0), "    #0 0x55d0c1a2b3c4  (%s+%p)", _srs_binary, kernel_error_marker_file_offset());
@@ -1058,10 +1068,9 @@ VOID TEST(KernelKbpsTest, RtcStatsLineShowsTheRatesOfUdpClients)
 }
 
 // With WebRTC over TCP only, no UDP packet arrives, so no address gets a fast id; each TCP client still
-// finds its session by the STUN username, so the RTC stats line should show the id lookups. The check
-// joins the five rates with the comma operator instead of ||, so only the last one, the fast id
-// count, decides, and the fid group is missing.
-VOID TEST(KernelKbpsTest, DISABLED_RtcStatsLineWithTcpClientsOnly_FidGroupMissing)
+// finds its session by the STUN username, so the RTC stats line shows the fid group with the id
+// lookups, although the fast id count is 0.
+VOID TEST(KernelKbpsTest, RtcStatsLineWithTcpClientsOnly_FidGroupShown)
 {
     KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
 
@@ -1151,10 +1160,9 @@ public:
 };
 
 // An RTMP publisher of MP3 audio sends an aggregate message holding an audio tag with no data. The live
-// source splits it and, as it knows the stream is MP3, queues the empty audio message for every player. An
-// HTTP .mp3 player must skip it and keep playing. SrsMp3Transmuxer::write_audio asserts that the payload is
-// not NULL, so the server aborts.
-VOID TEST(KernelMp3Test, DISABLED_HttpMp3PlayerGetsEmptyAudioMessage_ServerAborts)
+// source skips the empty tag, as SrsProtocol skips an empty RTMP message, so the HTTP .mp3 player, whose
+// SrsMp3Transmuxer::write_audio asserts that the payload is not NULL, never gets it and keeps playing.
+VOID TEST(KernelMp3Test, HttpMp3PlayerGetsEmptyAudioMessage_MessageSkipped)
 {
     srs_error_t err;
 
@@ -1172,17 +1180,18 @@ VOID TEST(KernelMp3Test, DISABLED_HttpMp3PlayerGetsEmptyAudioMessage_ServerAbort
     HELPER_EXPECT_SUCCESS(enc.initialize(&writer, NULL));
     int64_t id3_size = writer.filesize();
 
+    // Only the MP3 frame is queued.
     int nb_msgs = 0;
     HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
-    EXPECT_EQ(2, nb_msgs);
+    EXPECT_EQ(1, nb_msgs);
 
     // Only the MP3 frame, without the tag byte, follows the ID3 header.
     EXPECT_EQ(id3_size + 4, writer.filesize());
 }
 
-// The same for an HTTP .aac player of an RTMP AAC stream: SrsAacTransmuxer::write_audio asserts the
-// payload too, so the empty audio tag aborts the server.
-VOID TEST(KernelMp3Test, DISABLED_HttpAacPlayerGetsEmptyAudioMessage_ServerAborts)
+// The same for an HTTP .aac player of an RTMP AAC stream, whose SrsAacTransmuxer::write_audio asserts the
+// payload too: the empty audio tag is skipped and the player keeps playing.
+VOID TEST(KernelMp3Test, HttpAacPlayerGetsEmptyAudioMessage_MessageSkipped)
 {
     srs_error_t err;
 
@@ -1201,9 +1210,10 @@ VOID TEST(KernelMp3Test, DISABLED_HttpAacPlayerGetsEmptyAudioMessage_ServerAbort
     SrsAacStreamEncoder enc;
     HELPER_EXPECT_SUCCESS(enc.initialize(&writer, NULL));
 
+    // Only the sequence header and the frame are queued.
     int nb_msgs = 0;
     HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
-    EXPECT_EQ(3, nb_msgs);
+    EXPECT_EQ(2, nb_msgs);
 
     // One ADTS frame: the 7-byte header and the 2 raw bytes.
     EXPECT_EQ(9, writer.filesize());
@@ -2383,10 +2393,10 @@ VOID TEST(KernelPacketTest, RtcHevcExtraSliceHeaderBitsAreSkipped)
     EXPECT_EQ(0, (int)kept.size());
 }
 
-// Bug: an HEVC slice of only its 2-byte NALU header passes the RTMP demuxer, then the bridge reads a bit of its slice
-// header from no bytes and srs_assert aborts the server. A publisher can crash SRS with one such frame when the vhost
-// converts RTMP to WebRTC. The frame must be refused with an error, as a slice cut inside its header is.
-VOID TEST(KernelPacketTest, DISABLED_RtcHevcSliceWithOnlyNaluHeader_ServerAborts)
+// The RTMP demuxer passes an HEVC slice NALU of any size from 1 byte. A slice of only its 2-byte NALU header, or of
+// only the first byte of it, has no slice header to read: the bridge refuses the frame, as a slice cut inside its
+// header is, and the server keeps running.
+VOID TEST(KernelPacketTest, RtcHevcSliceWithOnlyNaluHeader_Refused)
 {
     srs_error_t err;
 
@@ -2398,7 +2408,41 @@ VOID TEST(KernelPacketTest, DISABLED_RtcHevcSliceWithOnlyNaluHeader_ServerAborts
     HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
 
     vector<SrsNaluSample *> kept;
-    HELPER_EXPECT_FAILED(bridge.video(packet_hevc_trail_r_tag(""), kept));
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag(""), kept));
+
+    // One byte, the first of a TRAIL_R NALU header.
+    string tag = packet_avc_ibmf_tag(vector<string>(1, string("\x02", 1)));
+    tag[0] = (char)0x2c; // Inter frame, codec id 12.
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(tag, kept));
+
+    // The stream goes on: the next whole P slice passes.
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("1" "1" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+}
+
+// A slice header that ends right before the bits its PPS asks for, the dependent_slice_segment_flag or the extra slice
+// header bits, is refused like any slice cut inside its header.
+VOID TEST(KernelPacketTest, RtcHevcSliceEndsBeforeItsPpsBits_Refused)
+{
+    srs_error_t err;
+
+    // The PPS's first byte with num_extra_slice_header_bits "111": id "1", SPS id "1", "0", "0", "111", "1".
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh, 0xcf));
+
+    PacketRtcBridge bridge;
+    HELPER_ASSERT_SUCCESS(bridge.initialize());
+    HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
+    EXPECT_EQ(7, bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[0].num_extra_slice_header_bits_);
+
+    // first_slice_segment_in_pic_flag, PPS 0, then 6 bits of the byte left for 7 extra bits.
+    vector<SrsNaluSample *> kept;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("1" "1"), kept));
+
+    // An encoder's PPS 7 that enables dependent slice segments. A later slice segment names it: the flag "0" and PPS
+    // ue(v) "0001000" fill the byte, so no byte is left for the dependent_slice_segment_flag.
+    bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[7].dependent_slice_segments_enabled_flag_ = 1;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("0" "0001000"), kept));
 }
 
 // Bug: a slice that is not the first of its picture has slice_segment_address before slice_type, Ceil(Log2(
@@ -3301,11 +3345,11 @@ VOID TEST(KernelRtcRtcpTest, FeedbackLongerThanDatagramRefused)
     }
 }
 
-// A WebRTC player can crash the server with one RTCP packet. The SDP answer gives the player the SSRCs SRS sends with.
-// An RTPFB packet of a format other than NACK and TWCC, such as a TMMBR, is decoded as SrsRtcpFbCommon. If its sender
-// SSRC is one of those SSRCs, SrsRtcConnection::dispatch_rtcp finds the player by it, and SrsRtcPlayStream::on_rtcp
-// casts it to SrsRtcpNack. The cast gives NULL, and on_rtcp_nack reads through it.
-VOID TEST(KernelRtcRtcpTest, DISABLED_PlayerSendsTmmbrWithServerSsrcAsSender_ServerCrashes)
+// The SDP answer gives a WebRTC player the SSRCs SRS sends with, and a client may use one as the sender SSRC of its
+// RTCP. An RTPFB packet of a format other than NACK and TWCC, such as a TMMBR (RFC 5104), a TMMBN or an RFC 8888
+// congestion control feedback, is decoded as SrsRtcpFbCommon, and SrsRtcConnection::dispatch_rtcp finds the player by
+// its sender SSRC. The player ignores it, and a NACK after it is still handled.
+VOID TEST(KernelRtcRtcpTest, PlayerSendsTmmbrWithServerSsrcAsSender_Ignored)
 {
     srs_error_t err = srs_success;
 
@@ -3318,13 +3362,20 @@ VOID TEST(KernelRtcRtcpTest, DISABLED_PlayerSendsTmmbrWithServerSsrcAsSender_Ser
     // The player plays a track that SRS sends with SSRC 0xa001.
     conn->players_ssrc_map_[0xa001] = player.get();
 
-    string tmmbr = rtcp_packet(3, SrsRtcpType_rtpfb, 0xa001, rtcp_be32(0) + rtcp_be32(0xa001) + rtcp_be32(0x0c0186a0));
-    err = conn->on_rtcp((char *)tmmbr.data(), (int)tmmbr.size());
-    conn->players_ssrc_map_.clear();
+    int64_t nacks = _srs_pps_rnack->sugar_;
+    uint8_t formats[] = {3, 4, 11}; // TMMBR, TMMBN, CCFB
+    for (int i = 0; i < (int)sizeof(formats); i++) {
+        string fb = rtcp_packet(formats[i], SrsRtcpType_rtpfb, 0xa001, rtcp_be32(0) + rtcp_be32(0xa001) + rtcp_be32(0x0c0186a0));
+        HELPER_EXPECT_SUCCESS(conn->on_rtcp((char *)fb.data(), (int)fb.size()));
+        EXPECT_EQ(nacks, _srs_pps_rnack->sugar_) << "fmt=" << (int)formats[i];
+    }
 
-    // An unsupported feedback is ignored or refused, never a crash.
-    srs_freep(err);
-    SUCCEED();
+    // A NACK for packet 100 of the same track, from the player's own SSRC, still reaches the player.
+    string nack = rtcp_packet(1, SrsRtcpType_rtpfb, 0x1001, rtcp_be32(0xa001) + rtcp_be32(0x00640000));
+    HELPER_EXPECT_SUCCESS(conn->on_rtcp((char *)nack.data(), (int)nack.size()));
+    EXPECT_EQ(nacks + 1, _srs_pps_rnack->sugar_);
+
+    conn->players_ssrc_map_.clear();
 }
 
 // One TWCC feedback as the publisher's congestion controller reads it (draft-holmer-rmcat-transport-wide-cc-extensions-01
@@ -4056,34 +4107,58 @@ VOID TEST(KernelRtcRtpTest, HeaderTruncatedBeforeExtensionsRefused)
     srs_freep(err);
 }
 
-// B14: a WebRTC peer's RTP packet declares an extension length longer than the packet carries. SrsRtpExtensions::decode
-// reads the 4-byte profile and length words with a require, but then skips extension_length*4 bytes with no check, so
-// SrsBuffer::skip asserts and the server aborts. The packet is parsed in do_on_rtp_plaintext after SRTP unprotect, so
-// any peer that can publish over WebRTC can crash the server with one packet. Fix: require extension_length*4 bytes
-// before building the sub-buffer and skipping. High severity.
-VOID TEST(KernelRtcRtpTest, DISABLED_RtpExtensionLengthBeyondPacket_ServerAborts)
+// A WebRTC publisher's RTP packet declares a header extension longer than the packet carries, for the one-byte
+// (0xBEDE) and the two-byte (0x1000) profile. The packet is refused with an error, as other malformed packets are,
+// and the server goes on; an extension that ends exactly at the packet end is still accepted.
+VOID TEST(KernelRtcRtpTest, RtpExtensionLengthBeyondPacket_Refused)
 {
     srs_error_t err = srs_success;
 
     SrsRtpExtensionTypes types;
     EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
 
-    // Fixed header with X=1, profile 0xBEDE, extension_length 0x00ff words (1020 bytes), but no extension bytes follow.
-    string w;
-    w.push_back((char)0x90); // V=2, X=1, CC=0
-    w.push_back((char)0x60); // PT=96
-    w += rtcp_be16(0x2233);
-    w += rtcp_be32(0);
-    w += rtcp_be32(0x0a0b0c0d);
-    w += rtcp_be16(0xBEDE);
-    w += rtcp_be16(0x00ff); // 255 words of extension that are not present
+    // Fixed header with X=1, then the extension profile and its length in 4-byte words, then the extension bytes.
+    uint16_t profiles[] = {0xBEDE, 0x1000};
+    for (int i = 0; i < 2; i++) {
+        string fixed;
+        fixed.push_back((char)0x90); // V=2, X=1, CC=0
+        fixed.push_back((char)0x60); // PT=96
+        fixed += rtcp_be16(0x2233);
+        fixed += rtcp_be32(0);
+        fixed += rtcp_be32(0x0a0b0c0d);
 
-    SrsRtpHeader dst;
-    dst.set_extensions(&types);
-    SrsBuffer dbuf((char *)w.data(), (int)w.size());
-    err = dst.decode(&dbuf); // aborts today: SrsBuffer::skip assert
-    EXPECT_TRUE(err != srs_success);
-    srs_freep(err);
+        // 255 words of extension declared, none present.
+        if (true) {
+            string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(0x00ff);
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            err = dst.decode(&dbuf);
+            EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+            srs_freep(err);
+        }
+
+        // 2 words declared, 1 word (4 bytes of padding) present.
+        if (true) {
+            string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(2) + string(4, '\0');
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            err = dst.decode(&dbuf);
+            EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+            srs_freep(err);
+        }
+
+        // 1 word declared and present: the extension ends at the packet end.
+        if (true) {
+            string w = fixed + rtcp_be16(profiles[i]) + rtcp_be16(1) + string(4, '\0');
+            SrsRtpHeader dst;
+            dst.set_extensions(&types);
+            SrsBuffer dbuf((char *)w.data(), (int)w.size());
+            HELPER_EXPECT_SUCCESS(dst.decode(&dbuf));
+            EXPECT_TRUE(dbuf.empty());
+        }
+    }
 }
 
 // The RTMP-to-WebRTC packetizer builds a STAP-A of SPS and PPS before an IDR, and the publisher parser reads a STAP-A.
@@ -5354,25 +5429,33 @@ VOID TEST(KernelTsTest, HlsEncryptedSegmentOnFullDisk)
     unlink(path.c_str());
 }
 
-// B15: an empty audio tag of an RTMP aggregate message (the B5 path) makes the HTTP-TS encoder write the previous
-// audio frame again. SrsFormat::on_audio returns early for an empty tag and keeps the previous frame, whose samples
-// point into the previous message's payload, and SrsTsTransmuxer caches and writes that frame.
-VOID TEST(KernelTsTest, DISABLED_HttpTsEmptyAudioAfterFrame_PreviousFrameWrittenAgain)
+// An RTMP publisher of AAC audio sends an aggregate message holding an audio tag with no data, after a frame. An
+// HTTP-TS player must not get it: SrsFormat::on_audio returns early for an empty tag and keeps the previous frame,
+// whose samples point into the previous message's payload, so SrsTsTransmuxer would write that frame again, from
+// memory that may be freed. The live source skips the empty tag, so the player gets nothing more.
+VOID TEST(KernelTsTest, HttpTsEmptyAudioAfterFrame_NothingWritten)
 {
     srs_error_t err = srs_success;
+
+    AudioPlayerStream s;
+    HELPER_EXPECT_SUCCESS(s.source_->create_consumer(s.consumer_));
 
     MockSrsFileWriter w;
     SrsTsStreamEncoder enc;
     HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
 
-    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, false, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
-    // The frame stays alive here, as when the GOP cache still holds its message; with the payload freed, the
-    // second write reads freed memory.
-    string frame((const char *)mp4_aac_frame, sizeof(mp4_aac_frame));
-    HELPER_EXPECT_SUCCESS(enc.write_audio(23, (char *)frame.data(), (int)frame.size()));
-    int64_t size = w.filesize();
+    HELPER_EXPECT_SUCCESS(s.publish(0, (const char *)mp4_aac_sh, sizeof(mp4_aac_sh)));
+    HELPER_EXPECT_SUCCESS(s.publish(23, (const char *)mp4_aac_frame, sizeof(mp4_aac_frame)));
 
-    HELPER_EXPECT_SUCCESS(enc.write_audio(46, NULL, 0));
+    int nb_msgs = 0;
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(2, nb_msgs);
+    int64_t size = w.filesize();
+    EXPECT_LT(0, size);
+
+    HELPER_EXPECT_SUCCESS(s.publish_empty_audio_in_aggregate(46));
+    HELPER_EXPECT_SUCCESS(s.play(&enc, nb_msgs));
+    EXPECT_EQ(0, nb_msgs);
     EXPECT_EQ(size, w.filesize());
 }
 

@@ -346,6 +346,9 @@ srs_error_t SrsParsedVideoPacket::parse_hevc_bframe(const SrsNaluSample *sample,
     }
 
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(sample->bytes_, sample->size_));
+    if (!stream->require(3)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "no slice header, nalu size %d", sample->size_);
+    }
     stream->skip(2);
 
     // @see 7.3.6.1 General slice segment header syntax
@@ -371,6 +374,9 @@ srs_error_t SrsParsedVideoPacket::parse_hevc_bframe(const SrsNaluSample *sample,
     uint8_t dependent_slice_segment_flag = 0;
     if (!first_slice_segment_in_pic_flag) {
         if (pps->dependent_slice_segments_enabled_flag_) {
+            if (bs.empty()) {
+                return srs_error_new(ERROR_HEVC_DECODE_ERROR, "no dependent slice segment flag");
+            }
             dependent_slice_segment_flag = bs.read_bit();
         }
     }
@@ -379,6 +385,9 @@ srs_error_t SrsParsedVideoPacket::parse_hevc_bframe(const SrsNaluSample *sample,
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "dependent slice segment flag is not supported");
     }
 
+    if (bs.left_bits() < pps->num_extra_slice_header_bits_) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "no %d extra slice header bits", pps->num_extra_slice_header_bits_);
+    }
     for (int i = 0; i < pps->num_extra_slice_header_bits_; i++) {
         bs.skip_bits(1);
     }
