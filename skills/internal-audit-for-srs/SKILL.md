@@ -16,6 +16,12 @@ An agent that writes a test and a fix in one run, from one bug report, gives no 
 - The auditor runs in a fresh context: a subagent that gets only the files this skill names, never the task file, the fixer's conversation, or the review session's notes.
 - The commit message, the code comments and the tests are claims, not evidence. The code and the protocol are the evidence.
 - Every finding needs a concrete scenario: these steps leave this state wrong, with the file and line. A worry without a scenario is listed under "Not checked", not under findings.
+- Report only severe, P0 bugs:
+  - A crash, an abort, or a read or write past a buffer.
+  - A security hole.
+  - A valid client refused or broken, or a stream or its data lost.
+  - A wrong result a user or an operator relies on.
+- Leave out everything smaller: style, naming, logs, comments, a missing test alone, and a rare corner case with no harm. Do not try to find every bug.
 - "Nothing found" is a valid result, with what was tried. The auditor is not scored on the number of findings.
 - The auditor never edits code, never commits, never touches any branch or worktree, and never fixes. It reads with `git show` and `git diff` only.
 - The parent puts the report in front of the user before the code, and logs each finding as a work item in the task file, or in its report when it has no task file. Fixes go through the review, as the user decides.
@@ -62,7 +68,7 @@ Continue the same subagent (SendMessage, so its expectations stay in its context
 
 ```
 Phase 2. The audited commit is <tip>. Read <dir>/message.txt and <dir>/tests.diff, and load references/smells.md.
-Return sections 5 to 10 of the report template as text, verbatim, in your report; do not write files: the code against the message; the test gaps, from your own list against the tests present; the decisions the change makes without saying so; the smells matched; the findings, ranked, each with a concrete scenario and the file and line, or "Nothing found" with what you tried; and what the audit could not check.
+Return sections 5 to 10 of the report template as text, verbatim, in your report; do not write files: the code against the message; the test gaps, from your own list against the tests present; the decisions the change makes without saying so; the smells matched; the severe findings only, ranked, each with a concrete scenario and the file and line, or "Nothing found" with what you tried; and what the audit could not check.
 Never edit code, never commit, never touch any branch. End with the one-line summary of each finding, or that nothing was found.
 ```
 

@@ -1065,13 +1065,8 @@ string srs_net_get_cidr_mask(string network_address)
         return "";
     }
 
-    size_t cidr_length_num = 31;
-    try {
-        cidr_length_num = atoi(cidr_length.c_str());
-        if (cidr_length_num <= 0 || cidr_length_num > 32) {
-            return "";
-        }
-    } catch (...) {
+    size_t cidr_length_num = atoi(cidr_length.c_str());
+    if (cidr_length_num <= 0 || cidr_length_num > 32) {
         return "";
     }
 
@@ -1107,12 +1102,8 @@ string srs_net_get_cidr_ipv4(string network_address)
         return "";
     }
 
-    try {
-        size_t cidr_length_num = atoi(cidr_length.c_str());
-        if (cidr_length_num <= 0) {
-            return "";
-        }
-    } catch (...) {
+    size_t cidr_length_num = atoi(cidr_length.c_str());
+    if (cidr_length_num <= 0) {
         return "";
     }
 
