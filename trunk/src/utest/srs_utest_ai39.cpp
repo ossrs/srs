@@ -168,7 +168,7 @@ static void utest_hevc_write_vps_rbsp(UtestBitWriter &b, const UtestHevcVps &v)
     b.ue(1);   // vps_num_layer_sets_minus1
 }
 
-// The fields of seq_parameter_set_rbsp() up to log2_max_pic_order_cnt_lsb_minus4, where the parser stops.
+// The fields of seq_parameter_set_rbsp() up to log2_diff_max_min_luma_coding_block_size, where the parser stops.
 struct UtestHevcSps {
     uint32_t sps_id_;
     uint32_t chroma_format_idc_;
@@ -181,6 +181,9 @@ struct UtestHevcSps {
     uint32_t conf_top_;
     uint32_t conf_bottom_;
     uint32_t bit_depth_luma_minus8_;
+    bool ordering_info_present_;
+    uint32_t log2_min_cb_minus3_;
+    uint32_t log2_diff_max_min_cb_;
 
     UtestHevcSps()
     {
@@ -195,6 +198,10 @@ struct UtestHevcSps {
         conf_top_ = 0;
         conf_bottom_ = 4;
         bit_depth_luma_minus8_ = 0;
+        ordering_info_present_ = true;
+        // 8x8 coding blocks in 64x64 CTBs, as x265 makes by default.
+        log2_min_cb_minus3_ = 0;
+        log2_diff_max_min_cb_ = 3;
     }
 };
 
@@ -221,6 +228,12 @@ static void utest_hevc_write_sps_rbsp(UtestBitWriter &b, const UtestHevcSps &s)
     b.ue(s.bit_depth_luma_minus8_);
     b.ue(0); // bit_depth_chroma_minus8
     b.ue(4); // log2_max_pic_order_cnt_lsb_minus4
+    b.u(s.ordering_info_present_ ? 1 : 0, 1);
+    b.ue(4); // sps_max_dec_pic_buffering_minus1
+    b.ue(2); // sps_max_num_reorder_pics
+    b.ue(1); // sps_max_latency_increase_plus1
+    b.ue(s.log2_min_cb_minus3_);
+    b.ue(s.log2_diff_max_min_cb_);
 }
 
 // The fields of pic_parameter_set_rbsp() up to the pps extension flags, where the parser stops.
@@ -854,6 +867,12 @@ VOID TEST(KernelHevcSpsTest, ConformanceWindowCropsTo1080p)
     EXPECT_EQ(4u, sps->conf_win_bottom_offset_);
     EXPECT_EQ(2u, sps->bit_depth_luma_minus8_);
     EXPECT_EQ(4u, sps->log2_max_pic_order_cnt_lsb_minus4_);
+    EXPECT_EQ(1, sps->sps_sub_layer_ordering_info_present_flag_);
+    EXPECT_EQ(4u, sps->sps_max_dec_pic_buffering_minus1_[0]);
+    EXPECT_EQ(2u, sps->sps_max_num_reorder_pics_[0]);
+    EXPECT_EQ(1u, sps->sps_max_latency_increase_plus1_[0]);
+    EXPECT_EQ(0u, sps->log2_min_luma_coding_block_size_minus3_);
+    EXPECT_EQ(3u, sps->log2_diff_max_min_luma_coding_block_size_);
     EXPECT_EQ(10, dec->bit_depth_luma_minus8_);
     EXPECT_EQ(8, dec->bit_depth_chroma_minus8_);
 }
@@ -943,6 +962,42 @@ VOID TEST(KernelHevcSpsTest, InvalidSpsFails)
     }
 }
 
+// The CTB size sizes the slice_segment_address of every later slice of a picture. A CTB larger than 64x64 is out of
+// the range H.265 allows, from a broken or hostile encoder: the SPS is refused, and an SPS already in the table keeps
+// its CTB size.
+VOID TEST(KernelHevcSpsTest, CtbLargerThan64Refused)
+{
+    srs_error_t err;
+
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(format.initialize());
+
+    UtestHevcSps good;
+    UtestBitWriter bg;
+    utest_hevc_write_sps_rbsp(bg, good);
+    std::vector<char> data = bg.bytes();
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_sps_rbsp(&data[0], (int)data.size()));
+
+    uint32_t mins[] = {4, 0, 2, 1};
+    uint32_t diffs[] = {0, 4, 2, 0x7ffffffe};
+    for (int i = 0; i < 4; i++) {
+        UtestHevcSps s;
+        s.log2_min_cb_minus3_ = mins[i];
+        s.log2_diff_max_min_cb_ = diffs[i];
+        UtestBitWriter b;
+        utest_hevc_write_sps_rbsp(b, s);
+        data = b.bytes();
+
+        err = format.hevc_demux_sps_rbsp(&data[0], (int)data.size());
+        EXPECT_NE(std::string::npos, srs_error_desc(err).find("ctb size out of range")) << i;
+        srs_freep(err);
+    }
+
+    SrsHevcRbspSps *sps = &format.vcodec_->hevc_dec_conf_record_.sps_table_[0];
+    EXPECT_EQ(0u, sps->log2_min_luma_coding_block_size_minus3_);
+    EXPECT_EQ(3u, sps->log2_diff_max_min_luma_coding_block_size_);
+}
+
 VOID TEST(KernelHevcSpsTest, TruncatedFieldsFail)
 {
     std::string errors;
@@ -952,6 +1007,7 @@ VOID TEST(KernelHevcSpsTest, TruncatedFieldsFail)
             UtestHevcSps s;
             s.sps_id_ = ids[i];
             s.chroma_format_idc_ = chroma;
+            s.ordering_info_present_ = (i % 2 == 0);
             s.conf_left_ = 1;
             s.conf_right_ = 2;
             s.conf_top_ = 3;
@@ -966,7 +1022,10 @@ VOID TEST(KernelHevcSpsTest, TruncatedFieldsFail)
                            "separate_colour_plane_flag requires 1", "pic_width_in_luma_samples",
                            "pic_height_in_luma_samples", "conformance_window_flag requires 1", "conf_win_left_offset",
                            "conf_win_right_offset", "conf_win_top_offset", "conf_win_bottom_offset",
-                           "bit_depth_luma_minus8", "bit_depth_chroma_minus8", "log2_max_pic_order_cnt_lsb_minus4"};
+                           "bit_depth_luma_minus8", "bit_depth_chroma_minus8", "log2_max_pic_order_cnt_lsb_minus4",
+                           "sps_sub_layer_ordering_info_present_flag requires 1", "sps_max_dec_pic_buffering_minus1",
+                           "sps_max_num_reorder_pics", "sps_max_latency_increase_plus1",
+                           "log2_min_luma_coding_block_size_minus3", "log2_diff_max_min_luma_coding_block_size"};
     utest_expect_errors(errors, names, sizeof(names) / sizeof(names[0]));
 }
 

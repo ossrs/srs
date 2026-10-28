@@ -3396,7 +3396,8 @@ VOID TEST(AppDvrTest, PublisherStartsMidGop_FramesBeforeKeyframeDropped)
 // A publisher sends a key frame each 2s to a vhost recording 1s segments. The segment reaches 1s at an inter frame,
 // and DVR waits for the key frame at 2s to cut it, so each segment starts at a key frame. The hub feeds the new
 // segment the metadata and sequence headers, so it plays alone; with the default time_jitter full, the new segment's
-// timeline starts at 0, its key frame 10ms after the headers, as for any jump over 250ms.
+// timeline starts at 0, its key frame 10ms after the headers, as for any jump over 250ms. Its duration spans its
+// frames, from the key frame at 10ms to the frame at 910ms.
 VOID TEST(AppDvrTest, SegmentWaitsForKeyframe_NewSegmentStartsWithHeaders)
 {
     srs_error_t err;
@@ -3431,20 +3432,18 @@ VOID TEST(AppDvrTest, SegmentWaitsForKeyframe_NewSegmentStartsWithHeaders)
     EXPECT_EQ(0x17, second[3].b0_);
     EXPECT_EQ(10, second[3].ts_);
     EXPECT_EQ(910, second.back().ts_);
-    EXPECT_EQ(0.91, dvr_utest_flv_meta_number(flv, "duration"));
+    EXPECT_EQ(0.9, dvr_utest_flv_meta_number(flv, "duration"));
 }
 
-// A publisher sends a key frame each second to a vhost recording 3s segments with time_jitter off, to keep the
-// publisher's timestamps. Each segment should span 3s. But the hub feeds each new segment the cached sequence
-// headers, which keep their timestamp 0, so from the second segment on the segment counts its duration from 0: it is
-// over 3s at once, and every key frame cuts a new 1s segment. The segments' metadata duration and timeline also start
-// at 0. The same happens with time_jitter zero.
-VOID TEST(AppDvrTest, DISABLED_SegmentWithJitterOff_LaterSegmentsCutEachKeyframe)
+// A publisher sends a key frame each second to a vhost recording 3s segments with the given time_jitter, which keeps
+// the publisher's timestamps. The hub feeds each new segment the cached sequence headers, which keep their timestamp
+// 0, but they are not media: each segment spans its frames, 3s, and its metadata duration says so.
+static void dvr_utest_segments_keep_publisher_time(string name, string jitter)
 {
     srs_error_t err;
 
-    DvrUtestStream s("ai42-dvr-jitter-off");
-    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 3; time_jitter off; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;"));
+    DvrUtestStream s(name);
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 3; time_jitter " + jitter + "; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;"));
     HELPER_ASSERT_SUCCESS(s.metadata());
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
     for (int64_t sec = 0; sec < 10; sec++) {
@@ -3455,7 +3454,49 @@ VOID TEST(AppDvrTest, DISABLED_SegmentWithJitterOff_LaterSegmentsCutEachKeyframe
     s.dvr_->on_unpublish();
 
     // The segments 0-3s, 3-6s, 6-9s and 9-9.9s.
-    EXPECT_EQ(4, (int)s.async_.tasks_.size());
+    ASSERT_EQ(4, (int)s.async_.tasks_.size());
+
+    // The second segment holds the frames from the key frame at 3000ms to the frame at 5900ms.
+    string flv = config_read_file(s.file(1));
+    vector<DvrUtestFlvTag> second = dvr_utest_flv_tags(flv);
+    ASSERT_EQ(3 + 60, (int)second.size());
+    EXPECT_EQ(SrsFrameTypeVideo, second[3].type_);
+    EXPECT_EQ(0x17, second[3].b0_);
+    EXPECT_EQ(3000, second[3].ts_);
+    EXPECT_EQ(5900, second.back().ts_);
+    EXPECT_EQ(2.9, dvr_utest_flv_meta_number(flv, "duration"));
+}
+
+VOID TEST(AppDvrTest, SegmentWithJitterOff_EachSegmentSpansDuration)
+{
+    dvr_utest_segments_keep_publisher_time("ai42-dvr-jitter-off", "off");
+}
+
+VOID TEST(AppDvrTest, SegmentWithJitterZero_EachSegmentSpansDuration)
+{
+    dvr_utest_segments_keep_publisher_time("ai42-dvr-jitter-zero", "zero");
+}
+
+// The encoder sends its sequence headers at 0 and its first frame at 5s, and the time jitter keeps the encoder's time.
+// The file spans only its frames.
+VOID TEST(AppDvrTest, SessionWithJitterOff_DurationSkipsSequenceHeaders)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-sh-early");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; time_jitter off; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.metadata());
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(5000, 5900));
+    s.dvr_->on_unpublish();
+
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    string flv = config_read_file(s.file(0));
+    vector<DvrUtestFlvTag> tags = dvr_utest_flv_tags(flv);
+    ASSERT_EQ(3 + 20, (int)tags.size());
+    EXPECT_EQ(0, tags[1].ts_);
+    EXPECT_EQ(5900, tags.back().ts_);
+    EXPECT_EQ(0.9, dvr_utest_flv_meta_number(flv, "duration"));
 }
 
 // The operator turns the HTTP hooks off for the vhost but keeps the on_dvr URL. The recording completes, and no

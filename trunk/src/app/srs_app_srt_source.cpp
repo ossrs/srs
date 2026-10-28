@@ -375,6 +375,8 @@ srs_error_t SrsSrtFrameBuilder::on_srt_packet(SrsSrtPacket *pkt)
 
         // Process each ts packet. Note that the jitter of UDP may cause video glitch when packet loss or wrong seq. We
         // don't handle it because SRT will, see tlpktdrop at https://ossrs.io/lts/en-us/docs/v7/doc/srt
+        // TODO: FIXME: Refine it, a frame the target refuses, such as HLS failing with hls_on_error disconnect, is
+        // logged and skipped as a bad TS packet, so the encoder is not disconnected.
         if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
             srs_warn("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_freep(err);

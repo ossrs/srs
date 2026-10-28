@@ -9,6 +9,7 @@
 
 #include <srs_core.hpp>
 
+#include <errno.h>
 #include <string>
 
 #include <srs_kernel_error.hpp>
@@ -163,7 +164,12 @@ public:
     impl__SrsLocker(srs_mutex_t *l)
     {
         lock_ = l;
-        int r0 = srs_mutex_lock(*lock_);
+
+        // An interrupt pending or arriving while waiting fails the lock with EINTR. The coroutine keeps the stop and
+        // its cycle checks it by pull(), so take the lock anyway, as stop() does for the join.
+        int r0 = 0;
+        while ((r0 = srs_mutex_lock(*lock_)) != 0 && errno == EINTR) {
+        }
         srs_assert(!r0);
     }
     virtual ~impl__SrsLocker()

@@ -104,6 +104,10 @@ srs_error_t SrsDvrSegmenter::open()
     if (path_util.exists(path)) {
         return srs_error_new(ERROR_DVR_CANNOT_APPEND, "DVR can't append to exists path=%s", path.c_str());
     }
+
+    // Each file spans only its own frames.
+    srs_freep(fragment_);
+    fragment_ = new SrsFragment();
     fragment_->set_path(path);
 
     // create dir first.
@@ -160,7 +164,10 @@ srs_error_t SrsDvrSegmenter::write_audio(SrsMediaPacket *shared_audio, SrsFormat
         return srs_error_wrap(err, "jitter");
     }
 
-    if ((err = on_update_duration(audio.get())) != srs_success) {
+    // The sequence headers are not media. A new segment gets the cached ones, which keep their old timestamp, so
+    // counting them would span the segment from that time.
+    bool is_sequence_header = format->is_aac_sequence_header() || format->is_mp3_sequence_header();
+    if (!is_sequence_header && (err = on_update_duration(audio.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
 
@@ -186,7 +193,9 @@ srs_error_t SrsDvrSegmenter::write_video(SrsMediaPacket *shared_video, SrsFormat
         return srs_error_wrap(err, "encode video");
     }
 
-    if ((err = on_update_duration(video.get())) != srs_success) {
+    // The sequence header is not media. A new segment gets the cached one, which keeps its old timestamp, so counting
+    // it would span the segment from that time.
+    if (!format->is_avc_sequence_header() && (err = on_update_duration(video.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
 

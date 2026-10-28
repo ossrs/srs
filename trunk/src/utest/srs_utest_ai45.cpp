@@ -2025,9 +2025,9 @@ VOID TEST(AppRtmpConnTest, PublisherKickedByApi_PublishEndsWithHooksPaired)
 
 // The server quits gracefully (SIGQUIT), and frees each connection, which interrupts its coroutine and waits for it.
 // An encoder whose coroutine is not blocked at that moment, such as one just woken by its on_connect answer, keeps
-// the interrupt pending. Its next lock is the publish token's: st_mutex_lock fails with EINTR, and SrsLocker's
-// srs_assert aborts the server. The expected behavior is a refused publish.
-VOID TEST(AppRtmpConnTest, DISABLED_InterruptPendingAtPublishToken_ServerAborts)
+// the interrupt pending. Its next lock is the publish token's, where st_mutex_lock fails with EINTR: the lock is
+// still taken, and the publish is refused at the coroutine's stop check, before it starts, with no on_publish hook.
+VOID TEST(AppRtmpConnTest, InterruptPendingAtPublishToken_PublishRefused)
 {
     srs_error_t err;
 
@@ -3151,9 +3151,8 @@ VOID TEST(AppRtmpSourceTest, DashOrDvrFailsOnFrame_StoppedStreamGoesOn)
     }
 }
 
-// DVR fails to write the metadata, as on a full disk. As for a frame DVR fails on, DVR should stop and the stream go on.
-// The hub returns the error instead, so the publisher is disconnected.
-VOID TEST(AppRtmpSourceTest, DISABLED_DvrFailsOnMetadata_PublisherDisconnected)
+// DVR fails to write the metadata, as on a full disk. The hub returns the error, so the publisher is disconnected.
+VOID TEST(AppRtmpSourceTest, DvrFailsOnMetadata_PublisherDisconnected)
 {
     srs_error_t err;
 
@@ -3163,8 +3162,8 @@ VOID TEST(AppRtmpSourceTest, DISABLED_DvrFailsOnMetadata_PublisherDisconnected)
     HELPER_ASSERT_SUCCESS(s.source_->on_publish());
 
     s.factory_.dvr_->meta_error_ = srs_error_new(ERROR_SYSTEM_FILE_WRITE, "full disk");
-    HELPER_EXPECT_SUCCESS(s.metadata(0));
-    EXPECT_EQ(1, s.factory_.dvr_->on_unpublish_count_);
+    HELPER_EXPECT_FAILED(s.metadata(0));
+    EXPECT_EQ(0, s.factory_.dvr_->on_unpublish_count_);
     EXPECT_STREQ("m0", rtmp_source_utest_got(player).c_str());
     s.source_->on_unpublish();
 }

@@ -2448,11 +2448,11 @@ VOID TEST(KernelPacketTest, RtcHevcSliceEndsBeforeItsPpsBits_Refused)
     packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("0" "0001000"), kept));
 }
 
-// Bug: a slice that is not the first of its picture has slice_segment_address before slice_type, Ceil(Log2(
-// PicSizeInCtbsY)) bits (H.265 7.3.6.1). The bridge does not skip it and reads slice_type from the address bits, so a
-// P slice whose address has its top bit set reads as B and is dropped: the WebRTC player loses that part of the
-// picture. Here the third slice of a 720p P frame cut into three slices.
-VOID TEST(KernelPacketTest, DISABLED_RtcHevcLaterSliceOfPFrame_DroppedAsBframe)
+// A slice that is not the first of its picture has slice_segment_address before slice_type, Ceil(Log2(
+// PicSizeInCtbsY)) bits (H.265 7.3.6.1), sized by the SPS its PPS names. The bridge skips it and reads the right
+// slice_type: the later P slices of a multi-slice picture reach the WebRTC player, and its later B slices are dropped.
+// Here the slices of a 720p frame cut into three, with 64x64 CTBs: 20x12 is 240 CTBs, an 8-bit address.
+VOID TEST(KernelPacketTest, RtcHevcLaterSliceOfPFrame_Kept)
 {
     srs_error_t err;
 
@@ -2463,27 +2463,93 @@ VOID TEST(KernelPacketTest, DISABLED_RtcHevcLaterSliceOfPFrame_DroppedAsBframe)
     HELPER_ASSERT_SUCCESS(bridge.initialize());
     HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
 
-    // The picture size in CTBs, and the bits of slice_segment_address, from the stream's SPS.
     SrsHevcRbspSps *sps = &bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.sps_table_[0];
-    int ctb = 1 << (sps->log2_min_luma_coding_block_size_minus3_ + 3 + sps->log2_diff_max_min_luma_coding_block_size_);
-    int ctbs = (int)((sps->pic_width_in_luma_samples_ + ctb - 1) / ctb * ((sps->pic_height_in_luma_samples_ + ctb - 1) / ctb));
-    int nb_bits = 0;
-    while ((1 << nb_bits) < ctbs) {
-        nb_bits++;
-    }
     EXPECT_EQ(1280u, sps->pic_width_in_luma_samples_);
     EXPECT_EQ(720u, sps->pic_height_in_luma_samples_);
+    EXPECT_EQ(6u, sps->log2_min_luma_coding_block_size_minus3_ + 3 + sps->log2_diff_max_min_luma_coding_block_size_);
 
-    int address = ctbs * 2 / 3;
-    string address_bits;
-    for (int i = nb_bits - 1; i >= 0; i--) {
-        address_bits.push_back((address >> i) & 1 ? '1' : '0');
-    }
-    ASSERT_EQ('1', address_bits[0]);
-
+    // The third slice starts at CTB 160, "10100000", its top bit set.
     // first_slice_segment_in_pic_flag 0, PPS 0, slice_segment_address, slice_type ue(v) "010" is P.
     vector<SrsNaluSample *> kept;
-    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" + address_bits + "010" "1"), kept));
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" "10100000" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+
+    // The second slice starts at CTB 80, "01010000"; a P slice is kept, a B slice, ue(v) "1", is dropped.
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" "01010000" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" "01010000" "1" "1"), kept));
+    EXPECT_EQ(0, (int)kept.size());
+}
+
+// A later slice cut inside its slice_segment_address has no slice_type to read: the bridge refuses the frame, as a
+// slice cut inside its header is, and the stream goes on.
+VOID TEST(KernelPacketTest, RtcHevcLaterSliceCutInsideAddress_Refused)
+{
+    srs_error_t err;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+
+    PacketRtcBridge bridge;
+    HELPER_ASSERT_SUCCESS(bridge.initialize());
+    HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
+
+    // first_slice_segment_in_pic_flag 0, PPS 0, then 6 bits of the byte left for the 8-bit address.
+    vector<SrsNaluSample *> kept;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("0" "1"), kept));
+
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" "10100000" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+
+    // A broken encoder's PPS that names SPS 16, past the 16 SPS ids H.265 allows: no SPS sizes the address, so the
+    // later slice is refused, and the first slice of a picture, which has no address, still passes.
+    bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[0].pps_seq_parameter_set_id_ = 16;
+    packet_expect_error_code(ERROR_HEVC_DECODE_ERROR, bridge.video(packet_hevc_trail_r_tag("0" "1" "10100000" "010" "1"), kept));
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("1" "1" "010" "1"), kept));
+    EXPECT_EQ(1, (int)kept.size());
+}
+
+// A broken or hostile encoder's PPS names an SPS it never sent. That SPS must read as zero, not as what the memory
+// held before: a CTB size of 64 bits or more from the old memory makes the address size loop spin forever, and the
+// whole server hangs. A zero SPS sizes no address, so a later slice's slice_type follows its PPS id.
+VOID TEST(KernelPacketTest, RtcHevcLaterSliceNamesSpsNeverSent_NoAddress)
+{
+    srs_error_t err;
+
+    void *memory = malloc(sizeof(SrsVideoCodecConfig));
+    memset(memory, 0xa5, sizeof(SrsVideoCodecConfig));
+    SrsVideoCodecConfig *vcodec = new (memory) SrsVideoCodecConfig();
+
+    SrsHevcDecoderConfigurationRecord *r = &vcodec->hevc_dec_conf_record_;
+    for (int i = 0; i < SrsHevcMax_SPS_COUNT; i++) {
+        SrsHevcRbspSps *sps = &r->sps_table_[i];
+        EXPECT_EQ(0u, sps->pic_width_in_luma_samples_);
+        EXPECT_EQ(0u, sps->pic_height_in_luma_samples_);
+        EXPECT_EQ(0u, sps->log2_min_luma_coding_block_size_minus3_);
+        EXPECT_EQ(0u, sps->log2_diff_max_min_luma_coding_block_size_);
+    }
+    for (int i = 0; i < SrsHevcMax_PPS_COUNT; i++) {
+        SrsHevcRbspPps *pps = &r->pps_table_[i];
+        EXPECT_EQ(0, (int)pps->pps_seq_parameter_set_id_);
+        EXPECT_EQ(0, (int)pps->dependent_slice_segments_enabled_flag_);
+        EXPECT_EQ(0, (int)pps->num_extra_slice_header_bits_);
+    }
+
+    vcodec->~SrsVideoCodecConfig();
+    free(memory);
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+
+    PacketRtcBridge bridge;
+    HELPER_ASSERT_SUCCESS(bridge.initialize());
+    HELPER_ASSERT_SUCCESS(bridge.sequence_header(sh));
+
+    // The sequence header has SPS 0 only, and PPS 0 now names SPS 3.
+    // first_slice_segment_in_pic_flag 0, PPS 0, no address, slice_type ue(v) "010" is P.
+    bridge.builder_.format_->vcodec_->hevc_dec_conf_record_.pps_table_[0].pps_seq_parameter_set_id_ = 3;
+    vector<SrsNaluSample *> kept;
+    HELPER_EXPECT_SUCCESS(bridge.video(packet_hevc_trail_r_tag("0" "1" "010" "1"), kept));
     EXPECT_EQ(1, (int)kept.size());
 }
 
