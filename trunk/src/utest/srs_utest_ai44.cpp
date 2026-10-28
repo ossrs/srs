@@ -4101,6 +4101,36 @@ static bool rtc_conn_utest_has_sn(const std::vector<uint16_t> &sns, uint16_t sn)
     return std::find(sns.begin(), sns.end(), sn) != sns.end();
 }
 
+// A publisher on a lossy network: the packets 101 to 104 are lost and 105 comes. The server sends one NACK for the
+// four packets, and counts the request and the four sequence numbers it asks for, which the circuit breaker's line
+// shows per second.
+VOID TEST(AppRtcConnTest, PublisherLosesPackets_NackRequestAndSeqsCounted)
+{
+    srs_error_t err;
+
+    ListenerUtestClock clock;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    HELPER_ASSERT_SUCCESS(publisher.connect());
+
+    HELPER_ASSERT_SUCCESS(publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 100)));
+    HELPER_ASSERT_SUCCESS(publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 105)));
+    publisher.skt_.sent_.clear();
+
+    int64_t requests = _srs_pps_snack2->sugar_;
+    int64_t seqs = _srs_pps_snack3->sugar_;
+    _srs_system_time_us_cache = clock.base_ + 100 * SRS_UTIME_MILLISECONDS;
+    HELPER_ASSERT_SUCCESS(publisher.conn_->do_check_send_nacks());
+
+    ASSERT_EQ(1, (int)publisher.skt_.sent_.size());
+    EXPECT_EQ(1, _srs_pps_snack2->sugar_ - requests);
+    EXPECT_EQ(4, _srs_pps_snack3->sugar_ - seqs);
+}
+
 // The server overloaded: at the circuit breaker's critical level, a publisher's lost packets are not asked for by
 // NACK, to spare the CPU. Once the load is back to normal, the packets lost during the overload, which may still be
 // resent in time, are asked for with the new losses.

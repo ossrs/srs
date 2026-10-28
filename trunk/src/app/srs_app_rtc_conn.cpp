@@ -3021,6 +3021,7 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
 #endif
 
     ++_srs_pps_snack2->sugar_;
+    _srs_pps_snack3->sugar_ += rtcpNack.get_lost_sns().size();
 
     char buf[kRtcpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));

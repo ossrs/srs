@@ -425,6 +425,9 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer *buf)
             }
             has_ext_ = true;
         } else {
+            if (!buf->require(1 + len)) {
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1 + len);
+            }
             buf->skip(1 + len);
         }
     }

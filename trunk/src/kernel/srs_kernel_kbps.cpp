@@ -533,6 +533,8 @@ void srs_global_rtc_update(SrsKbsRtcStats *stats)
     string &snk_desc = stats->snk_desc_;
     _srs_pps_snack->update();
     _srs_pps_snack2->update();
+    _srs_pps_snack3->update();
+    _srs_pps_snack4->update();
     _srs_pps_sanack->update();
     _srs_pps_svnack->update();
     if (_srs_pps_snack->r10s() || _srs_pps_sanack->r10s() || _srs_pps_svnack->r10s() || _srs_pps_snack2->r10s()) {

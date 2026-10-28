@@ -2874,6 +2874,258 @@ VOID TEST(GbMuxerTest, HevcAccessUnitAsOneMessage)
     srs_freep(mock_sdk);
 }
 
+// Muxes the video of a PS pack from a heap buffer of its exact size, as a
+// read past the end of the pack is then caught by the sanitizer.
+static srs_error_t mock_gb_mux_video(SrsGbMuxer *muxer, bool hevc, const std::string &frame, int64_t dts)
+{
+    SrsUniquePtr<char[]> data(new char[frame.size()]);
+    memcpy(data.get(), frame.data(), frame.size());
+
+    SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+    msg->dts_ = msg->pts_ = dts;
+    SrsBuffer avs(data.get(), (int)frame.size());
+    return hevc ? muxer->mux_h265(msg.get(), &avs) : muxer->mux_h264(msg.get(), &avs);
+}
+
+// A device's H.264 SPS cut under 4 bytes, then a new PPS, after the stream
+// started. The cut SPS has no profile or level for a sequence header, so it is
+// skipped and the SPS of the stream is kept; the frames go on.
+VOID TEST(GbMuxerTest, H264CutSpsThenNewPps_CutSpsSkipped)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char sps[] = {0x67, 0x42, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char idr[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char cut_sps[] = {0x67, 0x42, 0x00};
+    const char new_pps[] = {0x68, (char)0xce, 0x3c, (char)0x80};
+    const char p[] = {0x41, (char)0x9a, 0x11, 0x03};
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, idr, sizeof(idr));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), false, frame, 90000));
+    }
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, cut_sps, sizeof(cut_sps));
+        mock_gb_append_annexb(frame, new_pps, sizeof(new_pps));
+        mock_gb_append_annexb(frame, p, sizeof(p));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), false, frame, 93600));
+    }
+
+    EXPECT_EQ(std::string(sps, sizeof(sps)), muxer->h264_sps_);
+
+    // The sequence header, the IDR and the P-frame.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+    std::string want("\x27\x01\x00\x00\x00", 5);
+    want.append("\x00\x00\x00\x04", 4);
+    want.append(p, sizeof(p));
+    EXPECT_EQ(want, mock_queue->payloads_[2]);
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// A device's H.264 PS pack that ends with a start code, then one with two
+// start codes in a row. Each gives an empty NALU, which is skipped, and the
+// slices around it go as before.
+VOID TEST(GbMuxerTest, H264EmptyNalu_Skipped)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char sps[] = {0x67, 0x42, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char idr[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char p[] = {0x41, (char)0x9a, 0x11, 0x03};
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, idr, sizeof(idr));
+        frame.append("\x00\x00\x00\x01", 4);
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), false, frame, 90000));
+    }
+
+    if (true) {
+        std::string frame("\x00\x00\x00\x01", 4);
+        mock_gb_append_annexb(frame, p, sizeof(p));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), false, frame, 93600));
+    }
+
+    // The sequence header, the IDR and the P-frame.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+    if (true) {
+        std::string want("\x17\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr, sizeof(idr));
+        EXPECT_EQ(want, mock_queue->payloads_[1]);
+    }
+    if (true) {
+        std::string want("\x27\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p, sizeof(p));
+        EXPECT_EQ(want, mock_queue->payloads_[2]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// A device's HEVC PS pack that ends with a start code, then one with two
+// start codes in a row. Each gives an empty NALU, which is skipped, and the
+// slices around it go as before.
+VOID TEST(GbMuxerTest, HevcEmptyNalu_Skipped)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char vps[] = {0x40, 0x01, 0x0C, 0x01, (char)0xFF, (char)0xFF, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00,
+                        0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D, (char)0xAC, 0x09};
+    const char sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+                        0x5D, (char)0xA0, 0x02, (char)0x80, (char)0x80, 0x2D, 0x16, 0x59, 0x59, (char)0xA4, (char)0x93, 0x2B,
+                        (char)0xC0, 0x5A, 0x70, (char)0x80};
+    const char pps[] = {0x44, 0x01, (char)0xC1, 0x73, (char)0xD1, (char)0x89, 0x00};
+    const char idr[] = {0x26, 0x01, (char)0xaf, 0x06};
+    const char p0[] = {0x02, 0x01, (char)0xd0, 0x08};
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, vps, sizeof(vps));
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, idr, sizeof(idr));
+        frame.append("\x00\x00\x00\x01", 4);
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), true, frame, 90000));
+    }
+
+    if (true) {
+        std::string frame("\x00\x00\x00\x01", 4);
+        mock_gb_append_annexb(frame, p0, sizeof(p0));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), true, frame, 93600));
+    }
+
+    // The sequence header, the IDR and the trailing frame.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+    if (true) {
+        std::string want("\x93hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr, sizeof(idr));
+        EXPECT_EQ(want, mock_queue->payloads_[1]);
+    }
+    if (true) {
+        std::string want("\xa3hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p0, sizeof(p0));
+        EXPECT_EQ(want, mock_queue->payloads_[2]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// A device's HEVC SPS cut under 4 bytes, then a new PPS, after the stream
+// started. The cut SPS is skipped and the SPS of the stream kept, so the new
+// PPS goes in a new sequence header with it.
+VOID TEST(GbMuxerTest, HevcCutSpsThenNewPps_CutSpsSkipped)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char vps[] = {0x40, 0x01, 0x0C, 0x01, (char)0xFF, (char)0xFF, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00,
+                        0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D, (char)0xAC, 0x09};
+    const char sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+                        0x5D, (char)0xA0, 0x02, (char)0x80, (char)0x80, 0x2D, 0x16, 0x59, 0x59, (char)0xA4, (char)0x93, 0x2B,
+                        (char)0xC0, 0x5A, 0x70, (char)0x80};
+    const char pps[] = {0x44, 0x01, (char)0xC1, 0x73, (char)0xD1, (char)0x89, 0x00};
+    const char idr[] = {0x26, 0x01, (char)0xaf, 0x06};
+    const char cut_sps[] = {0x42, 0x01, 0x01};
+    const char new_pps[] = {0x44, 0x01, (char)0xC1, 0x72, (char)0xB4, 0x62, 0x40};
+    const char p[] = {0x02, 0x01, 0x33, 0x09};
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, vps, sizeof(vps));
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, idr, sizeof(idr));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), true, frame, 90000));
+    }
+
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, cut_sps, sizeof(cut_sps));
+        mock_gb_append_annexb(frame, new_pps, sizeof(new_pps));
+        mock_gb_append_annexb(frame, p, sizeof(p));
+        HELPER_EXPECT_SUCCESS(mock_gb_mux_video(muxer.get(), true, frame, 93600));
+    }
+
+    EXPECT_EQ(std::string(sps, sizeof(sps)), muxer->h265_sps_);
+    EXPECT_EQ(std::string(new_pps, sizeof(new_pps)), muxer->h265_pps_);
+
+    // The sequence header, the IDR, the new sequence header and the frame.
+    ASSERT_EQ(4, (int)mock_queue->payloads_.size());
+    if (true) {
+        std::string sh = mock_queue->payloads_[2];
+        ASSERT_GT((int)sh.size(), 5);
+        EXPECT_EQ(0x90, (uint8_t)sh[0]);
+        EXPECT_EQ("hvc1", sh.substr(1, 4));
+        EXPECT_NE(std::string::npos, sh.find(std::string(sps, sizeof(sps))));
+        EXPECT_NE(std::string::npos, sh.find(std::string(new_pps, sizeof(new_pps))));
+    }
+    if (true) {
+        std::string want("\xa3hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p, sizeof(p));
+        EXPECT_EQ(want, mock_queue->payloads_[3]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
 // A GB28181 H.264 frame shown after it is decoded, as a B-frame or a frame
 // before one, keeps its PES's pts minus dts as its composition time; a frame
 // whose pts is its dts, or before it, has none, and so has the sequence header.

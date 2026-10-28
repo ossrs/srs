@@ -67,6 +67,7 @@ using namespace srs_internal;
 
 extern srs_utime_t _srs_system_time_us_cache;
 extern srs_mkdir_t _srs_mkdir_fn;
+extern bool srs_sdp_has_h264_profile(const SrsSdp &sdp, const string &profile);
 
 // The first read of the cached clock in a fresh process, such as a log line or a
 // statistic written at startup before the server's clock timer has ticked, gets the
@@ -259,17 +260,20 @@ VOID TEST(KernelUtilityTest, SecurityAllowRuleWithEmptyPrefixLengthMatchesNoClie
     sec.config_ = NULL;
 }
 
-// A security rule with an IPv4 prefix length over 32, such as "allow play 10.0.0.0/33;"
-// or an IPv6-style "/64", must match no client, as the other malformed rules do. The
-// mask is read from a table of 32 entries by the length, with no upper check, so the
-// first client of the vhost reads past the table (ASan on Linux: global-buffer-overflow;
-// the macOS build reads it unflagged, and the garbage mask happens to match no client).
-VOID TEST(KernelUtilityTest, DISABLED_SecurityAllowRuleWithPrefixLengthOver32_ReadsPastMaskTable)
+// A security rule with an IPv4 prefix length over 32, such as "allow play 10.0.0.0/33;",
+// an IPv6-style "/64", or a negative length, must match no client, as the other
+// malformed rules do, and must not read the mask outside the table of 32 entries.
+VOID TEST(KernelUtilityTest, SecurityAllowRuleWithPrefixLengthOver32_RuleMatchesNoClient)
 {
     srs_error_t err = srs_success;
 
+    EXPECT_STREQ("255.255.255.255", srs_net_get_cidr_mask("10.0.0.0/32").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/33").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/64").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/-1").c_str());
+
     MockSrsConfig conf;
-    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; allow play 10.0.0.0/33; allow play 192.168.1.0/24;}}"));
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; allow play 10.0.0.0/33; allow play 10.0.0.0/64; allow play 10.0.0.0/-1; allow play 192.168.1.0/24;}}"));
 
     SrsSecurity sec;
     sec.config_ = &conf;
@@ -1313,7 +1317,7 @@ VOID TEST(ProtocolHttpConnTest, ServerWideOptionsAsterisk_UrlBuiltFromHost)
 // "?url=xxx to set the whole WHIP/WHEP url directly" (research/players/js/srs.page.js) asks:
 // players/whep.html?url=http://host:1985/rtc/v1/whep/?app=live&stream=livestream. Browsers send
 // ':' and '/' of a query as they are, so the server must still serve the page's path.
-VOID TEST(ProtocolHttpConnTest, DISABLED_WhepPageWithEndpointUrlInQuery_ServesQueryPath)
+VOID TEST(ProtocolHttpConnTest, WhepPageWithEndpointUrlInQuery_ServesPagePath)
 {
     srs_error_t err = srs_success;
 
@@ -1329,7 +1333,45 @@ VOID TEST(ProtocolHttpConnTest, DISABLED_WhepPageWithEndpointUrlInQuery_ServesQu
     EXPECT_STREQ(".html", msg->ext().c_str());
     EXPECT_STREQ("192.168.1.10", msg->host().c_str());
     EXPECT_EQ(8080, msg->port());
-    EXPECT_STREQ("http://192.168.1.10:1985/rtc/v1/whep/?app=live", msg->query_get("url").c_str());
+    EXPECT_STREQ("url=http://192.168.1.10:1985/rtc/v1/whep/?app=live&stream=livestream", msg->query().c_str());
+}
+
+// A user types the WHEP page with only the start of an endpoint in its query, such as
+// ?url=http://, which once failed the request because the query was parsed as the target.
+VOID TEST(ProtocolHttpConnTest, WhepPageWithQueryEndingInSchema_ServesPagePath)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET /players/whep.html?url=http:// HTTP/1.1\r\nHost: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/players/whep.html", msg->path().c_str());
+    EXPECT_EQ(8080, msg->port());
+    EXPECT_STREQ("http://", msg->query_get("url").c_str());
+}
+
+// A client sends the absolute form of the request target, as HTTP/1.1 lets a client do toward
+// a proxy; with a URL in its query too, the target's own host, port and path still win.
+VOID TEST(ProtocolHttpConnTest, AbsoluteTargetWithUrlInQuery_RoutedByTarget)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET http://192.168.1.10:1985/api/v1/versions?next=http://example.com/x HTTP/1.1\r\n"
+              "Host: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_EQ(1985, msg->port());
+    EXPECT_STREQ("http://example.com/x", msg->query_get("next").c_str());
 }
 
 // A hook backend answers a callback with an empty body and "Content-Length: 0", as many web
@@ -1419,7 +1461,7 @@ VOID TEST(ProtocolHttpConnTest, ChunkedBodyWithNonHexSize_Refused)
 
 // A backend sends a chunk with a chunk extension, "5;name=value", which RFC 9112 7.1.1 allows
 // and tells a recipient to ignore when it does not know it. The body must read as the data.
-VOID TEST(ProtocolHttpConnTest, DISABLED_ChunkWithExtension_BodyRefused)
+VOID TEST(ProtocolHttpConnTest, ChunkWithExtension_ExtensionIgnored)
 {
     srs_error_t err = srs_success;
 
@@ -1433,6 +1475,48 @@ VOID TEST(ProtocolHttpConnTest, DISABLED_ChunkWithExtension_BodyRefused)
     string body;
     HELPER_EXPECT_SUCCESS(http_conn_read_body(msg.get(), body));
     EXPECT_STREQ("Hello", body.c_str());
+    EXPECT_TRUE(msg->body_reader()->eof());
+}
+
+// A backend puts extensions on every chunk, a quoted value and a name with no value, and on the
+// last chunk too. Each extension is ignored; the last chunk still ends the body.
+VOID TEST(ProtocolHttpConnTest, EveryChunkWithExtensions_BodyReadToLastChunk)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+              "5;a=\"x;y\";b\r\nHello\r\n6;sig\r\n World\r\n0;end=1\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    HELPER_EXPECT_SUCCESS(http_conn_read_body(msg.get(), body));
+    EXPECT_STREQ("Hello World", body.c_str());
+    EXPECT_TRUE(msg->body_reader()->eof());
+}
+
+// A broken backend sends an extension with no chunk size before it. The size is missing, so the
+// chunk is refused rather than taken as the last chunk of size 0.
+VOID TEST(ProtocolHttpConnTest, ChunkExtensionWithoutSize_Refused)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n;name=value\r\nHello\r\n0\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    err = http_conn_read_body(msg.get(), body);
+    EXPECT_EQ(ERROR_HTTP_INVALID_CHUNK_HEADER, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(body.empty());
+    EXPECT_FALSE(msg->body_reader()->eof());
 }
 
 // An HTTP-FLV origin or a hook backend closes the connection inside a chunk, such as when it
@@ -3620,7 +3704,8 @@ VOID TEST(ProtocolRtmpStackTest, LaterClientWithConnectArgs_SourceRequestTakesIt
 }
 
 // Packages the two slices of one frame, merged as with rtc_server.merge_nalus on, and returns the
-// payload bytes each FU-A packet carries after its FU indicator and header.
+// payload bytes each FU-A packet carries after its FU indicator and header. Only the first FU-A has
+// the start bit and only the last one the end bit (RFC 6184 5.8).
 static vector<int> rtp_merged_frame_fu_sizes(SrsVideoCodecId codec, vector<char> &slice0, vector<char> &slice1)
 {
     vector<int> sizes;
@@ -3651,11 +3736,20 @@ static vector<int> rtp_merged_frame_fu_sizes(SrsVideoCodecId codec, vector<char>
     for (int i = 0; i < (int)pkts.size(); i++) {
         SrsRtpPacket *pkt = pkts[i];
         vector<SrsNaluSample *> *nalus = NULL;
+        bool start = false, end = false;
         if (codec == SrsVideoCodecIdHEVC) {
-            nalus = &static_cast<SrsRtpFUAPayloadHevc *>(pkt->payload())->nalus_;
+            SrsRtpFUAPayloadHevc *fua = static_cast<SrsRtpFUAPayloadHevc *>(pkt->payload());
+            nalus = &fua->nalus_;
+            start = fua->start_;
+            end = fua->end_;
         } else {
-            nalus = &static_cast<SrsRtpFUAPayload *>(pkt->payload())->nalus_;
+            SrsRtpFUAPayload *fua = static_cast<SrsRtpFUAPayload *>(pkt->payload());
+            nalus = &fua->nalus_;
+            start = fua->start_;
+            end = fua->end_;
         }
+        EXPECT_EQ(i == 0, start) << "FU-A " << i << " of " << pkts.size();
+        EXPECT_EQ(i == (int)pkts.size() - 1, end) << "FU-A " << i << " of " << pkts.size();
 
         int size = 0;
         for (int j = 0; j < (int)nalus->size(); j++) {
@@ -3672,9 +3766,9 @@ static vector<int> rtp_merged_frame_fu_sizes(SrsVideoCodecId codec, vector<char>
 // With rtc_server.merge_nalus on, RTMP to WebRTC packs all slices of a frame into one NALU and
 // cuts it into FU-A packets of up to 1200 bytes. When the merged NALU minus its header is a whole
 // number of 1200-byte fragments, such as two slices of 1000 and 1398 bytes (2401 with the 3-byte
-// separator), the frame must take exactly two fragments. The packet count is computed from the
-// size with the header, so a third FU-A with the end bit and no data is sent.
-VOID TEST(ProtocolRtpTest, DISABLED_MergedFrameOfWholeFragments_EmptyLastFuA)
+// separator), the frame takes exactly two fragments, each with data, and no third FU-A with the end
+// bit and no data.
+VOID TEST(ProtocolRtpTest, MergedFrameOfWholeFragments_TwoFuAs)
 {
     // H.264: two IDR slices, 1000 + 3 + 1398 = 2401 bytes, a 1-byte NALU header.
     if (true) {
@@ -3701,6 +3795,135 @@ VOID TEST(ProtocolRtpTest, DISABLED_MergedFrameOfWholeFragments_EmptyLastFuA)
         for (int i = 0; i < (int)sizes.size(); i++) {
             EXPECT_GT(sizes[i], 0) << "FU-A " << i << " of " << sizes.size();
         }
+    }
+}
+
+// With rtc_server.merge_nalus on, a merged frame of 1200 bytes or a little more is too big for
+// one RTP packet, but its data after the NALU header fits one 1200-byte fragment. RFC 6184 5.8
+// forbids an FU-A with both the start and end bits, so the frame is still cut into two FU-As,
+// together carrying every byte after the header.
+VOID TEST(ProtocolRtpTest, MergedFrameJustOverOnePacket_SplitIntoTwoFuAs)
+{
+    struct {
+        SrsVideoCodecId codec;
+        int slice1;
+        int header;
+    } cases[] = {
+        {SrsVideoCodecIdAVC, 597, 1},  // 600 + 3 + 597 = 1200 bytes
+        {SrsVideoCodecIdAVC, 598, 1},  // 1201 bytes, 1200 after the header
+        {SrsVideoCodecIdHEVC, 597, 2}, // 1200 bytes
+        {SrsVideoCodecIdHEVC, 599, 2}, // 1202 bytes, 1200 after the header
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        vector<char> slice0(600, (char)0x88);
+        vector<char> slice1(cases[i].slice1, (char)0x88);
+        if (cases[i].codec == SrsVideoCodecIdHEVC) {
+            slice0[0] = slice1[0] = 0x02;
+            slice0[1] = slice1[1] = 0x01;
+        } else {
+            slice0[0] = slice1[0] = 0x65;
+        }
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(cases[i].codec, slice0, slice1);
+        ASSERT_EQ(2, (int)sizes.size()) << "case " << i;
+        EXPECT_GT(sizes[0], 0) << "case " << i;
+        EXPECT_GT(sizes[1], 0) << "case " << i;
+        EXPECT_EQ(600 + 3 + cases[i].slice1 - cases[i].header, sizes[0] + sizes[1]) << "case " << i;
+    }
+}
+
+// Packages one NALU into FU-A packets of up to 1200 bytes, as RTMP to WebRTC and RTMP to RTSP do for
+// a NALU over 1200 bytes with merge_nalus off, and returns the payload bytes each FU-A carries after
+// its FU indicator and header. Only the first FU-A has the start bit and only the last one the end
+// bit (RFC 6184 5.8, RFC 7798 4.4.3).
+static vector<int> rtp_nalu_fu_sizes(SrsVideoCodecId codec, vector<char> &nalu)
+{
+    vector<int> sizes;
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = codec;
+
+    SrsRtpVideoBuilder builder;
+    srs_error_t err = builder.initialize(&format, 0x1234, 96);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    SrsNaluSample sample(&nalu[0], (int)nalu.size());
+    SrsMediaPacket msg;
+    msg.timestamp_ = 40;
+
+    vector<SrsRtpPacket *> pkts;
+    err = builder.package_fu_a(&msg, &sample, kRtpMaxPayloadSize, pkts);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts[i];
+        bool start = false, end = false;
+        int size = 0;
+        if (codec == SrsVideoCodecIdHEVC) {
+            SrsRtpFUAPayloadHevc2 *fua = static_cast<SrsRtpFUAPayloadHevc2 *>(pkt->payload());
+            start = fua->start_;
+            end = fua->end_;
+            size = fua->size_;
+        } else {
+            SrsRtpFUAPayload2 *fua = static_cast<SrsRtpFUAPayload2 *>(pkt->payload());
+            start = fua->start_;
+            end = fua->end_;
+            size = fua->size_;
+        }
+        EXPECT_EQ(i == 0, start) << "FU-A " << i << " of " << pkts.size();
+        EXPECT_EQ(i == (int)pkts.size() - 1, end) << "FU-A " << i << " of " << pkts.size();
+        sizes.push_back(size);
+        srs_freep(pkt);
+    }
+
+    srs_freep(format.vcodec_);
+    return sizes;
+}
+
+// With merge_nalus off, the default, RTMP to WebRTC sends a NALU over 1200 bytes as FU-A packets. A
+// NALU of 1201 bytes (1201 or 1202 for H.265) has at most 1200 bytes after its header, which fit one
+// 1200-byte fragment, but RFC 6184 5.8 forbids an FU-A with both the start and end bits, so the NALU
+// is still cut into two FU-As, together carrying every byte after the header.
+VOID TEST(ProtocolRtpTest, NaluJustOverOnePacket_SplitIntoTwoFuAs)
+{
+    struct {
+        SrsVideoCodecId codec;
+        int size;
+        int header;
+    } cases[] = {
+        {SrsVideoCodecIdAVC, 1201, 1},  // 1200 after the header
+        {SrsVideoCodecIdHEVC, 1201, 2}, // 1199 after the header
+        {SrsVideoCodecIdHEVC, 1202, 2}, // 1200 after the header
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        vector<char> nalu(cases[i].size, (char)0x88);
+        if (cases[i].codec == SrsVideoCodecIdHEVC) {
+            nalu[0] = 0x02;
+            nalu[1] = 0x01;
+        } else {
+            nalu[0] = 0x65;
+        }
+
+        vector<int> sizes = rtp_nalu_fu_sizes(cases[i].codec, nalu);
+        ASSERT_EQ(2, (int)sizes.size()) << "case " << i;
+        EXPECT_GT(sizes[0], 0) << "case " << i;
+        EXPECT_GT(sizes[1], 0) << "case " << i;
+        EXPECT_EQ(cases[i].size - cases[i].header, sizes[0] + sizes[1]) << "case " << i;
+    }
+
+    // A NALU with 1201 bytes after its header takes two FU-As of 1200 and 1 bytes, as before.
+    if (true) {
+        vector<char> nalu(1202, (char)0x88);
+        nalu[0] = 0x65;
+        vector<int> sizes = rtp_nalu_fu_sizes(SrsVideoCodecIdAVC, nalu);
+        ASSERT_EQ(2, (int)sizes.size());
+        EXPECT_EQ(1200, sizes[0]);
+        EXPECT_EQ(1, sizes[1]);
     }
 }
 
@@ -3979,9 +4202,9 @@ VOID TEST(ProtocolRtspStackTest, PlayerLeftBeforeAnswer_WriteFails)
 // A player's RTCP over TCP arrives cut between two reads, and the bytes of the first read hold a
 // space, CR or LF: a lone 32-byte RR (reduced-size RTCP, RFC 5506), whose length byte is 0x20, with
 // its header alone as live555 writes it; an RR and SDES cut after a report block whose jitter is
-// 32. The parser should wait for the rest of the frame and parse the GET_PARAMETER after it, but it
-// scans the partial frame as a request, so the request fails and the connection ends.
-VOID TEST(ProtocolRtspStackTest, DISABLED_PlayerRtcpCutAtDelimiterByte_ConnectionDropped)
+// 32. The parser waits for the rest of the frame, consumes it, and parses the GET_PARAMETER after
+// it, instead of scanning the partial frame as a request.
+VOID TEST(ProtocolRtspStackTest, PlayerRtcpCutAtDelimiterByte_RequestAfterItParsed)
 {
     srs_error_t err = srs_success;
 
@@ -4020,11 +4243,36 @@ VOID TEST(ProtocolRtspStackTest, DISABLED_PlayerRtcpCutAtDelimiterByte_Connectio
     }
 }
 
+// A player's RTCP over TCP arrives cut inside its 4-byte interleaved header, after the '$', the
+// channel or the high length byte. The parser waits for the rest of the header and the frame, and
+// parses the GET_PARAMETER after it.
+VOID TEST(ProtocolRtspStackTest, PlayerRtcpCutInsideInterleavedHeader_RequestAfterItParsed)
+{
+    srs_error_t err = srs_success;
+
+    string keepalive = "GET_PARAMETER rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 6\r\nSession: 7AB3C1D2\r\n\r\n";
+    string frame = rtsp_interleaved_header(1, 52) + rtsp_rtcp_rr(0x31) + rtsp_rtcp_sdes();
+
+    for (size_t cut = 1; cut < 4; cut++) {
+        RtspSegmentIO io;
+        io.segment(frame.substr(0, cut))->segment(frame.substr(cut))->segment(keepalive);
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_STREQ("GET_PARAMETER", req->method_.c_str()) << cut;
+            EXPECT_EQ(6, req->seq_) << cut;
+        }
+        EXPECT_TRUE(io.segments_.empty()) << cut;
+    }
+}
+
 // Header lines as RTSP takes them from HTTP/1.1 (RFC 2326 4.2, 12.1): no space after the colon, a
-// list with a space in its value, such as Accept, and an empty value. Each request should parse,
-// but the parser reads most values as one token up to a space and needs one, so each is refused
-// and the connection ends.
-VOID TEST(ProtocolRtspStackTest, DISABLED_HeaderWhitespaceAsHttpAllows_RequestRefused)
+// list with a space in its value, such as Accept, and an empty value. Each request parses, with
+// the whitespace around a value not part of it.
+VOID TEST(ProtocolRtspStackTest, HeaderWhitespaceAsHttpAllows_RequestParsed)
 {
     srs_error_t err = srs_success;
 
@@ -4070,11 +4318,70 @@ VOID TEST(ProtocolRtspStackTest, DISABLED_HeaderWhitespaceAsHttpAllows_RequestRe
     }
 }
 
-// A request longer than one TCP segment, cut between the CR and the LF of a header line. The parser
-// skips the CR at the end of the first read, then takes the LF that starts the next read as the
-// empty line that ends the headers: the request loses its later headers, and they are parsed as
-// the next request, which fails and ends the connection.
-VOID TEST(ProtocolRtspStackTest, DISABLED_RequestCutBetweenCrAndLf_HeadersAfterItLost)
+// Header lines a client may write with other whitespace: tabs around the value, a space before the
+// colon, and lines ending with LF alone, in a SETUP over TCP. The request parses with each value
+// trimmed, and the request after it is read whole.
+VOID TEST(ProtocolRtspStackTest, HeaderWithTabsAndBareLf_RequestParsed)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("SETUP rtsp://127.0.0.1:8554/live/livestream/streamid=0 RTSP/1.0\n"
+              "CSeq :\t5\t\n"
+              "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\n"
+              "Session:  7AB3C1D2 \n"
+              "User-Agent:\tLavf61.7.100\n"
+              "\n"
+              "OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 6\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_EQ(5, req->seq_);
+    EXPECT_STREQ("7AB3C1D2", req->session_.c_str());
+    EXPECT_STREQ("Lavf61.7.100", req->user_agent_.c_str());
+    EXPECT_EQ(0, req->stream_id_);
+    ASSERT_TRUE(req->transport_ != NULL);
+    EXPECT_STREQ("TCP", req->transport_->lower_transport_.c_str());
+    EXPECT_EQ(0, req->transport_->interleaved_min_);
+    EXPECT_EQ(1, req->transport_->interleaved_max_);
+
+    SrsRtspRequest *next = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&next));
+    SrsUniquePtr<SrsRtspRequest> next_uptr(next);
+    EXPECT_STREQ("OPTIONS", next->method_.c_str());
+    EXPECT_EQ(6, next->seq_);
+}
+
+// A header line with no colon, its name ended by a space as the parser has always taken it, and an
+// unknown header: the request still parses, the known header sets its value and the unknown one is
+// ignored.
+VOID TEST(ProtocolRtspStackTest, HeaderWithoutColonOrUnknown_RequestParsed)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq 7\r\nX-Player-Id: a:b c\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_EQ(7, req->seq_);
+
+    // Nothing is left: the next read is the client closing.
+    SrsRtspRequest *next = NULL;
+    err = stack.recv_message(&next);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(next);
+}
+
+// A request longer than one TCP segment, cut between the CR and the LF of a header line. The LF that
+// starts the next read ends that header line, not the headers: the later headers belong to this
+// request, and nothing is left to parse as a next request.
+VOID TEST(ProtocolRtspStackTest, RequestCutBetweenCrAndLf_HeadersAfterItKept)
 {
     srs_error_t err = srs_success;
 
@@ -4089,6 +4396,38 @@ VOID TEST(ProtocolRtspStackTest, DISABLED_RequestCutBetweenCrAndLf_HeadersAfterI
     EXPECT_EQ(2, req->seq_);
     EXPECT_STREQ("LibVLC/3.0.20", req->user_agent_.c_str());
     EXPECT_STREQ("application/sdp", req->accept_.c_str());
+
+    // Nothing is left: the next read is the client closing.
+    SrsRtspRequest *next = NULL;
+    err = stack.recv_message(&next);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(next);
+}
+
+// A long request line, such as a URL with an auth token, whose TCP segment ends between the CR and
+// the LF of the request line. The LF that starts the next read ends the request line, so every
+// header that follows belongs to this request.
+VOID TEST(ProtocolRtspStackTest, RequestLineCutBetweenCrAndLf_HeadersKept)
+{
+    srs_error_t err = srs_success;
+
+    RtspSegmentIO io;
+    io.segment("SETUP rtsp://127.0.0.1:8554/live/livestream?token=6f1c0a2d/trackID=0 RTSP/1.0\r")
+        ->segment("\nCSeq: 3\r\nTransport: RTP/AVP/TCP;unicast;interleaved=0-1\r\nUser-Agent: LibVLC/3.0.20\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_STREQ("SETUP", req->method_.c_str());
+    EXPECT_STREQ("RTSP/1.0", req->version_.c_str());
+    EXPECT_EQ(3, req->seq_);
+    ASSERT_TRUE(req->transport_ != NULL);
+    EXPECT_STREQ("TCP", req->transport_->lower_transport_.c_str());
+    EXPECT_EQ(0, req->transport_->interleaved_min_);
+    EXPECT_EQ(1, req->transport_->interleaved_max_);
+    EXPECT_STREQ("LibVLC/3.0.20", req->user_agent_.c_str());
 
     // Nothing is left: the next read is the client closing.
     SrsRtspRequest *next = NULL;
@@ -4272,11 +4611,9 @@ VOID TEST(ProtocolSdpTest, OfferWithRtpmapNotMatchingMLine_Refused)
 }
 
 // A WHIP publisher whose H.264 fmtp leaves out level-asymmetry-allowed, an optional parameter
-// whose default is 0 (RFC 6184 8.1), as GStreamer's payloader writes it. srs_parse_h264_fmtp
-// refuses the fmtp, and the negotiator skips a payload it cannot parse instead of keeping it as a
-// backup, so the publish is refused with no H.264 match. The same offer with
-// level-asymmetry-allowed=0, which means the same, is accepted.
-VOID TEST(ProtocolSdpTest, DISABLED_WhipPublisherH264WithoutLevelAsymmetry_PublishRefused)
+// whose default is 0 (RFC 6184 8.1), as GStreamer's payloader writes it. The publish is accepted
+// with that payload, as the same offer with level-asymmetry-allowed=0, which means the same.
+VOID TEST(ProtocolSdpTest, WhipPublisherH264WithoutLevelAsymmetry_PublishAccepted)
 {
     srs_error_t err = srs_success;
 
@@ -4302,6 +4639,34 @@ VOID TEST(ProtocolSdpTest, DISABLED_WhipPublisherH264WithoutLevelAsymmetry_Publi
     HELPER_EXPECT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
     ASSERT_EQ(1, (int)stream_desc.video_track_descs_.size());
     EXPECT_EQ(102, (int)stream_desc.video_track_descs_[0]->media_->pt_);
+}
+
+// A WHEP player whose H.264 fmtp leaves out level-asymmetry-allowed. The play negotiator looks
+// for the 42e01f profile in the offer to choose that payload, so the fmtp is read with the
+// parameter absent, not refused. The other two parameters are still required.
+VOID TEST(ProtocolSdpTest, WhepPlayerH264WithoutLevelAsymmetry_ProfileFound)
+{
+    srs_error_t err = srs_success;
+
+    H264SpecificParam param;
+    HELPER_ASSERT_SUCCESS(srs_parse_h264_fmtp("packetization-mode=1;profile-level-id=42e01f", param));
+    EXPECT_STREQ("42e01f", param.profile_level_id_.c_str());
+    EXPECT_STREQ("1", param.packetization_mode_.c_str());
+    EXPECT_TRUE(param.level_asymmetry_allow_.empty());
+
+    SrsSdp sdp;
+    HELPER_ASSERT_SUCCESS(sdp.parse(sdp_whip_offer("packetization-mode=1;profile-level-id=42e01f")));
+    EXPECT_TRUE(srs_sdp_has_h264_profile(sdp, "42e01f"));
+
+    H264SpecificParam no_mode;
+    err = srs_parse_h264_fmtp("level-asymmetry-allowed=1;profile-level-id=42e01f", no_mode);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    srs_freep(err);
+
+    H264SpecificParam no_profile;
+    err = srs_parse_h264_fmtp("level-asymmetry-allowed=1;packetization-mode=1", no_profile);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    srs_freep(err);
 }
 
 // An offer whose ssrc-group, rtcp-fb or ssrc line ends right after its first word. The parser

@@ -1068,7 +1068,7 @@ string srs_net_get_cidr_mask(string network_address)
     size_t cidr_length_num = 31;
     try {
         cidr_length_num = atoi(cidr_length.c_str());
-        if (cidr_length_num <= 0) {
+        if (cidr_length_num <= 0 || cidr_length_num > 32) {
             return "";
         }
     } catch (...) {

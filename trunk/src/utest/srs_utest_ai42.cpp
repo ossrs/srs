@@ -1111,10 +1111,10 @@ VOID TEST(ProtocolUtilityTest, HttpRequestWithoutHostOnIpv6PublicHost_UsesIpv4Ad
     EXPECT_STREQ("/api/v1/versions", m.path().c_str());
 }
 
-// B26: a host with a public IPv4 address on its NIC, which also has the IPv6 link-local address every
-// IPv6-enabled interface gets, is marked intranet: the link-local address is discovered last and
-// overwrites the NIC's flag, so the system summary API counts all its traffic as intranet.
-VOID TEST(ProtocolUtilityTest, DISABLED_PublicIpv4NicWithLinkLocalIpv6_MarkedIntranet)
+// A host with a public IPv4 address on its NIC, such as bare metal or a provider that puts the public
+// address on eth0, also has the IPv6 link-local address every IPv6-enabled interface gets. The NIC is
+// internet, so the system summary API counts its traffic as internet, not intranet.
+VOID TEST(ProtocolUtilityTest, PublicIpv4NicWithLinkLocalIpv6_MarkedInternet)
 {
     UtilityIfaceList ifs;
     ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
@@ -1130,6 +1130,33 @@ VOID TEST(ProtocolUtilityTest, DISABLED_PublicIpv4NicWithLinkLocalIpv6_MarkedInt
     EXPECT_FALSE(scope.ips()[1]->is_internet_);
 
     EXPECT_TRUE(utility.is_internet("ens6"));
+}
+
+// A host whose NIC has a private IPv4 address and a public IPv6 one, with the link-local address listed
+// after the public one, as Linux lists them: the NIC is internet. Its Wi-Fi, with only a private IPv4
+// and a link-local address, stays intranet.
+VOID TEST(ProtocolUtilityTest, PublicIpv6NicWithLinkLocalListedLast_MarkedInternet)
+{
+    UtilityIfaceList ifs;
+    ifs.add("lo", UTILITY_IFF_READY | IFF_LOOPBACK, "127.0.0.1");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "192.168.1.10");
+    ifs.add("wlan0", UTILITY_IFF_READY, "192.168.1.20");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "2001:db8::20");
+    ifs.add("enp3s0", UTILITY_IFF_READY, "fe80::1");
+    ifs.add("wlan0", UTILITY_IFF_READY, "fe80::2");
+
+    SrsProtocolUtility utility;
+    UtilityLocalIpsScope scope;
+    srs_discover_local_ips(&utility, ifs.head(), scope.ips());
+
+    ASSERT_EQ(5, (int)scope.ips().size());
+    EXPECT_STREQ("2001:db8::20", scope.ips()[2]->ip_.c_str());
+    EXPECT_TRUE(scope.ips()[2]->is_internet_);
+    EXPECT_STREQ("fe80::1", scope.ips()[3]->ip_.c_str());
+    EXPECT_FALSE(scope.ips()[3]->is_internet_);
+
+    EXPECT_TRUE(utility.is_internet("enp3s0"));
+    EXPECT_FALSE(utility.is_internet("wlan0"));
 }
 
 // State Threads returns NULL when it cannot map the stack of a new coroutine, such as when the
@@ -1349,18 +1376,14 @@ VOID TEST(AppCircuitBreakerTest, OverloadedRtcServerWithLossyPublisher_LogsNackR
     _srs_log = original_log;
 }
 
-// While the breaker is critical, the server skips the NACKs and TWCC feedback of every WebRTC publisher
-// and counts each skip in _srs_pps_snack4. The breaker line ends with that count per second, so the
-// operator sees what the breaker drops. Nothing updates the counter's rate, so the line always shows 0.
-// The number before it, which the code names the NACK seqs sent, is never counted at all.
-VOID TEST(AppCircuitBreakerTest, DISABLED_CriticalBreakerSkipsRtcFeedback_SkippedCountAlwaysZero)
+// While the breaker is high or critical, the server skips the NACKs and TWCC feedback of every WebRTC
+// publisher. The breaker line shows, per second over the last 10s, the NACK requests sent, the sequence
+// numbers they asked for, and the feedback rounds skipped, so the operator sees what the breaker drops.
+VOID TEST(AppCircuitBreakerTest, CriticalBreakerSkipsRtcFeedback_SkippedCountLogged)
 {
     srs_error_t err;
 
-    vector<SrsPps *> pps = kbps_rtc_line_pps();
-    pps.push_back(_srs_pps_snack3);
-    pps.push_back(_srs_pps_snack4);
-    KbpsGlobalPpsScope scope(pps);
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
 
     MockLogForSignal log;
     ISrsLog *original_log = _srs_log;
@@ -1375,9 +1398,10 @@ VOID TEST(AppCircuitBreakerTest, DISABLED_CriticalBreakerSkipsRtcFeedback_Skippe
         srs_global_rtc_update(&stats);
     }
 
-    // In 10s the server sent the publisher 50 NACK requests, then went critical and skipped 30 NACK and
-    // TWCC rounds, as SrsRtcPublishStream and SrsRtcConnection count them.
+    // In 10s the server sent the publisher 50 NACK requests for 120 lost packets, then went critical and
+    // skipped 30 NACK and TWCC rounds, as SrsRtcConnection and SrsRtcPublishStream count them.
     _srs_pps_snack2->sugar_ += 50;
+    _srs_pps_snack3->sugar_ += 120;
     _srs_pps_snack4->sugar_ += 30;
 
     scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
@@ -1392,9 +1416,45 @@ VOID TEST(AppCircuitBreakerTest, DISABLED_CriticalBreakerSkipsRtcFeedback_Skippe
     _srs_log = original_log;
 
     ASSERT_EQ(1, (int)log.traces_.size());
-    string line = log.traces_[0];
-    ASSERT_NE(string::npos, line.find(", snk=5,")) << line;
-    EXPECT_STREQ(",3", line.substr(line.rfind(',')).c_str()) << line;
+    EXPECT_STREQ("CircuitBreaker: cpu=96.00%,200MB, break=1,1,0, cond=96.00%, snk=5,12,3", log.traces_[0].c_str());
+}
+
+// The breaker has been critical for the whole 10s, so the server skipped every NACK round and sent no
+// request at all. The line still shows the skipped rounds, which is all the breaker did to RTC feedback.
+VOID TEST(AppCircuitBreakerTest, CriticalBreakerSkipsEveryNack_LineShowsOnlySkipped)
+{
+    srs_error_t err;
+
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    CircuitBreakerServer server;
+    HELPER_EXPECT_SUCCESS(server.breaker_.initialize());
+
+    scope.clock_.set_clock(0);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    _srs_pps_snack4->sugar_ += 40;
+
+    scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    server.host_->proc_stat_->percent_ = 0.96;
+    log.traces_.clear();
+    HELPER_EXPECT_SUCCESS(server.breaker_.on_timer(1 * SRS_UTIME_SECONDS));
+    _srs_log = original_log;
+
+    ASSERT_EQ(1, (int)log.traces_.size());
+    EXPECT_STREQ("CircuitBreaker: cpu=96.00%,200MB, break=1,1,0, cond=96.00%, snk=0,0,4", log.traces_[0].c_str());
 }
 
 extern bool _srs_in_docker;
@@ -1603,8 +1663,8 @@ VOID TEST(AppConfigTest, QuotedNamesInConfig)
 }
 
 // The config file can follow -c with no space, as getopt and nginx (whose ngx_get_options this code follows) allow:
-// ./objs/srs -cconf/srs.conf. SRS takes the file name, then reads it as more options and fails at its first char.
-VOID TEST(AppConfigTest, DISABLED_ConfigFileRightAfterOption_ReadAsOptions)
+// ./objs/srs -cconf/srs.conf.
+VOID TEST(AppConfigTest, ConfigFileRightAfterOption_ConfigLoaded)
 {
     srs_error_t err = srs_success;
 
@@ -1627,6 +1687,24 @@ VOID TEST(AppConfigTest, DISABLED_ConfigFileRightAfterOption_ReadAsOptions)
     vector<string> listens = conf.get_listens();
     ASSERT_EQ(1, (int)listens.size());
     EXPECT_STREQ("1935", listens[0].c_str());
+}
+
+// Testing a config named like an option, ./objs/srs -tcv.conf, checks v.conf; its letters are not options, so the
+// v does not show the version instead, and the next argument stays for the next option.
+VOID TEST(AppConfigTest, TestOptionWithConfigFileAttached_FileNameNotReadAsOptions)
+{
+    srs_error_t err = srs_success;
+
+    SrsConfig conf;
+    char *argv[] = {(char *)"srs", (char *)"-tcv.conf", (char *)"-e", NULL};
+    int i = 1;
+    HELPER_ASSERT_SUCCESS(conf.parse_argv(i, argv));
+
+    EXPECT_EQ(1, i);
+    EXPECT_TRUE(conf.test_conf_);
+    EXPECT_FALSE(conf.show_version_);
+    EXPECT_FALSE(conf.show_help_);
+    EXPECT_STREQ("v.conf", conf.config().c_str());
 }
 
 // A typo in any section is refused at startup and reload, naming the directive, instead of being ignored.
@@ -1661,9 +1739,9 @@ VOID TEST(AppConfigTest, TypoInSectionRefusedNamingIt)
     }
 }
 
-// A typo in the vhost rtsp section is refused, but the error names the srt section, so the operator looks for the
-// typo in the wrong place.
-VOID TEST(AppConfigTest, DISABLED_RtspTypoInVhost_ErrorNamesSrtSection)
+// A typo in the vhost rtsp section is refused, and the error names the rtsp section, so the operator finds the typo
+// where it is.
+VOID TEST(AppConfigTest, RtspTypoInVhost_ErrorNamesRtspSection)
 {
     config_expect_refused("vhost v { rtsp { enabled on; rtmp_to_rtspp on; } }", "illegal vhost.rtsp.rtmp_to_rtspp of v");
 }
@@ -3486,9 +3564,9 @@ VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
 }
 
 // A publisher sends only the metadata and sequence headers to a vhost recording MP4, then leaves, such as a stream
-// probe or an encoder that stops at once. An MP4 with no sample can not be written, so nothing is reported, which is
-// right, but the .tmp file is left on the disk for good, one for each such publish.
-VOID TEST(AppDvrTest, DISABLED_Mp4PublishWithNoFrame_TmpFileLeft)
+// probe or an encoder that stops at once. An MP4 with no sample can not be written, so nothing is reported, and its
+// .tmp file is removed rather than left on the disk for good.
+VOID TEST(AppDvrTest, Mp4PublishWithNoFrame_TmpFileRemoved)
 {
     srs_error_t err;
 

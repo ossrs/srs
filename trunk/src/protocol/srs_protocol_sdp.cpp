@@ -94,9 +94,8 @@ srs_error_t srs_parse_h264_fmtp(const std::string &fmtp, H264SpecificParam &h264
     if (h264_param.packetization_mode_.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: packetization-mode");
     }
-    if (h264_param.level_asymmetry_allow_.empty()) {
-        return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: level-asymmetry-allowed");
-    }
+    // The level-asymmetry-allowed is optional and defaults to 0, so it stays empty when absent,
+    // for example, from GStreamer. See https://www.rfc-editor.org/rfc/rfc6184#section-8.1
 
     return err;
 }

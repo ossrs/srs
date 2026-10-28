@@ -134,9 +134,9 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 
     string snk_desc;
     static char buf[128];
-    if (_srs_pps_snack2->r10s()) {
+    if (_srs_pps_snack2->r10s() || _srs_pps_snack4->r10s()) {
         snprintf(buf, sizeof(buf), ", snk=%d,%d,%d",
-                 _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent.
+                 _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent, feedback skipped.
         );
         snk_desc = buf;
     }

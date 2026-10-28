@@ -9,6 +9,9 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 #include <srs_core_platform.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -938,8 +941,8 @@ vector<SrsPps *> kbps_rtc_line_pps()
 {
     SrsPps *all[] = {_srs_pps_rpkts, _srs_pps_rrtps, _srs_pps_rstuns, _srs_pps_rrtcps, _srs_pps_spkts,
                      _srs_pps_srtps, _srs_pps_sstuns, _srs_pps_srtcps, _srs_pps_pli, _srs_pps_twcc, _srs_pps_rr,
-                     _srs_pps_snack, _srs_pps_snack2, _srs_pps_sanack, _srs_pps_svnack, _srs_pps_rnack,
-                     _srs_pps_rnack2, _srs_pps_rhnack, _srs_pps_rmnack, _srs_pps_srtx, _srs_pps_rrtx,
+                     _srs_pps_snack, _srs_pps_snack2, _srs_pps_snack3, _srs_pps_snack4, _srs_pps_sanack,
+                     _srs_pps_svnack, _srs_pps_rnack, _srs_pps_rnack2, _srs_pps_rhnack, _srs_pps_rmnack, _srs_pps_srtx, _srs_pps_rrtx,
                      _srs_pps_rrtx_unwrap, _srs_pps_rrtx_padding, _srs_pps_ids, _srs_pps_fids,
                      _srs_pps_fids_level0, _srs_pps_addrs, _srs_pps_fast_addrs};
     return vector<SrsPps *>(all, all + sizeof(all) / sizeof(all[0]));
@@ -2683,32 +2686,66 @@ VOID TEST(KernelPSTest, SystemHeaderPaddingAfterStreamListIsSkipped)
     EXPECT_TRUE(handler.msgs_[0]->is_video());
 }
 
-// Bug: the GB28181 TCP connection keeps the bytes of a PS header cut at the end of an RTP packet, up to 32 bytes, to
-// parse with the next packet, but the PS decoder holds them only once 4 bytes or more came. When the RTP packet ends 1
-// to 3 bytes into the next PES start code, decoding fails, the connection goes to recover mode and drops the pack.
-VOID TEST(KernelPSTest, DISABLED_PesStartCodeCutAfterTwoBytes_PackDropped)
+// The GB28181 TCP connection keeps the bytes of a PS header cut at the end of an RTP packet, up to 32 bytes, to parse
+// with the next packet. When a camera's RTP packet ends 1 to 3 bytes into the next PES start code, the decoder holds
+// those bytes too, and the pack is kept whole.
+VOID TEST(KernelPSTest, PesStartCodeCutAfterTwoBytes_PackKept)
 {
     srs_error_t err;
-
-    MockPsHandler handler;
-    SrsPsContext context;
-    context.set_detect_ps_integrity(true);
 
     // A slice larger than the 32 bytes the decoder holds for the next packet.
     string video = ps_media_pes(0xe0, ps_h264_idr() + string(200, '\x5a'));
 
-    // The first RTP payload ends with 2 bytes of the video PES start code, which the connection keeps.
-    string first = ps_pack_header() + ps_media_pes(0xc0, string(160, '\xd5')) + video.substr(0, 2);
-    SrsBuffer b((char *)first.data(), (int)first.size());
-    HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
-    ASSERT_EQ(2, b.left());
+    for (int cut = 1; cut <= 3; cut++) {
+        SCOPED_TRACE(cut);
 
-    // The next RTP payload follows the kept bytes.
-    SrsBuffer b2((char *)video.data(), (int)video.size());
-    HELPER_ASSERT_SUCCESS(context.decode(&b2, &handler));
-    ASSERT_EQ(2, (int)handler.msgs_.size());
-    EXPECT_TRUE(handler.msgs_[0]->is_audio());
-    EXPECT_TRUE(handler.msgs_[1]->is_video());
+        MockPsHandler handler;
+        SrsPsContext context;
+        context.set_detect_ps_integrity(true);
+
+        // The first RTP payload ends with the first bytes of the video PES start code, which the connection keeps.
+        string first = ps_pack_header() + ps_media_pes(0xc0, string(160, '\xd5')) + video.substr(0, cut);
+        SrsBuffer b((char *)first.data(), (int)first.size());
+        HELPER_ASSERT_SUCCESS(context.decode(&b, &handler));
+        ASSERT_EQ(cut, b.left());
+        ASSERT_EQ(1, (int)handler.msgs_.size());
+
+        // The next RTP payload follows the kept bytes.
+        SrsBuffer b2((char *)video.data(), (int)video.size());
+        HELPER_ASSERT_SUCCESS(context.decode(&b2, &handler));
+        ASSERT_EQ(2, (int)handler.msgs_.size());
+        EXPECT_TRUE(handler.msgs_[0]->is_audio());
+        EXPECT_TRUE(handler.msgs_[1]->is_video());
+        EXPECT_EQ(ps_h264_idr() + string(200, '\x5a'),
+                  string(handler.msgs_[1]->payload_->bytes(), handler.msgs_[1]->payload_->length()));
+    }
+}
+
+// A PS stream from a corrupted device that ends with 1 to 3 bytes that cannot start a PES start code is still refused,
+// for the recover mode to skip to the next pack.
+VOID TEST(KernelPSTest, PacketEndingWithBytesNotAStartCode_Refused)
+{
+    struct {
+        const char *name;
+        string tail;
+    } cases[] = {
+        {"one byte", string("\x5a", 1)},
+        {"two bytes", string("\x00\x5a", 2)},
+        {"three bytes", string("\x00\x00\x5a", 3)},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SCOPED_TRACE(cases[i].name);
+
+        MockPsHandler handler;
+        SrsPsContext context;
+        context.set_detect_ps_integrity(true);
+
+        string bytes = ps_pack_header() + ps_media_pes(0xc0, string(160, '\xd5')) + cases[i].tail;
+        SrsBuffer b((char *)bytes.data(), (int)bytes.size());
+        packet_expect_error_code(ERROR_GB_PS_HEADER, context.decode(&b, &handler));
+        EXPECT_EQ(1, (int)handler.msgs_.size());
+    }
 }
 
 // At startup the server starts the RTC and GB connection managers, each with a coroutine that frees
@@ -4161,6 +4198,49 @@ VOID TEST(KernelRtcRtpTest, RtpExtensionLengthBeyondPacket_Refused)
     }
 }
 
+// A WebRTC publisher's RTP packet has a 0xBEDE block of 1 word whose element, an ID not in the SDP's extmap, declares
+// 16 bytes. The element is longer than its block, so the packet is refused with an error, as other malformed packets
+// are, and the server goes on; an element that ends exactly at the block end is still skipped and the packet accepted.
+VOID TEST(KernelRtcRtpTest, RtpExtensionElementBeyondBlock_Refused)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtpExtensionTypes types;
+    EXPECT_TRUE(types.register_by_uri(5, kTWCCExt));
+
+    // Fixed header with X=1, then profile 0xBEDE, 1 word of extension and the payload after it.
+    string fixed;
+    fixed.push_back((char)0x90); // V=2, X=1, CC=0
+    fixed.push_back((char)0x60); // PT=96
+    fixed += rtcp_be16(0x2233);
+    fixed += rtcp_be32(0);
+    fixed += rtcp_be32(0x0a0b0c0d);
+    fixed += rtcp_be16(0xBEDE) + rtcp_be16(1);
+    string payload("\x01\x02\x03\x04", 4);
+
+    // ID 1, len 15+1: 17 bytes for the element in a 4-byte block.
+    if (true) {
+        string w = fixed + string("\x1F\x00\x00\x00", 4) + payload;
+        SrsRtpHeader dst;
+        dst.set_extensions(&types);
+        SrsBuffer dbuf((char *)w.data(), (int)w.size());
+        err = dst.decode(&dbuf);
+        EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    // ID 1, len 2+1: the element ends at the block end, the payload follows.
+    if (true) {
+        string w = fixed + string("\x12\xaa\xbb\xcc", 4) + payload;
+        SrsRtpHeader dst;
+        dst.set_extensions(&types);
+        SrsBuffer dbuf((char *)w.data(), (int)w.size());
+        HELPER_EXPECT_SUCCESS(dst.decode(&dbuf));
+        EXPECT_EQ(4, dbuf.left());
+        EXPECT_EQ(0x01, (uint8_t)*dbuf.head());
+    }
+}
+
 // The RTMP-to-WebRTC packetizer builds a STAP-A of SPS and PPS before an IDR, and the publisher parser reads a STAP-A.
 // The payload round-trips, and get_sps, get_pps and get_idr find each NALU; a zero-length NALU entry is skipped.
 VOID TEST(KernelRtcRtpTest, StapAPayloadRoundTripAndGetters)
@@ -5459,10 +5539,10 @@ VOID TEST(KernelTsTest, HttpTsEmptyAudioAfterFrame_NothingWritten)
     EXPECT_EQ(size, w.filesize());
 }
 
-// B16: a vhost with parse_sps off (#474) takes an H.264 stream whose SPS the parser refuses, here one with the
-// reserved_zero_2bits set, and plays it over HTTP-FLV and HLS, but its HTTP-TS players are refused at the sequence
-// header: SrsTsTransmuxer parses the stream again with its own SrsFormat, which always parses the SPS.
-VOID TEST(KernelTsTest, DISABLED_HttpTsWithParseSpsOff_SequenceHeaderRefused)
+// A vhost with parse_sps off (#474) takes an H.264 stream whose SPS the parser refuses, here one with the
+// reserved_zero_2bits set, and plays it over HTTP-FLV and HLS; its HTTP-TS players take it too, although
+// SrsTsTransmuxer parses the stream again with its own SrsFormat.
+VOID TEST(KernelTsTest, HttpTsWithParseSpsOff_SequenceHeaderTaken)
 {
     srs_error_t err = srs_success;
 
@@ -5483,3 +5563,100 @@ VOID TEST(KernelTsTest, DISABLED_HttpTsWithParseSpsOff_SequenceHeaderRefused)
     HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 40, mp4_avc_idr, sizeof(mp4_avc_idr)));
     EXPECT_LT(0, w.filesize());
 }
+
+class MockAppConfigForParseSpsOff : public MockAppConfig
+{
+public:
+    virtual bool get_parse_sps(std::string vhost) { return false; }
+};
+
+// The H.264 sequence header of mp4_avc_sh with the SPS's reserved_zero_2bits set, which the SPS parser
+// refuses, as an RTMP video message.
+static SrsMediaPacket *parse_sps_off_sh()
+{
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->message_type_ = SrsFrameTypeVideo;
+    char *data = new char[sh.size()];
+    memcpy(data, sh.data(), sh.size());
+    msg->wrap(data, (int)sh.size());
+    return msg;
+}
+
+// A vhost with parse_sps off (#474) takes the publish of an H.264 stream whose SPS the parser refuses: the
+// live source parses the sequence header with its own format and again in its meta cache, which the HLS,
+// DVR and DASH of the stream read, and both follow the vhost.
+VOID TEST(KernelTsTest, LiveSourceWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForParseSpsOff config;
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->config_ = &config;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "livestream");
+    source->assemble();
+
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    SrsRtmpCommonMessage msg;
+    msg.header_.initialize_video((int)sh.size(), 0, 1);
+    msg.create_payload((int)sh.size());
+    memcpy(msg.payload(), sh.data(), sh.size());
+    HELPER_EXPECT_SUCCESS(source->on_video(&msg));
+
+    EXPECT_TRUE(source->meta()->vsh() != NULL);
+    ASSERT_TRUE(source->meta()->vsh_format()->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, source->meta()->vsh_format()->vcodec_->id_);
+}
+
+#ifdef SRS_FFMPEG_FIT
+// With rtmp_to_rtc on, the RTMP to WebRTC bridge of a vhost with parse_sps off takes the sequence header
+// the live source took, in its own format and its meta cache.
+VOID TEST(KernelTsTest, RtcBridgeWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockAppConfigForParseSpsOff config;
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
+    builder.config_ = &config;
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
+
+    SrsUniquePtr<SrsMediaPacket> sh(parse_sps_off_sh());
+    HELPER_EXPECT_SUCCESS(builder.on_video(sh.get()));
+    ASSERT_TRUE(builder.format_->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, builder.format_->vcodec_->id_);
+}
+#endif
+
+#ifdef SRS_RTSP
+// With rtmp_to_rtsp on, the RTMP to RTSP bridge of a vhost with parse_sps off takes the sequence header
+// the live source took, in its own format and its meta cache.
+VOID TEST(KernelTsTest, RtspBridgeWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    MockAppConfigForParseSpsOff config;
+    MockRtpTarget rtp_target;
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&rtp_target, source));
+    builder->config_ = &config;
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    SrsUniquePtr<SrsMediaPacket> sh(parse_sps_off_sh());
+    HELPER_EXPECT_SUCCESS(builder->on_video(sh.get()));
+    ASSERT_TRUE(builder->format_->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, builder->format_->vcodec_->id_);
+}
+#endif
