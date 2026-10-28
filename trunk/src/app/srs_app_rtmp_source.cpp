@@ -2292,6 +2292,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
     // @see https://github.com/ossrs/srs/issues/474
     if (is_sequence_header) {
         format_->avc_parse_sps_ = config_->get_parse_sps(req_->vhost_);
+        meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
     }
 
     if ((err = format_->on_video(msg)) != srs_success) {

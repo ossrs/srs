@@ -1778,7 +1778,7 @@ srs_error_t SrsConfig::parse_argv(int &i, char **argv)
             show_help_ = false;
             if (*p) {
                 config_file_ = p;
-                continue;
+                return err;
             }
             if (argv[++i]) {
                 config_file_ = argv[i];
@@ -2355,7 +2355,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
                     if (m != "enabled" && m != "rtmp_to_rtsp") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.srt.%s of %s", m.c_str(), vhost->arg0().c_str());
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtsp.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             }

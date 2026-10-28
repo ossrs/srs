@@ -3511,3 +3511,154 @@ VOID TEST(PathParseStreamTest, RefusesAPathNotOfTheTemplate)
     EXPECT_FALSE(srs_path_parse_stream("[app]/index.m3u8", "v", "live/index.m3u8", app, stream));
     EXPECT_FALSE(srs_path_parse_stream("hls/[stream].m3u8", "v", "hls/s.m3u8", app, stream));
 }
+
+// Ported from develop: parse a whole HTTP message from a mock IO, and read a message body to the end.
+static srs_error_t http_conn_parse(SrsHttpParser *hp, MockBufferIO *io, llhttp_type type, bool jsonp, SrsHttpMessage **pmsg)
+{
+    srs_error_t err = hp->initialize(type);
+    if (err != srs_success) {
+        return err;
+    }
+    hp->set_jsonp(jsonp);
+
+    ISrsHttpMessage *msg = NULL;
+    err = hp->parse_message(io, &msg);
+    *pmsg = dynamic_cast<SrsHttpMessage *>(msg);
+    return err;
+}
+
+static srs_error_t http_conn_read_body(ISrsHttpMessage *msg, string &body)
+{
+    srs_error_t err = srs_success;
+    ISrsHttpResponseReader *br = msg->body_reader();
+    while (!br->eof()) {
+        char buf[64];
+        ssize_t nn = 0;
+        if ((err = br->read(buf, sizeof(buf), &nn)) != srs_success) {
+            return err;
+        }
+        body.append(buf, nn);
+    }
+    return err;
+}
+// A browser opens the SRS WHEP player page with the WHEP endpoint in its query, as the page's
+// "?url=xxx to set the whole WHIP/WHEP url directly" (research/players/js/srs.page.js) asks:
+// players/whep.html?url=http://host:1985/rtc/v1/whep/?app=live&stream=livestream. Browsers send
+// ':' and '/' of a query as they are, so the server must still serve the page's path.
+VOID TEST(ProtocolHttpConnTest, WhepPageWithEndpointUrlInQuery_ServesPagePath)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET /players/whep.html?url=http://192.168.1.10:1985/rtc/v1/whep/?app=live&stream=livestream HTTP/1.1\r\n"
+              "Host: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/players/whep.html", msg->path().c_str());
+    EXPECT_STREQ(".html", msg->ext().c_str());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_EQ(8080, msg->port());
+    EXPECT_STREQ("url=http://192.168.1.10:1985/rtc/v1/whep/?app=live&stream=livestream", msg->query().c_str());
+}
+
+// A user types the WHEP page with only the start of an endpoint in its query, such as
+// ?url=http://, which once failed the request because the query was parsed as the target.
+VOID TEST(ProtocolHttpConnTest, WhepPageWithQueryEndingInSchema_ServesPagePath)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET /players/whep.html?url=http:// HTTP/1.1\r\nHost: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/players/whep.html", msg->path().c_str());
+    EXPECT_EQ(8080, msg->port());
+    EXPECT_STREQ("http://", msg->query_get("url").c_str());
+}
+
+// A client sends the absolute form of the request target, as HTTP/1.1 lets a client do toward
+// a proxy; with a URL in its query too, the target's own host, port and path still win.
+VOID TEST(ProtocolHttpConnTest, AbsoluteTargetWithUrlInQuery_RoutedByTarget)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("GET http://192.168.1.10:1985/api/v1/versions?next=http://example.com/x HTTP/1.1\r\n"
+              "Host: 192.168.1.10:8080\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("/api/v1/versions", msg->path().c_str());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_EQ(1985, msg->port());
+    EXPECT_STREQ("http://example.com/x", msg->query_get("next").c_str());
+}
+
+// A backend sends a chunk with a chunk extension, "5;name=value", which RFC 9112 7.1.1 allows
+// and tells a recipient to ignore when it does not know it. The body must read as the data.
+VOID TEST(ProtocolHttpConnTest, ChunkWithExtension_ExtensionIgnored)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5;name=value\r\nHello\r\n0\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    HELPER_EXPECT_SUCCESS(http_conn_read_body(msg.get(), body));
+    EXPECT_STREQ("Hello", body.c_str());
+    EXPECT_TRUE(msg->body_reader()->eof());
+}
+
+// A backend puts extensions on every chunk, a quoted value and a name with no value, and on the
+// last chunk too. Each extension is ignored; the last chunk still ends the body.
+VOID TEST(ProtocolHttpConnTest, EveryChunkWithExtensions_BodyReadToLastChunk)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+              "5;a=\"x;y\";b\r\nHello\r\n6;sig\r\n World\r\n0;end=1\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    HELPER_EXPECT_SUCCESS(http_conn_read_body(msg.get(), body));
+    EXPECT_STREQ("Hello World", body.c_str());
+    EXPECT_TRUE(msg->body_reader()->eof());
+}
+
+// A broken backend sends an extension with no chunk size before it. The size is missing, so the
+// chunk is refused rather than taken as the last chunk of size 0.
+VOID TEST(ProtocolHttpConnTest, ChunkExtensionWithoutSize_Refused)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n;name=value\r\nHello\r\n0\r\n\r\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &io, HTTP_RESPONSE, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    string body;
+    err = http_conn_read_body(msg.get(), body);
+    EXPECT_EQ(ERROR_HTTP_INVALID_CHUNK_HEADER, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(body.empty());
+    EXPECT_FALSE(msg->body_reader()->eof());
+}
+

@@ -11,7 +11,11 @@ using namespace std;
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_http_stream.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 #include <srs_kernel_balance.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_consts.hpp>
@@ -22,6 +26,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_ai08.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_coworkers.hpp>
@@ -4093,3 +4098,139 @@ VOID TEST(SrsGoApiMetricsTest, LabelAndTagEscaped)
     api->stat_ = NULL;
     api->config_ = NULL;
 }
+
+// Ported from develop: an H.264 sequence header and key frame as FLV tags, written to a TS stream.
+static const uint8_t mp4_avc_sh[] = {
+    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
+    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
+    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+static const uint8_t mp4_avc_idr[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+
+static srs_error_t ts_http_write(SrsTsStreamEncoder *enc, bool video, int64_t timestamp, const uint8_t *tag, int size)
+{
+    string data((const char *)tag, size);
+    if (video) {
+        return enc->write_video(timestamp, (char *)data.data(), (int)data.size());
+    }
+    return enc->write_audio(timestamp, (char *)data.data(), (int)data.size());
+}
+// A vhost with parse_sps off (#474) takes an H.264 stream whose SPS the parser refuses, here one with the
+// reserved_zero_2bits set, and plays it over HTTP-FLV and HLS; its HTTP-TS players take it too, although
+// SrsTsTransmuxer parses the stream again with its own SrsFormat.
+VOID TEST(KernelTsTest, HttpTsWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    // The SPS's constraint flags byte, 0x00, with the reserved_zero_2bits set.
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    // The source, with parse_sps off, takes the sequence header.
+    SrsFormat source;
+    HELPER_EXPECT_SUCCESS(source.initialize());
+    source.avc_parse_sps_ = false;
+    HELPER_EXPECT_SUCCESS(source.on_video(0, (char *)sh.data(), (int)sh.size()));
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+    HELPER_EXPECT_SUCCESS(enc.write_video(0, (char *)sh.data(), (int)sh.size()));
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 40, mp4_avc_idr, sizeof(mp4_avc_idr)));
+    EXPECT_LT(0, w.filesize());
+}
+
+class MockAppConfigForParseSpsOff : public MockAppConfig
+{
+public:
+    virtual bool get_parse_sps(std::string vhost) { return false; }
+};
+
+// The H.264 sequence header of mp4_avc_sh with the SPS's reserved_zero_2bits set, which the SPS parser
+// refuses, as an RTMP video message.
+static SrsMediaPacket *parse_sps_off_sh()
+{
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->message_type_ = SrsFrameTypeVideo;
+    char *data = new char[sh.size()];
+    memcpy(data, sh.data(), sh.size());
+    msg->wrap(data, (int)sh.size());
+    return msg;
+}
+
+// A vhost with parse_sps off (#474) takes the publish of an H.264 stream whose SPS the parser refuses: the
+// live source parses the sequence header with its own format and again in its meta cache, which the HLS,
+// DVR and DASH of the stream read, and both follow the vhost.
+VOID TEST(KernelTsTest, LiveSourceWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForParseSpsOff config;
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->config_ = &config;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "livestream");
+    source->assemble();
+
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    SrsRtmpCommonMessage msg;
+    msg.header_.initialize_video((int)sh.size(), 0, 1);
+    msg.create_payload((int)sh.size());
+    memcpy(msg.payload(), sh.data(), sh.size());
+    HELPER_EXPECT_SUCCESS(source->on_video(&msg));
+
+    EXPECT_TRUE(source->meta()->vsh() != NULL);
+    ASSERT_TRUE(source->meta()->vsh_format()->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, source->meta()->vsh_format()->vcodec_->id_);
+}
+
+#ifdef SRS_FFMPEG_FIT
+// With rtmp_to_rtc on, the RTMP to WebRTC bridge of a vhost with parse_sps off takes the sequence header
+// the live source took, in its own format and its meta cache.
+VOID TEST(KernelTsTest, RtcBridgeWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockAppConfigForParseSpsOff config;
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.config_ = &config;
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
+
+    SrsUniquePtr<SrsMediaPacket> sh(parse_sps_off_sh());
+    HELPER_EXPECT_SUCCESS(builder.on_video(sh.get()));
+    ASSERT_TRUE(builder.format_->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, builder.format_->vcodec_->id_);
+}
+#endif
+
+#ifdef SRS_RTSP
+// With rtmp_to_rtsp on, the RTMP to RTSP bridge of a vhost with parse_sps off takes the sequence header
+// the live source took, in its own format and its meta cache.
+VOID TEST(KernelTsTest, RtspBridgeWithParseSpsOff_SequenceHeaderTaken)
+{
+    srs_error_t err = srs_success;
+
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    MockAppConfigForParseSpsOff config;
+    MockRtpTarget rtp_target;
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&rtp_target, source));
+    builder->config_ = &config;
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    SrsUniquePtr<SrsMediaPacket> sh(parse_sps_off_sh());
+    HELPER_EXPECT_SUCCESS(builder->on_video(sh.get()));
+    ASSERT_TRUE(builder->format_->vcodec_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, builder->format_->vcodec_->id_);
+}
+#endif

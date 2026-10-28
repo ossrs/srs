@@ -483,79 +483,63 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
     //   Transport: RTP/AVP;unicast;client_port=8000-8001
     //   Session: 12345678
     for (;;) {
-        // Parse the header name (before the colon)
-        std::string token;
-        if ((err = recv_token_normal(token)) != srs_success) {
-            if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
-                srs_freep(err);
-                break; // End of headers reached (empty line)
-            }
-            return srs_error_wrap(err, "recv token");
+        std::string line;
+        if ((err = recv_line(line)) != srs_success) {
+            return srs_error_wrap(err, "recv header");
+        }
+
+        // End of headers reached (empty line)
+        if (line.empty()) {
+            break;
+        }
+
+        // Header lines follow HTTP/1.1 (RFC 2326 4.2): no space is required after the colon, and a
+        // value may hold spaces or be empty. A line with no colon has always been split at its first
+        // space, so it still is.
+        size_t pos = line.find(':');
+        if (pos == string::npos) {
+            pos = line.find_first_of(" \t");
+        }
+        std::string token = srs_strings_trim_end(line.substr(0, pos), " \t");
+        std::string value;
+        if (pos != string::npos) {
+            value = srs_strings_trim_end(srs_strings_trim_start(line.substr(pos + 1), " \t"), " \t");
         }
 
         // Parse the header value (after the colon) based on header name
         if (token == SRS_RTSP_TOKEN_CSEQ) {
             // CSeq: sequence number for request/response matching
-            std::string seq;
-            if ((err = recv_token_eof(seq)) != srs_success) {
-                return srs_error_wrap(err, "seq");
-            }
-            req->seq_ = ::atoll(seq.c_str());
+            req->seq_ = ::atoll(value.c_str());
         } else if (token == SRS_RTSP_TOKEN_CONTENT_TYPE) {
             // Content-Type: MIME type of the message body (e.g., application/sdp)
-            std::string ct;
-            if ((err = recv_token_eof(ct)) != srs_success) {
-                return srs_error_wrap(err, "ct");
-            }
-            req->content_type_ = ct;
+            req->content_type_ = value;
         } else if (token == SRS_RTSP_TOKEN_CONTENT_LENGTH) {
             // Content-Length: size of the message body in bytes
-            std::string cl;
-            if ((err = recv_token_eof(cl)) != srs_success) {
-                return srs_error_wrap(err, "cl");
-            }
-            req->content_length_ = ::atoll(cl.c_str());
+            req->content_length_ = ::atoll(value.c_str());
             if (req->content_length_ < 0) {
-                return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid content length=%s", cl.c_str());
+                return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid content length=%s", value.c_str());
             }
         } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
             // Transport: RTP transport parameters (protocol, ports, etc.)
-            std::string transport;
-            if ((err = recv_token_eof(transport)) != srs_success) {
-                return srs_error_wrap(err, "transport");
-            }
             if (!req->transport_) {
                 req->transport_ = new SrsRtspTransport();
             }
-            if ((err = req->transport_->parse(transport)) != srs_success) {
-                return srs_error_wrap(err, "parse transport=%s", transport.c_str());
+            if ((err = req->transport_->parse(value)) != srs_success) {
+                return srs_error_wrap(err, "parse transport=%s", value.c_str());
             }
         } else if (token == SRS_RTSP_TOKEN_SESSION) {
             // Session: session identifier for maintaining state
-            if ((err = recv_token_eof(req->session_)) != srs_success) {
-                return srs_error_wrap(err, "session");
-            }
+            req->session_ = value;
         } else if (token == SRS_RTSP_TOKEN_ACCEPT) {
             // Accept: acceptable media types for the response
-            if ((err = recv_token_eof(req->accept_)) != srs_success) {
-                return srs_error_wrap(err, "accept");
-            }
+            req->accept_ = value;
         } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
             // User-Agent: client software identification
-            if ((err = recv_token_util_eof(req->user_agent_)) != srs_success) {
-                return srs_error_wrap(err, "user_agent");
-            }
+            req->user_agent_ = value;
         } else if (token == SRS_RTSP_TOKEN_RANGE) {
             // Range: time range for playback (e.g., npt=0-30)
-            if ((err = recv_token_eof(req->range_)) != srs_success) {
-                return srs_error_wrap(err, "range");
-            }
+            req->range_ = value;
         } else {
-            // unknown header name, parse util EOF.
-            std::string value;
-            if ((err = recv_token_util_eof(value)) != srs_success) {
-                return srs_error_wrap(err, "state");
-            }
             srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
         }
     }
@@ -643,25 +627,37 @@ srs_error_t SrsRtspStack::recv_token_eof(std::string &token)
     return err;
 }
 
-srs_error_t SrsRtspStack::recv_token_util_eof(std::string &token, int *pconsumed)
+srs_error_t SrsRtspStack::recv_line(std::string &line)
 {
     srs_error_t err = srs_success;
 
-    SrsRtspTokenState state;
+    for (;;) {
+        char *start = buf_->bytes();
+        char *end = start + buf_->length();
+        char *p = start;
 
-    // use 0x00 as ignore the normal token flag.
-    if ((err = recv_token(token, state, 0x00, pconsumed)) != srs_success) {
-        if (srs_error_code(err) == ERROR_RTSP_REQUEST_HEADER_EOF) {
-            return srs_error_wrap(err, "EOF");
+        for (; p < end && p[0] != SRS_RTSP_CR && p[0] != SRS_RTSP_LF; p++) {
         }
-        return srs_error_wrap(err, "recv token");
-    }
 
-    if (state != SrsRtspTokenStateEOF) {
-        return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid state=%d", state);
-    }
+        // RFC 2326 4.2 takes CR or LF alone as a line end too, so a CR at the end of the bytes read
+        // waits for the next byte to know whether an LF follows.
+        if (p < end && (p[0] == SRS_RTSP_LF || p + 1 < end)) {
+            line.assign(start, p - start);
+            if (p[0] == SRS_RTSP_CR && p[1] == SRS_RTSP_LF) {
+                p++;
+            }
+            buf_->erase((int)(p + 1 - start));
+            return err;
+        }
 
-    return err;
+        char buffer[SRS_RTSP_BUFFER];
+        ssize_t nb_read = 0;
+        if ((err = skt_->read(buffer, SRS_RTSP_BUFFER, &nb_read)) != srs_success) {
+            return srs_error_wrap(err, "recv data");
+        }
+
+        buf_->append(buffer, (int)nb_read);
+    }
 }
 
 srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &state, char normal_ch, int *pconsumed)
@@ -690,6 +686,7 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
         }
 
         // Try to detect and consume any RTCP frames from the buffer
+        bool need_more_data = false;
         while (buf_->length() > 0) {
             srs_error_t rtcp_err = try_consume_rtcp_frame();
 
@@ -699,13 +696,19 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
             } else if (srs_error_code(rtcp_err) == ERROR_RTSP_NEED_MORE_DATA) {
                 // Need more data to complete RTCP frame, let the outer loop read more
                 srs_freep(rtcp_err);
-                append_bytes = true;
+                need_more_data = true;
                 break;
             } else {
                 // Not an RTCP frame or other error, break and try RTSP parsing
                 srs_freep(rtcp_err);
                 break;
             }
+        }
+
+        // Never scan a partial interleaved frame as a request, its binary bytes may hold SP/CR/LF.
+        if (need_more_data) {
+            append_bytes = true;
+            continue;
         }
 
         // parse one by one.
@@ -715,6 +718,13 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
 
         // find util SP/CR/LF, max 2 EOF, to finger out the EOF of message.
         for (; p < end && p[0] != normal_ch && p[0] != SRS_RTSP_CR && p[0] != SRS_RTSP_LF; p++) {
+        }
+
+        // A CR at the end of the bytes read may have its LF in the next read, so wait for it, or the
+        // LF is left to end the headers as an empty line.
+        if (p < end && p[0] == SRS_RTSP_CR && p + 1 == end) {
+            append_bytes = true;
+            continue;
         }
 
         // matched.
@@ -760,16 +770,17 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
 
 srs_error_t SrsRtspStack::try_consume_rtcp_frame()
 {
-    // Need at least 4 bytes for RTCP over TCP header: $ + channel + length
-    if (buf_->length() < 4) {
-        // Not enough data, let caller read more
-        return srs_error_new(ERROR_RTSP_NEED_MORE_DATA, "need more data for rtcp header");
-    }
-
     char *data = buf_->bytes();
 
     // Check for RTCP over TCP format: $ + channel + length(2 bytes)
-    if (data[0] == '$') {
+    if (buf_->length() > 0 && data[0] == '$') {
+        // Need at least 4 bytes for RTCP over TCP header: $ + channel + length
+        if (buf_->length() < 4) {
+            // Not enough data, let caller read more
+            return srs_error_new(ERROR_RTSP_NEED_MORE_DATA, "need more data for rtcp header");
+        }
+
+
         uint8_t channel = (uint8_t)data[1];
         uint16_t payload_length = (uint16_t(data[2]) << 8) | uint16_t(data[3]);
         int total_frame_size = 4 + payload_length; // 4-byte header + payload

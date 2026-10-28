@@ -6,6 +6,7 @@
 #include <srs_utest_manual_config2.hpp>
 
 #include <srs_app_utility.hpp>
+#include <srs_app_security.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
@@ -5514,3 +5515,114 @@ VOID TEST(ConfigRtcVhostTest, CheckRtcToRtmp)
         EXPECT_TRUE(conf.get_rtc_to_rtmp("test.com"));
     }
 }
+
+extern bool _srs_in_docker;
+
+// Ported from develop: load a config from a minimal valid base plus the text, write a file, and
+// assert a config is refused at check with a reason in its error.
+static srs_error_t config_load(MockSrsConfig &conf, string text)
+{
+    return conf.mock_parse(string(_MIN_OK_CONF) + text);
+}
+
+static void config_write_file(string path, string content)
+{
+    FILE *fp = fopen(path.c_str(), "wb");
+    ASSERT_TRUE(fp != NULL);
+    if (!content.empty()) {
+        ASSERT_EQ(content.length(), fwrite(content.data(), 1, content.length(), fp));
+    }
+    fclose(fp);
+}
+
+static void config_expect_refused(string text, string reason)
+{
+    MockSrsConfig conf;
+    srs_error_t err = config_load(conf, text);
+    ASSERT_TRUE(err != srs_success) << text;
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(err)) << text;
+    string desc = srs_error_desc(err);
+    EXPECT_NE(string::npos, desc.find(reason)) << text << "\n"
+                                               << desc;
+    srs_freep(err);
+}
+// The config file can follow -c with no space, as getopt and nginx (whose ngx_get_options this code follows) allow:
+// ./objs/srs -cconf/srs.conf.
+VOID TEST(AppConfigTest, ConfigFileRightAfterOption_ConfigLoaded)
+{
+    srs_error_t err = srs_success;
+
+    string path = _srs_tmp_file_prefix + "ai42-attached.conf";
+    MockFileRemover remover(path);
+    config_write_file(path, _MIN_OK_CONF);
+
+    SrsConfig conf;
+    // Log to the console, so get_log_tank_file() does not change its process-wide default for docker.
+    SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "console");
+
+    string arg = "-c" + path;
+    char *argv[] = {(char *)"srs", (char *)arg.c_str(), NULL};
+    bool in_docker = _srs_in_docker;
+    err = conf.parse_options(2, argv);
+    _srs_in_docker = in_docker;
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_STREQ(path.c_str(), conf.config().c_str());
+    vector<string> listens = conf.get_listens();
+    ASSERT_EQ(1, (int)listens.size());
+    EXPECT_STREQ("1935", listens[0].c_str());
+}
+
+// Testing a config named like an option, ./objs/srs -tcv.conf, checks v.conf; its letters are not options, so the
+// v does not show the version instead, and the next argument stays for the next option.
+VOID TEST(AppConfigTest, TestOptionWithConfigFileAttached_FileNameNotReadAsOptions)
+{
+    srs_error_t err = srs_success;
+
+    SrsConfig conf;
+    char *argv[] = {(char *)"srs", (char *)"-tcv.conf", (char *)"-e", NULL};
+    int i = 1;
+    HELPER_ASSERT_SUCCESS(conf.parse_argv(i, argv));
+
+    EXPECT_EQ(1, i);
+    EXPECT_TRUE(conf.test_conf_);
+    EXPECT_FALSE(conf.show_version_);
+    EXPECT_FALSE(conf.show_help_);
+    EXPECT_STREQ("v.conf", conf.config().c_str());
+}
+
+// A typo in the vhost rtsp section is refused, and the error names the rtsp section, so the operator finds the typo
+// where it is.
+VOID TEST(AppConfigTest, RtspTypoInVhost_ErrorNamesRtspSection)
+{
+    config_expect_refused("vhost v { rtsp { enabled on; rtmp_to_rtspp on; } }", "illegal vhost.rtsp.rtmp_to_rtspp of v");
+}
+
+// A security rule with an IPv4 prefix length over 32, such as "allow play 10.0.0.0/33;",
+// an IPv6-style "/64", or a negative length, must match no client, as the other
+// malformed rules do, and must not read the mask outside the table of 32 entries.
+VOID TEST(KernelUtilityTest, SecurityAllowRuleWithPrefixLengthOver32_RuleMatchesNoClient)
+{
+    srs_error_t err = srs_success;
+
+    EXPECT_STREQ("255.255.255.255", srs_net_get_cidr_mask("10.0.0.0/32").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/33").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/64").c_str());
+    EXPECT_STREQ("", srs_net_get_cidr_mask("10.0.0.0/-1").c_str());
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; allow play 10.0.0.0/33; allow play 10.0.0.0/64; allow play 10.0.0.0/-1; allow play 192.168.1.0/24;}}"));
+
+    SrsSecurity sec;
+    sec.config_ = &conf;
+    SrsRequest req;
+    req.vhost_ = "__defaultVhost__";
+
+    err = sec.check(SrsRtmpConnPlay, "10.0.0.5", &req);
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_ALLOW, srs_error_code(err));
+    srs_freep(err);
+
+    HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnPlay, "192.168.1.5", &req));
+    sec.config_ = NULL;
+}
+

@@ -197,6 +197,14 @@ srs_error_t SrsDvrSegmenter::close()
     err = close_encoder();
     fs_->close(); // Always close the file.
     if (err != srs_success) {
+        // An MP4 with no sample, such as a publish with no frame, is never reaped, so remove its tmp file.
+        if (srs_error_code(err) == ERROR_MP4_ILLEGAL_MOOV) {
+            srs_error_t r0 = fragment_->unlink_tmpfile();
+            if (r0 != srs_success) {
+                srs_warn("dvr unlink tmp file failed %s", srs_error_desc(r0).c_str());
+                srs_freep(r0);
+            }
+        }
         return srs_error_wrap(err, "close encoder");
     }
 

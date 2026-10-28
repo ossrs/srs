@@ -6052,3 +6052,310 @@ VOID TEST(HookRejectionTest, RtspRejectedViewerReceivesHookStatus)
     conn->hooks_ = NULL;
     conn->rtsp_sources_ = NULL;
 }
+
+#ifdef SRS_RTSP
+// The following tests and helpers are ported from develop, proving the RTSP stack parser waits for a
+// whole interleaved RTCP frame and takes header whitespace and bare LF as HTTP/1.1 allows.
+class RtspSegmentIO : public MockBufferIO
+{
+public:
+    vector<string> segments_;
+
+public:
+    RtspSegmentIO *segment(const string &data)
+    {
+        segments_.push_back(data);
+        return this;
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        if (segments_.empty()) {
+            return srs_error_new(ERROR_SOCKET_READ, "connection closed by peer");
+        }
+
+        string data = segments_.front();
+        segments_.erase(segments_.begin());
+        srs_assert(data.size() <= size);
+        memcpy(buf, data.data(), data.size());
+        *nread = (ssize_t)data.size();
+        return srs_success;
+    }
+};
+
+static string rtsp_interleaved_header(uint8_t channel, size_t size)
+{
+    string header;
+    header.push_back('$');
+    header.push_back((char)channel);
+    header.push_back((char)((size >> 8) & 0xff));
+    header.push_back((char)(size & 0xff));
+    return header;
+}
+
+static string rtsp_rtcp_rr(uint32_t jitter)
+{
+    uint8_t rr[] = {
+        0x81, 0xc9, 0x00, 0x07, // V=2, RC=1, RR, 7 words
+        0x5a, 0x3c, 0x91, 0xe4, // SSRC of the player
+        0x4b, 0x7e, 0x12, 0x9f, // SSRC of the server's track
+        0x00, 0x00, 0x00, 0x00, // fraction and cumulative lost
+        0x00, 0x00, 0x51, 0x6b, // extended highest sequence
+        (uint8_t)(jitter >> 24), (uint8_t)(jitter >> 16), (uint8_t)(jitter >> 8), (uint8_t)jitter,
+        0x00, 0x00, 0x00, 0x00, // LSR
+        0x00, 0x00, 0x00, 0x00, // DLSR
+    };
+    return string((char *)rr, sizeof(rr));
+}
+
+static string rtsp_rtcp_sdes()
+{
+    uint8_t sdes[] = {
+        0x81, 0xca, 0x00, 0x04,                             // V=2, SC=1, SDES, 4 words
+        0x5a, 0x3c, 0x91, 0xe4,                             // SSRC of the player
+        0x01, 0x08, 'r', 't', 's', 'p', 'p', 'l', 'a', 'y', // CNAME, 8 bytes
+        0x00, 0x00,                                         // end of items, padding
+    };
+    return string((char *)sdes, sizeof(sdes));
+}
+// A player's RTCP over TCP arrives cut between two reads, and the bytes of the first read hold a
+// space, CR or LF: a lone 32-byte RR (reduced-size RTCP, RFC 5506), whose length byte is 0x20, with
+// its header alone as live555 writes it; an RR and SDES cut after a report block whose jitter is
+// 32. The parser waits for the rest of the frame, consumes it, and parses the GET_PARAMETER after
+// it, instead of scanning the partial frame as a request.
+VOID TEST(ProtocolRtspStackTest, PlayerRtcpCutAtDelimiterByte_RequestAfterItParsed)
+{
+    srs_error_t err = srs_success;
+
+    string keepalive = "GET_PARAMETER rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 6\r\nSession: 7AB3C1D2\r\n\r\n";
+
+    // A lone RR, its header in its own segment.
+    if (true) {
+        string rtcp = rtsp_rtcp_rr(0x31);
+        RtspSegmentIO io;
+        io.segment(rtsp_interleaved_header(1, rtcp.size()))->segment(rtcp)->segment(keepalive);
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_STREQ("GET_PARAMETER", req->method_.c_str());
+            EXPECT_EQ(6, req->seq_);
+        }
+    }
+
+    // An RR and SDES, cut after the jitter of 32.
+    if (true) {
+        string frame = rtsp_interleaved_header(1, 52) + rtsp_rtcp_rr(32) + rtsp_rtcp_sdes();
+        RtspSegmentIO io;
+        io.segment(frame.substr(0, 28))->segment(frame.substr(28))->segment(keepalive);
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_STREQ("GET_PARAMETER", req->method_.c_str());
+            EXPECT_EQ(6, req->seq_);
+        }
+    }
+}
+
+// A player's RTCP over TCP arrives cut inside its 4-byte interleaved header, after the '$', the
+// channel or the high length byte. The parser waits for the rest of the header and the frame, and
+// parses the GET_PARAMETER after it.
+VOID TEST(ProtocolRtspStackTest, PlayerRtcpCutInsideInterleavedHeader_RequestAfterItParsed)
+{
+    srs_error_t err = srs_success;
+
+    string keepalive = "GET_PARAMETER rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 6\r\nSession: 7AB3C1D2\r\n\r\n";
+    string frame = rtsp_interleaved_header(1, 52) + rtsp_rtcp_rr(0x31) + rtsp_rtcp_sdes();
+
+    for (size_t cut = 1; cut < 4; cut++) {
+        RtspSegmentIO io;
+        io.segment(frame.substr(0, cut))->segment(frame.substr(cut))->segment(keepalive);
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_STREQ("GET_PARAMETER", req->method_.c_str()) << cut;
+            EXPECT_EQ(6, req->seq_) << cut;
+        }
+        EXPECT_TRUE(io.segments_.empty()) << cut;
+    }
+}
+
+// Header lines as RTSP takes them from HTTP/1.1 (RFC 2326 4.2, 12.1): no space after the colon, a
+// list with a space in its value, such as Accept, and an empty value. Each request parses, with
+// the whitespace around a value not part of it.
+VOID TEST(ProtocolRtspStackTest, HeaderWhitespaceAsHttpAllows_RequestParsed)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq:2\r\n\r\n");
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_EQ(2, req->seq_);
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        io.append("DESCRIBE rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 3\r\n"
+                  "Accept: application/sdp, application/rtsl\r\n\r\n");
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_STREQ("application/sdp, application/rtsl", req->accept_.c_str());
+        }
+    }
+
+    if (true) {
+        MockBufferIO io;
+        io.append("OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 4\r\nUser-Agent: \r\n\r\n");
+        SrsRtspStack stack(&io);
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        if (req) {
+            EXPECT_EQ(4, req->seq_);
+            EXPECT_STREQ("", req->user_agent_.c_str());
+        }
+    }
+}
+
+// Header lines a client may write with other whitespace: tabs around the value, a space before the
+// colon, and lines ending with LF alone, in a SETUP over TCP. The request parses with each value
+// trimmed, and the request after it is read whole.
+VOID TEST(ProtocolRtspStackTest, HeaderWithTabsAndBareLf_RequestParsed)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("SETUP rtsp://127.0.0.1:8554/live/livestream/streamid=0 RTSP/1.0\n"
+              "CSeq :\t5\t\n"
+              "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\n"
+              "Session:  7AB3C1D2 \n"
+              "User-Agent:\tLavf61.7.100\n"
+              "\n"
+              "OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 6\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_EQ(5, req->seq_);
+    EXPECT_STREQ("7AB3C1D2", req->session_.c_str());
+    EXPECT_STREQ("Lavf61.7.100", req->user_agent_.c_str());
+    EXPECT_EQ(0, req->stream_id_);
+    ASSERT_TRUE(req->transport_ != NULL);
+    EXPECT_STREQ("TCP", req->transport_->lower_transport_.c_str());
+    EXPECT_EQ(0, req->transport_->interleaved_min_);
+    EXPECT_EQ(1, req->transport_->interleaved_max_);
+
+    SrsRtspRequest *next = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&next));
+    SrsUniquePtr<SrsRtspRequest> next_uptr(next);
+    EXPECT_STREQ("OPTIONS", next->method_.c_str());
+    EXPECT_EQ(6, next->seq_);
+}
+
+// A header line with no colon, its name ended by a space as the parser has always taken it, and an
+// unknown header: the request still parses, the known header sets its value and the unknown one is
+// ignored.
+VOID TEST(ProtocolRtspStackTest, HeaderWithoutColonOrUnknown_RequestParsed)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append("OPTIONS rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq 7\r\nX-Player-Id: a:b c\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_EQ(7, req->seq_);
+
+    // Nothing is left: the next read is the client closing.
+    SrsRtspRequest *next = NULL;
+    err = stack.recv_message(&next);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(next);
+}
+
+// A request longer than one TCP segment, cut between the CR and the LF of a header line. The LF that
+// starts the next read ends that header line, not the headers: the later headers belong to this
+// request, and nothing is left to parse as a next request.
+VOID TEST(ProtocolRtspStackTest, RequestCutBetweenCrAndLf_HeadersAfterItKept)
+{
+    srs_error_t err = srs_success;
+
+    RtspSegmentIO io;
+    io.segment("DESCRIBE rtsp://127.0.0.1:8554/live/livestream RTSP/1.0\r\nCSeq: 2\r")
+        ->segment("\nUser-Agent: LibVLC/3.0.20\r\nAccept: application/sdp\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_EQ(2, req->seq_);
+    EXPECT_STREQ("LibVLC/3.0.20", req->user_agent_.c_str());
+    EXPECT_STREQ("application/sdp", req->accept_.c_str());
+
+    // Nothing is left: the next read is the client closing.
+    SrsRtspRequest *next = NULL;
+    err = stack.recv_message(&next);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(next);
+}
+
+// A long request line, such as a URL with an auth token, whose TCP segment ends between the CR and
+// the LF of the request line. The LF that starts the next read ends the request line, so every
+// header that follows belongs to this request.
+VOID TEST(ProtocolRtspStackTest, RequestLineCutBetweenCrAndLf_HeadersKept)
+{
+    srs_error_t err = srs_success;
+
+    RtspSegmentIO io;
+    io.segment("SETUP rtsp://127.0.0.1:8554/live/livestream?token=6f1c0a2d/trackID=0 RTSP/1.0\r")
+        ->segment("\nCSeq: 3\r\nTransport: RTP/AVP/TCP;unicast;interleaved=0-1\r\nUser-Agent: LibVLC/3.0.20\r\n\r\n");
+    SrsRtspStack stack(&io);
+
+    SrsRtspRequest *req = NULL;
+    HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+    SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+    EXPECT_STREQ("SETUP", req->method_.c_str());
+    EXPECT_STREQ("RTSP/1.0", req->version_.c_str());
+    EXPECT_EQ(3, req->seq_);
+    ASSERT_TRUE(req->transport_ != NULL);
+    EXPECT_STREQ("TCP", req->transport_->lower_transport_.c_str());
+    EXPECT_EQ(0, req->transport_->interleaved_min_);
+    EXPECT_EQ(1, req->transport_->interleaved_max_);
+    EXPECT_STREQ("LibVLC/3.0.20", req->user_agent_.c_str());
+
+    // Nothing is left: the next read is the client closing.
+    SrsRtspRequest *next = NULL;
+    err = stack.recv_message(&next);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(next);
+}
+
+
+#endif

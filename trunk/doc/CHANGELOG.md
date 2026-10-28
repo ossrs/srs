@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-28, Fix server aborts and protocol errors found by the utest coverage tests. v7.0.210
 * v7.0, 2026-10-27, Fix server aborts and wrong results found by the utest coverage tests. v7.0.209
 * v7.0, 2026-10-25, RTC: Fix out-of-range read decoding a malformed RTCP SR or RR. v7.0.208
 * v7.0, 2026-10-25, Kernel: Fix stale separate_colour_plane_flag in HEVC SPS. v7.0.207

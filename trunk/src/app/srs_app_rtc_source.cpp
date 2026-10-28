@@ -1060,6 +1060,8 @@ srs_error_t SrsRtcRtpBuilder::initialize(ISrsRequest *r)
 
     // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
+    format_->avc_parse_sps_ = config_->get_parse_sps(r->vhost_);
+    meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
 
     keep_bframe_ = config_->get_rtc_keep_bframe(req_->vhost_);
     keep_avc_nalu_sei_ = config_->get_rtc_keep_avc_nalu_sei(req_->vhost_);

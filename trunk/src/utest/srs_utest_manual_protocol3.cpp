@@ -9,6 +9,8 @@ using namespace std;
 
 #include <srs_app_listener.hpp>
 #include <srs_app_st.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_server.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
@@ -2898,3 +2900,288 @@ VOID TEST(RawHEVCStreamTest, PpsDemux)
         HELPER_EXPECT_FAILED(hevc.pps_demux(dummy_data, -1, pps_output));
     }
 }
+// Packages the two slices of one frame, merged as with rtc_server.merge_nalus on, and returns the
+// payload bytes each FU-A packet carries after its FU indicator and header. Only the first FU-A has
+// the start bit and only the last one the end bit (RFC 6184 5.8).
+static vector<int> rtp_merged_frame_fu_sizes(SrsVideoCodecId codec, vector<char> &slice0, vector<char> &slice1)
+{
+    vector<int> sizes;
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = codec;
+
+    SrsRtpVideoBuilder builder;
+    srs_error_t err = builder.initialize(&format, 0x1234, 96);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    SrsNaluSample s0(&slice0[0], (int)slice0.size());
+    SrsNaluSample s1(&slice1[0], (int)slice1.size());
+    vector<SrsNaluSample *> samples;
+    samples.push_back(&s0);
+    samples.push_back(&s1);
+
+    SrsMediaPacket msg;
+    msg.timestamp_ = 40;
+
+    vector<SrsRtpPacket *> pkts;
+    err = builder.package_nalus(&msg, samples, pkts);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts[i];
+        vector<SrsNaluSample *> *nalus = NULL;
+        bool start = false, end = false;
+        if (codec == SrsVideoCodecIdHEVC) {
+            SrsRtpFUAPayloadHevc *fua = static_cast<SrsRtpFUAPayloadHevc *>(pkt->payload());
+            nalus = &fua->nalus_;
+            start = fua->start_;
+            end = fua->end_;
+        } else {
+            SrsRtpFUAPayload *fua = static_cast<SrsRtpFUAPayload *>(pkt->payload());
+            nalus = &fua->nalus_;
+            start = fua->start_;
+            end = fua->end_;
+        }
+        EXPECT_EQ(i == 0, start) << "FU-A " << i << " of " << pkts.size();
+        EXPECT_EQ(i == (int)pkts.size() - 1, end) << "FU-A " << i << " of " << pkts.size();
+
+        int size = 0;
+        for (int j = 0; j < (int)nalus->size(); j++) {
+            size += nalus->at(j)->size_;
+        }
+        sizes.push_back(size);
+        srs_freep(pkt);
+    }
+
+    srs_freep(format.vcodec_);
+    return sizes;
+}
+
+// With rtc_server.merge_nalus on, RTMP to WebRTC packs all slices of a frame into one NALU and
+// cuts it into FU-A packets of up to 1200 bytes. When the merged NALU minus its header is a whole
+// number of 1200-byte fragments, such as two slices of 1000 and 1398 bytes (2401 with the 3-byte
+// separator), the frame takes exactly two fragments, each with data, and no third FU-A with the end
+// bit and no data.
+VOID TEST(ProtocolRtpTest, MergedFrameOfWholeFragments_TwoFuAs)
+{
+    // H.264: two IDR slices, 1000 + 3 + 1398 = 2401 bytes, a 1-byte NALU header.
+    if (true) {
+        vector<char> slice0(1000, (char)0x88);
+        vector<char> slice1(1398, (char)0x88);
+        slice0[0] = slice1[0] = 0x65;
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(SrsVideoCodecIdAVC, slice0, slice1);
+        EXPECT_EQ(2, (int)sizes.size());
+        for (int i = 0; i < (int)sizes.size(); i++) {
+            EXPECT_GT(sizes[i], 0) << "FU-A " << i << " of " << sizes.size();
+        }
+    }
+
+    // H.265: two TRAIL_R slices, 1000 + 3 + 1399 = 2402 bytes, a 2-byte NALU header.
+    if (true) {
+        vector<char> slice0(1000, (char)0x88);
+        vector<char> slice1(1399, (char)0x88);
+        slice0[0] = slice1[0] = 0x02;
+        slice0[1] = slice1[1] = 0x01;
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(SrsVideoCodecIdHEVC, slice0, slice1);
+        EXPECT_EQ(2, (int)sizes.size());
+        for (int i = 0; i < (int)sizes.size(); i++) {
+            EXPECT_GT(sizes[i], 0) << "FU-A " << i << " of " << sizes.size();
+        }
+    }
+}
+
+// With rtc_server.merge_nalus on, a merged frame of 1200 bytes or a little more is too big for
+// one RTP packet, but its data after the NALU header fits one 1200-byte fragment. RFC 6184 5.8
+// forbids an FU-A with both the start and end bits, so the frame is still cut into two FU-As,
+// together carrying every byte after the header.
+VOID TEST(ProtocolRtpTest, MergedFrameJustOverOnePacket_SplitIntoTwoFuAs)
+{
+    struct {
+        SrsVideoCodecId codec;
+        int slice1;
+        int header;
+    } cases[] = {
+        {SrsVideoCodecIdAVC, 597, 1},  // 600 + 3 + 597 = 1200 bytes
+        {SrsVideoCodecIdAVC, 598, 1},  // 1201 bytes, 1200 after the header
+        {SrsVideoCodecIdHEVC, 597, 2}, // 1200 bytes
+        {SrsVideoCodecIdHEVC, 599, 2}, // 1202 bytes, 1200 after the header
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        vector<char> slice0(600, (char)0x88);
+        vector<char> slice1(cases[i].slice1, (char)0x88);
+        if (cases[i].codec == SrsVideoCodecIdHEVC) {
+            slice0[0] = slice1[0] = 0x02;
+            slice0[1] = slice1[1] = 0x01;
+        } else {
+            slice0[0] = slice1[0] = 0x65;
+        }
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(cases[i].codec, slice0, slice1);
+        ASSERT_EQ(2, (int)sizes.size()) << "case " << i;
+        EXPECT_GT(sizes[0], 0) << "case " << i;
+        EXPECT_GT(sizes[1], 0) << "case " << i;
+        EXPECT_EQ(600 + 3 + cases[i].slice1 - cases[i].header, sizes[0] + sizes[1]) << "case " << i;
+    }
+}
+
+// Packages one NALU into FU-A packets of up to 1200 bytes, as RTMP to WebRTC and RTMP to RTSP do for
+// a NALU over 1200 bytes with merge_nalus off, and returns the payload bytes each FU-A carries after
+// its FU indicator and header. Only the first FU-A has the start bit and only the last one the end
+// bit (RFC 6184 5.8, RFC 7798 4.4.3).
+static vector<int> rtp_nalu_fu_sizes(SrsVideoCodecId codec, vector<char> &nalu)
+{
+    vector<int> sizes;
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = codec;
+
+    SrsRtpVideoBuilder builder;
+    srs_error_t err = builder.initialize(&format, 0x1234, 96);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    SrsNaluSample sample(&nalu[0], (int)nalu.size());
+    SrsMediaPacket msg;
+    msg.timestamp_ = 40;
+
+    vector<SrsRtpPacket *> pkts;
+    err = builder.package_fu_a(&msg, &sample, kRtpMaxPayloadSize, pkts);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts[i];
+        bool start = false, end = false;
+        int size = 0;
+        if (codec == SrsVideoCodecIdHEVC) {
+            SrsRtpFUAPayloadHevc2 *fua = static_cast<SrsRtpFUAPayloadHevc2 *>(pkt->payload());
+            start = fua->start_;
+            end = fua->end_;
+            size = fua->size_;
+        } else {
+            SrsRtpFUAPayload2 *fua = static_cast<SrsRtpFUAPayload2 *>(pkt->payload());
+            start = fua->start_;
+            end = fua->end_;
+            size = fua->size_;
+        }
+        EXPECT_EQ(i == 0, start) << "FU-A " << i << " of " << pkts.size();
+        EXPECT_EQ(i == (int)pkts.size() - 1, end) << "FU-A " << i << " of " << pkts.size();
+        sizes.push_back(size);
+        srs_freep(pkt);
+    }
+
+    srs_freep(format.vcodec_);
+    return sizes;
+}
+
+// With merge_nalus off, the default, RTMP to WebRTC sends a NALU over 1200 bytes as FU-A packets. A
+// NALU of 1201 bytes (1201 or 1202 for H.265) has at most 1200 bytes after its header, which fit one
+// 1200-byte fragment, but RFC 6184 5.8 forbids an FU-A with both the start and end bits, so the NALU
+// is still cut into two FU-As, together carrying every byte after the header.
+VOID TEST(ProtocolRtpTest, NaluJustOverOnePacket_SplitIntoTwoFuAs)
+{
+    struct {
+        SrsVideoCodecId codec;
+        int size;
+        int header;
+    } cases[] = {
+        {SrsVideoCodecIdAVC, 1201, 1},  // 1200 after the header
+        {SrsVideoCodecIdHEVC, 1201, 2}, // 1199 after the header
+        {SrsVideoCodecIdHEVC, 1202, 2}, // 1200 after the header
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        vector<char> nalu(cases[i].size, (char)0x88);
+        if (cases[i].codec == SrsVideoCodecIdHEVC) {
+            nalu[0] = 0x02;
+            nalu[1] = 0x01;
+        } else {
+            nalu[0] = 0x65;
+        }
+
+        vector<int> sizes = rtp_nalu_fu_sizes(cases[i].codec, nalu);
+        ASSERT_EQ(2, (int)sizes.size()) << "case " << i;
+        EXPECT_GT(sizes[0], 0) << "case " << i;
+        EXPECT_GT(sizes[1], 0) << "case " << i;
+        EXPECT_EQ(cases[i].size - cases[i].header, sizes[0] + sizes[1]) << "case " << i;
+    }
+
+    // A NALU with 1201 bytes after its header takes two FU-As of 1200 and 1 bytes, as before.
+    if (true) {
+        vector<char> nalu(1202, (char)0x88);
+        nalu[0] = 0x65;
+        vector<int> sizes = rtp_nalu_fu_sizes(SrsVideoCodecIdAVC, nalu);
+        ASSERT_EQ(2, (int)sizes.size());
+        EXPECT_EQ(1200, sizes[0]);
+        EXPECT_EQ(1, sizes[1]);
+    }
+}
+
+
+extern bool srs_sdp_has_h264_profile(const SrsSdp &sdp, const string &profile);
+// A WHIP publisher whose H.264 fmtp leaves out level-asymmetry-allowed, an optional parameter
+// whose default is 0 (RFC 6184 8.1), as GStreamer's payloader writes it. The publish is accepted
+// with that payload, as the same offer with level-asymmetry-allowed=0, which means the same.
+VOID TEST(ProtocolSdpTest, WhipPublisherH264WithoutLevelAsymmetry_PublishAccepted)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsRtcUserConfig ruc;
+        ruc.req_->vhost_ = "__defaultVhost__";
+        ruc.publish_ = true;
+        HELPER_ASSERT_SUCCESS(ruc.remote_sdp_.parse(sdp_whip_offer("level-asymmetry-allowed=0;packetization-mode=1;profile-level-id=42e01f")));
+
+        SrsRtcPublisherNegotiator negotiator;
+        SrsRtcSourceDescription stream_desc;
+        HELPER_ASSERT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
+        ASSERT_EQ(1, (int)stream_desc.video_track_descs_.size());
+    }
+
+    SrsRtcUserConfig ruc;
+    ruc.req_->vhost_ = "__defaultVhost__";
+    ruc.publish_ = true;
+    HELPER_ASSERT_SUCCESS(ruc.remote_sdp_.parse(sdp_whip_offer("packetization-mode=1;profile-level-id=42e01f")));
+
+    SrsRtcPublisherNegotiator negotiator;
+    SrsRtcSourceDescription stream_desc;
+    HELPER_EXPECT_SUCCESS(negotiator.negotiate_publish_capability(&ruc, &stream_desc));
+    ASSERT_EQ(1, (int)stream_desc.video_track_descs_.size());
+    EXPECT_EQ(102, (int)stream_desc.video_track_descs_[0]->media_->pt_);
+}
+
+// A WHEP player whose H.264 fmtp leaves out level-asymmetry-allowed. The play negotiator looks
+// for the 42e01f profile in the offer to choose that payload, so the fmtp is read with the
+// parameter absent, not refused. The other two parameters are still required.
+VOID TEST(ProtocolSdpTest, WhepPlayerH264WithoutLevelAsymmetry_ProfileFound)
+{
+    srs_error_t err = srs_success;
+
+    H264SpecificParam param;
+    HELPER_ASSERT_SUCCESS(srs_parse_h264_fmtp("packetization-mode=1;profile-level-id=42e01f", param));
+    EXPECT_STREQ("42e01f", param.profile_level_id_.c_str());
+    EXPECT_STREQ("1", param.packetization_mode_.c_str());
+    EXPECT_TRUE(param.level_asymmetry_allow_.empty());
+
+    SrsSdp sdp;
+    HELPER_ASSERT_SUCCESS(sdp.parse(sdp_whip_offer("packetization-mode=1;profile-level-id=42e01f")));
+    EXPECT_TRUE(srs_sdp_has_h264_profile(sdp, "42e01f"));
+
+    H264SpecificParam no_mode;
+    err = srs_parse_h264_fmtp("level-asymmetry-allowed=1;profile-level-id=42e01f", no_mode);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    srs_freep(err);
+
+    H264SpecificParam no_profile;
+    err = srs_parse_h264_fmtp("level-asymmetry-allowed=1;packetization-mode=1", no_profile);
+    EXPECT_EQ(ERROR_RTC_SDP_DECODE, srs_error_code(err));
+    srs_freep(err);
+}
+
