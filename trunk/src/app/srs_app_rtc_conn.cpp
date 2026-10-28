@@ -1793,13 +1793,8 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header_.get_sequence());
     }
 
-    // If circuit-breaker is enabled, disable nack.
-    if (circuit_breaker_->hybrid_critical_water_level()) {
-        ++_srs_pps_snack4->sugar_;
-        return err;
-    }
-
-    // For NACK to handle packet.
+    // For NACK to handle packet, which also records it in the receive queue. When the circuit-breaker is at its
+    // high or critical level, the track records the packet but asks for no loss.
     // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_ && (err = track->on_nack(&pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");

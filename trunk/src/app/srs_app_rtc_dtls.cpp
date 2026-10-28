@@ -125,9 +125,9 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
         }
     } else if (version == SrsDtlsVersion1_2) {
         if (role == "active") {
-            dtls_ctx = SSL_CTX_new(DTLS_client_method());
+            dtls_ctx = SSL_CTX_new(DTLSv1_2_client_method());
         } else {
-            dtls_ctx = SSL_CTX_new(DTLS_server_method());
+            dtls_ctx = SSL_CTX_new(DTLSv1_2_server_method());
         }
     } else {
         // SrsDtlsVersionAuto, use version-flexible DTLS methods

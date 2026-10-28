@@ -700,10 +700,9 @@ VOID TEST(AppRtcSourceTest, WhipCutSps_SizeUnknownUntilWholeSps)
 }
 
 // A WHIP offer whose H.264 fmtp has a parameter besides the three SRS knows, such as sprop-parameter-sets (RFC 6184
-// section 8.1), whose base64 may end in '=': the publish negotiation takes the payload, as srs_parse_h264_fmtp skips
-// what it does not know, but set_h264_param_desc refuses the fmtp, and the negotiator drops the error without freeing
-// it, so each such publish leaks an error (B51).
-VOID TEST(AppRtcSourceTest, DISABLED_WhipH264FmtpWithSprop_ParamDescRefused)
+// section 8.1), whose base64 may end in '=': the payload takes the three known parameters and skips the rest, as
+// srs_parse_h264_fmtp does, so the publish negotiation gets no error to drop.
+VOID TEST(AppRtcSourceTest, WhipH264FmtpWithSprop_ParamDescAccepted)
 {
     srs_error_t err;
 
@@ -717,6 +716,8 @@ VOID TEST(AppRtcSourceTest, DISABLED_WhipH264FmtpWithSprop_ParamDescRefused)
     SrsVideoPayload payload(106, "H264", 90000);
     HELPER_EXPECT_SUCCESS(payload.set_h264_param_desc(fmtp));
     EXPECT_EQ("42e01f", payload.h264_param_.profile_level_id_);
+    EXPECT_EQ("1", payload.h264_param_.packetization_mode_);
+    EXPECT_EQ("1", payload.h264_param_.level_asymmetry_allow_);
 }
 
 #ifdef SRS_FFMPEG_FIT
@@ -1792,9 +1793,9 @@ VOID TEST(AppRtmpConnTest, PlayerOnVhostWithSendMinInterval_OneMessageEachInterv
 
 // A player on a vhost with `send_min_interval 50` closes while the play loop sleeps the interval after a send, and
 // the stream gets no more media, as its publisher stopped. The receive thread sees the close and wakes the consumer,
-// but the play loop is not waiting yet, so the wakeup is lost; the loop then waits for media with no timeout. The
-// connection should end at the close, but stays, with its consumer on the stream, until the next frame.
-VOID TEST(AppRtmpConnTest, DISABLED_PlayerClosesDuringSendInterval_ConnectionStays)
+// but the play loop is not waiting yet, so nothing gets the wakeup. The connection ends at the close anyway, and its
+// consumer leaves the stream, without waiting for the next frame.
+VOID TEST(AppRtmpConnTest, PlayerClosesDuringSendInterval_ConnectionEnds)
 {
     srs_error_t err;
 
@@ -1810,6 +1811,9 @@ VOID TEST(AppRtmpConnTest, DISABLED_PlayerClosesDuringSendInterval_ConnectionSta
 
     EXPECT_TRUE(c.done_);
     EXPECT_TRUE(c.source_->consumers_.empty());
+    rtmp_conn_utest_expect(c.err_, ERROR_SOCKET_READ, "client closed");
+    c.err_ = srs_success;
+    EXPECT_EQ(1, (int)c.rtmp_->sent_times_.size());
 }
 
 // The player's play line: what the player gets, and its kbps, each pithy print interval.
@@ -2631,10 +2635,10 @@ public:
         memcpy(msg.payload(), data, size);
         return source_->on_video(&msg);
     }
-    srs_error_t metadata(int64_t timestamp)
+    srs_error_t metadata(int64_t timestamp, int width = 768)
     {
         SrsOnMetaDataPacket meta;
-        meta.metadata_->set("width", SrsAmf0Any::number(768));
+        meta.metadata_->set("width", SrsAmf0Any::number(width));
         meta.metadata_->set("height", SrsAmf0Any::number(320));
         SrsRtmpCommonMessage msg;
         msg.header_.initialize_amf0_script(0, 1);
@@ -2871,9 +2875,8 @@ VOID TEST(AppRtmpSourceTest, RepublishSameVideoSequenceHeader_ReduceDropsIt)
 }
 
 // A player that waits for a stream, on a vhost with reduce_sequence_header. The encoder publishes and sends its first
-// metadata, which the player should get, as it gets the first sequence headers. The source drops every metadata for the
-// players once it has cached it, and it caches it just before the check, so the player never gets one.
-VOID TEST(AppRtmpSourceTest, DISABLED_PlayerWaitingBeforePublish_ReduceDropsFirstMetadata)
+// metadata, which the player gets, as it gets the first sequence headers.
+VOID TEST(AppRtmpSourceTest, PlayerWaitingBeforePublish_ReduceSendsFirstMetadata)
 {
     srs_error_t err;
 
@@ -2885,6 +2888,56 @@ VOID TEST(AppRtmpSourceTest, DISABLED_PlayerWaitingBeforePublish_ReduceDropsFirs
     HELPER_ASSERT_SUCCESS(s.metadata(0));
     HELPER_ASSERT_SUCCESS(s.start_av(0));
     EXPECT_STREQ("m0,V0,A0,v0", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+}
+
+// An encoder that sends its metadata again, the same or changed, in a publish and at a republish, on a vhost with
+// reduce_sequence_header. A player that stays does not get the same one again, but gets a changed one, as with the
+// sequence headers. A player that joins later gets the cached one.
+VOID TEST(AppRtmpSourceTest, SameOrChangedMetadataAgain_ReduceDropsOnlySame)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { reduce_sequence_header on; time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.metadata(0));
+    HELPER_ASSERT_SUCCESS(s.metadata(10));
+    EXPECT_STREQ("m0", rtmp_source_utest_got(player).c_str());
+
+    // The encoder changes its resolution.
+    HELPER_ASSERT_SUCCESS(s.metadata(20, 1280));
+    EXPECT_STREQ("m20", rtmp_source_utest_got(player).c_str());
+    s.source_->on_unpublish();
+
+    // The encoder republishes with the same metadata, then changes it back.
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.metadata(100, 1280));
+    EXPECT_STREQ("", rtmp_source_utest_got(player).c_str());
+    SrsLiveConsumer *late = s.play();
+    EXPECT_STREQ("m100", rtmp_source_utest_got(late).c_str());
+
+    HELPER_ASSERT_SUCCESS(s.metadata(110));
+    EXPECT_STREQ("m110", rtmp_source_utest_got(player).c_str());
+    EXPECT_STREQ("m110", rtmp_source_utest_got(late).c_str());
+    s.source_->on_unpublish();
+}
+
+// Without reduce_sequence_header, a player gets each metadata the encoder sends, the same one too.
+VOID TEST(AppRtmpSourceTest, SameMetadataAgainWithoutReduce_Sent)
+{
+    srs_error_t err;
+
+    RtmpSourceUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { play { time_jitter off; } }"));
+    SrsLiveConsumer *player = s.play();
+
+    HELPER_ASSERT_SUCCESS(s.source_->on_publish());
+    HELPER_ASSERT_SUCCESS(s.metadata(0));
+    HELPER_ASSERT_SUCCESS(s.metadata(10));
+    EXPECT_STREQ("m0,m10", rtmp_source_utest_got(player).c_str());
     s.source_->on_unpublish();
 }
 
@@ -3784,10 +3837,10 @@ VOID TEST(AppRtspConnTest, NoCoroutineForPlayer_ConnectionEndsAfterPlayAnswer)
     EXPECT_TRUE(c.source_->consumers_.empty());
 }
 
-// A player that plays a stream gets each packet the stream gets, at once: the play does not merge writes. The player
-// waits for two packets, so the last packet the stream got waits for the next one: the end of each frame waits for
-// the next frame, and the last packet before the publisher pauses or stops is never sent (B56).
-VOID TEST(AppRtspConnTest, DISABLED_PlayerOfLonePacket_HeldUntilNextPacket)
+// A player that plays a stream gets each packet the stream gets, at once: the play does not merge writes. A lone
+// packet, such as the end of a frame or the last packet before the publisher pauses or stops, is sent without
+// waiting for the next one.
+VOID TEST(AppRtspConnTest, PlayerOfLonePacket_SentAtOnce)
 {
     srs_error_t err;
 
@@ -4261,9 +4314,9 @@ VOID TEST(AppRtspSourceTest, PlayerStaysAcrossRepublish_KeepsSsrcAndPayloadTypeO
 }
 
 // An HEVC encoder that sends its VPS, SPS and PPS in band, in each key frame, with a sequence header that holds none,
-// as ISO/IEC 14496-15 allows for hev1. The format parses both, and the player should get the key frame's NALUs. The
-// RTSP builder fails the key frame, "vps/sps/pps empty", so the encoder is disconnected at its first key frame (B57).
-VOID TEST(AppRtspSourceTest, DISABLED_HevcParameterSetsInBand_PublisherDisconnected)
+// as ISO/IEC 14496-15 allows for hev1. The format parses both, and the RTSP builder has no parameter set to send in a
+// STAP, so the player gets the key frame's NALUs as they are, the parameter sets first, and the encoder stays.
+VOID TEST(AppRtspSourceTest, HevcParameterSetsInBand_KeyFrameNalusSent)
 {
     srs_error_t err;
 
@@ -4625,9 +4678,8 @@ static void inotify_utest_write(string path)
     }
 }
 
-// Ends the worker's coroutine so the worker can be freed. After a change the worker sleeps, and a stop that comes
-// then only ends the sleep: the worker reads again, and a coroutine is interrupted only once, so its read is
-// interrupted again here.
+// Ends the worker's coroutine so the worker can be freed, as the server's stop does. If the worker does not end, its
+// read is interrupted again, so a failing test does not hang in the worker's destructor.
 static void inotify_utest_end(SrsInotifyWorker *worker)
 {
     SrsSTCoroutine *trd = dynamic_cast<SrsSTCoroutine *>(worker->trd_);
@@ -4671,7 +4723,7 @@ VOID TEST(ServerInotifyTest, AutoReload_ConfigEditSignalsReload)
 
 // The server quits (SIGTERM or SIGQUIT) within 3s after an operator edits the config file: the quit stops the
 // worker as it frees it, and the worker must end, or the server never exits.
-VOID TEST(ServerInotifyTest, DISABLED_QuitSoonAfterConfigEdit_WorkerNeverEnds)
+VOID TEST(ServerInotifyTest, QuitSoonAfterConfigEdit_WorkerEnds)
 {
     srs_error_t err;
 
@@ -5466,11 +5518,9 @@ VOID TEST(AppSrtConnTest, PlayerTransportStatsLogged)
     c.encoder_unpublishes();
 }
 
-// An SRT player waiting for packets gets a lone message only when the next one comes, or when its wait of
-// `peer_idle_timeout` (10s by default) ends: SrsSrtConsumer::enqueue wakes the player only when it holds more than
-// one packet, while the player waits for one. The last message before the encoder pauses is held. The expected
-// behavior is that the player gets each message when it comes.
-VOID TEST(AppSrtConnTest, DISABLED_PlayerOfLoneMessage_HeldUntilNextOrTimeout)
+// An SRT player waiting for packets gets a lone message as soon as it comes, not when the next one comes or its
+// wait of `peer_idle_timeout` (10s by default) ends: the last message before the encoder pauses is not held.
+VOID TEST(AppSrtConnTest, PlayerOfLoneMessage_SentAtOnce)
 {
     srs_error_t err;
 

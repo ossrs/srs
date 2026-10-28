@@ -250,8 +250,9 @@ srs_error_t SrsRtspPlayStream::cycle()
 
     SrsUniquePtr<SrsErrorPithyPrint> epp(new SrsErrorPithyPrint());
 
-    // For RTSP, donot use merged write.
-    int mw_msgs = 1;
+    // For RTSP, donot use merged write: the consumer wakes when it holds more than mw_msgs packets, so 0 sends each
+    // packet at once.
+    int mw_msgs = 0;
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "RTSP sender thread");

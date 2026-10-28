@@ -131,7 +131,7 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
     }
 
     if (vcodec_ != SRS_RTMP_ENCODER_COPY && vcodec_ != SRS_RTMP_ENCODER_NO_VIDEO && vcodec_ != SRS_RTMP_ENCODER_VCODEC_PNG) {
-        if (vcodec_.find(SRS_RTMP_ENCODER_VCODEC_H264) != string::npos && vcodec_.find(SRS_RTMP_ENCODER_VCODEC_H265) != string::npos && vcodec_.find(SRS_RTMP_ENCODER_VCODEC_HEVC) != string::npos) {
+        if (vcodec_.find(SRS_RTMP_ENCODER_VCODEC_H264) == string::npos && vcodec_.find(SRS_RTMP_ENCODER_VCODEC_H265) == string::npos && vcodec_.find(SRS_RTMP_ENCODER_VCODEC_HEVC) == string::npos) {
             return srs_error_new(ERROR_ENCODER_VCODEC, "invalid vcodec, must be h264, h265 or one of their variants, actual %s", vcodec_.c_str());
         }
         if (vbitrate_ < 0) {
@@ -155,6 +155,10 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
         if (vpreset_.empty()) {
             return srs_error_new(ERROR_ENCODER_VPRESET, "invalid vpreset: %s", vpreset_.c_str());
         }
+    }
+
+    if (acodec_.empty()) {
+        return srs_error_new(ERROR_ENCODER_ACODEC, "invalid empty acodec");
     }
 
     // @see, https://github.com/ossrs/srs/issues/145

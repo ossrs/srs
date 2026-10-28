@@ -1615,9 +1615,9 @@ VOID TEST(AppMpegtsUdpTest, TwoStartCodesInARow_EmptyNaluSkipped)
 }
 
 // A video-only encoder whose PES carry no PTS: the TS demuxer gives each frame dts 0. The queue holds video until it
-// has audio or 100 frames, and moves a message 1ms on, at most 10 times, while another holds its time. From the 12th
-// message on, each one replaces the message at 10ms, which is lost and never freed, while the video count goes on.
-VOID TEST(AppMpegtsUdpTest, DISABLED_VideoOnlyWithoutPts_QueuedFramesReplacedAndLeaked)
+// has audio or 100 frames, and moves a message 1ms on while another holds its time, so each message keeps its own
+// time and none is lost. Once the queue holds over 100 frames, it sends the oldest.
+VOID TEST(AppMpegtsUdpTest, VideoOnlyWithoutPts_QueuedFramesKept)
 {
     srs_error_t err;
 
@@ -1629,8 +1629,9 @@ VOID TEST(AppMpegtsUdpTest, DISABLED_VideoOnlyWithoutPts_QueuedFramesReplacedAnd
     channel.stream_ = SrsTsStreamVideoH264;
     SrsTsPacket packet(NULL);
 
-    // The sequence header and 12 frames.
-    for (int i = 0; i < 12; i++) {
+    // The key frame gives the sequence header and a frame, each P frame one more frame.
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(c.caster_->queue_);
+    for (int i = 0; i < 111; i++) {
         SrsTsMessage msg(&channel, &packet);
         msg.sid_ = SrsTsPESStreamIdVideoCommon;
         vector<string> nalus = (i == 0) ? mpegts_utest_key_frame() : mpegts_utest_nalus(mpegts_utest_p);
@@ -1639,11 +1640,76 @@ VOID TEST(AppMpegtsUdpTest, DISABLED_VideoOnlyWithoutPts_QueuedFramesReplacedAnd
             msg.payload_->append(nalus[j].data(), (int)nalus[j].size());
         }
         HELPER_ASSERT_SUCCESS(c.caster_->on_ts_message(&msg));
+
+        // The first 13 messages, before any is sent, each at its own ms.
+        if (i == 11) {
+            EXPECT_EQ(13, queue->nb_videos_);
+            ASSERT_EQ(13, (int)queue->msgs_.size());
+            EXPECT_EQ(0, queue->msgs_.begin()->first);
+            EXPECT_EQ(12, queue->msgs_.rbegin()->first);
+        }
     }
 
-    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(c.caster_->queue_);
-    EXPECT_EQ(13, queue->nb_videos_);
-    EXPECT_EQ(13, (int)queue->msgs_.size());
+    // 112 messages: the queue keeps 100, and sends each of the other 12, none lost.
+    EXPECT_EQ(100, queue->nb_videos_);
+    EXPECT_EQ(100, (int)queue->msgs_.size());
+
+    MockRtmpClientForForwarder *client = c.factory_.client_;
+    ASSERT_TRUE(client != NULL);
+    ASSERT_EQ(12, (int)client->sent_.size());
+    for (int i = 0; i < 12; i++) {
+        EXPECT_EQ(SrsFrameTypeVideo, client->sent_[i].type_);
+    }
+}
+
+// A GB28181 device turns its audio off while it publishes video whose PES carry no PTS: the queue waits for audio
+// that never comes, and moves each video message 1ms on while another holds its time, so each keeps its own time and
+// none is lost.
+VOID TEST(AppGb28181Test, AudioOffThenVideoWithoutPts_QueuedFramesKept)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegpsQueue> queue(new SrsMpegpsQueue());
+
+    // The audio and video before the device turns its audio off.
+    for (int i = 0; i < 2; i++) {
+        SrsMediaPacket *audio = new SrsMediaPacket();
+        audio->message_type_ = SrsFrameTypeAudio;
+        audio->wrap(new char[4](), 4);
+        HELPER_ASSERT_SUCCESS(queue->push(audio));
+    }
+    SrsMediaPacket *first = new SrsMediaPacket();
+    first->message_type_ = SrsFrameTypeVideo;
+    first->wrap(new char[4](), 4);
+    HELPER_ASSERT_SUCCESS(queue->push(first));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+
+    // 20 video messages, each at time 0.
+    for (int i = 0; i < 20; i++) {
+        SrsMediaPacket *video = new SrsMediaPacket();
+        video->message_type_ = SrsFrameTypeVideo;
+        video->wrap(new char[4](), 4);
+        HELPER_ASSERT_SUCCESS(queue->push(video));
+    }
+
+    // Each message is held at its own ms: the audio at 0 and 1, the video from 2 on.
+    EXPECT_EQ(2, queue->nb_audios_);
+    EXPECT_EQ(21, queue->nb_videos_);
+    ASSERT_EQ(23, (int)queue->msgs_.size());
+    EXPECT_EQ(0, queue->msgs_.begin()->first);
+    EXPECT_EQ(22, queue->msgs_.rbegin()->first);
+    EXPECT_EQ(first, queue->msgs_[2]);
+
+    // The oldest audio goes out; the video waits for audio until the queue overflows.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> msg(queue->dequeue());
+        ASSERT_TRUE(msg.get() != NULL);
+        EXPECT_TRUE(msg->is_audio());
+        EXPECT_EQ(0, msg->timestamp_);
+    }
+    EXPECT_TRUE(queue->dequeue() == NULL);
+    EXPECT_EQ(21, queue->nb_videos_);
+    EXPECT_EQ(22, (int)queue->msgs_.size());
 }
 
 #ifndef _WIN32 // POSIX only: the exec runs /bin/echo and /bin/sleep
@@ -2954,21 +3020,34 @@ VOID TEST(AppRtcCodecTest, RtmpCorruptAacFrame_DecoderErrorLoggedThenRecovers)
     EXPECT_GT(opus_after, 15);
 }
 
-// A WHIP client that asks for G.722 audio with `?acodec=G722`, as Chrome offers it, publishing to a vhost with
-// `rtc_to_rtmp on`: there is no transcoder from G.722, as from G.711, so the stream should be converted to RTMP
-// without its audio while WebRTC players still get it. The frame builder instead fails, as the transcoder finds no
-// decoder for the codec, so the source refuses the publish after DTLS (B47).
-VOID TEST(AppRtcCodecTest, DISABLED_WhipG722WithRtcToRtmp_PublishRefused)
+extern SrsRtpPacket *create_mock_rtp_packet(bool is_audio, int64_t avsync_time, uint32_t ssrc, uint16_t seq, uint32_t ts);
+
+// A WHIP client that asks for G.722 or Speex audio with `?acodec=`, as Chrome offers G.722, publishing to a vhost
+// with `rtc_to_rtmp on`: there is no decoder to transcode the audio to AAC, as for G.711, so the stream is converted
+// to RTMP without its audio while WebRTC players still get it, and the publish is not refused.
+VOID TEST(AppRtcCodecTest, WhipG722WithRtcToRtmp_ConvertedWithoutAudio)
 {
     srs_error_t err = srs_success;
 
-    MockRtcFrameTarget target;
-    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
-    MockRequest req("__defaultVhost__", "live", "livestream");
+    // The SDP's track codec names G722 and SPEEX, which map to codecs with no decoder.
+    std::string names[] = {"G722", "SPEEX"};
+    for (int i = 0; i < 2; i++) {
+        MockRtcFrameTarget target;
+        SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+        MockRequest req("__defaultVhost__", "live", "livestream");
 
-    // The SDP's track codec name G722 maps to no SRS audio codec.
-    SrsAudioCodecId g722 = srs_audio_codec_str2id("G722");
-    HELPER_EXPECT_SUCCESS(builder.initialize(&req, g722, SrsVideoCodecIdAVC));
+        SrsAudioCodecId codec = srs_audio_codec_str2id(names[i]);
+        HELPER_EXPECT_SUCCESS(builder.initialize(&req, codec, SrsVideoCodecIdAVC));
+        EXPECT_TRUE(builder.audio_transcoder_ == NULL);
+        HELPER_EXPECT_SUCCESS(builder.on_publish());
+
+        // The audio packets are dropped, with no AAC sequence header and no frame.
+        for (int j = 0; j < 5; j++) {
+            SrsUniquePtr<SrsRtpPacket> pkt(create_mock_rtp_packet(true, 1000 + j * 20, 11111, 100 + j, 8000 + j * 160));
+            HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
+        }
+        EXPECT_EQ(0, target.on_frame_count_);
+    }
 }
 #endif
 
@@ -4131,9 +4210,9 @@ VOID TEST(AppRtcConnTest, PublisherLosesPackets_NackRequestAndSeqsCounted)
     EXPECT_EQ(4, _srs_pps_snack3->sugar_ - seqs);
 }
 
-// The server overloaded: at the circuit breaker's critical level, a publisher's lost packets are not asked for by
-// NACK, to spare the CPU. Once the load is back to normal, the packets lost during the overload, which may still be
-// resent in time, are asked for with the new losses.
+// The server overloaded: at the circuit breaker's critical level, as at its high level, the publisher's packets still
+// go through the receive queue, but no loss is asked for by NACK, to spare the CPU, and the packets lost then are
+// never asked for, as only the losses after the load is back to normal are.
 VOID TEST(AppRtcConnTest, OverloadedServerSendsNoNack)
 {
     srs_error_t err;
@@ -4143,21 +4222,17 @@ VOID TEST(AppRtcConnTest, OverloadedServerSendsNoNack)
     HELPER_ASSERT_SUCCESS(rtc_conn_utest_nack_through_overload(true, during, after));
 
     EXPECT_TRUE(during.empty());
-    for (uint16_t sn = 101; sn < 105; sn++) {
-        EXPECT_TRUE(rtc_conn_utest_has_sn(after, sn)) << sn;
-    }
-    for (uint16_t sn = 107; sn < 110; sn++) {
-        EXPECT_TRUE(rtc_conn_utest_has_sn(after, sn)) << sn;
-    }
-    EXPECT_FALSE(rtc_conn_utest_has_sn(after, 106));
+    ASSERT_EQ(3, (int)after.size());
+    EXPECT_EQ(107, after[0]);
+    EXPECT_EQ(108, after[1]);
+    EXPECT_EQ(109, after[2]);
 }
 
-// After the overload, the server should not ask for a packet it got during it. But at the critical level the
-// publisher skips the track's NACK step, which also records the packet in the receive queue, so the first packet
-// after it finds the whole gap since the last packet before it and asks for 105, which came (B48). The publisher
-// resends every such packet, a burst as large as the receive queue after a long overload, just as the server
+// After the overload, the server does not ask for a packet it got during it: at the critical level the packet is
+// still recorded in the receive queue, so the first packet after it finds no gap before it. Otherwise the publisher
+// would resend every such packet, a burst as large as the receive queue after a long overload, just as the server
 // recovers.
-VOID TEST(AppRtcConnTest, DISABLED_OverloadEnds_PacketReceivedDuringItAskedByNack)
+VOID TEST(AppRtcConnTest, OverloadEnds_PacketReceivedDuringItNotAskedByNack)
 {
     srs_error_t err;
 
@@ -4484,10 +4559,9 @@ VOID TEST(AppRtcDtlsTest, Dtls10VhostRefusedByDtls12OnlyBrowser)
     EXPECT_FALSE(server.impl_->handshake_done_for_us_);
 }
 
-// A vhost with dtls_version dtls1.2 should allow only DTLS 1.2, as dtls1.0 allows only DTLS 1.0, so it refuses a
-// client that offers only DTLS 1.0 by a fatal protocol_version alert. B49: it agrees on DTLS 1.0, because the
-// dtls1.2 context uses the version-flexible method, the same as auto.
-VOID TEST(AppRtcDtlsTest, DISABLED_Dtls12VhostAcceptsDtls10Client)
+// A vhost with dtls_version dtls1.2 allows only DTLS 1.2, as dtls1.0 allows only DTLS 1.0, so it refuses a client
+// that offers only DTLS 1.0 by a fatal protocol_version alert, see RFC 6347 section 4.2.1.
+VOID TEST(AppRtcDtlsTest, Dtls12VhostRefusesDtls10Client)
 {
     srs_error_t err;
 
@@ -4508,6 +4582,37 @@ VOID TEST(AppRtcDtlsTest, DISABLED_Dtls12VhostAcceptsDtls10Client)
     EXPECT_EQ(0, scb.handshake_done_count_) << "agreed on version 0x" << std::hex << SSL_version(server.impl_->dtls_);
     ASSERT_FALSE(scb.alerts_.empty());
     EXPECT_STREQ("PV", scb.alerts_[0].second.c_str());
+}
+
+// A browser offers DTLS 1.0 and 1.2 in its ClientHello, and a vhost with dtls_version dtls1.2 agrees with it on
+// DTLS 1.2, then both derive the same SRTP keys.
+VOID TEST(AppRtcDtlsTest, Dtls12VhostAgreesWithBrowserOnDtls12)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    string version = rtc_dtls_utest_vhost_version(&conf, "dtls1.2");
+
+    MockDtlsCallbackForHandshake ccb, scb;
+    SrsDtls client(&ccb);
+    SrsDtls server(&scb);
+    HELPER_ASSERT_SUCCESS(client.initialize("active", "auto"));
+    HELPER_ASSERT_SUCCESS(server.initialize("passive", version));
+    HELPER_ASSERT_SUCCESS(server.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(client.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(dtls_exchange(&client, &ccb, &server, &scb));
+
+    EXPECT_EQ(1, ccb.handshake_done_count_);
+    EXPECT_EQ(1, scb.handshake_done_count_);
+    EXPECT_TRUE(scb.alerts_.empty());
+    EXPECT_EQ(DTLS1_2_VERSION, SSL_version(server.impl_->dtls_));
+    EXPECT_EQ(DTLS1_2_VERSION, SSL_version(client.impl_->dtls_));
+
+    string client_recv, client_send, server_recv, server_send;
+    HELPER_ASSERT_SUCCESS(client.get_srtp_key(client_recv, client_send));
+    HELPER_ASSERT_SUCCESS(server.get_srtp_key(server_recv, server_send));
+    EXPECT_TRUE(client_send == server_recv);
+    EXPECT_TRUE(client_recv == server_send);
 }
 
 // The server's sessions by the username of their ICE checks, and the client addresses each session took, as the RTC

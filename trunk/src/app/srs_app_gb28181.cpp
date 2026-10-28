@@ -831,19 +831,10 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: use right way.
-    for (int i = 0; i < 10; i++) {
-        if (msgs_.find(msg->timestamp_) == msgs_.end()) {
-            break;
-        }
-
-        // adjust the ts, add 1ms.
+    // While another message holds the time, adjust the ts, add 1ms. The map holds a finite number of messages, so a
+    // free time is found, and no message is replaced.
+    while (msgs_.find(msg->timestamp_) != msgs_.end()) {
         msg->timestamp_ += 1;
-
-        if (i >= 100) {
-            srs_warn("Muxer: free the msg for dts exists, dts=%" PRId64, msg->timestamp_);
-            srs_freep(msg);
-            return err;
-        }
     }
 
     if (msg->is_audio()) {

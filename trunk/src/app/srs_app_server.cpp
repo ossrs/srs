@@ -1897,6 +1897,13 @@ srs_error_t SrsInotifyWorker::cycle()
     string k8s_file = "..data";
 
     while (true) {
+        // A stop that ends the sleep after a change interrupts this coroutine only once, so check it before the read,
+        // and end as a stop during the read does.
+        if ((err = trd_->pull()) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+
         char buf[4096];
         ssize_t nn = srs_read(inotify_fd_, buf, (size_t)sizeof(buf), SRS_UTIME_NO_TIMEOUT);
         if (nn < 0) {

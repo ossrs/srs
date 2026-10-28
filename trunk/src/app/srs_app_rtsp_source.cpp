@@ -932,7 +932,8 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
             return srs_error_wrap(err, "package stap-a");
         }
 
-        if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
+        // No STAP when the sequence header has no parameter sets, which the key frame then carries in band.
+        if (pkt->payload() && (err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
         }
     }

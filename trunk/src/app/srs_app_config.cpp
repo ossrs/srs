@@ -5896,12 +5896,7 @@ SrsConfDirective *SrsConfig::get_transcode(string vhost, string scope)
         return NULL;
     }
 
-    conf = conf->get("transcode");
-    if (!conf || conf->arg0() != scope) {
-        return NULL;
-    }
-
-    return conf;
+    return conf->get("transcode", scope);
 }
 
 bool SrsConfig::get_transcode_enabled(SrsConfDirective *conf)

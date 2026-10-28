@@ -3352,6 +3352,12 @@ VOID TEST(AppDvrTest, SegmentDiskFillsAtAnyWrite_OnlyClosedSegmentsReported)
             bool reported = i < (int)s.async_.tasks_.size() && s.file(i) == s.paths_[i];
             EXPECT_EQ(reported, s.exists(s.paths_[i])) << k << " " << s.paths_[i];
         }
+
+        // A reported segment holds its FLV header, even when the disk filled at the next segment's header.
+        for (int i = 0; i < (int)s.async_.tasks_.size(); i++) {
+            string flv = config_read_file(s.file(i));
+            EXPECT_TRUE(srs_strings_starts_with(flv, "FLV")) << k << " " << s.file(i) << " has " << flv.size() << " bytes";
+        }
     }
 
     EXPECT_GT(fill_points, 40);
@@ -3535,10 +3541,10 @@ VOID TEST(AppDvrTest, DvrPlanTypo_StreamRefused)
 
 // The disk is full when a publisher publishes to a vhost recording each session to FLV: the file is created, but its
 // FLV header can not be written, so the publish is refused. The operator frees space and the publisher publishes
-// again. The file of the refused publish, which holds no FLV header, was left open, and the new publish closes it,
-// names it and reports it to on_dvr as a recording. The same happens at a segment cut when the disk fills at the new
-// segment's header: the stream's unpublish names and reports that segment.
-VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
+// again. The file of the refused publish holds no FLV header, so it is removed, and the new publish neither names it
+// nor reports it to on_dvr as a recording. The same holds at a segment cut when the disk fills at the new segment's
+// header: the stream's unpublish does not report that segment.
+VOID TEST(AppDvrTest, HeaderWriteFailsThenRepublish_EmptyFileNotReported)
 {
     srs_error_t err;
 
@@ -3550,6 +3556,11 @@ VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
         srs_freep(err);
         s.dvr_->on_unpublish();
     }
+
+    // The file of the refused publish is not left on the disk.
+    ASSERT_EQ(1, (int)s.paths_.size());
+    EXPECT_FALSE(s.exists(s.paths_[0] + ".tmp"));
+    EXPECT_FALSE(s.exists(s.paths_[0]));
 
     // The next file's name, in ms, differs from the first's.
     dvr_utest_wait_next_ms();
@@ -4388,25 +4399,30 @@ VOID TEST(AppEncoderTest, OneEngineTurnedOff_OnlyOtherEngineRuns)
 }
 
 // An engine of the app's transcode re-encodes video with no profile, or names no vcodec, as an audio-only engine
-// would: FFmpeg can not run it, so the publish is refused. The copy engine made before it is freed and forgotten by
-// the unpublish that follows a refused publish.
+// would: FFmpeg can not run it, so the publish is refused, for the missing profile or the missing vcodec. The copy
+// engine made before it is freed and forgotten by the unpublish that follows a refused publish.
 VOID TEST(AppEncoderTest, AppEngineWithoutVideoProfile_PublishRefused)
 {
-    const char *engines[] = {
-        "engine hd { enabled on; vcodec libx264; vbitrate 800; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; }",
-        "engine aac { enabled on; acodec libfdk_aac; abitrate 45; output rtmp://127.0.0.1:[port]/[app]/[stream]_aac; }",
+    struct {
+        const char *engine;
+        int code;
+    } cases[] = {
+        {"engine hd { enabled on; vcodec libx264; vbitrate 800; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; }",
+         ERROR_ENCODER_VPROFILE},
+        {"engine aac { enabled on; acodec libfdk_aac; abitrate 45; output rtmp://127.0.0.1:[port]/[app]/[stream]_aac; }",
+         ERROR_ENCODER_VCODEC},
     };
 
-    for (int i = 0; i < (int)(sizeof(engines) / sizeof(engines[0])); i++) {
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
         EncoderUtestStream s("live");
-        srs_error_t err = s.publish(string("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY) + engines[i] + " }");
-        EXPECT_EQ(ERROR_ENCODER_VPROFILE, srs_error_code(err)) << engines[i];
+        srs_error_t err = s.publish(string("transcode live { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY) + cases[i].engine + " }");
+        EXPECT_EQ(cases[i].code, srs_error_code(err)) << cases[i].engine;
         srs_freep(err);
-        EXPECT_EQ(0, s.factory_.coroutines_) << engines[i];
+        EXPECT_EQ(0, s.factory_.coroutines_) << cases[i].engine;
 
         s.encoder_->on_unpublish();
-        EXPECT_TRUE(s.encoder_->ffmpegs_.empty()) << engines[i];
-        EXPECT_TRUE(s.transcoded_urls_.empty()) << engines[i];
+        EXPECT_TRUE(s.encoder_->ffmpegs_.empty()) << cases[i].engine;
+        EXPECT_TRUE(s.transcoded_urls_.empty()) << cases[i].engine;
     }
 }
 
@@ -4511,9 +4527,8 @@ VOID TEST(AppEncoderTest, EngineRuns_EncoderLineLogged)
 }
 
 // full.conf says a vhost can hold several transcode sections, and the encoder looks for one of the vhost, one of the
-// app and one of the stream. But the config gives only the vhost's first transcode section, so a vhost transcoding
-// two apps transcodes only the first; the second app's streams are published with no transcode and no error.
-VOID TEST(AppEncoderTest, DISABLED_VhostWithTranscodeOfTwoApps_SecondAppNotTranscoded)
+// app and one of the stream. A vhost transcoding two apps transcodes the streams of the second app by its own section.
+VOID TEST(AppEncoderTest, VhostWithTranscodeOfTwoApps_SecondAppTranscoded)
 {
     srs_error_t err;
 
@@ -4524,6 +4539,40 @@ VOID TEST(AppEncoderTest, DISABLED_VhostWithTranscodeOfTwoApps_SecondAppNotTrans
 
     ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
     EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_copy", s.encoder_->at(0)->output());
+}
+
+// The operator transcodes every stream of a vhost to SD, the streams of one app also to HD, and one stream of it also
+// to a copy, each in its own section. A stream of that app gets the engines of all three scopes, the vhost's first; a
+// stream of another app gets only the vhost's.
+VOID TEST(AppEncoderTest, VhostAppAndStreamTranscodes_StreamGetsEachScope)
+{
+    srs_error_t err;
+
+    string transcodes = "transcode { enabled on; " ENCODER_UTEST_FFMPEG
+                        "engine sd { enabled on; vcodec copy; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_sd; } } "
+                        "transcode game { enabled on; " ENCODER_UTEST_FFMPEG
+                        "engine hd { enabled on; vcodec copy; acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } } "
+                        "transcode game/livestream { enabled on; " ENCODER_UTEST_FFMPEG ENCODER_UTEST_COPY "}";
+
+    if (true) {
+        EncoderUtestStream s("game");
+        s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+        HELPER_ASSERT_SUCCESS(s.publish(transcodes));
+
+        ASSERT_EQ(3, (int)s.encoder_->ffmpegs_.size());
+        EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_sd", s.encoder_->at(0)->output());
+        EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_hd", s.encoder_->at(1)->output());
+        EXPECT_EQ("rtmp://127.0.0.1:1935/game/livestream_copy", s.encoder_->at(2)->output());
+    }
+
+    if (true) {
+        EncoderUtestStream s("live");
+        s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+        HELPER_ASSERT_SUCCESS(s.publish(transcodes));
+
+        ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
+        EXPECT_EQ("rtmp://127.0.0.1:1935/live/livestream_sd", s.encoder_->at(0)->output());
+    }
 }
 
 // The edge's pull for its first player, made as the server makes it: the ingester asks the server's app factory for the
@@ -4723,10 +4772,9 @@ VOID TEST(AppFfmpegTest, AppEngineWithSurroundOrNegativeAudio_PublishRefused)
     }
 }
 
-// The engine check says the vcodec must be H.264 or H.265, but it refuses only a vcodec naming all of 264, 265 and
-// hevc at once, so an engine re-encoding to VP8 (libvpx) is accepted. FFmpeg can not put VP8 in the FLV of the RTMP
-// output and fails at each start, and the encoder retries it every 3s with no transcoded stream.
-VOID TEST(AppFfmpegTest, DISABLED_AppEngineWithVp8Vcodec_Accepted)
+// An engine of the app's transcode re-encodes video to VP8 (libvpx). FFmpeg can not put VP8 in the FLV of the RTMP
+// output and would fail at each start, so the publish refuses the engine: the vcodec must be H.264 or H.265.
+VOID TEST(AppFfmpegTest, AppEngineWithVp8Vcodec_Refused)
 {
     EncoderUtestStream s("live");
     s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
@@ -4735,35 +4783,50 @@ VOID TEST(AppFfmpegTest, DISABLED_AppEngineWithVp8Vcodec_Accepted)
                                "    acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_vp8; } }");
     EXPECT_EQ(ERROR_ENCODER_VCODEC, srs_error_code(err)) << srs_error_desc(err);
     srs_freep(err);
+    EXPECT_EQ(0, s.factory_.coroutines_);
 }
 
-// An engine of the app's transcode re-encodes video and names no acodec. The encoder accepts it, and FFmpeg gets
-// "-acodec" with an empty name, which it refuses ("Encoder not found"), so the engine fails at each start. The
-// engine should either be refused at publish, as one with no vcodec is, or run with no empty argument.
-VOID TEST(AppFfmpegTest, DISABLED_AppEngineWithoutAcodec_FfmpegGetsEmptyAudioCodec)
+// Operators name the FFmpeg encoder of their host: a software, NVIDIA or Apple H.264 or H.265 encoder is accepted. A
+// VP9 or AV1 encoder is refused, as SRS takes only H.264 and H.265 (hvc1) video over RTMP.
+VOID TEST(AppFfmpegTest, AppEngineVcodecOfEachEncoder_OnlyH264AndH265Accepted)
 {
-    srs_error_t err;
+    struct {
+        const char *vcodec;
+        int code;
+    } cases[] = {
+        {"libx264", ERROR_SUCCESS},
+        {"h264_nvenc", ERROR_SUCCESS},
+        {"libx265", ERROR_SUCCESS},
+        {"hevc_videotoolbox", ERROR_SUCCESS},
+        {"libvpx-vp9", ERROR_ENCODER_VCODEC},
+        {"libaom-av1", ERROR_ENCODER_VCODEC},
+        {"libsvtav1", ERROR_ENCODER_VCODEC},
+    };
 
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        EncoderUtestStream s("live");
+        s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
+        srs_error_t err = s.publish(string("transcode live { enabled on; " ENCODER_UTEST_FFMPEG "engine hd { enabled on; vcodec ") +
+                                    cases[i].vcodec + "; vbitrate 800; vprofile main; vpreset medium;"
+                                                      "    acodec copy; output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } }");
+        EXPECT_EQ(cases[i].code, srs_error_code(err)) << cases[i].vcodec << ", " << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_EQ(cases[i].code == ERROR_SUCCESS ? 1 : 0, (int)s.encoder_->ffmpegs_.size()) << cases[i].vcodec;
+    }
+}
+
+// An engine of the app's transcode re-encodes video and names no acodec. FFmpeg would get "-acodec" with an empty
+// name, which it refuses ("Encoder not found"), and fail at each start, so the publish refuses the engine, as it
+// refuses one with no vcodec, and starts no FFmpeg.
+VOID TEST(AppFfmpegTest, AppEngineWithoutAcodec_Refused)
+{
     EncoderUtestStream s("live");
     s.factory_.coroutine_ = new MockCoroutineForForwarder(0);
-    err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG
-                    "engine hd { enabled on; vcodec libx264; vbitrate 800; vprofile main; vpreset medium;"
-                    "    output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } }");
-    if (err != srs_success) {
-        EXPECT_EQ(ERROR_ENCODER_ACODEC, srs_error_code(err)) << srs_error_desc(err);
-        srs_freep(err);
-        return;
-    }
-
-    ASSERT_EQ(1, (int)s.encoder_->ffmpegs_.size());
-    SrsFFMPEG *ffmpeg = dynamic_cast<SrsFFMPEG *>(s.encoder_->at(0));
-    ASSERT_TRUE(ffmpeg != NULL);
-    MockProcessForFFMPEG *process = new MockProcessForFFMPEG();
-    srs_freep(ffmpeg->process_);
-    ffmpeg->process_ = process;
-    HELPER_ASSERT_SUCCESS(ffmpeg->start());
-
-    for (int i = 0; i < (int)process->argv_.size(); i++) {
-        EXPECT_FALSE(process->argv_[i].empty()) << i << ": " << srs_strings_join(process->argv_, " ");
-    }
+    srs_error_t err = s.publish("transcode live { enabled on; " ENCODER_UTEST_FFMPEG
+                                "engine hd { enabled on; vcodec libx264; vbitrate 800; vprofile main; vpreset medium;"
+                                "    output rtmp://127.0.0.1:[port]/[app]/[stream]_hd; } }");
+    EXPECT_EQ(ERROR_ENCODER_ACODEC, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(0, s.factory_.coroutines_);
+    EXPECT_TRUE(s.encoder_->ffmpegs_.empty());
 }

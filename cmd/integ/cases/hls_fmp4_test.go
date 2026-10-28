@@ -26,7 +26,7 @@ import (
 
 // sharedFmp4 is the config of the shared Fmp4 server: HLS in fragmented MP4
 // (hls_use_fmp4), and the settings of TestHls_Options that apply to it: 2s
-// fragments with hls_td_ratio 1.5, a 3s target, which makes segments of 4s
+// fragments with hls_td_ratio 1.5, a 3s target, which makes segments of 3s
 // on the 1s GOP (fmp4Segment); hls_aof_ratio 2.5; a 7s window; the files
 // under ./hls; and an entry prefix, whose URIs the cases follow as a CDN
 // would (cdnDial). The segment and init files have templates of their own,
@@ -60,7 +60,7 @@ func TestHls_Fmp4(t *testing.T) {
 	t.Cleanup(cdnTransport.CloseIdleConnections)
 	cdn := &http.Client{Transport: cdnTransport}
 
-	// play publishes a file through d at once, which closes the 4s segments
+	// play publishes a file through d at once, which closes the 3s segments
 	// before d, and plays its HLS until u.
 	play := func(c *check.C, file string, d time.Duration, client *http.Client, secure bool, u report.Until) *report.Report {
 		stream := "live/" + streamName(c)
@@ -71,7 +71,8 @@ func TestHls_Fmp4(t *testing.T) {
 		}
 		return playHLS(c, client, addr+"/"+stream+".m3u8", u)
 	}
-	// fmp4Until is two 4s segments: both sequence headers and 5s of media.
+	// fmp4Until is within two 3s segments: both sequence headers and 5s of
+	// media.
 	fmp4Until := report.Until{VideoHeader: true, AudioHeader: true, Duration: 5 * time.Second}
 
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
@@ -132,9 +133,9 @@ func TestHls_Fmp4(t *testing.T) {
 		checkPlayed(c, r, "h264", "aac")
 	})
 
-	// The master playlist of a new session, then the media playlist of an 8s
+	// The master playlist of a new session, then the media playlist of a 6s
 	// stream that is still published: version 7, the init file in
-	// #EXT-X-MAP, and two 4s segments named by hls_fmp4_file in the session.
+	// #EXT-X-MAP, and two 3s segments named by hls_fmp4_file in the session.
 	check.Case(t, "PlaylistTags", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 2*fmp4Segment)
@@ -151,7 +152,7 @@ func TestHls_Fmp4(t *testing.T) {
 		res, _ = httpGet(c, cdn, mediaURL)
 		c.CheckEqual(res.Header.Get("Content-Type"), "application/vnd.apple.mpegurl", "content type of the media playlist")
 		c.CheckEqual(pl.Version, 7, "version")
-		c.CheckEqual(pl.TargetDuration, 4, "target duration, the longest segment")
+		c.CheckEqual(pl.TargetDuration, 3, "target duration, the longest segment")
 		c.CheckEqual(pl.MediaSequence, 0, "media sequence")
 		c.Check(!pl.EndList, "a live playlist has no #EXT-X-ENDLIST")
 		c.CheckEqual(len(pl.Segments), 2, "closed segments")
@@ -183,7 +184,7 @@ func TestHls_Fmp4(t *testing.T) {
 		c.CheckEqual(fmt.Sprint(initTracks(c, cdn, pl)), "[vide:avc1 soun:mp4a]", "tracks of the init file")
 	})
 
-	// Each segment starts with a keyframe and holds 4 GOPs of 1s, and the
+	// Each segment starts with a keyframe and holds 3 GOPs of 1s, and the
 	// next starts where it ends.
 	check.Case(t, "SegmentsOnGop", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
@@ -199,28 +200,28 @@ func TestHls_Fmp4(t *testing.T) {
 				return
 			}
 			c.CheckEqual(r.Video.LeadingFrames, 0, "frames before the first keyframe")
-			c.CheckEqual(r.Video.Keyframes, 4, "keyframes")
-			c.Check(near(r.Video.Duration(), fmp4Segment, 50*time.Millisecond), "video %v, want 4s", r.Video.Duration())
+			c.CheckEqual(r.Video.Keyframes, 3, "keyframes")
+			c.Check(near(r.Video.Duration(), fmp4Segment, 50*time.Millisecond), "video %v, want 3s", r.Video.Duration())
 			reports = append(reports, r)
 		}
 		if len(reports) == 2 {
 			step := reports[1].Video.FirstDTS - reports[0].Video.FirstDTS
-			c.Check(near(step, fmp4Segment, time.Millisecond), "the second segment starts %v after the first, want 4s", step)
+			c.Check(near(step, fmp4Segment, time.Millisecond), "the second segment starts %v after the first, want 3s", step)
 		}
 	})
 
-	// The playlist keeps the last segments that pass the window: 2 of 4s for
-	// 7s, so it starts at 3 of the 5 segments of 20s; hls_cleanup removes
+	// The playlist keeps the last segments that pass the window: 3 of 3s for
+	// 7s, so it starts at 3 of the 6 segments of 20s; hls_cleanup removes
 	// the others, and keeps the init file.
 	check.Case(t, "WindowAndCleanup", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 20*time.Second)
-		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(4))
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(5))
 		c.CheckEqual(pl.MediaSequence, 3, "media sequence")
-		c.CheckEqual(len(pl.Segments), 2, "segments in the window")
+		c.CheckEqual(len(pl.Segments), 3, "segments in the window")
 
 		dir := filepath.Join(srs.Dir, "hls")
-		for i := range 5 {
+		for i := range 6 {
 			_, err := os.Stat(filepath.Join(dir, fmt.Sprintf("%v-seg-%v.m4s", stream, i)))
 			if i < 3 {
 				c.Check(errors.Is(err, os.ErrNotExist), "segment %v: %v, want it removed", i, err)
@@ -349,7 +350,7 @@ var escapedMount = server.Static{Mount: "[vhost]/a%20b/", Dir: "./escaped/[vhost
 // TestHls_Fmp4Default plays HLS in fmp4 with every file at SRS's default
 // names: the playlist [app]/[stream].m3u8, the segments
 // [app]/[stream]-[seq].m4s and the init file [app]/[stream]/init.mp4, and the
-// 10s fragment, which makes segments of 11s on the 1s GOP (see fmp4Segment).
+// 10s fragment, which makes segments of 10s on the 1s GOP (see fmp4Segment).
 func TestHls_Fmp4Default(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "RemuxOff", sharedRemuxOff())
@@ -358,7 +359,7 @@ func TestHls_Fmp4Default(t *testing.T) {
 	// and the init file.
 	check.Case(t, "DefaultFiles", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
-		publishThrough(c, srs, stream, media.H264HighAAC, 11*time.Second)
+		publishThrough(c, srs, stream, media.H264HighAAC, 10*time.Second)
 		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
 		dir := filepath.Join(srs.Dir, "objs", "nginx", "html")
 		for _, f := range []string{stream + ".m3u8", stream + "-0.m4s", stream + "/init.mp4"} {
@@ -368,7 +369,7 @@ func TestHls_Fmp4Default(t *testing.T) {
 		if c.Check(len(pl.Segments) == 1 && pl.Segments[0].Map != nil, "segments %+v, want one with #EXT-X-MAP", pl.Segments) {
 			u, _ := url.Parse(pl.Segments[0].URI)
 			c.CheckEqual(u.Path, "/"+stream+"-0.m4s", "segment path")
-			checkDurations(c, pl, 11*time.Second-100*time.Millisecond, 11*time.Second+100*time.Millisecond)
+			checkDurations(c, pl, 10*time.Second-100*time.Millisecond, 10*time.Second+100*time.Millisecond)
 		}
 		res, _ := httpGet(c, httpClient, flvURL(srs, stream+"/init.mp4"))
 		c.CheckEqual(res.StatusCode, 200, "status of the init file at its path")
@@ -377,7 +378,7 @@ func TestHls_Fmp4Default(t *testing.T) {
 	// A player follows #EXT-X-MAP to the init file and plays the segment.
 	check.Case(t, "DefaultInitPlays", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
-		publishThrough(c, srs, stream, media.H264HighAAC, 11*time.Second)
+		publishThrough(c, srs, stream, media.H264HighAAC, 10*time.Second)
 		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
 		if !c.Check(pl.Segments[0].Map != nil, "no #EXT-X-MAP") {
 			return
@@ -390,11 +391,10 @@ func TestHls_Fmp4Default(t *testing.T) {
 }
 
 // fmp4Segment is how long the segments of TestHls_Fmp4 last: SRS cuts an
-// fmp4 segment at the first keyframe where the segment already lasts its 3s
-// target, measured to its last frame, not to the keyframe. On the 1s GOP the
-// keyframe at 3s finds it at 2.96s, so it cuts at the next, 4s; a TS segment
-// with the same settings is cut at 3s.
-const fmp4Segment = 4 * time.Second
+// fmp4 segment at the first keyframe where the segment, measured to that
+// keyframe, lasts its 3s target, as it cuts a TS segment. On the 1s GOP that
+// is the keyframe at 3s.
+const fmp4Segment = 3 * time.Second
 
 // cdnDial dials the server's HTTP server for the host of hls_entry_prefix,
 // as a CDN in front of it would, and every other address as it is.
@@ -408,12 +408,12 @@ func cdnDial(srs *server.Server) func(ctx context.Context, network, addr string)
 	}
 }
 
-// republishFmp4 publishes 5s of a stream, unpublishes it, which closes a 1s
-// segment, and publishes 4s again, and returns the playlist with the
-// segment of the second publish.
+// republishFmp4 publishes a segment and 1s of a stream, unpublishes it,
+// which closes a 1s segment, and publishes a segment again, and returns the
+// playlist with the segment of the second publish.
 func republishFmp4(c *check.C, client *http.Client, srs *server.Server, stream string) *hls.Playlist {
 	c.Helper()
-	pub := publishThrough(c, srs, stream, media.H264HighAAC, 5*time.Second)
+	pub := publishThrough(c, srs, stream, media.H264HighAAC, fmp4Segment+time.Second)
 	_, mediaURL := waitPlaylist(c, client, flvURL(srs, stream+".m3u8"), hasSegment(0))
 	pub.Close()
 	waitPlaylist(c, client, mediaURL, hasSegment(1))

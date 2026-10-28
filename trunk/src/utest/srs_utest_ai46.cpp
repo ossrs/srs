@@ -999,9 +999,9 @@ VOID TEST(AppSrtSourceTest, KeyFrameWithCutSps_VideoReportedFromNextKeyFrame)
     EXPECT_EQ(240, s.api_stream()->height_);
 }
 
-// As above, but with a P frame between the key frame of the cut SPS and the next key frame, as in any GOP. The stream API
-// should get 320x240 from the next key frame.
-VOID TEST(AppSrtSourceTest, DISABLED_KeyFrameWithCutSpsThenPFrame_VideoReportedAs0x0)
+// As above, but with a P frame between the key frame of the cut SPS and the next key frame, as in any GOP. The P frame
+// reports nothing, and the stream API gets 320x240 from the next key frame.
+VOID TEST(AppSrtSourceTest, KeyFrameWithCutSpsThenPFrame_VideoReportedFromNextKeyFrame)
 {
     srs_error_t err;
 
@@ -1012,8 +1012,12 @@ VOID TEST(AppSrtSourceTest, DISABLED_KeyFrameWithCutSpsThenPFrame_VideoReportedA
                  srt_source_utest_nalu(srt_source_utest_idr, sizeof(srt_source_utest_idr));
     HELPER_ASSERT_SUCCESS(s.video(90000, 90000, cut));
     HELPER_ASSERT_SUCCESS(s.video(93600, 93600, srt_source_utest_h264_p()));
+    HELPER_ASSERT_SUCCESS(s.send());
+    EXPECT_FALSE(s.format()->video_codec_reported_);
+
     HELPER_ASSERT_SUCCESS(s.video(97200, 97200, srt_source_utest_h264_key()));
     HELPER_ASSERT_SUCCESS(s.send());
+    EXPECT_TRUE(s.format()->video_codec_reported_);
 
     ASSERT_TRUE(s.api_stream() != NULL);
     EXPECT_EQ(320, s.api_stream()->width_);
@@ -1833,9 +1837,9 @@ VOID TEST(AppStreamBridgeTest, DISABLED_RtmpToRtcCorruptAacFrame_PublisherDiscon
 
 // An HEVC RTMP encoder that sends its VPS, SPS and PPS in band, in each key frame, with a sequence header that holds
 // none, as ISO/IEC 14496-15 allows for hev1, to a vhost with `rtmp_to_rtc on`. The live source takes both, and the
-// WebRTC player should get the key frame's NALUs. The WebRTC builder instead fails the key frame, "vps/sps/pps
-// empty", and the live source returns it, so the encoder is disconnected at its first key frame (B61, as B57 for RTSP).
-VOID TEST(AppStreamBridgeTest, DISABLED_RtmpHevcParameterSetsInBandToRtc_PublisherDisconnected)
+// WebRTC builder has no parameter set to send in a STAP, so the player gets the key frame's four NALUs as they are,
+// and the encoder stays.
+VOID TEST(AppStreamBridgeTest, RtmpHevcParameterSetsInBandToRtc_KeyFrameNalusSent)
 {
     srs_error_t err;
 
@@ -2275,8 +2279,9 @@ VOID TEST(AppUtilityTest, InterfaceWithPublicAddress_BytesCountedAsInternet)
     EXPECT_EQ(intranet_send, sys->get_property("net_sendi_bytes")->to_integer());
 }
 
-// The interfaces of a host as /proc/net/dev lists them: the name before the colon, without the padding.
-static vector<string> utility_utest_proc_interfaces()
+// The interfaces of a host as /proc/net/dev lists them: the name before the colon, without the padding, and the bytes
+// received, the first number after it.
+static vector<string> utility_utest_proc_interfaces(map<string, unsigned long long> &rbytes)
 {
     vector<string> names;
 
@@ -2292,7 +2297,9 @@ static vector<string> utility_utest_proc_interfaces()
             continue;
         }
         string name(buf, colon - buf);
-        names.push_back(name.substr(name.find_first_not_of(' ')));
+        name = name.substr(name.find_first_not_of(' '));
+        names.push_back(name);
+        rbytes[name] = strtoull(colon + 1, NULL, 10);
     }
     fclose(f);
 
@@ -2300,24 +2307,32 @@ static vector<string> utility_utest_proc_interfaces()
 }
 
 // A host with an interface named longer than 6 chars, such as enp0s31f6 on a bare-metal server, or gretap0 and ip6tnl0 in
-// a Docker container: the server lists it by a cut name with no bytes, so a public interface of such a name counts no
-// internet traffic. Bug: SrsNetworkDevices keeps 6 chars of the name, and the parse stops at the cut.
-VOID TEST(AppUtilityTest, DISABLED_InterfaceNamedLongerThan6Chars_NotListed)
+// a Docker container: the server lists it by its whole name, up to the 15 chars Linux allows, with its bytes, so a
+// public interface of such a name counts its internet traffic.
+VOID TEST(AppUtilityTest, InterfaceNamedLongerThan6Chars_Listed)
 {
-    vector<string> names = utility_utest_proc_interfaces();
+    map<string, unsigned long long> before;
+    vector<string> names = utility_utest_proc_interfaces(before);
     ASSERT_FALSE(names.empty());
 
     srs_update_network_devices();
-    set<string> listed;
+    map<string, unsigned long long> after;
+    utility_utest_proc_interfaces(after);
+
+    map<string, unsigned long long> listed;
     SrsNetworkDevices *devices = srs_get_network_devices();
     for (int i = 0; i < srs_get_network_devices_count(); i++) {
         SrsNetworkDevices &device = devices[i];
-        listed.insert(device.name_);
+        listed[device.name_] = device.rbytes_;
     }
 
     for (int i = 0; i < (int)names.size() && i < 16; i++) {
         string name = names[i];
-        EXPECT_TRUE(listed.find(name) != listed.end()) << "interface " << name << " not listed";
+        ASSERT_TRUE(listed.find(name) != listed.end()) << "interface " << name << " not listed";
+
+        // The bytes are read at the update, between the two reads of the test.
+        EXPECT_LE(before[name], listed[name]) << "interface " << name;
+        EXPECT_GE(after[name], listed[name]) << "interface " << name;
     }
 }
 #endif
@@ -2482,10 +2497,10 @@ VOID TEST(AppHlsTest, ReadOnlyVolumeAfterSegmentFinished_NextSegmentNotOpened)
         HlsUtestStream s("ai46-hls-fmp4-ro-next");
         HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
         HELPER_ASSERT_SUCCESS(s.sequence_headers());
-        HELPER_ASSERT_SUCCESS(s.av(0, 1900));
+        HELPER_ASSERT_SUCCESS(s.av(0, 900));
 
         volume.read_only_at("livestream-1.m4s.tmp");
-        err = s.video(2000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+        err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
         EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
         EXPECT_NE(string::npos, srs_error_desc(err).find("open segment")) << srs_error_desc(err);
         srs_freep(err);
@@ -2555,12 +2570,12 @@ VOID TEST(AppHlsTest, Fmp4DiskFillsAtPlaylist_PlayersKeepOldPlaylist)
     HlsUtestStream s("ai46-hls-fmp4-full-m3u8");
     HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
-    HELPER_ASSERT_SUCCESS(s.av(0, 3900));
+    HELPER_ASSERT_SUCCESS(s.av(0, 1900));
     string m3u8 = s.m3u8();
     ASSERT_EQ(1, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
 
     volume.fill_at("livestream.m3u8.temp");
-    err = s.video(4000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+    err = s.video(2000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     srs_freep(err);
 
     EXPECT_STREQ(m3u8.c_str(), s.m3u8().c_str());

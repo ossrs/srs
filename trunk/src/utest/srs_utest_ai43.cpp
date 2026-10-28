@@ -857,10 +857,9 @@ VOID TEST(AppGb28181Test, SessionPrintsMediaStatsAtPithyInterval)
     EXPECT_EQ(1, gb_utest_count(log.traces_, "Session: Alive=0s, packs=1, recover=0, reserved=0, msgs=1, drop=0", media));
 }
 
-// The session logs each state change with the device it serves, as the publish API set it. The device is set through
-// the session's interface, whose device_id_ the session's own member of the same name hides, so the log names no
-// device.
-VOID TEST(AppGb28181Test, DISABLED_SessionStateChangeLog_DeviceIdEmpty)
+// The session logs each state change with the device it serves, as the publish API set it through the session's
+// interface, so an operator can tell which camera connected or dropped.
+VOID TEST(AppGb28181Test, SessionStateChangeLog_NamesDevice)
 {
     srs_error_t err = srs_success;
 
@@ -1575,9 +1574,9 @@ VOID TEST(AppHlsTest, PublisherReconnects_SegmentsListedOnce)
 }
 
 // The server lost power right after it renamed a new playlist over the old one, before the file system wrote its data,
-// so an empty playlist is left. When the publisher publishes again, the server should start a new playlist, as with no
-// playlist at all; it refuses the publish, with an error of code 0, until an operator removes the file.
-VOID TEST(AppHlsTest, DISABLED_EmptyPlaylistLeftByPowerLoss_PublishRefused)
+// so an empty playlist is left. When the publisher publishes again, the server warns and starts a new playlist, as with
+// no playlist at all, which replaces the empty one.
+VOID TEST(AppHlsTest, EmptyPlaylistLeftByPowerLoss_NewPlaylistStarted)
 {
     srs_error_t err;
 
@@ -1586,7 +1585,22 @@ VOID TEST(AppHlsTest, DISABLED_EmptyPlaylistLeftByPowerLoss_PublishRefused)
     HELPER_ASSERT_SUCCESS(p.mkdir_all(s.path("")));
     hls_utest_write_file(s.path("livestream.m3u8"), "");
 
-    HELPER_EXPECT_SUCCESS(s.publish("hls_fragment 1;"));
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    err = s.publish("hls_fragment 1;");
+    _srs_log = original;
+    HELPER_ASSERT_SUCCESS(err);
+    EXPECT_NE(string::npos, utest_log_find(log.warns_, "empty m3u8").find("livestream.m3u8"));
+
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 2000));
+
+    string m3u8 = s.m3u8();
+    EXPECT_NE(string::npos, m3u8.find("#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-TARGETDURATION:1\n#EXT-X-DISCONTINUITY\n"
+                                      "#EXTINF:1.000, no desc\nlivestream-0.ts\n#EXTINF:1.000, no desc\nlivestream-1.ts\n"))
+        << m3u8;
+    EXPECT_EQ(2, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
 }
 
 // The operator sets hls_path under a regular file, such as a typo naming another service's file. HLS can not make the
@@ -1665,8 +1679,8 @@ VOID TEST(AppHlsTest, ReadOnlyVolumeMidStream_PlaylistKeepsEarlierSegments)
     EXPECT_TRUE(s.exists("livestream-1.ts"));
 }
 
-// The disk fills while a publisher streams, right before a key frame. The segment is finished, but neither the
-// playlist nor the next segment can be written, so the frame fails and the hub stops HLS for the stream; no playlist
+// The disk fills while a publisher streams, right before a key frame. The segment is finished, but the playlist can
+// not be written, so the frame fails with the playlist's write error and the hub stops HLS for the stream; no playlist
 // lists a segment, and the unpublish leaves no temporary file.
 VOID TEST(AppHlsTest, DiskFullAtKeyFrame_PlaylistNotWritten)
 {
@@ -1682,6 +1696,7 @@ VOID TEST(AppHlsTest, DiskFullAtKeyFrame_PlaylistNotWritten)
     err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
     EXPECT_NE(string::npos, srs_error_desc(err).find("hls: reap segment")) << srs_error_desc(err);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("hls: refresh m3u8")) << srs_error_desc(err);
     srs_freep(err);
 
     s.hls_->on_unpublish();
@@ -1760,9 +1775,10 @@ VOID TEST(AppHlsTest, CleanupJobDeletesStreamDir_SegmentNotListed)
 #endif
 
 // The operator names the playlist as the dir of the segments, such as hls_m3u8_file [app]/[stream] with hls_ts_file
-// [app]/[stream]/[seq].ts. The playlist can not be renamed over the dir, so the segment close should fail and the hub
-// stop HLS for the stream; the rename error is lost instead, and the stream goes on with no playlist and no warning.
-VOID TEST(AppHlsTest, DISABLED_PlaylistNamedAsSegmentDir_RenameErrorLost)
+// [app]/[stream]/[seq].ts. The playlist can not be renamed over the dir, so the key frame that ends the first segment
+// fails with the rename error and the hub stops HLS for the stream, rather than go on with no playlist; the temporary
+// playlist is removed. For TS and for fMP4.
+VOID TEST(AppHlsTest, PlaylistNamedAsSegmentDir_RenameErrorReturned)
 {
     srs_error_t err;
 
@@ -1772,12 +1788,12 @@ VOID TEST(AppHlsTest, DISABLED_PlaylistNamedAsSegmentDir_RenameErrorLost)
         HlsUtestStream s("ai43-hls-m3u8-dir");
         HELPER_ASSERT_SUCCESS(s.publish(options[i]));
         HELPER_ASSERT_SUCCESS(s.sequence_headers());
-        HELPER_ASSERT_SUCCESS(s.av(0, 900));
 
-        err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+        err = s.av(0, 2000);
         EXPECT_EQ(ERROR_HLS_WRITE_FAILED, srs_error_code(err)) << options[i];
         EXPECT_NE(string::npos, srs_error_desc(err).find("rename m3u8 file failed")) << srs_error_desc(err);
         srs_freep(err);
+        EXPECT_FALSE(s.exists("livestream.temp")) << options[i];
     }
 }
 
@@ -1815,9 +1831,9 @@ VOID TEST(AppHlsTest, Fmp4LongPublishSlidesWindowAndRemovesOldSegments)
 }
 
 // A publisher streams to a vhost with fMP4 HLS segments of 1s, with a key frame each second, as it does with TS.
-// Each key frame should cut a segment of 1s, as TS does; but the fMP4 muxer checks the segment's duration before it
-// adds the key frame, which is then 0.9s, so it cuts each second key frame, and lists 2s segments as 1.9s.
-VOID TEST(AppHlsTest, DISABLED_Fmp4SegmentOfOneGop_CutAtSecondKeyFrame)
+// The segment's duration counts the key frame before the cut is checked, so each key frame cuts a segment of 1s, as
+// TS does: the playlist lists the last four 1s segments, and the target duration is 1s.
+VOID TEST(AppHlsTest, Fmp4SegmentOfOneGop_CutAtEachKeyFrame)
 {
     srs_error_t err;
 
@@ -1828,7 +1844,32 @@ VOID TEST(AppHlsTest, DISABLED_Fmp4SegmentOfOneGop_CutAtSecondKeyFrame)
 
     string m3u8 = s.m3u8();
     EXPECT_NE(string::npos, m3u8.find("#EXT-X-MEDIA-SEQUENCE:6\n")) << m3u8;
+    EXPECT_NE(string::npos, m3u8.find("#EXT-X-TARGETDURATION:1\n")) << m3u8;
     EXPECT_EQ(4, hls_utest_count(m3u8, "#EXTINF:1.000, no desc\n")) << m3u8;
+    for (int i = 6; i < 10; i++) {
+        string m4s = "livestream-" + srs_strconv_format_int(i) + ".m4s";
+        EXPECT_NE(string::npos, m3u8.find("\n" + m4s + "\n")) << m3u8;
+    }
+}
+
+// A radio station publishes AAC only, a frame each 100ms, to a vhost with fMP4 HLS segments of 1s. The frame that
+// brings a segment to hls_aof_ratio (2.1) times the fragment cuts it, as TS does, so 8.5s of audio gives four
+// segments of 2.1s, cut at 2.1s, 4.2s, 6.3s and 8.4s, not a frame later each time.
+VOID TEST(AppHlsTest, Fmp4AudioOnlyStream_CutAtFrameReachingDuration)
+{
+    srs_error_t err;
+
+    HlsUtestStream s("ai43-hls-fmp4-audio-cut");
+    HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
+    HELPER_ASSERT_SUCCESS(s.audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
+    for (int ts = 0; ts <= 8500; ts += 100) {
+        HELPER_ASSERT_SUCCESS(s.audio(ts, flv_utest_aac_frame, sizeof(flv_utest_aac_frame)));
+    }
+
+    string m3u8 = s.m3u8();
+    EXPECT_EQ(4, hls_utest_count(m3u8, "#EXTINF:2.100, no desc\n")) << m3u8;
+    EXPECT_EQ(4, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
+    EXPECT_NE(string::npos, m3u8.find("\nlivestream-3.m4s\n")) << m3u8;
 }
 
 // The EXTINF durations of a playlist, in ms.
@@ -1948,10 +1989,10 @@ VOID TEST(AppHlsTest, Fmp4DiskFullAtKeyFrame_SegmentNotListed)
     HlsUtestStream s("ai43-hls-fmp4-full");
     HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
-    HELPER_ASSERT_SUCCESS(s.av(0, 1900));
+    HELPER_ASSERT_SUCCESS(s.av(0, 900));
 
     volume.fill();
-    err = s.video(2000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+    err = s.video(1000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
     EXPECT_NE(string::npos, srs_error_desc(err).find("m4s flush encoder")) << srs_error_desc(err);
     srs_freep(err);
@@ -1977,12 +2018,12 @@ VOID TEST(AppHlsTest, Fmp4ReadOnlyVolumeAtKeyFrame_PlaylistKeepsEarlierSegments)
     HlsUtestStream s("ai43-hls-fmp4-ro-key");
     HELPER_ASSERT_SUCCESS(s.publish("hls_fragment 1; hls_use_fmp4 on;"));
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
-    HELPER_ASSERT_SUCCESS(s.av(0, 3900));
+    HELPER_ASSERT_SUCCESS(s.av(0, 1900));
     string m3u8 = s.m3u8();
     ASSERT_EQ(1, hls_utest_count(m3u8, "#EXTINF:")) << m3u8;
 
     volume.read_only();
-    err = s.video(4000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
+    err = s.video(2000, flv_utest_avc_idr, sizeof(flv_utest_avc_idr));
     EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
     EXPECT_NE(string::npos, srs_error_desc(err).find("refresh m3u8")) << srs_error_desc(err);
     srs_freep(err);
@@ -3667,10 +3708,10 @@ VOID TEST(AppHttpStaticTest, HlsTsCtxOff_SessionPlaylistServedAsFile)
     }
 }
 
-// B40: with hls_ts_ctx off, a refresh of the session's playlist is served as a file but does not keep the session
-// alive, so the HLS timer ends the session of a player that has refreshed all along: the viewer is dropped from the
-// API, and its next refresh, whose ctx is gone, gets a master playlist instead of the media playlist.
-VOID TEST(AppHttpStaticTest, DISABLED_HlsTsCtxOffPlayerKeepsRefreshing_SessionExpires)
+// With hls_ts_ctx off, a player that has played longer than two windows refreshes its playlist, served as a file. The
+// refresh keeps its session alive, so the HLS timer keeps the session and the viewer in the API, and the next refresh
+// gets the media playlist again, not a master playlist of a new session.
+VOID TEST(AppHttpStaticTest, HlsTsCtxOffPlayerKeepsRefreshing_SessionKept)
 {
     srs_error_t err;
 
@@ -3729,6 +3770,32 @@ VOID TEST(AppHttpStaticTest, HlsViewerKickedByApi_PlaylistRefreshNotFound)
         EXPECT_STREQ(("HLS stream " + ctx + " is EOF").c_str(), http_api_utest_body(media).c_str());
         EXPECT_TRUE(vod.api_.stat_.find_client(ctx) == NULL);
     }
+}
+
+// The same kick on a vhost with hls_ts_ctx off, where the playlist refresh of a session is served as a file: the
+// kicked viewer's refresh is still refused with 404, so the kick stops the player as it does with hls_ts_ctx on.
+VOID TEST(AppHttpStaticTest, HlsTsCtxOffViewerKickedByApi_PlaylistRefreshNotFound)
+{
+    srs_error_t err;
+
+    StaticUtestVod vod;
+    HELPER_ASSERT_SUCCESS(vod.initialize("hls { enabled on; hls_ts_ctx off; }"));
+    vod.write("/live/livestream.m3u8", static_utest_m3u8);
+
+    MockBufferIO master;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8", &master));
+    string ctx = static_utest_ctx(http_api_utest_body(master));
+    ASSERT_TRUE(vod.session(ctx) != NULL);
+    vod.session(ctx)->stat_ = &vod.api_.stat_;
+
+    MockBufferIO kick;
+    HELPER_ASSERT_SUCCESS(vod.api_.serve(HTTP_DELETE, "/api/v1/clients/" + ctx, &kick));
+    EXPECT_EQ(0, http_api_utest_code(kick)) << http_api_utest_body(kick);
+
+    MockBufferIO media;
+    HELPER_ASSERT_SUCCESS(vod.get("/live/livestream.m3u8?hls_ctx=" + ctx, &media));
+    EXPECT_STREQ("HTTP/1.1 404 Not Found", http_api_utest_status(media).c_str());
+    EXPECT_STREQ(("HLS stream " + ctx + " is EOF").c_str(), http_api_utest_body(media).c_str());
 }
 
 // A player with an auth token in its URL: the master playlist names the media playlist with the session id and the
@@ -3881,10 +3948,10 @@ VOID TEST(AppHttpStaticTest, FlvSeekViewerLeaves_ServingStopsAtFailedWrite)
     }
 }
 
-// B41: an FLV file that ends inside its sequence header tags, such as a recording cut short, asked for with a start:
-// the server sends the sequence headers at the size their tags claim, so the reply holds more bytes than the file has,
-// and those come from memory the file never filled.
-VOID TEST(AppHttpStaticTest, DISABLED_FlvCutInsideSequenceHeaders_RepliesBytesPastFileEnd)
+// An FLV file that ends inside its sequence header tags, such as a recording cut short, asked for with a start: the
+// sequence headers the tags claim are not all in the file, so the request is refused before any byte is sent, as for
+// a file with no sequence header, and the player gets no bytes the file does not have.
+VOID TEST(AppHttpStaticTest, FlvCutInsideSequenceHeaders_Refused)
 {
     srs_error_t err;
 
@@ -3899,13 +3966,11 @@ VOID TEST(AppHttpStaticTest, DISABLED_FlvCutInsideSequenceHeaders_RepliesBytesPa
 
     MockBufferIO io;
     err = vod.get("/live/cut.flv?start=" + srs_strconv_format_int(start), &io);
+    EXPECT_EQ(ERROR_HTTP_REMUX_SEQUENCE_HEADER, srs_error_code(err));
+    string desc = srs_error_desc(err);
     srs_freep(err);
-
-    // The FLV header, then at most the bytes the file has from the sequence headers on, then the tags from the start.
-    int most = 13 + ((int)file.size() - 13) + ((int)file.size() - start);
-    EXPECT_LE((int)http_api_utest_body(io).size(), most);
-    string length = static_utest_header(io, "Content-Length");
-    EXPECT_TRUE(length.empty() || ::atoi(length.c_str()) <= most) << length;
+    EXPECT_NE(string::npos, desc.find("past file end")) << desc;
+    EXPECT_EQ(0, io.out_buffer.length());
 }
 
 // A player asks for a range of an MP4 recording, as it does to seek: it gets 206 with the bytes of the range. A player
