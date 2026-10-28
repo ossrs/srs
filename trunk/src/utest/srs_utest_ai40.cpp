@@ -2965,16 +2965,34 @@ VOID TEST(KernelRtcQueueTest, PublisherSequenceWrapsWithLastPacketLost)
     EXPECT_EQ(65537u, queue->get_extended_highest_sequence());
 }
 
-// B10: when packet 65535 arrives in order, the end of the ring buffer wraps to 0 before packet 0 arrives, so packet
-// 0 is not seen as a wrap. The receiver report's extended highest sequence is then 0xffffffff after 65535 and 0
-// after packet 0, instead of 65535 and 65536: every in-order wrap is lost, and the number jumps back.
-VOID TEST(KernelRtcQueueTest, DISABLED_PublisherSequenceWrapsInOrder_WrapNotCounted)
+// When packet 65535 arrives in order, the end of the ring buffer wraps to 0 before packet 0 arrives. Packet 0 still
+// counts the wrap, so the receiver report's extended highest sequence goes 65535, 65536, 65537 and never back.
+VOID TEST(KernelRtcQueueTest, PublisherSequenceWrapsInOrder_WrapCounted)
 {
     srs_error_t err = srs_success;
     RtcQueueVideoTrack t;
     SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
 
     HELPER_ASSERT_SUCCESS(t.receive(65534));
+    HELPER_ASSERT_SUCCESS(t.receive(65535));
+    EXPECT_EQ(65535u, queue->get_extended_highest_sequence());
+
+    HELPER_ASSERT_SUCCESS(t.receive(0));
+    EXPECT_EQ(65536u, queue->get_extended_highest_sequence());
+    EXPECT_TRUE(t.track_->nack_receiver_->queue_.empty());
+
+    HELPER_ASSERT_SUCCESS(t.receive(1));
+    EXPECT_EQ(65537u, queue->get_extended_highest_sequence());
+    EXPECT_TRUE(t.track_->nack_receiver_->queue_.empty());
+}
+
+// A publisher whose first packet is 65535 wraps at its second packet; the report counts from 65535, not 0xffffffff.
+VOID TEST(KernelRtcQueueTest, PublisherFirstPacketIsLastBeforeWrap_WrapCounted)
+{
+    srs_error_t err = srs_success;
+    RtcQueueVideoTrack t;
+    SrsRtpRingBuffer *queue = t.track_->rtp_queue_;
+
     HELPER_ASSERT_SUCCESS(t.receive(65535));
     EXPECT_EQ(65535u, queue->get_extended_highest_sequence());
 
@@ -3012,22 +3030,31 @@ VOID TEST(KernelRtcQueueTest, PublisherStartupPacketsOutOfOrderNackTheGap)
     EXPECT_EQ(100u, queue->get_extended_highest_sequence());
 }
 
-// B9: a packet older than the ring buffer's start, such as a startup packet out of order, puts itself in the NACK
-// list with the gap: the range is [seq, begin), while a packet after the end gives [end, seq). The server then
-// NACKs a packet it already has, so the publisher resends it, until the NACK times out after 15 requests or 1s.
-VOID TEST(KernelRtcQueueTest, DISABLED_PublisherStartupPacketOutOfOrder_ArrivedPacketNacked)
+// A packet older than the ring buffer's start, such as a startup packet out of order, is not NACKed itself: only
+// the packets between it and the start are. The NACK range of an older packet starts after it, as the range of a
+// packet after the end stops before it, so the server never asks the publisher to resend a packet it already has.
+VOID TEST(KernelRtcQueueTest, PublisherStartupPacketOutOfOrder_ArrivedPacketNotNacked)
 {
     srs_error_t err = srs_success;
     RtcQueueVideoTrack t;
     t.nack_at_every_tick();
+    SrsRtpNackForReceiver *nack = t.track_->nack_receiver_;
 
     HELPER_ASSERT_SUCCESS(t.receive(100));
     HELPER_ASSERT_SUCCESS(t.receive(99));
-    EXPECT_TRUE(t.track_->nack_receiver_->find(99) == NULL);
+    EXPECT_TRUE(nack->find(99) == NULL);
+    EXPECT_EQ(99, t.track_->rtp_queue_->begin_);
 
     uint32_t timeout_nacks = 0;
     vector<uint16_t> seqs = t.due_nacks(timeout_nacks);
     EXPECT_TRUE(seqs.empty());
+
+    // An older packet with a gap: only the gap is NACKed.
+    HELPER_ASSERT_SUCCESS(t.receive(96));
+    EXPECT_TRUE(nack->find(96) == NULL);
+    EXPECT_TRUE(nack->find(97) != NULL);
+    EXPECT_TRUE(nack->find(98) != NULL);
+    EXPECT_EQ(2u, nack->queue_.size());
 }
 
 // A publisher that jumps its sequence forward, such as an encoder restart that keeps the SSRC, or a loss burst of
@@ -3694,11 +3721,9 @@ static srs_error_t twcc_send_all(SrsRtcpTWCC &twcc, vector<TwccFeedbackRead> &fb
 }
 
 // A high bitrate publisher while the 100ms TWCC timer runs late: 1500 packets wait for one feedback, more than one UDP
-// datagram holds. The timer should send feedbacks until all are reported, the second continuing where the first
-// stopped. But SrsRtcpTWCC::do_encode stops adding packets when their 1-byte deltas fill the datagram, then requires 2
-// bytes for each delta, so the encode fails and clears every packet: the publisher gets no feedback for any of them.
-// Any feedback of more than about 725 packets with small deltas fails so.
-VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackForLateTimerBurst_EncodeFailsAndDropsAll)
+// datagram holds. The timer sends feedbacks until all are reported: each holds as many deltas as fit at 2 bytes each,
+// though these take 1, and the next continues where the previous stopped.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackForLateTimerBurst_SplitIntoFeedbacks)
 {
     srs_error_t err = srs_success;
     SrsRtcpTWCC twcc(0x2001);
@@ -3709,22 +3734,65 @@ VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackForLateTimerBurst_EncodeFailsA
 
     vector<TwccFeedbackRead> fbs;
     HELPER_ASSERT_SUCCESS(twcc_send_all(twcc, fbs));
-    ASSERT_EQ(2, (int)fbs.size());
-    EXPECT_EQ(0, fbs.at(0).base_sn_);
-    EXPECT_LE(fbs.at(0).size_, kMaxUDPDataSize);
-    EXPECT_EQ(fbs.at(0).count_, fbs.at(1).base_sn_);
-    EXPECT_EQ(1500, fbs.at(0).count_ + fbs.at(1).count_);
+    ASSERT_EQ(3, (int)fbs.size());
 
-    TwccFeedbackRead all = fbs.at(1);
-    all.arrivals_.insert(fbs.at(0).arrivals_.begin(), fbs.at(0).arrivals_.end());
+    TwccFeedbackRead all = fbs.back();
+    int count = 0;
+    for (int i = 0; i < (int)fbs.size(); i++) {
+        EXPECT_LE(fbs.at(i).size_, kMaxUDPDataSize);
+        EXPECT_EQ((uint16_t)count, fbs.at(i).base_sn_);
+        count += fbs.at(i).count_;
+        all.arrivals_.insert(fbs.at(i).arrivals_.begin(), fbs.at(i).arrivals_.end());
+    }
+    EXPECT_EQ(1500, count);
     twcc_expect_arrivals(all, received);
 }
 
-// The same late burst, when the first feedback stops right before sequence 0. The rest must go out in the next
-// feedback, but SrsRtcpTWCC::encode takes next_base_sn_ 0 for "nothing left" and clears them, so the publisher never
-// hears of them; the next feedback reports them as lost. Until the encode failure of the test above is fixed, this
-// test fails on that error first, in the probe.
-VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackSplitAtSequenceZero_RestNeverReported)
+// The same late burst from a publisher whose packets arrive reordered: every other packet arrives 1ms before the one
+// sent ahead of it, so half the deltas are negative and take 2 bytes, and chunks of mixed delta sizes close every 7
+// packets. Wherever a chunk closes near the end of the datagram, the feedback still fits it, and the next feedback
+// reports the rest.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackForLateReorderedBurst_SplitIntoFeedbacks)
+{
+    // Each in-order lead-in moves where the chunks close against the end of the datagram.
+    for (int lead_in = 0; lead_in < 14; lead_in++) {
+        SrsRtcpTWCC twcc(0x2001);
+        twcc.set_media_ssrc(0xb001);
+
+        map<uint16_t, srs_utime_t> received;
+        srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+        for (int i = 0; i < 1500; i++) {
+            uint16_t sn = (uint16_t)i;
+            received[sn] = base + i * 100;
+            if (i >= lead_in && (i % 2) == 1) {
+                received[sn] -= SRS_UTIME_MILLISECONDS;
+            }
+            srs_error_t err = twcc.recv_packet(sn, received[sn]);
+            EXPECT_TRUE(err == srs_success);
+            srs_freep(err);
+        }
+
+        vector<TwccFeedbackRead> fbs;
+        srs_error_t err = twcc_send_all(twcc, fbs);
+        ASSERT_TRUE(err == srs_success) << "lead_in=" << lead_in << ", " << srs_error_summary(err);
+        ASSERT_LE(2, (int)fbs.size()) << "lead_in=" << lead_in;
+
+        TwccFeedbackRead all;
+        int count = 0;
+        for (int j = 0; j < (int)fbs.size(); j++) {
+            EXPECT_LE(fbs.at(j).size_, kMaxUDPDataSize) << "lead_in=" << lead_in;
+            EXPECT_EQ((uint16_t)count, fbs.at(j).base_sn_) << "lead_in=" << lead_in;
+            count += fbs.at(j).count_;
+            all.arrivals_.insert(fbs.at(j).arrivals_.begin(), fbs.at(j).arrivals_.end());
+        }
+        EXPECT_EQ(1500, count) << "lead_in=" << lead_in;
+        EXPECT_EQ(received.size(), all.arrivals_.size()) << "lead_in=" << lead_in;
+    }
+}
+
+// The same late burst, when the first feedback stops right before sequence 0. The rest goes out in the next feedback,
+// from sequence 0, so the publisher hears of every packet.
+VOID TEST(KernelRtcRtcpTest, TwccFeedbackSplitAtSequenceZero_RestReported)
 {
     srs_error_t err = srs_success;
 
@@ -3746,9 +3814,103 @@ VOID TEST(KernelRtcRtcpTest, DISABLED_TwccFeedbackSplitAtSequenceZero_RestNeverR
 
     vector<TwccFeedbackRead> fbs;
     HELPER_ASSERT_SUCCESS(twcc_send_all(twcc, fbs));
-    ASSERT_EQ(2, (int)fbs.size());
+    ASSERT_LE(2, (int)fbs.size());
+    EXPECT_EQ(first_sn, fbs.at(0).base_sn_);
     EXPECT_EQ(0, fbs.at(1).base_sn_);
-    EXPECT_EQ(1500, fbs.at(0).count_ + fbs.at(1).count_);
+
+    TwccFeedbackRead all = fbs.back();
+    int count = 0;
+    for (int i = 0; i < (int)fbs.size(); i++) {
+        EXPECT_LE(fbs.at(i).size_, kMaxUDPDataSize);
+        EXPECT_EQ((uint16_t)(first_sn + count), fbs.at(i).base_sn_);
+        count += fbs.at(i).count_;
+        all.arrivals_.insert(fbs.at(i).arrivals_.begin(), fbs.at(i).arrivals_.end());
+    }
+    EXPECT_EQ(1500, count);
+    twcc_expect_arrivals(all, received);
+}
+
+// A publisher whose transport-wide sequence wraps loses the two packets around the wrap, 65535 and 0. One feedback
+// covers 65533 to 2 and reports the two as not received, so the publisher's congestion controller sees the loss, and
+// the arrivals of 1 and 2 stay on their own sequence numbers.
+VOID TEST(KernelRtcRtcpTest, TwccPacketsLostAtSequenceWrap_LossReported)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    uint16_t sns[] = {65533, 65534, 1, 2};
+    map<uint16_t, srs_utime_t> received;
+    for (int i = 0; i < (int)(sizeof(sns) / sizeof(sns[0])); i++) {
+        received[sns[i]] = base + i * SRS_UTIME_MILLISECONDS;
+        HELPER_ASSERT_SUCCESS(twcc.recv_packet(sns[i], received[sns[i]]));
+    }
+
+    TwccFeedbackRead fb;
+    HELPER_ASSERT_SUCCESS(twcc_send_feedback(twcc, 0, fb));
+    EXPECT_EQ(65533, fb.base_sn_);
+    ASSERT_EQ(6, fb.count_);
+    int statuses[] = {1, 1, 0, 0, 1, 1};
+    for (int i = 0; i < 6; i++) {
+        EXPECT_EQ(statuses[i], fb.statuses_.at(i)) << "sn=" << (uint16_t)(65533 + i);
+    }
+    twcc_expect_arrivals(fb, received);
+}
+
+// Two feedbacks of a publisher whose sequence wraps between them: the first reports up to last_sn, the packet after it
+// is lost, and the next 100ms tick receives the packets after the lost one. The next feedback starts at the lost
+// packet, reports it as not received, and puts each arrival on its own sequence number.
+static void twcc_expect_loss_after_feedback(uint16_t last_sn)
+{
+    srs_error_t err = srs_success;
+    SrsRtcpTWCC twcc(0x2001);
+    twcc.set_media_ssrc(0xb001);
+
+    srs_utime_t base = 640 * SRS_UTIME_MILLISECONDS;
+    map<uint16_t, srs_utime_t> first;
+    for (int i = 0; i < 3; i++) {
+        uint16_t sn = (uint16_t)(last_sn - 2 + i);
+        first[sn] = base + i * SRS_UTIME_MILLISECONDS;
+        HELPER_EXPECT_SUCCESS(twcc.recv_packet(sn, first[sn]));
+    }
+
+    TwccFeedbackRead fb0;
+    HELPER_EXPECT_SUCCESS(twcc_send_feedback(twcc, 0, fb0));
+    EXPECT_EQ((uint16_t)(last_sn - 2), fb0.base_sn_);
+    EXPECT_EQ(3, fb0.count_);
+    twcc_expect_arrivals(fb0, first);
+
+    // The packet after last_sn is lost.
+    map<uint16_t, srs_utime_t> second;
+    for (int i = 0; i < 3; i++) {
+        uint16_t sn = (uint16_t)(last_sn + 2 + i);
+        second[sn] = base + (100 + i) * SRS_UTIME_MILLISECONDS;
+        HELPER_EXPECT_SUCCESS(twcc.recv_packet(sn, second[sn]));
+    }
+
+    TwccFeedbackRead fb1;
+    HELPER_EXPECT_SUCCESS(twcc_send_feedback(twcc, 1, fb1));
+    EXPECT_EQ((uint16_t)(last_sn + 1), fb1.base_sn_);
+    ASSERT_EQ(4, fb1.count_);
+    int statuses[] = {0, 1, 1, 1};
+    for (int i = 0; i < 4; i++) {
+        EXPECT_EQ(statuses[i], fb1.statuses_.at(i)) << "sn=" << (uint16_t)(last_sn + 1 + i);
+    }
+    twcc_expect_arrivals(fb1, second);
+    EXPECT_FALSE(twcc.need_feedback());
+}
+
+// A feedback ends at 65535, sequence 0 is lost, and the next feedback reports 0 as lost and 1 to 3 as received.
+VOID TEST(KernelRtcRtcpTest, TwccPacketLostAtZeroAfterFeedback_LossReported)
+{
+    twcc_expect_loss_after_feedback(65535);
+}
+
+// A feedback ends at 65534, 65535 is lost, and the next feedback reports 65535 as lost and 0 to 2 as received.
+VOID TEST(KernelRtcRtcpTest, TwccPacketLostBeforeWrapAfterFeedback_LossReported)
+{
+    twcc_expect_loss_after_feedback(65534);
 }
 
 // --- P2.18: kernel/srs_kernel_rtc_rtp.cpp ------------------------------------

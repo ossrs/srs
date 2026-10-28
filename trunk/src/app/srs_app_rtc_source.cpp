@@ -1841,7 +1841,12 @@ srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket *src
     // any RTC player, then if one RTP packet is lost, the audio cache will not request the lost
     // packet. This means some audio packets are lost.
     while (!audio_buffer_.empty()) {
-        std::map<uint16_t, SrsRtpPacket *>::iterator it = audio_buffer_.begin();
+        // The map sorts by the 16-bit number, so at the sequence wrap 0 sorts before 65535: take the first packet
+        // after the last one, wrapping to the start of the map.
+        std::map<uint16_t, SrsRtpPacket *>::iterator it = audio_buffer_.lower_bound((uint16_t)(last_audio_seq_num_ + 1));
+        if (it == audio_buffer_.end()) {
+            it = audio_buffer_.begin();
+        }
         uint16_t next_seq = it->first;
 
         // Check if the packet is within our sliding window

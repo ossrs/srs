@@ -732,10 +732,9 @@ static SrsRtpPacket *rtc_source_utest_opus(uint16_t seq)
 }
 
 // A WHIP stream converted to RTMP, whose Opus packets 65535 and 0 come swapped at the sequence wrap, as a network
-// reorders them: the converter should take 65535 then 0 once both are there. The audio cache sorts its packets by the
-// 16-bit number, so 0 comes first and is a gap after 65534: the converter holds the audio for the 100ms timeout,
-// then sends 0 and the packets after it before 65535, which RTMP gets with its time going back (B50).
-VOID TEST(AppRtcSourceTest, DISABLED_WhipAudioSwappedAtSequenceWrap_HeldThenOutOfOrder)
+// reorders them: the converter takes 65535 then 0 once both are there, not 0 first as a gap after 65534, which held
+// the audio for the timeout and then sent 65535 after 0, with its RTMP time going back.
+VOID TEST(AppRtcSourceTest, WhipAudioSwappedAtSequenceWrap_SentInOrder)
 {
     srs_error_t err;
 
@@ -752,6 +751,45 @@ VOID TEST(AppRtcSourceTest, DISABLED_WhipAudioSwappedAtSequenceWrap_HeldThenOutO
     SrsUniquePtr<SrsRtpPacket> p0(rtc_source_utest_opus(0));
     HELPER_ASSERT_SUCCESS(cache.process_packet(p0.get(), ready));
     EXPECT_EQ(0, (int)ready.size());
+
+    SrsUniquePtr<SrsRtpPacket> p65535(rtc_source_utest_opus(65535));
+    HELPER_ASSERT_SUCCESS(cache.process_packet(p65535.get(), ready));
+
+    vector<uint16_t> seqs;
+    for (int i = 0; i < (int)ready.size(); i++) {
+        seqs.push_back(ready[i]->header_.get_sequence());
+        srs_freep(ready[i]);
+    }
+    ASSERT_EQ(2, (int)seqs.size());
+    EXPECT_EQ(65535, seqs[0]);
+    EXPECT_EQ(0, seqs[1]);
+}
+
+// A WHIP stream converted to RTMP that loses Opus packet 65534 at the sequence wrap, while 0 comes before 65535: when
+// the wait for the lost packet times out, the converter sends 65535 then 0, in sequence order across the wrap.
+VOID TEST(AppRtcSourceTest, WhipAudioLostBeforeWrapThenSwapped_SentInOrderAtTimeout)
+{
+    srs_error_t err;
+
+    SrsRtcFrameBuilderAudioPacketCache cache;
+    cache.set_timeout(50 * SRS_UTIME_MILLISECONDS);
+    vector<SrsRtpPacket *> ready;
+
+    SrsUniquePtr<SrsRtpPacket> p65533(rtc_source_utest_opus(65533));
+    HELPER_ASSERT_SUCCESS(cache.process_packet(p65533.get(), ready));
+    ASSERT_EQ(1, (int)ready.size());
+    srs_freep(ready[0]);
+    ready.clear();
+
+    SrsUniquePtr<SrsRtpPacket> p0(rtc_source_utest_opus(0));
+    HELPER_ASSERT_SUCCESS(cache.process_packet(p0.get(), ready));
+    EXPECT_EQ(0, (int)ready.size());
+
+    // The cache reads the real clock, and an ST sleep may end a little early.
+    srs_utime_t start = srs_time_now_realtime();
+    while (srs_time_now_realtime() - start <= 60 * SRS_UTIME_MILLISECONDS) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
 
     SrsUniquePtr<SrsRtpPacket> p65535(rtc_source_utest_opus(65535));
     HELPER_ASSERT_SUCCESS(cache.process_packet(p65535.get(), ready));
