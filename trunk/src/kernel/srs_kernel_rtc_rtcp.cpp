@@ -713,6 +713,9 @@ SrsRtcpTWCC::SrsRtcpTWCC(uint32_t sender_ssrc) : pkt_len_(0)
     reference_time_ = 0;
     fb_pkt_count_ = 0;
     next_base_sn_ = 0;
+    has_next_base_sn_ = false;
+    last_feedback_sn_ = 0;
+    feedback_started_ = false;
 }
 
 SrsRtcpTWCC::~SrsRtcpTWCC()
@@ -726,6 +729,7 @@ void SrsRtcpTWCC::clear()
     recv_packets_.clear();
     recv_sns_.clear();
     next_base_sn_ = 0;
+    has_next_base_sn_ = false;
 }
 
 uint16_t SrsRtcpTWCC::get_base_sn() const
@@ -1034,7 +1038,7 @@ srs_error_t SrsRtcpTWCC::encode(SrsBuffer *buffer)
 
     err = do_encode(buffer);
 
-    if (err != srs_success || next_base_sn_ == 0) {
+    if (err != srs_success || !has_next_base_sn_) {
         clear();
     }
 
@@ -1080,28 +1084,41 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     pkt_len_ = kTwccFbPktHeaderSize;
 
     set<uint16_t, SrsSeqCompareLess>::iterator it_sn = recv_sns_.begin();
-    if (!next_base_sn_) {
-        base_sn_ = *it_sn;
+    uint16_t first_recv_sn = *it_sn;
+    if (!has_next_base_sn_) {
+        // A fresh feedback continues from the packet after the last one the
+        // previous feedback reported, so a packet lost in between is covered,
+        // not skipped; the very first feedback starts at the first received.
+        if (feedback_started_ && srs_seq_is_newer(first_recv_sn, last_feedback_sn_ + 1)) {
+            base_sn_ = last_feedback_sn_ + 1;
+        } else {
+            base_sn_ = first_recv_sn;
+        }
     } else {
         base_sn_ = next_base_sn_;
         it_sn = recv_sns_.find(base_sn_);
     }
 
-    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(base_sn_);
+    // The reference time and deltas come from received packets; it_sn points at
+    // the first one this feedback encodes. base_sn_ may precede it when packets
+    // were lost since the last feedback, which are reported as not received.
+    map<uint16_t, srs_utime_t>::iterator it_ts = recv_packets_.find(*it_sn);
     srs_utime_t ts = it_ts->second;
 
     reference_time_ = (ts % kTwccFbReferenceTimeDivisor) / kTwccFbTimeMultiplier;
     srs_utime_t last_ts = (srs_utime_t)(reference_time_)*kTwccFbTimeMultiplier;
 
-    uint16_t last_sn = base_sn_;
+    uint16_t last_sn = base_sn_ - 1;
     uint16_t packet_count = 0;
 
     // encode chunk
     SrsRtcpTWCC::SrsRtcpTWCCChunk chunk;
+    // The deltas are checked against 2 bytes each when written, so a small delta, 1 byte in pkt_len_, reserves 2 here.
+    int nb_small_deltas = 0;
     for (; it_sn != recv_sns_.end(); ++it_sn) {
-        // check whether exceed buffer len
-        // max recv_delta_size = 2
-        if (pkt_len_ + 2 >= buffer->left()) {
+        // Stop while the datagram still holds this packet's delta (at most 2 bytes), a chunk its lost packets
+        // close, a chunk it closes, and the chunk still open at the end, which pkt_len_ does not count yet.
+        if (pkt_len_ + nb_small_deltas + kTwccFbLargeRecvDeltaBytes + 3 * kTwccFbChunkBytes > buffer->left()) {
             break;
         }
 
@@ -1119,9 +1136,9 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
             return srs_error_new(ERROR_RTC_RTCP, "twcc: delta:%" PRId64 ", exceeds the 16bits", delta_us);
         }
 
-        if (current_sn > (last_sn + 1)) {
-            // lost packet
-            for (uint16_t lost_sn = last_sn + 1; lost_sn < current_sn; ++lost_sn) {
+        if (srs_rtp_seq_distance(last_sn, current_sn) > 1) {
+            // lost packet, wrap-aware so a loss next to sequence 0 is reported
+            for (uint16_t lost_sn = last_sn + 1; lost_sn != current_sn; ++lost_sn) {
                 process_pkt_chunk(chunk, 0);
                 packet_count++;
             }
@@ -1136,15 +1153,24 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
         pkt_deltas_.push_back(delta);
         last_ts += delta * kTwccFbDeltaUnit;
         pkt_len_ += recv_delta_size;
+        if (recv_delta_size == 1) {
+            nb_small_deltas++;
+        }
         last_sn = current_sn;
 
         recv_packets_.erase(it_ts);
     }
 
     next_base_sn_ = 0;
-    if (it_sn != recv_sns_.end()) {
+    has_next_base_sn_ = (it_sn != recv_sns_.end());
+    if (has_next_base_sn_) {
         next_base_sn_ = *it_sn;
     }
+
+    // Remember the last reported packet, so the next feedback continues from
+    // the one after it even after clear() drops the per-feedback state.
+    feedback_started_ = true;
+    last_feedback_sn_ = last_sn;
 
     if (0 < chunk.size_) {
         if ((err = encode_remaining_chunk(chunk)) != srs_success) {
@@ -1179,6 +1205,7 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
         buffer->write_2bytes(*it);
     }
 
+    // Not accurate, a small delta takes only 1 byte, but acceptable as an upper bound.
     required_size = pkt_deltas_.size() * 2;
     if (!buffer->require(required_size)) {
         return srs_error_new(ERROR_RTC_RTCP, "pkt_deltas_[%d] requires %d bytes", (int)pkt_deltas_.size(), required_size);
