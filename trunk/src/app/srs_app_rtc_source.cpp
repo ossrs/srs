@@ -1316,7 +1316,8 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
             return srs_error_wrap(err, "package stap-a");
         }
 
-        if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
+        // No STAP when the sequence header has no parameter sets, which the key frame then carries in band.
+        if (pkt->payload() && (err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
         }
     }
@@ -1896,10 +1897,11 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     video_codec_ = video_codec;
     last_video_sequence_header_.clear();
 
-    // There is no G.711 decoder to transcode it to AAC, so the stream is converted without its audio,
-    // while WebRTC players still get the stream as it was published.
+    // The audio transcoder decodes only Opus, AAC and MP3. For other codecs, such as G.711, G.722 or Speex, there is
+    // no decoder to transcode it to AAC, so the stream is converted without its audio, while WebRTC players still get
+    // the stream as it was published.
     // TODO: FIXME: Add a G.711 transcoder to convert PCMU and PCMA to AAC for RTMP.
-    if (audio_codec == SrsAudioCodecIdPCMU || audio_codec == SrsAudioCodecIdPCMA) {
+    if (audio_codec != SrsAudioCodecIdOpus && audio_codec != SrsAudioCodecIdAAC && audio_codec != SrsAudioCodecIdMP3) {
         srs_trace("RTC: %s audio is not converted to RTMP, only the video", srs_audio_codec_id2str(audio_codec).c_str());
         return err;
     }
@@ -2830,6 +2832,8 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type_h265()
 }
 
 // level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
+// Other parameters, such as sprop-parameter-sets, are skipped as srs_parse_h264_fmtp does.
+// See https://www.rfc-editor.org/rfc/rfc6184#section-8.1
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
     srs_error_t err = srs_success;
@@ -2841,7 +2845,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 
         std::vector<std::string> kv = split_str(attribute, "=");
         if (kv.size() != 2) {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", attribute.c_str());
+            continue;
         }
 
         if (kv[0] == "profile-level-id") {
@@ -2858,8 +2862,6 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
             h264_param_.packetization_mode_ = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
             h264_param_.level_asymmetry_allow_ = kv[1];
-        } else {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
         }
     }
 

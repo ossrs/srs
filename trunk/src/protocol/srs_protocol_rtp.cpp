@@ -45,14 +45,6 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket
         return err;
     }
 
-    pkt->header_.set_payload_type(video_payload_type_);
-    pkt->header_.set_ssrc(video_ssrc_);
-    pkt->frame_type_ = SrsFrameTypeVideo;
-    pkt->header_.set_marker(false);
-    pkt->header_.set_sequence(video_sequence_++);
-    pkt->header_.set_timestamp(msg->timestamp_ * 90);
-
-    ISrsRtpPayloader *stap = NULL;
     vector<vector<char> *> params;
     int size = 0;
 
@@ -68,23 +60,36 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket
                 size += nal_data.nal_unit_length_;
             }
         }
-
-        stap = new SrsRtpSTAPPayloadHevc();
-        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
-        pkt->nalu_type_ = kStapHevc;
     } else if (format->vcodec_->id_ == SrsVideoCodecIdAVC) {
         params.push_back(&format->vcodec_->sequenceParameterSetNALUnit_);
         params.push_back(&format->vcodec_->pictureParameterSetNALUnit_);
         size = format->vcodec_->sequenceParameterSetNALUnit_.size() + format->vcodec_->pictureParameterSetNALUnit_.size();
+    }
 
+    // An encoder may send the parameter sets in band, in each key frame, with none in its sequence header, as
+    // ISO/IEC 14496-15 allows for hev1 and avc3. There is no STAP to send then, and the packet is left without payload.
+    if (size == 0) {
+        return err;
+    }
+
+    pkt->header_.set_payload_type(video_payload_type_);
+    pkt->header_.set_ssrc(video_ssrc_);
+    pkt->frame_type_ = SrsFrameTypeVideo;
+    pkt->header_.set_marker(false);
+    pkt->header_.set_sequence(video_sequence_++);
+    pkt->header_.set_timestamp(msg->timestamp_ * 90);
+
+    ISrsRtpPayloader *stap = NULL;
+    if (format->vcodec_->id_ == SrsVideoCodecIdHEVC) {
+        stap = new SrsRtpSTAPPayloadHevc();
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
+        pkt->nalu_type_ = kStapHevc;
+    } else {
         stap = new SrsRtpSTAPPayload();
         pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
         pkt->nalu_type_ = kStapA;
     }
 
-    if (size == 0) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "vps/sps/pps empty");
-    }
     char *payload = pkt->wrap(size);
 
     for (vector<vector<char> *>::iterator it = params.begin(); it != params.end(); ++it) {

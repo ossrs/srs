@@ -1706,6 +1706,9 @@ VOID TEST(HlsFmp4AudioOnlyBugTest, OnUnpublishUsesVideoDtsZeroForAudioOnly)
     MockRequest mock_req("test_vhost", "live", "stream");
     muxer->req_ = &mock_req;
 
+    // The playlist the segment close writes, as a published stream has.
+    muxer->m3u8_ = _srs_tmp_file_prefix + "bug4594.m3u8";
+
     // Create mock segment that captures the dts passed to reap()
     MockSrsHlsM4sSegmentForBug4594 *mock_segment = new MockSrsHlsM4sSegmentForBug4594();
     muxer->current_ = mock_segment;
@@ -1731,6 +1734,7 @@ VOID TEST(HlsFmp4AudioOnlyBugTest, OnUnpublishUsesVideoDtsZeroForAudioOnly)
         << "but reap() received " << mock_segment->captured_reap_dts_;
 
     // Cleanup
+    ::unlink(muxer->m3u8_.c_str());
     muxer->req_ = NULL;
 }
 

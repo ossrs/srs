@@ -112,15 +112,17 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
-        // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.
-        if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost_)) {
-            *served = false;
-            return srs_success;
-        }
-
         if (is_interrupt(ctx)) {
             srs_warn("Reject: HLS stream is EOF, ctx=%s", ctx.c_str());
             return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound, srs_fmt_sprintf("HLS stream %s is EOF", ctx.c_str()));
+        }
+
+        // Without ctx in the ts urls, use SrsHttpFileServer to serve the m3u8 as a normal file, but
+        // the refresh still keeps the session alive.
+        if (!_srs_config->get_hls_ts_ctx_enabled(req->vhost_)) {
+            alive(ctx, req);
+            *served = false;
+            return srs_success;
         }
 
         err = serve_exists_session(w, r, factory, fullpath);
@@ -520,6 +522,10 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         }
         if (sh_size <= 0) {
             return srs_error_new(ERROR_HTTP_REMUX_SEQUENCE_HEADER, "no sequence, size=%d", sh_size);
+        }
+        // A file cut inside its sequence header tags has fewer bytes than the tags claim.
+        if (start + sh_size > fs->filesize()) {
+            return srs_error_new(ERROR_HTTP_REMUX_SEQUENCE_HEADER, "sequence past file end, start=%" PRId64 ", size=%d, filesize=%" PRId64, start, sh_size, fs->filesize());
         }
     }
 
