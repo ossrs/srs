@@ -2041,13 +2041,23 @@ VOID TEST(AppHlsTest, Fmp4IdlePublisherDisposedAfterCleanupJob_WarnsTmpFileGone)
     HELPER_ASSERT_SUCCESS(s.sequence_headers());
     HELPER_ASSERT_SUCCESS(s.av(0, 500));
     hls_utest_remove_all(s.home_);
+#ifdef _WIN32
+    // Windows deletes no file a writer holds open, so the cleanup job leaves the segment being written, and the
+    // dispose closes and removes it without a warning.
+    ASSERT_TRUE(s.exists("livestream-0.m4s.tmp"));
+#endif
 
     MockLogForSignal log;
     ISrsLog *original = _srs_log;
     _srs_log = &log;
     s.hls_->dispose();
     _srs_log = original;
+#ifdef _WIN32
+    EXPECT_STREQ("", utest_log_find(log.warns_, "Unlink tmp ts failed").c_str());
+    EXPECT_FALSE(s.exists("livestream-0.m4s.tmp"));
+#else
     EXPECT_NE(string::npos, utest_log_find(log.warns_, "Unlink tmp ts failed").find("livestream-0.m4s.tmp"));
+#endif
 }
 
 // The fMP4 HLS volume is remounted read-only before an idle publisher is disposed. The playlist and the init file can
@@ -3575,7 +3585,7 @@ public:
 public:
     StaticUtestVod()
     {
-        dir_ = "/tmp/srs-utest-static-" + srs_strconv_format_int(getpid());
+        dir_ = srs_utest_tmp_dir() + "/srs-utest-static-" + srs_strconv_format_int(getpid());
         hls_utest_remove_all(dir_);
         srs_mkdir(dir_.c_str());
         srs_mkdir((dir_ + "/live").c_str());

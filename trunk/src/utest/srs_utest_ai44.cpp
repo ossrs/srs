@@ -998,13 +998,16 @@ class LogUtestStdoutScope
 {
 public:
     int saved_fd_;
+    string path_;
 
 public:
     LogUtestStdoutScope()
     {
+        path_ = srs_utest_tmp_dir() + "/srs-utest-log-console.txt";
         fflush(stdout);
         saved_fd_ = ::dup(STDOUT_FILENO);
-        int fd = ::open("/tmp/srs-utest-log-console.txt", O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        // In binary mode, so the file has the bytes the tank printed, without the \r a Windows text mode adds.
+        int fd = srs_file_open(path_.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         ::dup2(fd, STDOUT_FILENO);
         ::close(fd);
     }
@@ -1028,7 +1031,7 @@ public:
     {
         restore();
         string text;
-        FILE *f = ::fopen("/tmp/srs-utest-log-console.txt", "rb");
+        FILE *f = ::fopen(path_.c_str(), "rb");
         if (f) {
             char buf[1024];
             size_t n;
@@ -1037,7 +1040,7 @@ public:
             }
             ::fclose(f);
         }
-        ::unlink("/tmp/srs-utest-log-console.txt");
+        ::unlink(path_.c_str());
         return text;
     }
 };
@@ -1539,13 +1542,15 @@ VOID TEST(AppMpegtsUdpTest, CasterPortHeldByAnotherProgram_ListenFails)
 
     int port = 0;
     HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
-    int other = ::socket(AF_INET6, SOCK_DGRAM, 0);
+    // The program holds the port on the IPv4 any address, where the caster listens. A socket on the IPv6 any address
+    // holds it too on Linux, but not on Windows.
+    int other = (int)::socket(AF_INET, SOCK_DGRAM, 0);
     ASSERT_GE(other, 0);
-    sockaddr_in6 addr;
+    sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin6_family = AF_INET6;
-    addr.sin6_port = htons(port);
-    addr.sin6_addr = in6addr_any;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
     ASSERT_EQ(0, ::bind(other, (sockaddr *)&addr, sizeof(addr)));
 
     MockSrsConfig conf;
@@ -1565,7 +1570,7 @@ VOID TEST(AppMpegtsUdpTest, CasterPortHeldByAnotherProgram_ListenFails)
     srs_freep(err);
 
     listener->close();
-    ::close(other);
+    srs_close_socket(other);
 }
 
 // An encoder, or any host that reaches the caster's UDP port, sends a key frame, then a PES whose SPS is cut to 3 bytes

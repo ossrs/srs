@@ -56,12 +56,16 @@ public:
     std::string stream_;
     std::string video_;
     std::string error_;
+    // For RtmpConnOriginResetAfterCreateStream, how long the origin waits after its
+    // createStream response before the reset.
+    srs_utime_t reset_delay_;
 
 public:
     RtmpConnTestOrigin(RtmpConnOriginStep step) : SrsHttpTestServer("")
     {
         step_ = step;
         type_ = SrsRtmpConnUnknown;
+        reset_delay_ = 0;
     }
 
 public:
@@ -134,6 +138,10 @@ private:
             if ((err = rtmp.send_and_free_packet(new SrsCreateStreamResPacket(pkt->transaction_id_, 1), 0)) != srs_success) {
                 return srs_error_wrap(err, "response create stream");
             }
+            if (reset_delay_ > 0) {
+                srs_usleep(reset_delay_);
+            }
+
             // Close with a reset, as a load balancer in front of the origin that drops the
             // connection does.
             struct linger lg;

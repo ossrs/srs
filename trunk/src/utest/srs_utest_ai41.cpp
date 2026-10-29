@@ -2462,14 +2462,17 @@ VOID TEST(ProtocolRtmpConnTest, OriginResetAfterCreateStream_PlayAndPublishFail)
     for (int i = 0; i < 2; i++) {
         bool is_play = (i == 0);
 
+        // The origin resets once the client has read the createStream response: on Windows, a
+        // reset drops the data the client has not read yet, so the connect would fail.
         RtmpConnTestOrigin origin(RtmpConnOriginResetAfterCreateStream);
+        origin.reset_delay_ = 10 * SRS_UTIME_MILLISECONDS;
         HELPER_ASSERT_SUCCESS(origin.start());
 
         SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
         HELPER_ASSERT_SUCCESS(sdk.connect());
 
         // Let the reset reach the client.
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        srs_usleep(origin.reset_delay_ + 10 * SRS_UTIME_MILLISECONDS);
 
         string stream;
         if (is_play) {
