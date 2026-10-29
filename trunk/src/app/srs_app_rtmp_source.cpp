@@ -981,6 +981,7 @@ srs_error_t SrsOriginHub::on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMet
         }
     }
 
+    // TODO: FIXME: Refine it, a DVR metadata error, such as a full disk, disconnects the publisher.
     if ((err = dvr_->on_meta_data(shared_metadata)) != srs_success) {
         return srs_error_wrap(err, "DVR consume metadata");
     }
@@ -1428,7 +1429,7 @@ void SrsOriginHub::destroy_forwarders()
 SrsMetaCache::SrsMetaCache()
 {
     meta_ = video_ = audio_ = NULL;
-    previous_video_ = previous_audio_ = NULL;
+    previous_meta_ = previous_video_ = previous_audio_ = NULL;
     vformat_ = new SrsRtmpFormat();
     aformat_ = new SrsRtmpFormat();
 }
@@ -1443,6 +1444,7 @@ SrsMetaCache::~SrsMetaCache()
 void SrsMetaCache::dispose()
 {
     clear();
+    srs_freep(previous_meta_);
     srs_freep(previous_video_);
     srs_freep(previous_audio_);
 }
@@ -1501,6 +1503,17 @@ srs_error_t SrsMetaCache::dumps(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJit
     }
 
     return err;
+}
+
+SrsMediaPacket *SrsMetaCache::previous_data()
+{
+    return previous_meta_;
+}
+
+void SrsMetaCache::update_previous_data()
+{
+    srs_freep(previous_meta_);
+    previous_meta_ = meta_ ? meta_->copy() : NULL;
 }
 
 SrsMediaPacket *SrsMetaCache::previous_vsh()
@@ -2066,12 +2079,19 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
         return err;
     }
 
-    // when already got metadata, drop when reduce sequence header.
+    // whether consumer should drop for the duplicated metadata.
     bool drop_for_reduce = false;
-    if (meta_->data() && config_->get_reduce_sequence_header(req_->vhost_)) {
-        drop_for_reduce = true;
-        srs_warn("drop for reduce sh metadata, size=%d", msg->size());
+    SrsMediaPacket *previous = meta_->previous_data();
+    SrsMediaPacket *data = meta_->data();
+    if (previous && config_->get_reduce_sequence_header(req_->vhost_)) {
+        if (previous->size() == data->size()) {
+            drop_for_reduce = srs_bytes_equal(previous->payload(), data->payload(), data->size());
+        }
+        if (drop_for_reduce) {
+            srs_warn("drop for reduce sh metadata, size=%d", msg->size());
+        }
     }
+    meta_->update_previous_data();
 
     // copy to all consumer
     if (!drop_for_reduce) {
@@ -2266,6 +2286,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
     // @see https://github.com/ossrs/srs/issues/474
     if (is_sequence_header) {
         format_->avc_parse_sps_ = config_->get_parse_sps(req_->vhost_);
+        meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
     }
 
     if ((err = format_->on_video(msg)) != srs_success) {
@@ -2408,6 +2429,11 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
         }
         stream->read_4bytes();
 
+        // Ignore an empty tag, as SrsProtocol ignores an empty message; the players and muxers expect a payload.
+        if (data_size == 0) {
+            continue;
+        }
+
         // process parsed message
         if (o.header_.is_audio()) {
             if ((err = on_audio(&o)) != srs_success) {
@@ -2493,6 +2519,7 @@ void SrsLiveSource::on_unpublish()
 
     // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
+    meta_->update_previous_data();
     meta_->update_previous_vsh();
     meta_->update_previous_ash();
 

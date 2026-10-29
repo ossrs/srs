@@ -98,6 +98,8 @@ public:
     int packet_count_;
     std::string last_packet_data_;
     int last_packet_size_;
+    // The error each packet returns, a copy of it, or none.
+    srs_error_t on_udp_packet_error_;
 
 public:
     MockUdpHandler();

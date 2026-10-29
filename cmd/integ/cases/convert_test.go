@@ -569,7 +569,7 @@ func remuxConvert(name, ext string, video, audio map[string]string) convertPlaye
 }
 
 // TestConvert_Fmp4 converts RTMP, RTMPS, WebRTC, SRT and GB28181 streams to
-// HLS in fmp4, 4s segments (fmp4Segment), on a server of the Fmp4 config of
+// HLS in fmp4, 3s segments (fmp4Segment), on a server of the Fmp4 config of
 // TestHls_Fmp4 but its own: on one server the cells' bursts beside
 // TestHls_Fmp4's kept it busy for whole segment requests, and the cells
 // whose players wait for what SRS converts from SRT and GB28181 missed their

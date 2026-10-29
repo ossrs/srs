@@ -1538,7 +1538,8 @@ VOID TEST(RTPVideoBuilderTest, PackageStapAHevc)
 }
 
 // The STAP-A for RTC is built from the hvcC of the publisher, where an array may hold no NALU,
-// or a zero-length one. With no parameter set to send, it fails instead of indexing them.
+// or a zero-length one. With no parameter set to send, it leaves the packet without payload, and takes no sequence
+// number, so the caller sends no STAP.
 VOID TEST(RTPVideoBuilderTest, PackageStapAHevcEmptyNalu)
 {
     srs_error_t err;
@@ -1578,11 +1579,14 @@ VOID TEST(RTPVideoBuilderTest, PackageStapAHevcEmptyNalu)
         SrsRtpVideoBuilder builder;
         builder.video_payload_type_ = 96;
         builder.video_ssrc_ = 0x12345678;
+        builder.video_sequence_ = 100;
         builder.format_ = &format;
 
         SrsMediaPacket msg;
         SrsRtpPacket pkt;
-        HELPER_EXPECT_FAILED(builder.package_stap_a(&msg, &pkt));
+        HELPER_EXPECT_SUCCESS(builder.package_stap_a(&msg, &pkt));
+        EXPECT_TRUE(pkt.payload() == NULL);
+        EXPECT_EQ(100, builder.video_sequence_);
     }
 }
 

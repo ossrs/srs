@@ -50,7 +50,7 @@ The lines of `references/smells.md` that match, each with the file and line wher
 
 ## 9. Findings
 
-Ranked, most severe first. Each one:
+Only the severe, P0 bugs of the Core Rules, ranked, most severe first. Each one:
 
 - **Summary** — one line.
 - **Scenario** — the steps, and the state that is wrong after them. Concrete enough to turn into a test.

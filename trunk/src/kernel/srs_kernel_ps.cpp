@@ -108,6 +108,15 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
             }
         }
 
+        // If the packet ends 1 to 3 bytes into the start code of a new PS packet, ignore them too.
+        if (detect_ps_integrity_ && stream->left() < 4 && last()->fresh()) {
+            uint8_t *p = (uint8_t *)stream->head();
+            int left = stream->left();
+            if (p[0] == 0x00 && (left < 2 || p[1] == 0x00) && (left < 3 || p[2] == 0x01)) {
+                break;
+            }
+        }
+
         // Try to decode the stream by one PS packet.
         // See Table 2-32 – Program Stream pack, hls-mpeg-ts-iso13818-1.pdf, page 73
         if ((err = do_decode(stream, handler)) != srs_success) {

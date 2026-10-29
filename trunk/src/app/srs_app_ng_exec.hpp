@@ -16,7 +16,8 @@
 
 class ISrsRequest;
 class SrsPithyPrint;
-class SrsProcess;
+class ISrsProcess;
+class ISrsAppFactory;
 class ISrsAppConfig;
 
 // The ng-exec interface.
@@ -41,13 +42,14 @@ class SrsNgExec : public ISrsCoroutineHandler, public ISrsNgExec
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     SrsPithyPrint *pprint_;
     std::string input_stream_name_;
-    std::vector<SrsProcess *> exec_publishs_;
+    std::vector<ISrsProcess *> exec_publishs_;
 
 public:
     SrsNgExec();

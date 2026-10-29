@@ -119,6 +119,14 @@ struct SrsIPAddress {
     bool is_loopback_;
 };
 
+class SrsProtocolUtility;
+struct ifaddrs;
+
+// Discover the local IPs from the interface list of srs_getifaddrs into ips: the IPv4 addresses first,
+// then the IPv6 ones, and the IPv4 loopback only when there is no other. It also records whether each
+// interface is internet, for SrsProtocolUtility::is_internet(ifname).
+extern void srs_discover_local_ips(SrsProtocolUtility *utility, struct ifaddrs *ifap, std::vector<SrsIPAddress *> &ips);
+
 // The interface for protocol utility.
 class ISrsProtocolUtility
 {

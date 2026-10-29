@@ -212,6 +212,8 @@ public:
     srs_error_t on_source_id_changed_error_;
     srs_error_t on_publish_error_;
     srs_error_t on_audio_error_;
+    srs_error_t on_video_error_;
+    srs_error_t on_aggregate_error_;
     srs_error_t on_meta_data_error_;
 
 public:

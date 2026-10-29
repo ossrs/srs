@@ -82,4 +82,6 @@ public:
     virtual ISrsRequest *as_http();
 };
 
+SrsRtpPacket *create_hevc_stap_packet_with_vps_sps_pps();
+
 #endif

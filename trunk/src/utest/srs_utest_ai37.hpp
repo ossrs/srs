@@ -49,6 +49,12 @@ public:
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
 };
 
+// Hand the records each side sent to the other side, until neither side has anything more to send.
+extern srs_error_t dtls_exchange(SrsDtls *client, MockDtlsCallbackForHandshake *ccb, SrsDtls *server, MockDtlsCallbackForHandshake *scb);
+
+// Protect an RTP and an RTCP packet by one side and unprotect them by the other.
+extern void expect_srtp_round_trip(ISrsSRTP *sender, ISrsSRTP *receiver, uint16_t seq);
+
 // Mock ISrsRtcConnection that logs each call SrsRtcSessionManager makes while it creates a session.
 class MockRtcConnectionForCreateSession : public MockRtcConnectionForUpdateSessions
 {

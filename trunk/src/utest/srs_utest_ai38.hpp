@@ -17,8 +17,11 @@
 #include <srs_app_process.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai19.hpp>
+#include <srs_utest_ai34.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <string>
@@ -241,6 +244,42 @@ public:
     virtual srs_error_t start();
     virtual void stop();
     virtual srs_error_t proxy(SrsRtmpCommonMessage *msg);
+};
+
+// A message of the type, with a payload of size bytes of the value.
+extern SrsRtmpCommonMessage *mock_edge_message(int type, int size, char value);
+
+// The ingester, wired to the mocks of a test.
+class MockEdgeIngesterFixture
+{
+public:
+    MockLiveSourceForOriginHub source_;
+    MockPlayEdgeForIngesterCycle edge_;
+    MockAppConfigForEdgeIngester config_;
+    MockAppFactoryForEdgeIngester factory_;
+    MockSrsRequest req_;
+    SrsEdgeIngester *ingester_;
+
+public:
+    MockEdgeIngesterFixture(int nb_pulls) : req_("test.vhost", "live", "livestream")
+    {
+        ingester_ = new SrsEdgeIngester();
+        ingester_->source_ = &source_;
+        ingester_->edge_ = &edge_;
+        ingester_->req_ = &req_;
+        ingester_->config_ = &config_;
+        ingester_->app_factory_ = &factory_;
+        srs_freep(ingester_->trd_);
+        ingester_->trd_ = new MockCoroutineForForwarder(nb_pulls);
+    }
+    virtual ~MockEdgeIngesterFixture()
+    {
+        srs_freep(ingester_);
+    }
+    MockCoroutineForForwarder *trd()
+    {
+        return dynamic_cast<MockCoroutineForForwarder *>(ingester_->trd_);
+    }
 };
 
 #endif

@@ -596,10 +596,13 @@ void discover_network_iface(SrsProtocolUtility *utility, ifaddrs *cur, vector<Sr
     ip_address->is_internet_ = utility->is_internet(cur->ifa_addr);
     ips.push_back(ip_address);
 
-    // set the device internet status.
+    // set the device internet status. A device is internet if any of its addresses is, because a device
+    // with a public address also has the IPv6 link-local address, which is intranet.
     if (!ip_address->is_internet_) {
         ss1 << ", intranet ";
-        _srs_device_ifs[cur->ifa_name] = false;
+        if (_srs_device_ifs.find(cur->ifa_name) == _srs_device_ifs.end()) {
+            _srs_device_ifs[cur->ifa_name] = false;
+        }
     } else {
         ss1 << ", internet ";
         _srs_device_ifs[cur->ifa_name] = true;
@@ -609,16 +612,10 @@ void discover_network_iface(SrsProtocolUtility *utility, ifaddrs *cur, vector<Sr
 
 vector<SrsIPAddress *> _srs_system_ips;
 
-void retrieve_local_ips(SrsProtocolUtility *utility)
+void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<SrsIPAddress *> &ips)
 {
-    vector<SrsIPAddress *> &ips = _srs_system_ips;
-
-    // Get the addresses.
-    ifaddrs *ifap;
-    if (srs_getifaddrs(&ifap) == -1) {
-        srs_warn("retrieve local ips, getifaddrs failed.");
-        return;
-    }
+    // The device status comes only from the addresses discovered now.
+    _srs_device_ifs.clear();
 
     stringstream ss0;
     ss0 << "ips";
@@ -694,6 +691,20 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
 
     srs_trace("%s", ss0.str().c_str());
     srs_trace("%s", ss1.str().c_str());
+}
+
+void retrieve_local_ips(SrsProtocolUtility *utility)
+{
+    vector<SrsIPAddress *> &ips = _srs_system_ips;
+
+    // Get the addresses.
+    ifaddrs *ifap;
+    if (srs_getifaddrs(&ifap) == -1) {
+        srs_warn("retrieve local ips, getifaddrs failed.");
+        return;
+    }
+
+    srs_discover_local_ips(utility, ifap, ips);
 
     srs_freeifaddrs(ifap);
 }

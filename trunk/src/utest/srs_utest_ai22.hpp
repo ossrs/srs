@@ -96,12 +96,13 @@ public:
 
 // Mock app factory for SrsEdgeForwarder::start(): a recording RTMP client for each origin, whose
 // connect fails for an origin in down_ and whose publish fails for the origin refuse_, and a mock
-// coroutine, so no coroutine runs.
+// coroutine, so no coroutine runs, whose start fails with a copy of coroutine_start_error_.
 class MockEdgeForwarderFactory : public SrsAppFactory
 {
 public:
     std::vector<std::string> down_;
     std::string refuse_;
+    srs_error_t coroutine_start_error_;
     // The url of each client handed out, in order; the forwarder owns the clients.
     std::vector<std::string> urls_;
 

@@ -191,7 +191,8 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     void count_ts_frame(char *p);
     void update_ts_message_stats(bool is_audio);
-    srs_error_t parse_video_codec(SrsTsMessage *msg);
+    // Set parsed to true only when the msg holds an SPS and PPS that the format parsed.
+    srs_error_t parse_video_codec(SrsTsMessage *msg, bool &parsed);
     srs_error_t parse_audio_codec(SrsTsMessage *msg);
 
 // clang-format off

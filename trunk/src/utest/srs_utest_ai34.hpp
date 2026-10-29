@@ -56,6 +56,9 @@ public:
     srs_error_t recv_error_;
     std::vector<MockForwarderSentPacket> sent_;
     std::vector<int> batches_;
+    // The label and message count of each kbps sample of a push.
+    std::vector<std::string> kbps_labels_;
+    std::vector<int> kbps_msgs_;
     // A send that carries a packet with this marker fails with send_error_; 0 means none.
     char fail_marker_;
     // The packets the publisher sends while this client is connected: the Nth recv_message()

@@ -23,12 +23,21 @@ A bug fix and a new capability both start red: a bug's regression test fails unt
 
 **The one exception:** a test that locks in an accepted limitation passes from the start, because current behavior is the intended final behavior. Say so explicitly in the test's comment so a future reader does not mistake it for a test that should have been red. Example: MPEG-TS over SRT carries no application status channel, so "a rejected viewer is refused with no reason delivered" is the permanent, correct behavior.
 
+## Tests come from scenarios, not lines
+
+⚠️ **Never write a test just to run a line of code.** Each line serves a scenario: a protocol workflow, a feature, a client or peer behavior, a config, or an error from the network or the OS. Coverage is the result of testing scenarios, never the goal of a test. Before writing any test:
+
+- Work out which scenario reaches the code, and why the code handles it the way it does.
+- Write the test as that scenario: set up what a real client, peer or config does, and assert what the scenario must produce.
+- An edge case is fine when it is a real one, such as a truncated packet or a peer that disconnects mid-handshake; name it in the test.
+- If no real scenario reaches the code, do not cover it; report it as possibly dead code.
+
 ## Test platforms
 
 Run the tests on every platform the change can reach, and report the results per OS.
 
 - Detect the platforms, never assume them: the local OS from `uname -s` and `uname -m`, Linux in Docker when `docker info` succeeds, and the remote hosts the routed code map describes.
-- Report a table with one row per OS and CPU, such as macOS arm64, Linux arm64 (Docker), Linux x64 (WSL), and Windows x64, and the passed, failed, and skipped counts of each test type.
+- Report a table with one row per OS and CPU, such as macOS arm64, Linux arm64 (Docker), and Windows x64, and the passed, failed, and skipped counts of each test type.
 - List every OS that was not tested and why, such as Docker not running or no Windows host set up.
 
 ## Run tests in a subagent

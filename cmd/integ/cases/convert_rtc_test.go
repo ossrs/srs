@@ -551,7 +551,7 @@ func whipCommonCells(t *testing.T) {
 
 // The WebRTC source's players on the shared remux and fmp4 servers, which
 // have rtc_to_rtmp: HTTP-TS; HTTP MP3, which doesn't carry the AAC SRS
-// transcodes from Opus; HTTP AAC; and HLS in fmp4, 4s segments
+// transcodes from Opus; HTTP AAC; and HLS in fmp4, 3s segments
 // (fmp4Segment), or with no video, 5s ones (hls_aof_ratio 2.5).
 var (
 	whipTsPlayer   = whipRemux("HttpTs", "ts", same("h264", "hevc"), map[string]string{"opus": "aac"})

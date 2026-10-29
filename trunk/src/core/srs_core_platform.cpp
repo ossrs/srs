@@ -1230,7 +1230,7 @@ bool srs_daemon_supported()
     return true;
 }
 
-static int srs_redirect_output(const char *file, int to_fd)
+int srs_redirect_output(const char *file, int to_fd)
 {
     if (!file || !*file) {
         return 0;
@@ -1256,6 +1256,9 @@ pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *s
         return pid;
     }
 
+    // The forked child quits in execv or _exit and never writes its gcov data, so the tests that run it cannot
+    // count it.
+    // LCOV_EXCL_START
     // The child quits with _exit, after flushing what exit flushed, so it runs no exit handler of the parent's
     // libraries: libsrt's waits for its worker threads, which the child does not have, and hung forever.
     ::signal(SIGINT, SIG_IGN);
@@ -1281,6 +1284,7 @@ pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *s
         fprintf(stderr, "fork process failed, errno=%d(%s)", errno, strerror(errno));
     }
     ::_exit(r0);
+    // LCOV_EXCL_STOP
 }
 
 int srs_self_pipe_open(int fds[2])

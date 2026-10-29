@@ -634,8 +634,8 @@ public:
     // Whether the network device is ok.
     bool ok_;
 
-    // 6-chars interfaces name
-    char name_[7];
+    // The interface name, up to 15 chars as Linux IFNAMSIZ allows, and the NUL.
+    char name_[16];
     // The sample time in ms.
     int64_t sample_time_;
 

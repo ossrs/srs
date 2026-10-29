@@ -299,7 +299,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     };
 
     int pkt_len_;
+    // The packet the next feedback continues from, when the last one stopped
+    // before reporting every received packet.
     uint16_t next_base_sn_;
+    bool has_next_base_sn_;
     // The last sequence number a feedback reported, and whether any feedback
     // has been sent, so the next one continues from the packet after it and a
     // packet lost between feedbacks is reported, not skipped.

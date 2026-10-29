@@ -127,6 +127,9 @@ extern std::string srs_config_bool2switch(std::string sbool);
 // @param root the root directive to transform, in and out parameter.
 extern srs_error_t srs_config_transform_vhost(SrsConfDirective *root);
 
+// Detect docker by the cgroup file of the init process, such as /proc/1/cgroup, and set _srs_in_docker.
+extern srs_error_t srs_detect_docker(std::string cgroup_file);
+
 // @global config object.
 extern SrsConfig *_srs_config;
 
