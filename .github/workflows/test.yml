@@ -7,13 +7,14 @@ on: [push, pull_request]
 permissions: read-all
 
 # The dependency graph:
-# test(10m)
-# integ(7m)
-# windows
+# test(10m) - utest-regression-blackbox-test
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
+# build-centos7(3m)
 # fast(0s) - To limit all fastly run jobs after slow jobs.
-#     build-centos7(3m)
+#     integ(7m)
+#     chrome
+#     windows
 #     build-ubuntu16(3m)
 #     build-ubuntu18(2m)
 #     build-ubuntu20(2m)
@@ -23,6 +24,12 @@ permissions: read-all
 #     coverage(3m)
 
 jobs:
+
+  fast:
+    name: fast
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Start fast jobs'
 
   build-centos7:
     name: build-centos7
@@ -44,6 +51,8 @@ jobs:
 
   build-ubuntu16:
     name: build-ubuntu16
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -56,6 +65,8 @@ jobs:
 
   build-ubuntu18:
     name: build-ubuntu18
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -68,6 +79,8 @@ jobs:
 
   build-ubuntu20:
     name: build-ubuntu20
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -82,6 +95,8 @@ jobs:
 
   build-cross-arm:
     name: build-cross-arm
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -93,6 +108,8 @@ jobs:
 
   build-cross-aarch64:
     name: build-cross-aarch64
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -107,9 +124,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       # Tests
       - name: Build test image
-        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+        run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
+      # The utest and the regression-test run in the background, beside the blackbox-test, each in
+      # its own container, and their results are checked after it. The regression-test waits for
+      # the SRS API port, not a fixed time.
+      - name: Start SRS utest and regression-test
+        id: start
+        run: |
+          docker run -d --name srs-utest srs:test ./objs/srs_utest
+          docker run -d --name srs-regression srs:test bash -c './objs/srs -c conf/regression-test.conf && \
+              for i in $(seq 50); do (echo >/dev/tcp/127.0.0.1/1985) 2>/dev/null && break; sleep 0.2; done && \
+              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
       # For blackbox-test
       - name: Run SRS blackbox-test
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
@@ -124,24 +157,34 @@ jobs:
             docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
               ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
             docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
-              ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 1
+              ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 3
       # For utest
       - name: Run SRS utest
-        run: docker run --rm srs:test ./objs/srs_utest
+        if: ${{ !cancelled() && steps.start.outcome == 'success' }}
+        run: |
+          code=$(docker wait srs-utest); docker logs srs-utest; exit $code
       # For regression-test
       - name: Run SRS regression-test
+        if: ${{ !cancelled() && steps.start.outcome == 'success' }}
         run: |
-          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && sleep 10 && \
-              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
+          code=$(docker wait srs-regression); docker logs srs-regression; exit $code
     runs-on: ubuntu-22.04
 
   integ:
     name: integration-test
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       - name: Build test image
-        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+        run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
       # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
       # ffmpeg 5 writes HEVC in legacy FLV, so the test media, and the cases that run ffmpeg, use
       # its ffmpeg7. Each step mounts the media directory, so the media is made once, and kept in
@@ -204,11 +247,59 @@ jobs:
               make integ-timer INTEG_ARGS=-integ.limit-scale=4
     runs-on: ubuntu-22.04
 
+  # Chrome publishes and plays over WebRTC and HTTP against SRS for Linux in Docker: the WebRTC, loss,
+  # HTTP and codec cases of the Full tier's lane I, see chrome-linux-test.sh. The unit tests of the
+  # Chrome driver and of the shared helper run first. CHROME_PATH names the runner's Chrome, so a
+  # runner without it fails instead of skipping the cases.
+  chrome:
+    name: chrome-test
+    needs:
+      - fast
+    env:
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The driver's puppeteer-core needs Node 22.12 or later.
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: skills/internal-chrome-control/package-lock.json
+      # The cases publish doc/source.flv over RTMP with the runner's FFmpeg.
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install the Chrome driver
+        working-directory: skills/internal-chrome-control
+        run: npm ci --ignore-scripts
+      - name: Run the Chrome driver unit test
+        working-directory: skills/internal-chrome-control
+        run: npm test
+      - name: Run the Chrome helper self-test
+        run: bash skills/srs-develop/scripts/chrome-test-lib-test.sh
+      - name: Build SRS for Linux in Docker
+        run: bash skills/srs-develop/scripts/chrome-linux-test.sh --build
+      - name: Run the Chrome cases
+        run: bash skills/srs-develop/scripts/chrome-linux-test.sh
+      # The build log, each case's SRS and FFmpeg logs, and the getStats() samples of every run.
+      - name: Upload the Chrome logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chrome-test-logs
+          path: /tmp/srs-chrome-linux
+          if-no-files-found: ignore
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
   # The native Windows x64 build with MSVC, and its utest, through srs-windows-runner.sh as on the
   # Windows test host. The image has Visual Studio 2026 (18), the newest one that host has too, with
   # its vcpkg, and MSYS2, which builds FFmpeg-fit.
   windows:
     name: windows-utest
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -225,12 +316,20 @@ jobs:
 
   coverage:
     name: coverage
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       # Tests
       - name: Build coverage image
-        run: docker build --tag srs:cov --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.cov .
+        run: docker build --tag srs:cov --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.cov .
       # For coverage
       - name: Run SRS covergae
         if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/pull/') }}
@@ -300,6 +399,8 @@ jobs:
 
   multiple-arch-amd64:
     name: multiple-arch-amd64
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -321,9 +422,11 @@ jobs:
 
   test-done:
     needs:
+      - fast
       - coverage
       - test
       - integ
+      - chrome
       - windows
       - build-centos7
       - build-ubuntu16

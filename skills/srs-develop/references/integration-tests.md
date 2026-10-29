@@ -40,6 +40,7 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 - The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
 - `make integ` and `make integ-unit` first make the test media with FFmpeg (`make integ-prepare`), which needs libx264, libx265 and an Opus encoder.
 - The OBS tests of lane G need OBS with obs-websocket and Python 3.9+, and the Linux run needs Docker. Without them they print a `SKIP` line, which the Full tier lists as unverified.
+- The Chrome tests of lane I need Node.js 22.12+ and Chrome or Edge. Without them they print a `SKIP` line, which the Full tier lists as unverified.
 
 ## Feature-Specific Tests
 
@@ -77,6 +78,20 @@ OBS tests:
   - Prints the build time and `RESULT linux`, fails when the cases take over 60 s, and removes the container on exit.
   - Without a running Docker it prints `SKIP linux: unverified: Docker not available`; `SRS_TEST_OBS=0` skips.
   - Same OBS dependencies as the RTMP test.
+
+Chrome tests:
+
+They drive Chrome with `skills/internal-chrome-control/SKILL.md`. Each case uses its own SRS, owns its cleanup, has a 60 s budget, and needs Node.js 22.12+ and Chrome or Edge; `SRS_TEST_CHROME=0` skips. A `KNOWN F<n>` line is a known SRS defect the case tolerates. Each script's header lists its checks.
+
+- `chrome-webrtc-test.sh` — Chrome publishes H.264/Opus over WHIP and plays it back over WHEP and HTTP-FLV; it also plays FFmpeg's RTMP stream over WHEP.
+- `chrome-loss-test.sh` — NACK under loss with the NACK simulator, downlink and uplink, with `nack_prefer_rtx` off and on. Needs `--simulator=on`.
+- `chrome-http-test.sh` — Chrome plays FFmpeg's RTMP stream over HTTP-FLV, HTTP-TS and HLS.
+- `chrome-codec-test.sh` — Chrome publishes and plays H.264, VP9, AV1 and H.265 over WebRTC; a codec the browser cannot encode is a `SKIP`.
+- `chrome-lane-test.sh` — lane I: the unit tests below, then the four cases in parallel; `--cases-only` runs only the cases.
+- `chrome-linux-test.sh` — the four cases against SRS for Linux in Docker, like `obs-linux-test.sh`; `--build` builds it.
+- `chrome-windows-test.sh` — the four cases with Edge on the Windows test host, like `obs-windows-test.sh`.
+- Unit tests: `npm test` in `skills/internal-chrome-control` for the driver, and `chrome-test-lib-test.sh` for the helper `chrome-test-lib.sh`.
+- CI: the `chrome-test` job of `.github/workflows/test.yml` runs the unit tests and `chrome-linux-test.sh` with Chrome on Linux.
 
 Windows tests:
 
@@ -136,7 +151,7 @@ WebRTC retransmission tests:
 
 Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, `setup-ffmpeg-with-whip.sh` and `windows-host-run.sh` are not standalone test cases unless a workflow explicitly invokes them. `windows-host-run.sh` syncs a checkout to the Windows test host and runs a script there, with `--wip` for the uncommitted working tree; its header lists the details.
 
-A skill script with a `-test.sh` beside it, such as `srs-windows-runner-test.sh`, `windows-host-run-test.sh`, `obs-test-lib-test.sh` or `srs-full-tier-test.sh`, is tested by it on this machine with fakes; run it when the script changes.
+A skill script with a `-test.sh` beside it, such as `srs-windows-runner-test.sh`, `windows-host-run-test.sh`, `obs-test-lib-test.sh`, `chrome-test-lib-test.sh` or `srs-full-tier-test.sh`, is tested by it on this machine with fakes; run it when the script changes.
 
 ## Adding srs-integ Cases
 
@@ -212,17 +227,27 @@ Two variables control it:
 - `SRS_TEST_OBS`: `1` by default; `0` skips the OBS builds and lane G, and the summary says `lane G: skipped (SRS_TEST_OBS=0)`.
 - `SRS_TEST_WINDOWS_HOST`: the Windows test host, as a placeholder `<srs-test-windows-host>`; unset, the Windows build and run are left out.
 
+**Chrome**, lane I:
+
+1. `chrome-lane-test.sh`: the driver and helper unit tests, then the four Chrome cases against the local `objs/srs`.
+2. `chrome-linux-test.sh`, after it: the same cases against SRS for Linux in Docker. Not in parallel: with both sets of browsers at once, players froze at their start on the Mac.
+3. `chrome-windows-test.sh`, only with `SRS_TEST_WINDOWS_HOST`, beside the two above: builds `srs.exe` on the Windows test host, then the same cases from Edge there to the native `srs.exe`.
+
+- `SRS_TEST_CHROME`: `1` by default; `0` skips the Chrome Linux build and lane I, and the summary says `lane I: skipped (SRS_TEST_CHROME=0)`.
+- With no usable Node or browser, each case prints `SKIP <case>: unverified: Chrome not available (<why>)`, listed as unverified.
+
 **Native Windows**, lane W: in Git Bash on Windows, where `uname -s` is `MINGW64*` or `MSYS*`, the Full tier runs lane W instead of the layers above, which need `./configure`, srs-bench, the proxy and Docker:
 
 1. `srs-windows-runner.sh build`: the deps and `srs.exe`, with its start check.
 2. `srs-windows-runner.sh --alone utest`, beside `obs-windows-test.sh --host-cases`, the OBS cases on that host, unless `SRS_TEST_OBS=0`.
-3. `srs-windows-runner.sh --alone integ`, alone, as lane H.
+3. `chrome-windows-test.sh --host-cases`, the Chrome cases there, alone, as lane I, unless `SRS_TEST_CHROME=0`. Beside the utest and the OBS cases, the host was too loaded and both the OBS and the Chrome cases failed.
+4. `srs-windows-runner.sh --alone integ`, alone, as lane H.
 
 There it needs only `go`, `ffmpeg` and `curl`, and does not read `SRS_TEST_WINDOWS_HOST`. From macOS or Linux, run it on the host with `windows-host-run.sh [--wip] <checkout> srs-windows-runner.sh full`. On macOS and Linux the Full tier never runs lane W, even with `SRS_TEST_WINDOWS_HOST` set.
 
-Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`. The OBS layers count their `PASS` and `FAIL` lines, and the `windows-*` rows the runner's `CHECK` and `START` lines and the gtest `PASSED` count. Each OBS `SKIP` or `KNOWN` line is listed below the summary as unverified, never counted as passed.
+Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`. The OBS and Chrome layers count their `PASS` and `FAIL` lines, and the `windows-*` rows the runner's `CHECK` and `START` lines and the gtest `PASSED` count. Each OBS or Chrome `SKIP` or `KNOWN` line is listed below the summary as unverified, never counted as passed.
 
-`srs-full-tier-test.sh` tests the runner itself: the step order, lane G, lane W with a fake `uname`, both gates and the summary, with fake layers.
+`srs-full-tier-test.sh` tests the runner itself: the step order, lanes G and I, lane W with a fake `uname`, the `SRS_TEST_OBS`, `SRS_TEST_CHROME` and `SRS_TEST_WINDOWS_HOST` gates and the summary, with fake layers.
 
 ### Sub-agent
 
@@ -232,7 +257,7 @@ The sub-agent runs the tier as in [Parallel Runs](#parallel-runs), keeps every l
 
 - The two lock lines.
 - One row per layer or script: exit code, pass and fail counts, and duration.
-- The unverified OBS lines, or that lane G was skipped.
+- The unverified OBS and Chrome lines, or that lane G or I was skipped.
 - For each failure: the failing check, the few log lines that show its cause, and the log path.
 
 To look into a failure, ask that sub-agent, or start a new one, rather than reading the logs. If the tool has no sub-agents, run the tier directly and report the same result.
@@ -274,7 +299,7 @@ Run the layers of every tier in this order.
 2. Build `objs/srs`. Every lane uses it, and none uses `srs_utest`.
 3. Build the proxy and `bin/srs-integ` (`make`), and `tools/pion-whep`.
 
-Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS for Linux in Docker from the tracked files, in parallel, since it does not touch `trunk/objs`.
+Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS for Linux in Docker from the tracked files, in parallel, since it does not touch `trunk/objs`. Unless `SRS_TEST_CHROME=0`, `chrome-linux-test.sh --build` does the same in its own volume.
 
 **Step 2: test**, these lanes in parallel, each lane in its own order:
 
@@ -287,33 +312,37 @@ Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS fo
 | E | `srs-config-file-test.sh` and the feature-specific tests in parallel |
 | F | `make utest`, then `./objs/srs_utest`. With `objs/srs` built, `make utest` does not relink it |
 | G | The OBS scripts in parallel, the Linux run a second after the local cases; skipped with `SRS_TEST_OBS=0` |
+| I | The Chrome unit tests, then the four Chrome cases in parallel (`chrome-lane-test.sh`), then the Linux run (`chrome-linux-test.sh`); skipped with `SRS_TEST_CHROME=0` |
 
 **Step 3: lane H**, alone after Step 2: `make integ-unit`, then `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
 
-**Native Windows:** lane W in the same three steps, as in [Full Tier Layers](#full-tier-layers).
+**Native Windows:** lane W in four steps, as in [Full Tier Layers](#full-tier-layers).
 
 ### Times
 
-Measured on a 10-core arm64 Mac with `objs/srs` already built, on 2026-10-17, in seconds:
+A normal Full tier on the 10-core arm64 Mac, with everything already built and every optional test on, measured on 2026-10-29:
 
-| Step or lane | `SRS_TEST_OBS=1`, two runs | `SRS_TEST_OBS=0` |
-|---|---|---|
-| Step 1 | 8; the Linux build 4–5 | 5 |
-| A | 31–36 | 28 |
-| B | 26–27 | 24 |
-| C | 32 | 31 |
-| D | 19–21 | 17 |
-| E | 31–34 | 31 |
-| F | 16–20 | 13 |
-| G | 28–45 | skipped |
-| Step 2 wall | 36–45 | 31 |
-| H | 21–36 | 21 |
-| Total | 75–98 | 57 |
+| Step or lane | Seconds |
+|---|---|
+| Step 1, build | 1 |
+| A, proxy | 31 |
+| B, black-box fast | 26 |
+| C, black-box slow | 32 |
+| D, regression | 18 |
+| E, feature scripts | 34 |
+| F, utest | 35 |
+| G, OBS | 84 |
+| I, Chrome | 56 |
+| Step 2, the slowest lane | 86 |
+| H, integ | 33 |
+| **Total** | **122** |
 
-- **Lane G** must finish within 60 s. Its slow runs come from the one relaunch of an OBS instance that hangs in setup under load, which adds about 20 s to that case.
-- **CPU:** in Step 2, lane G raises the Mac's mean CPU from 26% to 34–41%, and its peak from 72% to 100% for a few seconds.
-- **Windows:** with `SRS_TEST_WINDOWS_HOST`, lane G also runs `obs-windows-test.sh`, about 45 s on 2026-10-22: the host sync, an incremental `srs.exe` build of about 7 s, and the three cases in 25–26 s on the host.
-- **Lane W** on the Windows test host: 69 s for `srs-windows-runner.sh full` on 2026-10-22, with the deps and `srs.exe` already built: the build and start checks, utest, the OBS cases, and integ.
+- Step 2 takes as long as its slowest lane, so a lane only matters when it becomes the slowest.
+- A rebuild of `objs/srs` and the utest adds about 15 s, and the busy CPU slows every lane.
+- The tests that use the Windows test host take turns on it, so their lanes wait for each other there.
+- Lane W runs on the Windows test host by itself, in about 70 s.
+- A script's own time limit is in its entry in [Feature-Specific Tests](#feature-specific-tests).
+- When a change adds a test or makes a lane slower, run the Full tier twice and update this table.
 
 ## Port Plan
 
@@ -326,7 +355,7 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 - No test binds a port below 11000, which is kept for human testing and shared services.
 - No test binds a port from 32768, which covers the ephemeral ports of Linux (32768–60999), macOS and Windows (49152–65535): a client socket there makes a later bind fail.
 - No test binds the Go proxy defaults 11935, 11985, 12025, 18000, 18080 and 20080 from `internal/env/env.go`, which are kept for running the proxy by hand.
-- On the Windows test host, lane W binds the same ranges as on this machine: `srs-integ` 14000–14999, the C++ unit tests 26000–29999, the OBS cases of `obs-windows-test.sh` 15100–15399, and the `build` step's start check 15500–15599. The host lock keeps two runs apart there.
+- On the Windows test host, lane W binds the same ranges as on this machine: `srs-integ` 14000–14999, the C++ unit tests 26000–29999, the OBS cases of `obs-windows-test.sh` 15100–15399, the `build` step's start check 15500–15599, and the Chrome cases of `chrome-windows-test.sh` 15600–15999. The host lock keeps two runs apart there.
 - Update this table, including its counts, whenever a test adds, moves or removes a port.
 
 | Range | Owner | Total ports | Bound today | Available for new tests |
@@ -345,8 +374,12 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 15300–15399 | `obs-whip-publish-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15400–15499 | `obs-linux-test.sh` at `SRS_TEST_PORT_BASE`: published from its SRS container on `127.0.0.1`, RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15500–15599 | `srs-windows-runner.sh` on the Windows test host, not the local machine: its `build` step starts `srs.exe` at `SRS_TEST_PORT_BASE` with RTMP +0, HTTP +1, API +2 | 100 | 3 | 97, inside the existing slot |
-| 15600–15999 | Reserved for new test layers | 400 | 0 | 400 |
-| 16000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 5,000 | 0 | 4,997 |
+| 15600–15699 | `chrome-webrtc-test.sh` and `chrome-test-lib-test.sh --live` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, the driver's page server +9 | 100 | 5 | 95, inside the existing slot |
+| 15700–15799 | `chrome-loss-test.sh` at `SRS_TEST_PORT_BASE`: four SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3, +4..+7, +10..+13 and +14..+17; the driver's page server +9 | 100 | 17 | 83, inside the existing slot |
+| 15800–15899 | `chrome-http-test.sh` at `SRS_TEST_PORT_BASE`: two SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3 and +4..+7; the driver's page server +9 | 100 | 9 | 91, inside the existing slot |
+| 15900–15999 | `chrome-codec-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, the driver's page server +9 | 100 | 5 | 95, inside the existing slot |
+| 16000–16399 | `chrome-linux-test.sh`: the four Chrome cases at 16000, 16100, 16200 and 16300, with the ports of the 15600–15999 slots. Each SRS container publishes RTMP, HTTP and API on `127.0.0.1` and RTC UDP on the host's own IPv4; the driver's page server +9 is on the host | 400 | 36 | 364, inside the existing slots |
+| 16400–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,600 | 0 | 4,597 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
 | 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |
