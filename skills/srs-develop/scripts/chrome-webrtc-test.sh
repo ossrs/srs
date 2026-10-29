@@ -17,8 +17,10 @@ chrome_test_wait_stream "$rtmp"
 CHROME_API_WAIT=20 chrome_test_api_watch "any(.streams[]?; .name == \"$whip\" and .publish.active == true
   and .video.codec == \"H264\" and .audio.codec == \"AAC\")"
 # The FLV of a WHIP stream starts at the bridge's first keyframe request,
-# pli_for_rtmp (6 s) after the publish.
-chrome_test_run webrtc --seconds 4 --timeout 15 \
+# pli_for_rtmp (6 s) after the publish. The bridge's AAC starts only at
+# Chrome's first audio sender report, 5.4 to 8.3 s after the publish, so the
+# publisher runs about 11 s.
+chrome_test_run webrtc --seconds 8 --timeout 15 \
   --mode whip --name whip --codec h264 --url "$(chrome_test_whip_url "$whip")" \
   --mode whep --name whep --url "$(chrome_test_whep_url "$whip")" \
   --mode flv --name flv --url "$(chrome_test_flv_url "$whip")" \
