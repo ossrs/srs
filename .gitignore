@@ -52,3 +52,4 @@ personal-*
 bin
 .go-formarted
 .openclaw
+/Makefile

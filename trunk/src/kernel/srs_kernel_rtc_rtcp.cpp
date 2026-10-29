@@ -60,6 +60,11 @@ srs_error_t SrsRtcpCommon::decode_header(SrsBuffer *buffer)
     buffer->read_bytes((char*)(&header_), sizeof(SrsRtcpHeader));
     header_.length = ntohs(header_.length);
 
+    // The length counts the 32-bit words after the first one, so it must cover the SSRC read below.
+    if (header_.length < 1) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for ssrc, length=%u", header_.length);
+    }
+
     int payload_len = header_.length * 4;
     if (payload_len > buffer->left()) {
         return srs_error_new(ERROR_RTC_RTCP, 
@@ -93,6 +98,9 @@ srs_error_t SrsRtcpCommon::decode(SrsBuffer *buffer)
     }
 
     payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader) - 4;
+    if (payload_len_ > kRtcpPacketSize) {
+        return srs_error_new(ERROR_RTC_RTCP, "payload len=%d exceeds %d", payload_len_, kRtcpPacketSize);
+    }
     buffer->read_bytes((char *)payload_, payload_len_);
 
     return err;
@@ -115,6 +123,7 @@ SrsRtcpApp::SrsRtcpApp()
     header_.type = SrsRtcpType_app;
     header_.rc = 0;
     header_.version = kRtcpVersion;
+    header_.length = 2;
 }
 
 SrsRtcpApp::~SrsRtcpApp()
@@ -392,14 +401,21 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_wrap(err, "decode header");
     }
 
+    if(!buffer->require(20)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require sr sender info, left=%d", buffer->left());
+    }
     ntp_ = buffer->read_8bytes();
     rtp_ts_ = buffer->read_4bytes();
     send_rtp_packets_ = buffer->read_4bytes();
     send_rtp_bytes_ = buffer->read_4bytes();
 
     if(header_.rc > 0) {
-        char buf[1500];
-        buffer->read_bytes(buf, header_.rc * 24);
+        int nb_reports = header_.rc * 24;
+        if(!buffer->require(nb_reports)) {
+            return srs_error_new(ERROR_RTC_RTCP, "require sr rc=%d reports=%d, left=%d", header_.rc, nb_reports, buffer->left());
+        }
+        char buf[1500]; // rc is 5 bits, so rc*24 is at most 744.
+        buffer->read_bytes(buf, nb_reports);
     }
 
     return err;
@@ -609,7 +625,9 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_new(ERROR_RTC_RTCP_EMPTY_RR, "rc=0");
     }
 
-    // TODO: FIXME: Security check for read.
+    if(!buffer->require(24)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require rr report block, left=%d", buffer->left());
+    }
     rb_.ssrc = buffer->read_4bytes();
     rb_.fraction_lost = buffer->read_1bytes();
     rb_.lost_packets = buffer->read_3bytes();
@@ -618,10 +636,13 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     rb_.lsr = buffer->read_4bytes();
     rb_.dlsr = buffer->read_4bytes();
 
-    // TODO: FIXME: Security check for read.
     if(header_.rc > 1) {
-        char buf[1500];
-        buffer->read_bytes(buf, (header_.rc -1 ) * 24);
+        int nb_reports = (header_.rc - 1) * 24;
+        if(!buffer->require(nb_reports)) {
+            return srs_error_new(ERROR_RTC_RTCP, "require rr rc=%d reports=%d, left=%d", header_.rc, nb_reports, buffer->left());
+        }
+        char buf[1500]; // rc is 5 bits, so (rc-1)*24 is at most 720.
+        buffer->read_bytes(buf, nb_reports);
     }
 
     return err;
@@ -824,6 +845,9 @@ srs_error_t SrsRtcpTWCC::decode(SrsBuffer *buffer)
     }
 
     payload_len_ = (header_.length + 1) * 4 - sizeof(SrsRtcpHeader) - 4;
+    if (payload_len_ > kRtcpPacketSize) {
+        return srs_error_new(ERROR_RTC_RTCP, "payload len=%d exceeds %d", payload_len_, kRtcpPacketSize);
+    }
     buffer->read_bytes((char *)payload_, payload_len_);
 
     return err;
@@ -1259,6 +1283,9 @@ srs_error_t SrsRtcpNack::decode(SrsBuffer *buffer)
         return srs_error_wrap(err, "decode header");
     }
 
+    if (header_.length < 2) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for media ssrc, length=%u", header_.length);
+    }
     media_ssrc_ = buffer->read_4bytes();
     char bitmask[20];
     for(int i = 0; i < (header_.length - 2); i++) {
@@ -1408,6 +1435,9 @@ srs_error_t SrsRtcpFbCommon::decode(SrsBuffer *buffer)
         return srs_error_wrap(err, "decode header");
     }
 
+    if (header_.length < 2) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for media ssrc, length=%u", header_.length);
+    }
     media_ssrc_ = buffer->read_4bytes();
     int len = (header_.length + 1) * 4 - 12;
     buffer->skip(len);
@@ -1462,6 +1492,9 @@ srs_error_t SrsRtcpPli::decode(SrsBuffer *buffer)
         return srs_error_wrap(err, "decode header");
     }
 
+    if (header_.length < 2) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for media ssrc, length=%u", header_.length);
+    }
     media_ssrc_ = buffer->read_4bytes();
     return err;
 }
@@ -1553,6 +1586,9 @@ srs_error_t SrsRtcpSli::decode(SrsBuffer *buffer)
         return srs_error_wrap(err, "decode header");
     }
 
+    if (header_.length < 2) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for media ssrc, length=%u", header_.length);
+    }
     media_ssrc_ = buffer->read_4bytes();
     int len = (header_.length + 1) * 4 - 12;
     buffer->skip(len);
@@ -1624,6 +1660,9 @@ srs_error_t SrsRtcpRpsi::decode(SrsBuffer *buffer)
         return srs_error_wrap(err, "decode header");
     }
 
+    if (header_.length < 2) {
+        return srs_error_new(ERROR_RTC_RTCP, "require length for media ssrc, length=%u", header_.length);
+    }
     media_ssrc_ = buffer->read_4bytes();
     int len = (header_.length + 1) * 4 - 12;
     buffer->skip(len);

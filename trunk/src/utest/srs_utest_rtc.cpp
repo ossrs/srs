@@ -1569,3 +1569,204 @@ VOID TEST(KernelRTC2Test, SrsRtcFrameBuilderSequenceWrapAroundFix)
     EXPECT_TRUE(frame_builder.check_frame_complete(3, 3));   // same sequence
     EXPECT_TRUE(frame_builder.check_frame_complete(3, 5));   // normal case
 }
+
+// A peer sends RTCP whose header length is 0, shorter than the SSRC it carries,
+// so the payload length is negative. It must be an error, not abort the server.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeZeroLengthBye)
+{
+    unsigned char data[] = {
+        0x81, 0xCB, 0x00, 0x00, // V=2, RC=1, PT=203(BYE), length=0
+        0x12, 0x34, 0x56, 0x78  // SSRC
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeZeroLengthTwcc)
+{
+    unsigned char data[] = {
+        0x8F, 0xCD, 0x00, 0x00, // V=2, FMT=15, PT=205(RTPFB), length=0
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A feedback packet at the end of the compound whose length=1 leaves no room
+// for the media SSRC. It must be an error, not abort the server.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortFbCommon)
+{
+    unsigned char data[] = {
+        0x83, 0xCD, 0x00, 0x01, // V=2, FMT=3, PT=205(RTPFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortNack)
+{
+    unsigned char data[] = {
+        0x81, 0xCD, 0x00, 0x01, // V=2, FMT=1, PT=205(RTPFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortPli)
+{
+    unsigned char data[] = {
+        0x81, 0xCE, 0x00, 0x01, // V=2, FMT=1, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortSli)
+{
+    unsigned char data[] = {
+        0x82, 0xCE, 0x00, 0x01, // V=2, FMT=2, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortRpsi)
+{
+    unsigned char data[] = {
+        0x83, 0xCE, 0x00, 0x01, // V=2, FMT=3, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// The UDP read buffer takes up to 64KB, but payload_ holds kRtcpPacketSize
+// bytes. A 2008-byte RTCP packet must be an error, not copied past payload_.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeOversizedBye)
+{
+    char data[2008];
+    memset(data, 0, sizeof(data));
+    data[0] = (char)0x81; // V=2, RC=1
+    data[1] = (char)0xCB; // PT=203(BYE)
+    data[2] = (char)0x01; // length=501, (501+1)*4=2008 bytes
+    data[3] = (char)0xF5;
+    SrsBuffer buffer(data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeOversizedTwcc)
+{
+    char data[2008];
+    memset(data, 0, sizeof(data));
+    data[0] = (char)0x8F; // V=2, FMT=15
+    data[1] = (char)0xCD; // PT=205(RTPFB)
+    data[2] = (char)0x01; // length=501, (501+1)*4=2008 bytes
+    data[3] = (char)0xF5;
+    SrsBuffer buffer(data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A Sender Report whose header length passes the outer check but which is
+// too short for its sender info, or for the report blocks its RC counts,
+// must return an error, not read past the buffer.
+VOID TEST(KernelRTCPTest, SrsRtcpSR_DecodeMalformedRc)
+{
+    // RC=31, length=1: passes the header's payload-length check, then the
+    // sender info reads run past the 8-byte packet.
+    if (true) {
+        unsigned char data[] = {0x9F, 0xC8, 0x00, 0x01, 0x12, 0x34, 0x56, 0x78};
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpSR sr;
+        srs_error_t err = sr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // RC=31, long enough for the sender info but carrying no report block.
+    if (true) {
+        unsigned char data[] = {
+            0x9F, 0xC8, 0x00, 0x06, // V=2, RC=31, PT=200(SR), length=6
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x11, 0x22, 0x33, 0x44, // NTP MSW
+            0x55, 0x66, 0x77, 0x88, // NTP LSW
+            0xAA, 0xBB, 0xCC, 0xDD, // RTP timestamp
+            0x00, 0x00, 0x12, 0x34, // packet count
+            0x00, 0x56, 0x78, 0x9A  // octet count
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpSR sr;
+        srs_error_t err = sr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
+
+// A Receiver Report whose header length passes the outer check but which is
+// too short for its first report block, or for the blocks its RC counts
+// beyond the first, must return an error, not read past the buffer.
+VOID TEST(KernelRTCPTest, SrsRtcpRR_DecodeMalformedRc)
+{
+    // RC=1, but the first report block is cut short.
+    if (true) {
+        unsigned char data[] = {
+            0x81, 0xC9, 0x00, 0x02, // V=2, RC=1, PT=201(RR), length=2
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x87, 0x65, 0x43, 0x21  // SSRC of first source, then nothing
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpRR rr;
+        srs_error_t err = rr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // RC=2, one full report block but not the second it counts.
+    if (true) {
+        unsigned char data[] = {
+            0x82, 0xC9, 0x00, 0x07, // V=2, RC=2, PT=201(RR), length=7
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x87, 0x65, 0x43, 0x21, // SSRC of first source
+            0x18, 0x00, 0x00, 0x01, // fraction lost + cumulative lost
+            0x00, 0x00, 0x12, 0x34, // extended highest sequence number
+            0x00, 0x00, 0x56, 0x78, // interarrival jitter
+            0xAB, 0xCD, 0xEF, 0x12, // last SR
+            0x00, 0x00, 0x34, 0x56  // delay since last SR, then nothing
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpRR rr;
+        srs_error_t err = rr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
