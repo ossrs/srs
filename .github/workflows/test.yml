@@ -124,6 +124,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       # Tests
       - name: Build test image
         run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
@@ -171,6 +177,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       - name: Build test image
         run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
       # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
@@ -309,6 +321,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The dependency cache of the image must be built from the 3rdparty sources of this tree, or the build
+      # would rebuild the libraries or test the old ones. When it fails, refresh the image.
+      - name: Check the dependency cache
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/srs -w /srs/trunk ossrs/srs:ubuntu20-cache \
+            bash scripts/check_build_cache.sh
       # Tests
       - name: Build coverage image
         run: docker build --tag srs:cov --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.cov .
