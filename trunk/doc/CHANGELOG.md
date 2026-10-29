@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v7.0.214
 * v7.0, 2026-10-28, Fix DVR and HEVC faults and a lock abort found by the utest coverage tests. v7.0.213
 * v7.0, 2026-10-28, Fix WebRTC NACK, receiver report and TWCC at the sequence wrap found by the utest coverage tests. v7.0.212
 * v7.0, 2026-10-28, Fix lost streams, refused publishes and late packets found by the utest coverage tests. v7.0.211
