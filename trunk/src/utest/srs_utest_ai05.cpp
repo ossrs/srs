@@ -4439,6 +4439,133 @@ VOID TEST(KernelRTCPTest, SrsRtcpCompound_Decode)
     }
 }
 
+// A peer sends RTCP whose header length is 0, shorter than the SSRC it carries,
+// so the payload length is negative. It must be an error, not abort the server.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeZeroLengthBye)
+{
+    unsigned char data[] = {
+        0x81, 0xCB, 0x00, 0x00, // V=2, RC=1, PT=203(BYE), length=0
+        0x12, 0x34, 0x56, 0x78  // SSRC
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeZeroLengthTwcc)
+{
+    unsigned char data[] = {
+        0x8F, 0xCD, 0x00, 0x00, // V=2, FMT=15, PT=205(RTPFB), length=0
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// A feedback packet at the end of the compound whose length=1 leaves no room
+// for the media SSRC. It must be an error, not abort the server.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortFbCommon)
+{
+    unsigned char data[] = {
+        0x83, 0xCD, 0x00, 0x01, // V=2, FMT=3, PT=205(RTPFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortNack)
+{
+    unsigned char data[] = {
+        0x81, 0xCD, 0x00, 0x01, // V=2, FMT=1, PT=205(RTPFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortPli)
+{
+    unsigned char data[] = {
+        0x81, 0xCE, 0x00, 0x01, // V=2, FMT=1, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortSli)
+{
+    unsigned char data[] = {
+        0x82, 0xCE, 0x00, 0x01, // V=2, FMT=2, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeShortRpsi)
+{
+    unsigned char data[] = {
+        0x83, 0xCE, 0x00, 0x01, // V=2, FMT=3, PT=206(PSFB), length=1
+        0x12, 0x34, 0x56, 0x78  // SSRC of packet sender
+    };
+    SrsBuffer buffer((char *)data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+// The UDP read buffer takes up to 64KB, but payload_ holds kRtcpPacketSize
+// bytes. A 2008-byte RTCP packet must be an error, not copied past payload_.
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeOversizedBye)
+{
+    char data[2008];
+    memset(data, 0, sizeof(data));
+    data[0] = (char)0x81; // V=2, RC=1
+    data[1] = (char)0xCB; // PT=203(BYE)
+    data[2] = (char)0x01; // length=501, (501+1)*4=2008 bytes
+    data[3] = (char)0xF5;
+    SrsBuffer buffer(data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
+VOID TEST(KernelRTCPTest, SrsRtcpCompound_DecodeOversizedTwcc)
+{
+    char data[2008];
+    memset(data, 0, sizeof(data));
+    data[0] = (char)0x8F; // V=2, FMT=15
+    data[1] = (char)0xCD; // PT=205(RTPFB)
+    data[2] = (char)0x01; // length=501, (501+1)*4=2008 bytes
+    data[3] = (char)0xF5;
+    SrsBuffer buffer(data, sizeof(data));
+    SrsRtcpCompound compound;
+    srs_error_t err = compound.decode(&buffer);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
 VOID TEST(KernelRTPTest, srs_global_kbps_update)
 {
     // Test srs_global_kbps_update function
