@@ -2,6 +2,17 @@
 
 Please report any security vulnerabilities to [here](https://github.com/ossrs/srs/security/advisories).
 
+## GHSA-qr8h-p53p-x564
+
+RTC: Crash and heap overflow from a malformed RTCP packet
+
+* Severity: **High**
+* Advisory: [GHSA-qr8h-p53p-x564](https://github.com/ossrs/srs/security/advisories/GHSA-qr8h-p53p-x564)
+* Not vulnerable: 6.0.194+, 7.0.214+, 8.0.73+
+* Vulnerable: 4.0.0-6.0.193, 7.0.0-7.0.213, 8.0.0-8.0.72
+* The patch: [aeb73209d](https://github.com/ossrs/srs/commit/aeb73209d8ee0e42f4c306ac67de7d71c728a7a6) (v6.0.194), [d251c92a7](https://github.com/ossrs/srs/commit/d251c92a76be546aeb988ebf77b4c1999f030989) (v7.0.214), [ab03c94b0](https://github.com/ossrs/srs/commit/ab03c94b0744ab392320253ad1767b21b6c82a59) (v8.0.73)
+* Fixed at: 2026.10.29
+
 ## CVE-2024-29882
 
 HTTP API: DOM - XSS on JSONP callback
