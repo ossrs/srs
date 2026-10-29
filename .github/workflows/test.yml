@@ -126,7 +126,17 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       # Tests
       - name: Build test image
-        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+        run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
+      # The utest and the regression-test run in the background, beside the blackbox-test, each in
+      # its own container, and their results are checked after it. The regression-test waits for
+      # the SRS API port, not a fixed time.
+      - name: Start SRS utest and regression-test
+        id: start
+        run: |
+          docker run -d --name srs-utest srs:test ./objs/srs_utest
+          docker run -d --name srs-regression srs:test bash -c './objs/srs -c conf/regression-test.conf && \
+              for i in $(seq 50); do (echo >/dev/tcp/127.0.0.1/1985) 2>/dev/null && break; sleep 0.2; done && \
+              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
       # For blackbox-test
       - name: Run SRS blackbox-test
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
@@ -141,15 +151,17 @@ jobs:
             docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
               ./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64
             docker run --rm -w /srs/trunk/3rdparty/srs-bench srs:test \
-              ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 1
+              ./objs/srs_blackbox_test -test.v -test.run '^TestSlow' -test.parallel 3
       # For utest
       - name: Run SRS utest
-        run: docker run --rm srs:test ./objs/srs_utest
+        if: ${{ !cancelled() && steps.start.outcome == 'success' }}
+        run: |
+          code=$(docker wait srs-utest); docker logs srs-utest; exit $code
       # For regression-test
       - name: Run SRS regression-test
+        if: ${{ !cancelled() && steps.start.outcome == 'success' }}
         run: |
-          docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && sleep 10 && \
-              cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
+          code=$(docker wait srs-regression); docker logs srs-regression; exit $code
     runs-on: ubuntu-22.04
 
   integ:
@@ -160,7 +172,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: Build test image
-        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+        run: docker build --tag srs:test --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.test .
       # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
       # ffmpeg 5 writes HEVC in legacy FLV, so the test media, and the cases that run ffmpeg, use
       # its ffmpeg7. Each step mounts the media directory, so the media is made once, and kept in
@@ -299,7 +311,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       # Tests
       - name: Build coverage image
-        run: docker build --tag srs:cov --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.cov .
+        run: docker build --tag srs:cov --build-arg MAKEARGS="-j$(nproc)" -f trunk/Dockerfile.cov .
       # For coverage
       - name: Run SRS covergae
         if: ${{ startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/pull/') }}
