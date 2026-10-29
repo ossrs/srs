@@ -1205,6 +1205,7 @@ srs_error_t SrsRtcRtpBuilder::transcode(SrsParsedAudioPacket *audio)
 {
     srs_error_t err = srs_success;
 
+    // TODO: FIXME: Refine it, one frame the transcoder refuses, such as a corrupt AAC frame, disconnects the publisher.
     std::vector<SrsParsedAudioPacket *> out_audios;
     if ((err = codec_->transcode(audio, out_audios)) != srs_success) {
         return srs_error_wrap(err, "recode error");

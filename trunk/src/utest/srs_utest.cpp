@@ -759,10 +759,22 @@ srs_error_t SrsTestTcpServer::start()
 {
     srs_error_t err = srs_success;
 
-    listener_ = new SrsTcpListener(this);
-    listener_->set_endpoint(ip_, port_);
+    // The random port range overlaps the Linux ephemeral ports, so a client socket of another test
+    // may hold the port; retry with another random port.
+    for (int i = 0; i < 16; i++) {
+        srs_freep(listener_);
+        listener_ = new SrsTcpListener(this);
+        listener_->set_endpoint(ip_, port_);
 
-    if ((err = listener_->listen()) != srs_success) {
+        srs_freep(err);
+        if ((err = listener_->listen()) == srs_success) {
+            break;
+        }
+
+        SrsRand rand;
+        port_ = 30000 + (rand.integer() % (60000 - 30000 + 1));
+    }
+    if (err != srs_success) {
         return srs_error_wrap(err, "tcp listen %s:%d", ip_.c_str(), port_);
     }
 

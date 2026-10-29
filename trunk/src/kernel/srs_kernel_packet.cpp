@@ -385,6 +385,28 @@ srs_error_t SrsParsedVideoPacket::parse_hevc_bframe(const SrsNaluSample *sample,
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "dependent slice segment flag is not supported");
     }
 
+    if (!first_slice_segment_in_pic_flag) {
+        if (pps->pps_seq_parameter_set_id_ >= SrsHevcMax_SPS_COUNT) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps seq parameter set id out of range: %d", pps->pps_seq_parameter_set_id_);
+        }
+        SrsHevcRbspSps *sps = &(format->vcodec_->hevc_dec_conf_record_.sps_table_[pps->pps_seq_parameter_set_id_]);
+
+        // slice_segment_address  u(v), Ceil(Log2(PicSizeInCtbsY)) bits
+        // @see 7.4.3.2.1, 7.4.7.1, the CtbSizeY and PicSizeInCtbsY.
+        uint32_t ctb_log2 = sps->log2_min_luma_coding_block_size_minus3_ + 3 + sps->log2_diff_max_min_luma_coding_block_size_;
+        uint64_t ctb = (uint64_t)1 << ctb_log2;
+        uint64_t pic_size_in_ctbs = ((sps->pic_width_in_luma_samples_ + ctb - 1) / ctb) * ((sps->pic_height_in_luma_samples_ + ctb - 1) / ctb);
+        int nb_address_bits = 0;
+        while (((uint64_t)1 << nb_address_bits) < pic_size_in_ctbs) {
+            nb_address_bits++;
+        }
+
+        if (bs.left_bits() < nb_address_bits) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "no %d bits slice segment address", nb_address_bits);
+        }
+        bs.skip_bits(nb_address_bits);
+    }
+
     if (bs.left_bits() < pps->num_extra_slice_header_bits_) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "no %d extra slice header bits", pps->num_extra_slice_header_bits_);
     }
@@ -1238,6 +1260,48 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
     if ((err = bs.read_bits_ue(sps->log2_max_pic_order_cnt_lsb_minus4_)) != srs_success) {
         return srs_error_wrap(err, "log2_max_pic_order_cnt_lsb_minus4");
     }
+
+    if (!bs.require_bits(1)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps_sub_layer_ordering_info_present_flag requires 1 only %d bits", bs.left_bits());
+    }
+
+    // sps_sub_layer_ordering_info_present_flag  u(1)
+    sps->sps_sub_layer_ordering_info_present_flag_ = bs.read_bit();
+    for (int i = (sps->sps_sub_layer_ordering_info_present_flag_ ? 0 : sps_max_sub_layers_minus1); i <= sps_max_sub_layers_minus1; i++) {
+        // sps_max_dec_pic_buffering_minus1[i]  ue(v)
+        if ((err = bs.read_bits_ue(sps->sps_max_dec_pic_buffering_minus1_[i])) != srs_success) {
+            return srs_error_wrap(err, "sps_max_dec_pic_buffering_minus1");
+        }
+        // sps_max_num_reorder_pics[i]  ue(v)
+        if ((err = bs.read_bits_ue(sps->sps_max_num_reorder_pics_[i])) != srs_success) {
+            return srs_error_wrap(err, "sps_max_num_reorder_pics");
+        }
+        // sps_max_latency_increase_plus1[i]  ue(v)
+        if ((err = bs.read_bits_ue(sps->sps_max_latency_increase_plus1_[i])) != srs_success) {
+            return srs_error_wrap(err, "sps_max_latency_increase_plus1");
+        }
+    }
+
+    // log2_min_luma_coding_block_size_minus3  ue(v)
+    uint32_t log2_min_luma_coding_block_size_minus3 = 0;
+    if ((err = bs.read_bits_ue(log2_min_luma_coding_block_size_minus3)) != srs_success) {
+        return srs_error_wrap(err, "log2_min_luma_coding_block_size_minus3");
+    }
+    // log2_diff_max_min_luma_coding_block_size  ue(v)
+    uint32_t log2_diff_max_min_luma_coding_block_size = 0;
+    if ((err = bs.read_bits_ue(log2_diff_max_min_luma_coding_block_size)) != srs_success) {
+        return srs_error_wrap(err, "log2_diff_max_min_luma_coding_block_size");
+    }
+
+    // The CTB size, CtbLog2SizeY, is at most 6, a 64x64 CTB.
+    // @see A.3 Profiles, CtbLog2SizeY in the range of 4 to 6.
+    // Each ue(v) is below 2^31, so the sum does not overflow.
+    if (log2_min_luma_coding_block_size_minus3 + log2_diff_max_min_luma_coding_block_size > 3) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "ctb size out of range, log2_min_luma_coding_block_size_minus3=%d, log2_diff_max_min_luma_coding_block_size=%d",
+                             log2_min_luma_coding_block_size_minus3, log2_diff_max_min_luma_coding_block_size);
+    }
+    sps->log2_min_luma_coding_block_size_minus3_ = log2_min_luma_coding_block_size_minus3;
+    sps->log2_diff_max_min_luma_coding_block_size_ = log2_diff_max_min_luma_coding_block_size;
 
     // TODO: FIXME: Implements it, you might parse remain bits for seq_parameter_set_rbsp.
     // 7.3.2.2 Sequence parameter set RBSP syntax

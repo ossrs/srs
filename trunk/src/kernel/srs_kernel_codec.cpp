@@ -799,6 +799,30 @@ bool SrsAudioCodecConfig::is_aac_codec_ok()
     return !aac_extra_data_.empty();
 }
 
+// The fields the VPS and SPS do not set, such as avg_frame_rate_, go into the hvcC that
+// SrsRawHEVCStream muxes, so they start at zero for the same parameter sets to give the same hvcC.
+// A slice may name a PPS, and a PPS an SPS, that was never received: it reads as zero, not as the memory before.
+SrsHevcDecoderConfigurationRecord::SrsHevcDecoderConfigurationRecord() : sps_table_(), pps_table_()
+{
+    configuration_version_ = 0;
+    general_profile_space_ = 0;
+    general_tier_flag_ = 0;
+    general_profile_idc_ = 0;
+    general_profile_compatibility_flags_ = 0;
+    general_constraint_indicator_flags_ = 0;
+    general_level_idc_ = 0;
+    min_spatial_segmentation_idc_ = 0;
+    parallelism_type_ = 0;
+    chroma_format_ = 0;
+    bit_depth_luma_minus8_ = 0;
+    bit_depth_chroma_minus8_ = 0;
+    avg_frame_rate_ = 0;
+    constant_frame_rate_ = 0;
+    num_temporal_layers_ = 0;
+    temporal_id_nested_ = 0;
+    length_size_minus_one_ = 0;
+}
+
 SrsVideoCodecConfig::SrsVideoCodecConfig()
 {
     id_ = SrsVideoCodecIdForbidden;

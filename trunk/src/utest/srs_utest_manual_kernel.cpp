@@ -5399,7 +5399,7 @@ static void hevc_write_ptl_main(HevcPtlBitWriter &b)
     b.u(93, 8);          // general_level_idc
 }
 
-// Writes a seq_parameter_set_rbsp() up to log2_max_pic_order_cnt_lsb_minus4, where the parser stops.
+// Writes a seq_parameter_set_rbsp() up to log2_diff_max_min_luma_coding_block_size, where the parser stops.
 // chroma_format_idc 3 carries separate_colour_plane_flag, which 4:2:0 and 4:2:2 omit.
 static std::vector<char> hevc_write_sps_rbsp(uint32_t chroma_format_idc, int separate_colour_plane_flag,
     uint32_t height, uint32_t conf_bottom)
@@ -5424,6 +5424,12 @@ static std::vector<char> hevc_write_sps_rbsp(uint32_t chroma_format_idc, int sep
     b.ue(0);    // bit_depth_luma_minus8
     b.ue(0);    // bit_depth_chroma_minus8
     b.ue(4);    // log2_max_pic_order_cnt_lsb_minus4
+    b.u(1, 1);  // sps_sub_layer_ordering_info_present_flag
+    b.ue(4);    // sps_max_dec_pic_buffering_minus1
+    b.ue(0);    // sps_max_num_reorder_pics
+    b.ue(0);    // sps_max_latency_increase_plus1
+    b.ue(0);    // log2_min_luma_coding_block_size_minus3
+    b.ue(3);    // log2_diff_max_min_luma_coding_block_size, a 64x64 CTB
     return b.bytes();
 }
 

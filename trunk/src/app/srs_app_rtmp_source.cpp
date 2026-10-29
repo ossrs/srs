@@ -980,6 +980,7 @@ srs_error_t SrsOriginHub::on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMet
         }
     }
 
+    // TODO: FIXME: Refine it, a DVR metadata error, such as a full disk, disconnects the publisher.
     if ((err = dvr_->on_meta_data(shared_metadata)) != srs_success) {
         return srs_error_wrap(err, "DVR consume metadata");
     }
