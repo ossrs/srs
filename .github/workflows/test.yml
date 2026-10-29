@@ -7,14 +7,14 @@ on: [push, pull_request]
 permissions: read-all
 
 # The dependency graph:
-# test(10m)
-# integ(7m)
-# chrome
-# windows
+# test(10m) - utest-regression-blackbox-test
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
+# build-centos7(3m)
 # fast(0s) - To limit all fastly run jobs after slow jobs.
-#     build-centos7(3m)
+#     integ(7m)
+#     chrome
+#     windows
 #     build-ubuntu16(3m)
 #     build-ubuntu18(2m)
 #     build-ubuntu20(2m)
@@ -24,6 +24,12 @@ permissions: read-all
 #     coverage(3m)
 
 jobs:
+
+  fast:
+    name: fast
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Start fast jobs'
 
   build-centos7:
     name: build-centos7
@@ -45,6 +51,8 @@ jobs:
 
   build-ubuntu16:
     name: build-ubuntu16
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -57,6 +65,8 @@ jobs:
 
   build-ubuntu18:
     name: build-ubuntu18
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -69,6 +79,8 @@ jobs:
 
   build-ubuntu20:
     name: build-ubuntu20
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -83,6 +95,8 @@ jobs:
 
   build-cross-arm:
     name: build-cross-arm
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -94,6 +108,8 @@ jobs:
 
   build-cross-aarch64:
     name: build-cross-aarch64
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -138,6 +154,8 @@ jobs:
 
   integ:
     name: integration-test
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -211,6 +229,8 @@ jobs:
   # runner without it fails instead of skipping the cases.
   chrome:
     name: chrome-test
+    needs:
+      - fast
     env:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
@@ -254,6 +274,8 @@ jobs:
   # its vcpkg, and MSYS2, which builds FFmpeg-fit.
   windows:
     name: windows-utest
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -270,6 +292,8 @@ jobs:
 
   coverage:
     name: coverage
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -345,6 +369,8 @@ jobs:
 
   multiple-arch-amd64:
     name: multiple-arch-amd64
+    needs:
+      - fast
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -366,6 +392,7 @@ jobs:
 
   test-done:
     needs:
+      - fast
       - coverage
       - test
       - integ
