@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SRS Chrome test</title>
+<link rel="icon" href="data:,">
+<style>
+  body { margin: 0; background: #000; }
+  video { width: 640px; height: 480px; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline></video>
+<script src="/players/mpegts-1.7.3.min.js"></script>
+<script src="/players/hls-1.4.14.min.js"></script>
+<script src="/srs-test.js"></script>
+<script>SrsTest.start(window);</script>
+</body>
+</html>
