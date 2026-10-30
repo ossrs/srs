@@ -99,6 +99,8 @@ private:
     SrsDtls* dtls_;
     SrsSRTP* srtp_;
     bool handshake_done;
+    std::string remote_fingerprint_algo_;
+    std::string remote_fingerprint_;
 public:
     SrsSecurityTransport(ISrsRtcNetwork* s);
     virtual ~SrsSecurityTransport();
@@ -124,6 +126,7 @@ public:
     virtual srs_error_t write_dtls_data(void* data, int size);
 private:
     srs_error_t srtp_initialize();
+    srs_error_t verify_peer_fingerprint();
 };
 
 // Semi security transport, setup DTLS and SRTP, with SRTP decrypt, without SRTP encrypt.

@@ -31,7 +31,7 @@ using namespace std;
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(SrsRtcServer* server)
 {
     server_ = server;
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 }
 
 SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
@@ -342,7 +342,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(SrsRequest* req)
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(SrsRtcServer* server)
 {
     server_ = server;
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 }
 
 SrsGoApiRtcPublish::~SrsGoApiRtcPublish()

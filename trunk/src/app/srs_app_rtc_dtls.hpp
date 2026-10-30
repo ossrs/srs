@@ -119,6 +119,7 @@ protected:
     void state_trace(uint8_t* data, int length, bool incoming, int r0);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+    srs_error_t get_peer_fingerprint(std::string algo, std::string& fingerprint);
     void callback_by_ssl(std::string type, std::string desc);
 protected:
     virtual srs_error_t on_handshake_done() = 0;
@@ -199,6 +200,7 @@ public:
     srs_error_t on_dtls(char* data, int nb_data);
 public:
     srs_error_t get_srtp_key(std::string& recv_key, std::string& send_key);
+    srs_error_t get_peer_fingerprint(std::string algo, std::string& fingerprint);
 };
 
 class SrsSRTP

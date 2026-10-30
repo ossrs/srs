@@ -20,7 +20,7 @@ class SrsGoApiRtcPlay : public ISrsHttpHandler
 {
 private:
     SrsRtcServer* server_;
-    SrsSecurity* security_;
+    SrsEnhancedSecurity* security_;
 public:
     SrsGoApiRtcPlay(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPlay();
@@ -40,7 +40,7 @@ class SrsGoApiRtcPublish : public ISrsHttpHandler
 {
 private:
     SrsRtcServer* server_;
-    SrsSecurity* security_;
+    SrsEnhancedSecurity* security_;
 public:
     SrsGoApiRtcPublish(SrsRtcServer* server);
     virtual ~SrsGoApiRtcPublish();

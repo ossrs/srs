@@ -16,6 +16,10 @@
 #include <srs_app_conn.hpp>
 
 #include <srs_utest_service.hpp>
+#include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_sdp.hpp>
+#include <srs_protocol_rtc_stun.hpp>
 
 #include <vector>
 using namespace std;
@@ -1769,4 +1773,360 @@ VOID TEST(KernelRTCPTest, SrsRtcpRR_DecodeMalformedRc)
         EXPECT_TRUE(err != srs_success);
         srs_freep(err);
     }
+}
+
+// A binding request whose last attribute is not a multiple of 4 bytes, without the padding RFC 5389 section 15
+// requires after it, is refused. Anyone can send it without a password, so it must not abort the server.
+VOID TEST(ProtocolRtcStunTest, LastAttributeWithoutPadding_Refused)
+{
+    // A USERNAME of one byte needs three padding bytes; the datagram carries none, or only two of them.
+    for (int padding = 0; padding < 3; padding++) {
+        std::string attr("\x00\x06\x00\x01"
+                         "A",
+                         5);
+        attr.append(padding, '\0');
+
+        std::string request("\x00\x01\x00\x00\x21\x12\xa4\x42", 8);
+        request.append(12, '\x11');
+        request[2] = (char)((attr.size() >> 8) & 0xff);
+        request[3] = (char)(attr.size() & 0xff);
+        request += attr;
+
+        SrsStunPacket stun;
+        srs_error_t err = stun.decode(request.data(), (int)request.size());
+        EXPECT_EQ(ERROR_RTC_STUN, srs_error_code(err)) << "padding=" << padding;
+        srs_freep(err);
+    }
+
+    // With all three padding bytes, the same request is decoded.
+    if (true) {
+        std::string attr("\x00\x06\x00\x01"
+                         "A\x00\x00\x00",
+                         8);
+        std::string request("\x00\x01\x00\x08\x21\x12\xa4\x42", 8);
+        request.append(12, '\x11');
+        request += attr;
+
+        SrsStunPacket stun;
+        srs_error_t err = stun.decode(request.data(), (int)request.size());
+        EXPECT_TRUE(err == srs_success);
+        srs_freep(err);
+        EXPECT_STREQ("A", stun.get_username().c_str());
+    }
+}
+
+// A browser puts the a=fingerprint of its DTLS certificate in each media of the offer, or once for the session. The
+// session takes it, so the DTLS handshake can check the certificate the peer presents.
+VOID TEST(KernelRTCTest, SdpFingerprintOfTheOffer)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsSdp sdp;
+        HELPER_ASSERT_SUCCESS(sdp.parse(
+            "v=0\r\n"
+            "o=- 0 2 IN IP4 127.0.0.1\r\n"
+            "s=-\r\n"
+            "t=0 0\r\n"
+            "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+            "a=fingerprint:sha-256 AA:BB:CC:DD\r\n"
+            "a=setup:actpass\r\n"
+            "a=mid:0\r\n"
+            "a=rtpmap:111 opus/48000/2\r\n"));
+        EXPECT_STREQ("sha-256", sdp.get_fingerprint_algo().c_str());
+        EXPECT_STREQ("AA:BB:CC:DD", sdp.get_fingerprint().c_str());
+    }
+
+    if (true) {
+        SrsSdp sdp;
+        HELPER_ASSERT_SUCCESS(sdp.parse(
+            "v=0\r\n"
+            "o=- 0 2 IN IP4 127.0.0.1\r\n"
+            "s=-\r\n"
+            "t=0 0\r\n"
+            "a=fingerprint:sha-1 11:22:33\r\n"
+            "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+            "a=setup:actpass\r\n"
+            "a=mid:0\r\n"
+            "a=rtpmap:111 opus/48000/2\r\n"));
+        EXPECT_STREQ("sha-1", sdp.get_fingerprint_algo().c_str());
+        EXPECT_STREQ("11:22:33", sdp.get_fingerprint().c_str());
+    }
+
+    if (true) {
+        SrsSdp sdp;
+        EXPECT_STREQ("", sdp.get_fingerprint_algo().c_str());
+        EXPECT_STREQ("", sdp.get_fingerprint().c_str());
+    }
+}
+
+class MockDtlsCallbackForFingerprint : public ISrsDtlsCallback
+{
+public:
+    std::vector<std::string> packets_;
+    int handshake_done_count_;
+public:
+    MockDtlsCallbackForFingerprint() {
+        handshake_done_count_ = 0;
+    }
+    virtual ~MockDtlsCallbackForFingerprint() {
+    }
+public:
+    virtual srs_error_t on_dtls_handshake_done() {
+        handshake_done_count_++;
+        return srs_success;
+    }
+    virtual srs_error_t on_dtls_application_data(const char* data, const int len) {
+        return srs_success;
+    }
+    virtual srs_error_t write_dtls_data(void* data, int size) {
+        packets_.push_back(std::string((char*)data, size));
+        return srs_success;
+    }
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc) {
+        return srs_success;
+    }
+};
+
+class MockRtcNetworkForFingerprint : public ISrsRtcNetwork
+{
+public:
+    std::vector<std::string> packets_;
+    int handshake_done_count_;
+public:
+    MockRtcNetworkForFingerprint() {
+        handshake_done_count_ = 0;
+    }
+    virtual ~MockRtcNetworkForFingerprint() {
+    }
+public:
+    virtual srs_error_t on_dtls_handshake_done() {
+        handshake_done_count_++;
+        return srs_success;
+    }
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc) {
+        return srs_success;
+    }
+    virtual srs_error_t protect_rtp(void* packet, int* nb_cipher) {
+        return srs_success;
+    }
+    virtual srs_error_t protect_rtcp(void* packet, int* nb_cipher) {
+        return srs_success;
+    }
+    virtual bool is_establelished() {
+        return true;
+    }
+    virtual srs_error_t write(void* buf, size_t size, ssize_t* nwrite) {
+        packets_.push_back(std::string((char*)buf, size));
+        if (nwrite) {
+            *nwrite = (ssize_t)size;
+        }
+        return srs_success;
+    }
+};
+
+extern std::string srs_dtls_fingerprint(X509* cert, const EVP_MD* md);
+
+// A self-signed ECDSA certificate of a peer, such as a browser, made the way SRS makes its own.
+class MockPeerDtlsCertificate
+{
+public:
+    X509* cert_;
+    EVP_PKEY* pkey_;
+public:
+    MockPeerDtlsCertificate() {
+        EC_KEY* eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+        EC_KEY_generate_key(eckey);
+        pkey_ = EVP_PKEY_new();
+        EVP_PKEY_assign_EC_KEY(pkey_, eckey);
+
+        cert_ = X509_new();
+        ASN1_INTEGER_set(X509_get_serialNumber(cert_), (int)srs_random());
+        X509_NAME* subject = X509_NAME_new();
+        X509_NAME_add_entry_by_txt(subject, "CN", MBSTRING_ASC, (const unsigned char*)"peer", 4, -1, 0);
+        X509_set_issuer_name(cert_, subject);
+        X509_set_subject_name(cert_, subject);
+        X509_NAME_free(subject);
+        X509_gmtime_adj(X509_get_notBefore(cert_), 0);
+        X509_gmtime_adj(X509_get_notAfter(cert_), 60 * 60 * 24);
+        X509_set_version(cert_, 2);
+        X509_set_pubkey(cert_, pkey_);
+        X509_sign(cert_, pkey_, EVP_sha256());
+    }
+    virtual ~MockPeerDtlsCertificate() {
+        X509_free(cert_);
+        EVP_PKEY_free(pkey_);
+    }
+public:
+    std::string get_fingerprint() {
+        return srs_dtls_fingerprint(cert_, EVP_sha256());
+    }
+};
+
+// The peer's DTLS runs with its own certificate, not the SRS one.
+static srs_error_t mock_peer_dtls_initialize(SrsDtls* peer, MockPeerDtlsCertificate* certificate, std::string role)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = peer->initialize(role, "dtls1.2")) != srs_success) {
+        return srs_error_wrap(err, "init");
+    }
+
+    SSL* ssl = peer->impl->dtls;
+    if (SSL_use_certificate(ssl, certificate->cert_) != 1 || SSL_use_PrivateKey(ssl, certificate->pkey_) != 1) {
+        return srs_error_new(ERROR_RTC_DTLS, "use certificate");
+    }
+
+    return err;
+}
+
+// Hand the records between the peer and the SRS transport, until neither side has anything more to send.
+static srs_error_t mock_dtls_exchange_with_transport(SrsDtls* peer, MockDtlsCallbackForFingerprint* pcb, SrsSecurityTransport* srs, MockRtcNetworkForFingerprint* network)
+{
+    srs_error_t err = srs_success;
+
+    for (int round = 0; round < 16; round++) {
+        if (pcb->packets_.empty() && network->packets_.empty()) {
+            return err;
+        }
+
+        std::vector<std::string> to_srs;
+        to_srs.swap(pcb->packets_);
+        for (int i = 0; i < (int)to_srs.size(); i++) {
+            std::string& pkt = to_srs[i];
+            if ((err = srs->on_dtls(&pkt[0], (int)pkt.size())) != srs_success) {
+                return srs_error_wrap(err, "srs");
+            }
+        }
+
+        std::vector<std::string> to_peer;
+        to_peer.swap(network->packets_);
+        for (int i = 0; i < (int)to_peer.size(); i++) {
+            std::string& pkt = to_peer[i];
+            if ((err = peer->on_dtls(&pkt[0], (int)pkt.size())) != srs_success) {
+                return srs_error_wrap(err, "peer");
+            }
+        }
+    }
+
+    return srs_error_new(ERROR_RTC_DTLS, "DTLS exchange does not end");
+}
+
+// A browser publishes with an offer that has the a=fingerprint of its certificate, SRS answers passive, and the DTLS
+// handshake with that certificate sets up SRTP.
+VOID TEST(DtlsFingerprintTest, PeerCertificateMatchingOfferCompletes)
+{
+    srs_error_t err;
+
+    MockPeerDtlsCertificate browser_certificate;
+
+    MockRtcNetworkForFingerprint network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role = "passive";
+    cfg.dtls_version = "dtls1.2";
+    cfg.remote_fingerprint_algo = "sha-256";
+    cfg.remote_fingerprint = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForFingerprint pcb;
+    SrsDtls browser(&pcb);
+    HELPER_ASSERT_SUCCESS(mock_peer_dtls_initialize(&browser, &browser_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(browser.start_active_handshake());
+    HELPER_EXPECT_SUCCESS(mock_dtls_exchange_with_transport(&browser, &pcb, &srs, &network));
+
+    EXPECT_EQ(1, pcb.handshake_done_count_);
+    EXPECT_EQ(1, network.handshake_done_count_);
+}
+
+// RFC 8842 section 5.1: the certificate in the DTLS handshake MUST match the a=fingerprint of the SDP, or the session
+// is torn down. Someone on the media path answers the DTLS handshake with their own certificate, while the offer, sent
+// over HTTPS, has the browser's fingerprint. SRS must not set up SRTP with them.
+VOID TEST(DtlsFingerprintTest, PeerCertificateNotInOfferIsRefusedWhenSrsIsPassive)
+{
+    srs_error_t err;
+
+    MockPeerDtlsCertificate browser_certificate;
+    MockPeerDtlsCertificate attacker_certificate;
+    ASSERT_STRNE(browser_certificate.get_fingerprint().c_str(), attacker_certificate.get_fingerprint().c_str());
+
+    MockRtcNetworkForFingerprint network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role = "passive";
+    cfg.dtls_version = "dtls1.2";
+    cfg.remote_fingerprint_algo = "sha-256";
+    cfg.remote_fingerprint = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForFingerprint pcb;
+    SrsDtls attacker(&pcb);
+    HELPER_ASSERT_SUCCESS(mock_peer_dtls_initialize(&attacker, &attacker_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(attacker.start_active_handshake());
+    HELPER_EXPECT_FAILED(mock_dtls_exchange_with_transport(&attacker, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done);
+    EXPECT_EQ(0, network.handshake_done_count_);
+}
+
+// RFC 8842 section 5.1 requires the a=fingerprint in an offer that uses DTLS. Without one, nothing ties the certificate
+// to the peer, so SRS refuses the session rather than accept any certificate.
+VOID TEST(DtlsFingerprintTest, OfferWithoutFingerprintIsRefused)
+{
+    srs_error_t err;
+
+    MockPeerDtlsCertificate browser_certificate;
+
+    MockRtcNetworkForFingerprint network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role = "passive";
+    cfg.dtls_version = "dtls1.2";
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForFingerprint pcb;
+    SrsDtls browser(&pcb);
+    HELPER_ASSERT_SUCCESS(mock_peer_dtls_initialize(&browser, &browser_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(browser.start_active_handshake());
+    HELPER_EXPECT_FAILED(mock_dtls_exchange_with_transport(&browser, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done);
+    EXPECT_EQ(0, network.handshake_done_count_);
+}
+
+// The same when the offer has a=setup:passive, so SRS is the DTLS client and the peer answers as the server with
+// a certificate that is not the one in the offer.
+VOID TEST(DtlsFingerprintTest, PeerCertificateNotInOfferIsRefusedWhenSrsIsActive)
+{
+    srs_error_t err;
+
+    MockPeerDtlsCertificate browser_certificate;
+    MockPeerDtlsCertificate attacker_certificate;
+    ASSERT_STRNE(browser_certificate.get_fingerprint().c_str(), attacker_certificate.get_fingerprint().c_str());
+
+    MockRtcNetworkForFingerprint network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role = "active";
+    cfg.dtls_version = "dtls1.2";
+    cfg.remote_fingerprint_algo = "sha-256";
+    cfg.remote_fingerprint = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForFingerprint pcb;
+    SrsDtls attacker(&pcb);
+    HELPER_ASSERT_SUCCESS(mock_peer_dtls_initialize(&attacker, &attacker_certificate, "passive"));
+
+    HELPER_ASSERT_SUCCESS(attacker.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_EXPECT_FAILED(mock_dtls_exchange_with_transport(&attacker, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done);
+    EXPECT_EQ(0, network.handshake_done_count_);
 }

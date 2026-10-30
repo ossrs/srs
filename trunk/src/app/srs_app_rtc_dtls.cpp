@@ -32,6 +32,44 @@ const int DTLS_FRAGMENT_MAX_SIZE = 1200;
 // Defined in HTTP/HTTPS client.
 extern int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
+// The certificate digest in the format of the SDP a=fingerprint, such as AB:CD:01, see RFC 8122 section 5.
+string srs_dtls_fingerprint(X509* cert, const EVP_MD* md)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int n = 0;
+    if (X509_digest(cert, md, digest, &n) != 1) {
+        return "";
+    }
+
+    string fingerprint;
+    for (unsigned int i = 0; i < n; i++) {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02X", digest[i]);
+        if (i > 0) {
+            fingerprint += ":";
+        }
+        fingerprint += hex;
+    }
+    return fingerprint;
+}
+
+// The hash functions of RFC 8122 section 5, except md2 and md5, which it says not to use.
+const EVP_MD* srs_dtls_fingerprint_md(string algo)
+{
+    if (!strcasecmp(algo.c_str(), "sha-1")) {
+        return EVP_sha1();
+    } else if (!strcasecmp(algo.c_str(), "sha-224")) {
+        return EVP_sha224();
+    } else if (!strcasecmp(algo.c_str(), "sha-256")) {
+        return EVP_sha256();
+    } else if (!strcasecmp(algo.c_str(), "sha-384")) {
+        return EVP_sha384();
+    } else if (!strcasecmp(algo.c_str(), "sha-512")) {
+        return EVP_sha512();
+    }
+    return NULL;
+}
+
 // Setup the openssl timeout for DTLS packet.
 // @see https://www.openssl.org/docs/man1.1.1/man3/DTLS_set_timer_cb.html
 //
@@ -322,31 +360,8 @@ srs_error_t SrsDtlsCertificate::initialize()
     }
 
     // Show DTLS fingerprint
-    if (true) {
-        unsigned char md[EVP_MAX_MD_SIZE];
-        unsigned int n = 0;
-
-        // TODO: FIXME: Unused variable.
-        /*int r = */X509_digest(dtls_cert, EVP_sha256(), md, &n);
-
-        SrsUniquePtr<char[]> fp(new char[3 * n]);
-        char* p = fp.get();
-
-        for (unsigned int i = 0; i < n; i++, ++p) {
-            int nb = snprintf(p, 3, "%02X", md[i]);
-            srs_assert(nb > 0 && nb < (3 * n - (p - fp.get())));
-            p += nb;
-
-            if(i < (n-1)) {
-                *p = ':';
-            } else {
-                *p = '\0';
-            }
-        }
-
-        fingerprint.assign(fp.get(), strlen(fp.get()));
-        srs_trace("fingerprint=%s", fingerprint.c_str());
-    }
+    fingerprint = srs_dtls_fingerprint(dtls_cert, EVP_sha256());
+    srs_trace("fingerprint=%s", fingerprint.c_str());
 
     return err;
 }
@@ -675,6 +690,26 @@ srs_error_t SrsDtlsImpl::get_srtp_key(std::string& recv_key, std::string& send_k
     return err;
 }
 
+srs_error_t SrsDtlsImpl::get_peer_fingerprint(std::string algo, std::string& fingerprint)
+{
+    srs_error_t err = srs_success;
+
+    const EVP_MD* md = srs_dtls_fingerprint_md(algo);
+    if (!md) {
+        return srs_error_new(ERROR_RTC_DTLS, "unsupported fingerprint algo %s", algo.c_str());
+    }
+
+    X509* cert = SSL_get_peer_certificate(dtls);
+    if (!cert) {
+        return srs_error_new(ERROR_RTC_DTLS, "no peer certificate");
+    }
+
+    fingerprint = srs_dtls_fingerprint(cert, md);
+    X509_free(cert);
+
+    return err;
+}
+
 void SrsDtlsImpl::callback_by_ssl(std::string type, std::string desc)
 {
     srs_error_t err = srs_success;
@@ -944,6 +979,11 @@ srs_error_t SrsDtls::on_dtls(char* data, int nb_data)
 srs_error_t SrsDtls::get_srtp_key(std::string& recv_key, std::string& send_key)
 {
     return impl->get_srtp_key(recv_key, send_key);
+}
+
+srs_error_t SrsDtls::get_peer_fingerprint(std::string algo, std::string& fingerprint)
+{
+    return impl->get_peer_fingerprint(algo, fingerprint);
 }
 
 SrsSRTP::SrsSRTP()

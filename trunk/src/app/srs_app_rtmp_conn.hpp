@@ -34,7 +34,7 @@ class SrsRtmpClient;
 class SrsSharedPtrMessage;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
-class SrsSecurity;
+class SrsEnhancedSecurity;
 class ISrsWakable;
 class SrsCommonMessage;
 class SrsPacket;
@@ -79,7 +79,7 @@ private:
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
     SrsBandwidth* bandwidth;
-    SrsSecurity* security;
+    SrsEnhancedSecurity* security;
     // The wakable handler, maybe NULL.
     // TODO: FIXME: Should refine the state for receiving thread.
     ISrsWakable* wakable;

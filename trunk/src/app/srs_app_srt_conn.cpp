@@ -174,7 +174,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(SrsSrtServer* srt_server, srs_srt_t srt_fd, s
     req_ = new SrsRequest();
     req_->ip = ip;
 
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()

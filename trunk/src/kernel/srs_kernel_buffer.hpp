@@ -110,7 +110,7 @@ public:
     bool empty();
     // Whether buffer is able to supply required size of bytes.
     // @remark User should check buffer by require then do read/write.
-    // @remark Assert the required_size is not negative.
+    // @remark Returns false for a negative required_size, so a size computed from untrusted data needs no other check.
     bool require(int required_size);
 public:
     // Skip some size.

@@ -186,7 +186,7 @@ class SrsLiveStream : public ISrsHttpHandler, public ISrsExpire
 private:
     SrsRequest* req;
     SrsBufferCache* cache;
-    SrsSecurity* security_;
+    SrsEnhancedSecurity* security_;
     SrsServer* server_;
     // For multiple viewers, which means there will more than one alive viewers for a live stream, so we must
     // use an int value to represent if there is any viewer is alive. We should never do cleanup unless all

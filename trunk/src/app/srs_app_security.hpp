@@ -34,5 +34,19 @@ private:
     virtual srs_error_t deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip);
 };
 
+// The security of a client: the system security SRS always applies, then the vhost security.
+class SrsEnhancedSecurity
+{
+private:
+    SrsSecurity* security_;
+public:
+    SrsEnhancedSecurity();
+    virtual ~SrsEnhancedSecurity();
+public:
+    virtual srs_error_t check(SrsRtmpConnType type, std::string ip, SrsRequest* req);
+private:
+    virtual srs_error_t system_check(SrsRtmpConnType type, std::string ip, SrsRequest* req);
+};
+
 #endif
 

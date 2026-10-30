@@ -64,7 +64,7 @@ void SrsHlsVirtualConn::expire()
 SrsHlsStream::SrsHlsStream()
 {
     _srs_hybrid->timer5s()->subscribe(this);
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 }
 
 SrsHlsStream::~SrsHlsStream()

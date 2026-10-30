@@ -841,3 +841,133 @@ VOID TEST(AppSecurity, CheckSecurity)
     //       4. deny if matches deny strategy.
 }
 
+// Checks a client of the given type with the app and stream a protocol parsed against the enhanced security of the
+// default vhost, which has no security rules, as every protocol does when a client joins, and returns the error code,
+// 0 when the client is allowed.
+static int security_utest_check_stream(SrsRtmpConnType type, SrsRequest* req)
+{
+    SrsEnhancedSecurity enhanced;
+    req->vhost = "__defaultVhost__";
+
+    srs_error_t err = enhanced.check(type, "127.0.0.1", req);
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+// A server with no security rules, and an RTMP encoder publishing to rtmp://host/live/../../../../../../tmp/pwn: the
+// app has a dot-dot that would put its HLS files outside hls_path, so the encoder is refused, and so is a player of
+// it. A nested app of tenant/live still publishes, while a name with a dot-dot inside a segment is refused too.
+VOID TEST(AppSecurity, RtmpDotDotStream_Refused)
+{
+    if (true) {
+        SrsRequest req;
+        req.tcUrl = "rtmp://127.0.0.1/live/../../../../../../tmp";
+        req.stream = "pwn";
+        srs_discovery_tc_url(req.tcUrl, req.schema, req.host, req.vhost, req.app, req.stream, req.port, req.param);
+        req.strip();
+        EXPECT_STREQ("live/../../../../../../tmp", req.app.c_str());
+
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtmpConnFMLEPublish, &req));
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtmpConnPlay, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.tcUrl = "rtmp://127.0.0.1/live";
+        req.stream = "../../../etc/pwn";
+        srs_discovery_tc_url(req.tcUrl, req.schema, req.host, req.vhost, req.app, req.stream, req.port, req.param);
+        req.strip();
+
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtmpConnFMLEPublish, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.app = "live";
+        req.stream = "show..1";
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtmpConnFMLEPublish, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.tcUrl = "rtmp://127.0.0.1/tenant/live";
+        req.stream = "livestream";
+        srs_discovery_tc_url(req.tcUrl, req.schema, req.host, req.vhost, req.app, req.stream, req.port, req.param);
+        req.strip();
+
+        EXPECT_EQ(0, security_utest_check_stream(SrsRtmpConnFMLEPublish, &req));
+    }
+}
+
+// A WHIP publisher of /rtc/v1/whip/?app=live&stream=../../../tmp/pwn, whose query the handler takes as given and
+// splits on the last slash into the app live/../../../tmp and the stream pwn, is refused, as is a WHEP player of it.
+VOID TEST(AppSecurity, WhipDotDotQuery_Refused)
+{
+    SrsRequest req;
+    req.app = "live/../../../tmp";
+    req.stream = "pwn";
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtcConnPublish, &req));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtcConnPlay, &req));
+
+    req.app = "..";
+    req.stream = "pwn";
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(SrsRtcConnPublish, &req));
+}
+
+class MockVhostSecurity : public SrsSecurity
+{
+public:
+    int check_count_;
+    SrsRtmpConnType check_type_;
+    srs_error_t check_error_;
+public:
+    MockVhostSecurity() {
+        check_count_ = 0;
+        check_type_ = SrsRtmpConnUnknown;
+        check_error_ = srs_success;
+    }
+    virtual ~MockVhostSecurity() {
+        srs_freep(check_error_);
+    }
+public:
+    virtual srs_error_t check(SrsRtmpConnType type, std::string ip, SrsRequest* req) {
+        check_count_++;
+        check_type_ = type;
+        return srs_error_copy(check_error_);
+    }
+};
+
+// The system security comes before the vhost security: a client with a dot-dot name is refused without the vhost
+// rules being asked, even rules that would allow it, while a client of a valid name gets the verdict of the vhost
+// rules, a deny or an allow.
+VOID TEST(AppSecurity, SystemSecurityBeforeVhostSecurity)
+{
+    MockVhostSecurity* vhost = new MockVhostSecurity();
+    SrsEnhancedSecurity enhanced;
+    srs_freep(enhanced.security_);
+    enhanced.security_ = vhost;
+
+    SrsRequest req;
+    req.app = "live";
+    req.stream = "../pwn";
+    srs_error_t err = enhanced.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req);
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, vhost->check_count_);
+
+    req.stream = "livestream";
+    vhost->check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "mock deny");
+    err = enhanced.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req);
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, vhost->check_count_);
+    EXPECT_EQ(SrsRtmpConnFMLEPublish, vhost->check_type_);
+
+    srs_freep(vhost->check_error_);
+    err = enhanced.check(SrsRtmpConnPlay, "127.0.0.1", &req);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+    EXPECT_EQ(2, vhost->check_count_);
+}
+

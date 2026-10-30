@@ -594,7 +594,7 @@ SrsLiveStream::SrsLiveStream(SrsServer* s, SrsRequest* r, SrsBufferCache* c)
 {
     cache = c;
     req = r->copy()->as_http();
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
     server_ = s;
 }
 

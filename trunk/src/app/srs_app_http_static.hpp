@@ -53,7 +53,7 @@ private:
 private:
     srs_error_t on_timer(srs_utime_t interval);
 private:
-    SrsSecurity* security_;
+    SrsEnhancedSecurity* security_;
 };
 
 // The Vod streaming, like FLV, MP4 or HLS streaming.

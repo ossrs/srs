@@ -95,6 +95,9 @@ SrsSecurityTransport::~SrsSecurityTransport()
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig* cfg)
 {
+    remote_fingerprint_algo_ = cfg->remote_fingerprint_algo;
+    remote_fingerprint_ = cfg->remote_fingerprint;
+
     return dtls_->initialize(cfg->dtls_role, cfg->dtls_version);
 }
 
@@ -141,6 +144,13 @@ srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
     if (handshake_done) {
         return err;
     }
+
+    // The DTLS certificates are self-signed, so only the a=fingerprint in the SDP, which came over the signaling,
+    // ties the certificate to the peer. Without the check, anyone on the media path completes DTLS with their own
+    // certificate, see RFC 8842 section 5.1.
+    if ((err = verify_peer_fingerprint()) != srs_success) {
+        return srs_error_wrap(err, "fingerprint");
+    }
     handshake_done = true;
 
     // TODO: FIXME: Add cost for DTLS.
@@ -175,6 +185,27 @@ srs_error_t SrsSecurityTransport::srtp_initialize()
     
     if ((err = srtp_->initialize(recv_key, send_key)) != srs_success) {
         return srs_error_wrap(err, "srtp init");
+    }
+
+    return err;
+}
+
+srs_error_t SrsSecurityTransport::verify_peer_fingerprint()
+{
+    srs_error_t err = srs_success;
+
+    if (remote_fingerprint_.empty()) {
+        return srs_error_new(ERROR_RTC_DTLS, "no fingerprint in remote SDP");
+    }
+
+    std::string fingerprint;
+    if ((err = dtls_->get_peer_fingerprint(remote_fingerprint_algo_, fingerprint)) != srs_success) {
+        return srs_error_wrap(err, "peer fingerprint");
+    }
+
+    if (strcasecmp(fingerprint.c_str(), remote_fingerprint_.c_str()) != 0) {
+        return srs_error_new(ERROR_RTC_DTLS, "peer certificate %s %s does not match SDP %s",
+            remote_fingerprint_algo_.c_str(), fingerprint.c_str(), remote_fingerprint_.c_str());
     }
 
     return err;

@@ -606,6 +606,9 @@ srs_error_t SrsRtcServer::do_create_session(SrsRtcUserConfig* ruc, SrsSdp& local
     }
     local_sdp.set_dtls_role(local_sdp.session_negotiate_.dtls_role);
 
+    local_sdp.session_negotiate_.remote_fingerprint_algo = ruc->remote_sdp_.get_fingerprint_algo();
+    local_sdp.session_negotiate_.remote_fingerprint = ruc->remote_sdp_.get_fingerprint();
+
     session->set_remote_sdp(ruc->remote_sdp_);
     // We must setup the local SDP, then initialize the session object.
     session->set_local_sdp(local_sdp);

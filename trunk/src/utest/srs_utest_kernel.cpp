@@ -1724,6 +1724,10 @@ VOID TEST(KernelStreamTest, StreamRequire)
     
     s.read_bytes(data, 24);
     EXPECT_FALSE(s.require(1));
+
+    s.skip(-1024);
+    EXPECT_TRUE(s.require(0));
+    EXPECT_FALSE(s.require(-1));
 }
 
 /**
@@ -5611,6 +5615,72 @@ VOID TEST(KernelTSTest, CoverContextDecode)
         SrsBuffer b((char*)raw, sizeof(raw));
         HELPER_EXPECT_SUCCESS(ctx.decode(&b, &h));
     }
+}
+
+// A TS packet of the PID, with the adaptation field control, the adaptation field and the payload, stuffed to 188 bytes.
+static string mock_ts_packet_af(uint16_t pid, uint8_t afc, const string& af, const string& payload)
+{
+    string p;
+    p.push_back((char)0x47);
+    p.push_back((char)((pid >> 8) & 0x1f));
+    p.push_back((char)(pid & 0xff));
+    p.push_back((char)((afc << 4) & 0x30));
+    p += af + payload;
+    if (p.size() < 188) {
+        p += string(188 - p.size(), (char)0xff);
+    }
+    return p.substr(0, 188);
+}
+
+static srs_error_t mock_ts_decode(const string& pkt)
+{
+    SrsTsContext ctx;
+    MockTsHandler h;
+    SrsBuffer b((char*)pkt.data(), (int)pkt.size());
+    return ctx.decode(&b, &h);
+}
+
+// The adaptation field extension length is one byte from the publisher, up to 255, while fewer bytes are left in the
+// packet. The packet is refused, and the server does not abort.
+VOID TEST(KernelTSTest, AdaptationExtensionPastThePacketFailsThePacket)
+{
+    srs_error_t err = mock_ts_decode(mock_ts_packet_af(0x100, 2, string("\xb7\x01\xff\x00", 4), ""));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+}
+
+// The ltw field needs 2 bytes after the extension flags, but the extension length only counts the flags.
+VOID TEST(KernelTSTest, AdaptationExtensionFieldsOverflowFailsThePacket)
+{
+    srs_error_t err = mock_ts_decode(mock_ts_packet_af(0x100, 3, string("\x0a\x01\x01\x80\x12\x34", 6), string(1, (char)0x00)));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+}
+
+// The fields the flags announce must stay inside the adaptation field: the PCR takes 6 bytes of a 1-byte field, or an
+// extension of 100 bytes in a 3-byte field.
+VOID TEST(KernelTSTest, AdaptationFieldsOverflowFailsThePacket)
+{
+    if (true) {
+        srs_error_t err = mock_ts_decode(mock_ts_packet_af(0x100, 3, string("\x01\x10\x00\x00\x00\x00\x7e\x00", 8), ""));
+        EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err = mock_ts_decode(mock_ts_packet_af(0x100, 3, string("\x03\x01\x64\x00", 4), ""));
+        EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+        srs_freep(err);
+    }
+}
+
+// An extension whose reserved bytes fill the whole adaptation field, to the last byte of the packet, is accepted.
+VOID TEST(KernelTSTest, AdaptationExtensionFillingThePacketIsAccepted)
+{
+    srs_error_t err;
+
+    string af = string("\xb7\x01\xb5\x00", 4) + string(180, (char)0xff);
+    HELPER_EXPECT_SUCCESS(mock_ts_decode(mock_ts_packet_af(0x100, 2, af, "")));
 }
 
 VOID TEST(KernelTSTest, CoverTransmuxer)

@@ -124,7 +124,7 @@ private:
 
     SrsRequest* req_;
     SrsSharedPtr<SrsSrtSource> srt_source_;
-    SrsSecurity* security_;
+    SrsEnhancedSecurity* security_;
 };
 
 #endif

@@ -116,7 +116,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* svr, srs_netfd_t c, string cip, int cport)
     
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
-    security = new SrsSecurity();
+    security = new SrsEnhancedSecurity();
     duration = 0;
     wakable = NULL;
     

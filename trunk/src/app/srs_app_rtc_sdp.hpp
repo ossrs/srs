@@ -25,6 +25,8 @@ class SrsSessionConfig
 public:
     std::string dtls_role;
     std::string dtls_version;
+    std::string remote_fingerprint_algo;
+    std::string remote_fingerprint;
 };
 
 class SrsSessionInfo
@@ -201,6 +203,8 @@ public:
     std::string get_ice_ufrag() const;
     std::string get_ice_pwd() const;
     std::string get_dtls_role() const;
+    std::string get_fingerprint_algo() const;
+    std::string get_fingerprint() const;
 private:
     srs_error_t parse_line(const std::string& line);
 private:

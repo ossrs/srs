@@ -36,6 +36,7 @@ using namespace std;
 #define SRS_GB_MAX_RECOVER 16
 #define SRS_GB_MAX_TIMEOUT 3
 #define SRS_GB_LARGE_PACKET 1500
+#define SRS_GB_MAX_RESERVED 128
 #define SRS_GB_SESSION_DRIVE_INTERVAL (300 * SRS_UTIME_MILLISECONDS)
 
 extern bool srs_is_rtcp(const uint8_t* data, size_t len);
@@ -1240,7 +1241,8 @@ ISrsPsPackHandler::~ISrsPsPackHandler()
 SrsGbMediaTcpConn::SrsGbMediaTcpConn()
 {
     pack_ = new SrsPackContext(this);
-    buffer_ = new uint8_t[65535];
+    // The bytes held from the previous RTP packet go before the next one, which RFC 4571 frames with up to 65535 bytes.
+    buffer_ = new uint8_t[SRS_GB_MAX_RESERVED + 65535];
     conn_ = NULL;
 
     wrapper_ = NULL;
@@ -1425,7 +1427,7 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
 
         // There might some messages left to parse in next loop.
         reserved = b.left();
-        if (reserved > 128) {
+        if (reserved > SRS_GB_MAX_RESERVED) {
             srs_warn("PS: Drop too many reserved=%d bytes", reserved);
             reserved = 0; // Avoid reserving too much data.
         }
