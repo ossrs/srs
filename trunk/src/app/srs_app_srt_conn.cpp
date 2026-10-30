@@ -229,7 +229,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     req_ = new SrsRequest();
     req_->ip_ = ip;
 
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     app_factory_ = _srs_app_factory;
     context_ = _srs_context;

@@ -205,7 +205,7 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     delta_ = new SrsNetworkDelta();
 
     rtmp_ = NULL;
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
     duration_ = 0;
     wakable_ = NULL;
 

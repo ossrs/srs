@@ -123,6 +123,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSRTP *srtp_;
     bool handshake_done_;
     ISrsRtcBlackhole *blackhole_;
+    std::string remote_fingerprint_algo_;
+    std::string remote_fingerprint_;
 
 public:
     SrsSecurityTransport(ISrsRtcNetwork *s);
@@ -152,6 +154,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t srtp_initialize();
+    srs_error_t verify_peer_fingerprint();
 };
 
 // Semi security transport, setup DTLS and SRTP, with SRTP decrypt, without SRTP encrypt.

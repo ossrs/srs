@@ -88,6 +88,7 @@ typedef off_t srs_off_t;
 #include <direct.h>
 #include <io.h>
 #include <process.h>
+#include <string.h>
 #include <sys/stat.h>
 
 // SRS has its own error code by this name, and uses no Win32 one.
@@ -111,6 +112,9 @@ typedef int64_t srs_off_t;
 
 // The mode of access that checks only that the file exists.
 #define F_OK 0
+
+// Strings: the case-insensitive compare by its POSIX name.
+#define strcasecmp _stricmp
 
 #ifndef S_ISDIR
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)

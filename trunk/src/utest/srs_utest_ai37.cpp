@@ -331,6 +331,27 @@ srs_error_t MockRtcPublishForJsonApi::serve_http(ISrsHttpResponseWriter *w, ISrs
     return srs_error_copy(serve_error_);
 }
 
+MockHttpServeCoroutine::MockHttpServeCoroutine(ISrsHttpHandler *handler, ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    handler_ = handler;
+    w_ = w;
+    r_ = r;
+    done_ = false;
+    err_ = srs_success;
+}
+
+MockHttpServeCoroutine::~MockHttpServeCoroutine()
+{
+    srs_freep(err_);
+}
+
+srs_error_t MockHttpServeCoroutine::cycle()
+{
+    err_ = handler_->serve_http(w_, r_);
+    done_ = true;
+    return srs_success;
+}
+
 // Hand the records each side sent to the other side, until neither side has anything more to send.
 srs_error_t dtls_exchange(SrsDtls *client, MockDtlsCallbackForHandshake *ccb, SrsDtls *server, MockDtlsCallbackForHandshake *scb)
 {
@@ -704,6 +725,176 @@ VOID TEST(DtlsHandshakeTest, AlertHandlerErrorIsIgnored)
     ASSERT_EQ(1, (int)cb.alerts_.size());
     EXPECT_STREQ("fatal", cb.alerts_[0].first.c_str());
     EXPECT_STREQ("HF", cb.alerts_[0].second.c_str());
+}
+
+// The peer's DTLS runs with its own certificate, not the SRS one.
+static srs_error_t ai37_peer_dtls_initialize(SrsDtls *peer, ISrsDtlsCertificate *certificate, string role)
+{
+    srs_freep(peer->impl_);
+    if (role == "active") {
+        peer->impl_ = new SrsDtlsClientImpl(peer->callback_);
+    } else {
+        peer->impl_ = new SrsDtlsServerImpl(peer->callback_);
+    }
+    peer->impl_->dtls_certificate_ = certificate;
+    return peer->impl_->initialize("dtls1.2", role);
+}
+
+// Hand the records between the peer and the SRS transport, until neither side has anything more to send.
+static srs_error_t ai37_dtls_exchange_with_transport(SrsDtls *peer, MockDtlsCallbackForHandshake *pcb, SrsSecurityTransport *srs, MockRtcNetwork *network)
+{
+    srs_error_t err = srs_success;
+
+    for (int round = 0; round < 16; round++) {
+        if (pcb->packets_.empty() && network->packets_.empty()) {
+            return err;
+        }
+
+        vector<string> to_srs;
+        to_srs.swap(pcb->packets_);
+        for (int i = 0; i < (int)to_srs.size(); i++) {
+            string &pkt = to_srs[i];
+            if ((err = srs->on_dtls(&pkt[0], (int)pkt.size())) != srs_success) {
+                return srs_error_wrap(err, "srs");
+            }
+        }
+
+        vector<string> to_peer;
+        to_peer.swap(network->packets_);
+        for (int i = 0; i < (int)to_peer.size(); i++) {
+            string &pkt = to_peer[i];
+            if ((err = peer->on_dtls(&pkt[0], (int)pkt.size())) != srs_success) {
+                return srs_error_wrap(err, "peer");
+            }
+        }
+    }
+
+    return srs_error_new(ERROR_RTC_DTLS, "DTLS exchange does not end");
+}
+
+// A browser publishes with an offer that has the a=fingerprint of its certificate, SRS answers passive, and the DTLS
+// handshake with that certificate sets up SRTP.
+VOID TEST(DtlsFingerprintTest, PeerCertificateMatchingOfferCompletes)
+{
+    srs_error_t err;
+
+    MockDtlsCertificateForDtlsCtx browser_certificate(true);
+    HELPER_ASSERT_SUCCESS(browser_certificate.initialize());
+
+    MockRtcNetwork network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "passive";
+    cfg.dtls_version_ = "dtls1.2";
+    cfg.remote_fingerprint_algo_ = "sha-256";
+    cfg.remote_fingerprint_ = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForHandshake pcb;
+    SrsDtls browser(&pcb);
+    HELPER_ASSERT_SUCCESS(ai37_peer_dtls_initialize(&browser, &browser_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(browser.start_active_handshake());
+    HELPER_EXPECT_SUCCESS(ai37_dtls_exchange_with_transport(&browser, &pcb, &srs, &network));
+
+    EXPECT_EQ(1, pcb.handshake_done_count_);
+    EXPECT_EQ(1, network.on_dtls_handshake_done_count_);
+}
+
+// RFC 8842 section 5.1: the certificate in the DTLS handshake MUST match the a=fingerprint of the SDP, or the session
+// is torn down. Someone on the media path answers the DTLS handshake with their own certificate, while the offer, sent
+// over HTTPS, has the browser's fingerprint. SRS must not set up SRTP with them.
+VOID TEST(DtlsFingerprintTest, PeerCertificateNotInOfferIsRefusedWhenSrsIsPassive)
+{
+    srs_error_t err;
+
+    MockDtlsCertificateForDtlsCtx browser_certificate(true);
+    HELPER_ASSERT_SUCCESS(browser_certificate.initialize());
+    MockDtlsCertificateForDtlsCtx attacker_certificate(true);
+    HELPER_ASSERT_SUCCESS(attacker_certificate.initialize());
+    ASSERT_STRNE(browser_certificate.get_fingerprint().c_str(), attacker_certificate.get_fingerprint().c_str());
+
+    MockRtcNetwork network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "passive";
+    cfg.dtls_version_ = "dtls1.2";
+    cfg.remote_fingerprint_algo_ = "sha-256";
+    cfg.remote_fingerprint_ = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForHandshake pcb;
+    SrsDtls attacker(&pcb);
+    HELPER_ASSERT_SUCCESS(ai37_peer_dtls_initialize(&attacker, &attacker_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(attacker.start_active_handshake());
+    HELPER_EXPECT_FAILED(ai37_dtls_exchange_with_transport(&attacker, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done_);
+    EXPECT_EQ(0, network.on_dtls_handshake_done_count_);
+}
+
+// RFC 8842 section 5.1 requires the a=fingerprint in an offer that uses DTLS. Without one, nothing ties the certificate
+// to the peer, so SRS refuses the session rather than accept any certificate.
+VOID TEST(DtlsFingerprintTest, OfferWithoutFingerprintIsRefused)
+{
+    srs_error_t err;
+
+    MockDtlsCertificateForDtlsCtx browser_certificate(true);
+    HELPER_ASSERT_SUCCESS(browser_certificate.initialize());
+
+    MockRtcNetwork network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "passive";
+    cfg.dtls_version_ = "dtls1.2";
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForHandshake pcb;
+    SrsDtls browser(&pcb);
+    HELPER_ASSERT_SUCCESS(ai37_peer_dtls_initialize(&browser, &browser_certificate, "active"));
+
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(browser.start_active_handshake());
+    HELPER_EXPECT_FAILED(ai37_dtls_exchange_with_transport(&browser, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done_);
+    EXPECT_EQ(0, network.on_dtls_handshake_done_count_);
+}
+
+// The same when the offer has a=setup:passive, so SRS is the DTLS client and the peer answers as the server with
+// a certificate that is not the one in the offer.
+VOID TEST(DtlsFingerprintTest, PeerCertificateNotInOfferIsRefusedWhenSrsIsActive)
+{
+    srs_error_t err;
+
+    MockDtlsCertificateForDtlsCtx browser_certificate(true);
+    HELPER_ASSERT_SUCCESS(browser_certificate.initialize());
+    MockDtlsCertificateForDtlsCtx attacker_certificate(true);
+    HELPER_ASSERT_SUCCESS(attacker_certificate.initialize());
+    ASSERT_STRNE(browser_certificate.get_fingerprint().c_str(), attacker_certificate.get_fingerprint().c_str());
+
+    MockRtcNetwork network;
+    SrsSecurityTransport srs(&network);
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "active";
+    cfg.dtls_version_ = "dtls1.2";
+    cfg.remote_fingerprint_algo_ = "sha-256";
+    cfg.remote_fingerprint_ = browser_certificate.get_fingerprint();
+    HELPER_ASSERT_SUCCESS(srs.initialize(&cfg));
+
+    MockDtlsCallbackForHandshake pcb;
+    SrsDtls attacker(&pcb);
+    HELPER_ASSERT_SUCCESS(ai37_peer_dtls_initialize(&attacker, &attacker_certificate, "passive"));
+
+    HELPER_ASSERT_SUCCESS(attacker.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(srs.start_active_handshake());
+    HELPER_EXPECT_FAILED(ai37_dtls_exchange_with_transport(&attacker, &pcb, &srs, &network));
+
+    EXPECT_FALSE(srs.handshake_done_);
+    EXPECT_EQ(0, network.on_dtls_handshake_done_count_);
 }
 
 // SRTP with swapped keys: what one side protects, the other side unprotects, and a replayed or modified packet is
@@ -1565,6 +1756,68 @@ VOID TEST(GoApiRtcPublishTest, JsonApiResolvesAndRefuses)
 
     api.config_ = NULL;
     api.stat_ = NULL;
+}
+
+// JSON containers nested n levels, outermost first, with a number innermost: arrays as [[1]], objects as {"a":{"a":1}}.
+static string ai37_json_nested(int n, bool object)
+{
+    string head, tail;
+    for (int i = 0; i < n; i++) {
+        head += object ? "{\"a\":" : "[";
+        tail += object ? "}" : "]";
+    }
+    return head + "1" + tail;
+}
+
+// Any client controls how deep the JSON body nests, before any authentication, and each level recurses on the 128KB
+// coroutine stack that serves the request. A body of a few KB nested deep must be refused with code 400, instead of
+// overflowing the stack and killing the server.
+VOID TEST(GoApiRtcPlayTest, JsonApiRefusesDeeplyNestedBody)
+{
+    srs_error_t err;
+
+    MockAppConfig config;
+    MockRtcApiServerForPlay server;
+    MockRtcPlayForJsonApi api(&server);
+    api.config_ = &config;
+
+    MockResponseWriter writer;
+    MockHttpMessageForRtcApi message;
+    message.body_content_ = "{\"sdp\":" + ai37_json_nested(10000, false) + ",\"streamurl\":\"webrtc://localhost/live/livestream\"}";
+
+    MockHttpServeCoroutine serving(&api, &writer, &message);
+    SrsSTCoroutine trd("json-api", &serving);
+    HELPER_ASSERT_SUCCESS(trd.start());
+    for (int i = 0; i < 1000 && !serving.done_; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    trd.stop();
+
+    EXPECT_TRUE(serving.done_);
+    HELPER_EXPECT_SUCCESS(srs_error_copy(serving.err_));
+    string response = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    EXPECT_TRUE(response.find("\"code\":400") != string::npos) << response;
+    EXPECT_EQ(0, api.serve_count_);
+
+    api.config_ = NULL;
+}
+
+// JSON from a client, an HTTP API body, or from a hook server, an HTTP callback response, parses up to 64 nested
+// arrays or objects, which no real request comes near, and one level more is refused like any invalid JSON.
+VOID TEST(ProtocolJsonTest, NestedContainersDepthLimit)
+{
+    for (int i = 0; i < 2; i++) {
+        bool object = (i == 1);
+
+        SrsJsonAny *allowed = SrsJsonAny::loads(ai37_json_nested(64, object));
+        EXPECT_TRUE(allowed != NULL) << "object=" << object;
+        EXPECT_TRUE(allowed && (object ? allowed->is_object() : allowed->is_array())) << "object=" << object;
+        srs_freep(allowed);
+
+        SrsJsonAny *exceeded = SrsJsonAny::loads(ai37_json_nested(65, object));
+        EXPECT_TRUE(exceeded == NULL) << "object=" << object;
+        srs_freep(exceeded);
+    }
 }
 
 // Each SRT option the acceptor sets on its listener reads back from libsrt.

@@ -3838,6 +3838,46 @@ VOID TEST(SrsRtcConnectionTest, GenerateLocalSdpRedrawsTakenUfragThroughInjected
     EXPECT_EQ("ufrag002", local_sdp.media_descs_[0].session_info_.ice_ufrag_);
 }
 
+// A browser puts the a=fingerprint of its DTLS certificate in each media of the offer. The session takes it, so the
+// DTLS handshake can check the certificate the peer presents.
+VOID TEST(SrsRtcConnectionTest, GenerateLocalSdpTakesTheFingerprintOfTheOffer)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    MockConnectionManagerForExpire conn_manager;
+    MockAppConfig config;
+    MockDtlsCertificate certificate;
+    MockAppFactoryForRtcConn app_factory;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("pwd00000000000000000000000000001");
+    rand.gen_str_values_.push_back("ufrag001");
+    prepare_rtc_connection_for_local_sdp(conn.get(), &conn_manager, &config, &certificate, &app_factory, &rand);
+
+    SrsRtcUserConfig ruc;
+    srs_freep(ruc.req_);
+    ruc.req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream1");
+    SrsMediaDesc remote_audio("audio");
+    remote_audio.session_info_.ice_ufrag_ = "remote";
+    remote_audio.session_info_.fingerprint_algo_ = "sha-256";
+    remote_audio.session_info_.fingerprint_ = "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99";
+    ruc.remote_sdp_.media_descs_.push_back(remote_audio);
+
+    SrsSdp local_sdp;
+    local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
+    std::string username;
+    err = conn->generate_local_sdp(&ruc, local_sdp, username);
+
+    restore_rtc_connection_for_local_sdp(conn.get());
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ("sha-256", local_sdp.session_negotiate_.remote_fingerprint_algo_);
+    EXPECT_EQ(remote_audio.session_info_.fingerprint_, local_sdp.session_negotiate_.remote_fingerprint_);
+}
+
 // The player negotiator owns its random generator, so a test can replace it before the cname is drawn.
 VOID TEST(RtcPlayerNegotiatorTest, ConstructorCreatesRand)
 {

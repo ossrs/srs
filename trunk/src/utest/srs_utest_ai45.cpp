@@ -1339,7 +1339,7 @@ private:
 #endif
         conn_->manager_ = &manager_;
         conn_->assemble();
-        dynamic_cast<SrsSecurity *>(conn_->security_)->config_ = &conf_;
+        dynamic_cast<SrsSecurity *>(dynamic_cast<SrsEnhancedSecurity *>(conn_->security_)->security_)->config_ = &conf_;
 
         // Serve the client in a coroutine of this object, which keeps what the connection returned.
         srs_freep(conn_->trd_);
@@ -3506,7 +3506,7 @@ public:
         conn_->config_ = &conf_;
         conn_->hooks_ = &hooks_;
         conn_->assemble();
-        dynamic_cast<SrsSecurity *>(conn_->security_)->config_ = &conf_;
+        dynamic_cast<SrsSecurity *>(dynamic_cast<SrsEnhancedSecurity *>(conn_->security_)->security_)->config_ = &conf_;
 
         // Serve the client in a coroutine of this object, which keeps what the connection returned.
         srs_freep(conn_->trd_);
@@ -4461,6 +4461,157 @@ VOID TEST(AppSecurityTest, DenyPublishBySubnet_EncodersInNetworkDenied)
     EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnPlay, "172.20.1.1"));
 }
 
+// Checks a client of the given type with the app and stream a protocol parsed against the enhanced security of
+// the default vhost of the config text, as every protocol does when a client joins, and returns the error code, 0
+// when the client is allowed.
+static int security_utest_check_stream(MockSrsConfig *conf, SrsRtmpConnType type, SrsRequest *req)
+{
+    SrsSecurity sec;
+    sec.config_ = conf;
+    SrsEnhancedSecurity enhanced;
+    srs_freep(enhanced.security_);
+    enhanced.security_ = &sec;
+    req->vhost_ = "__defaultVhost__";
+
+    srs_error_t err = enhanced.check(type, "127.0.0.1", req);
+    enhanced.security_ = NULL;
+    sec.config_ = NULL;
+
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+// A server of the stock config, with no security rules, and an RTMP encoder publishing to
+// rtmp://host/live/../../../../../../tmp/pwn: the app has a dot-dot that would put its HLS files outside hls_path,
+// so the encoder is refused, and so is a player of it. A nested app of tenant/live still publishes, while a name
+// with a dot-dot inside a segment is refused too.
+VOID TEST(AppSecurityTest, RtmpDotDotStream_RefusedOnStockConfig)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{hls{enabled on;}}"));
+
+    if (true) {
+        SrsRequest req;
+        req.tcUrl_ = "rtmp://127.0.0.1/live/../../../../../../tmp";
+        req.stream_ = "pwn";
+        srs_net_url_parse_tcurl(req.tcUrl_, req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, req.param_);
+        req.strip();
+        EXPECT_STREQ("live/../../../../../../tmp", req.app_.c_str());
+
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtmpConnFMLEPublish, &req));
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtmpConnPlay, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.tcUrl_ = "rtmp://127.0.0.1/live";
+        req.stream_ = "../../../etc/pwn";
+        srs_net_url_parse_tcurl(req.tcUrl_, req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, req.param_);
+        req.strip();
+
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtmpConnFMLEPublish, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.app_ = "live";
+        req.stream_ = "show..1";
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtmpConnFMLEPublish, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        req.tcUrl_ = "rtmp://127.0.0.1/tenant/live";
+        req.stream_ = "livestream";
+        srs_net_url_parse_tcurl(req.tcUrl_, req.schema_, req.host_, req.vhost_, req.app_, req.stream_, req.port_, req.param_);
+        req.strip();
+
+        EXPECT_EQ(0, security_utest_check_stream(&conf, SrsRtmpConnFMLEPublish, &req));
+    }
+}
+
+// An SRT encoder of streamid #!::r=live/../../../tmp/pwn,m=publish, parsed as SrsMpegtsSrtConn does, is refused
+// before its stream reaches HLS, while one of r=live/livestream publishes.
+VOID TEST(AppSecurityTest, SrtDotDotStreamId_Refused)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{hls{enabled on;}}"));
+
+    if (true) {
+        SrsRequest req;
+        SrtMode mode;
+        EXPECT_TRUE(srs_srt_streamid_to_request(&conf, "#!::r=live/../../../tmp/pwn,m=publish", mode, &req));
+        EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsSrtConnPublish, &req));
+    }
+
+    if (true) {
+        SrsRequest req;
+        SrtMode mode;
+        EXPECT_TRUE(srs_srt_streamid_to_request(&conf, "#!::r=live/livestream,m=publish", mode, &req));
+        EXPECT_EQ(0, security_utest_check_stream(&conf, SrsSrtConnPublish, &req));
+    }
+}
+
+// A WHIP publisher of /rtc/v1/whip/?app=live&stream=../../../tmp/pwn, whose query the handler takes as given and
+// splits on the last slash into the app live/../../../tmp and the stream pwn, is refused, as is a WHEP player of it.
+VOID TEST(AppSecurityTest, WhipDotDotQuery_Refused)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{hls{enabled on;}}"));
+
+    SrsRequest req;
+    req.app_ = "live/../../../tmp";
+    req.stream_ = "pwn";
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtcConnPublish, &req));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtcConnPlay, &req));
+
+    req.app_ = "..";
+    req.stream_ = "pwn";
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, security_utest_check_stream(&conf, SrsRtcConnPublish, &req));
+}
+
+// The system security comes before the vhost security: a client with a dot-dot name is refused without the vhost
+// rules being asked, even rules that would allow it, while a client of a valid name gets the verdict of the vhost
+// rules, a deny or an allow.
+VOID TEST(AppSecurityTest, SystemSecurityBeforeVhostSecurity)
+{
+    MockSecurity vhost;
+    SrsEnhancedSecurity enhanced;
+    srs_freep(enhanced.security_);
+    enhanced.security_ = &vhost;
+
+    SrsRequest req;
+    req.app_ = "live";
+    req.stream_ = "../pwn";
+    srs_error_t err = enhanced.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req);
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_NAME, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, vhost.check_count_);
+
+    req.stream_ = "livestream";
+    vhost.check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "mock deny");
+    err = enhanced.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req);
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, vhost.check_count_);
+    EXPECT_EQ(SrsRtmpConnFMLEPublish, vhost.check_type_);
+
+    srs_freep(vhost.check_error_);
+    err = enhanced.check(SrsRtmpConnPlay, "127.0.0.1", &req);
+    EXPECT_EQ(srs_success, err);
+    srs_freep(err);
+    EXPECT_EQ(2, vhost.check_count_);
+
+    enhanced.security_ = NULL;
+}
+
 // A server started as the real one is, initialize then listen, from a config of its listens, with the TCP listeners
 // and the parts that touch the host (pid file, HTTP server, black hole, SRT poller) replaced by mocks.
 class ServerUtestStart
@@ -5036,7 +5187,7 @@ private:
             conn_->srt_conn_ = io;
         }
         conn_->assemble();
-        dynamic_cast<SrsSecurity *>(conn_->security_)->config_ = &conf_;
+        dynamic_cast<SrsSecurity *>(dynamic_cast<SrsEnhancedSecurity *>(conn_->security_)->security_)->config_ = &conf_;
 
         // Serve the client in a coroutine of this object, which keeps what the connection returned.
         srs_freep(conn_->trd_);

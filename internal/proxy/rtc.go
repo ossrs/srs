@@ -613,20 +613,21 @@ func (v *rtcStunPacket) UnmarshalBinary(data []byte) error {
 	}
 
 	for len(p) > 0 {
+		if len(p) < 4 {
+			return errors.Errorf("stun attribute header invalid %v < 4", len(p))
+		}
+
 		typ := binary.BigEndian.Uint16(p)
 		length := binary.BigEndian.Uint16(p[2:])
 		p = p[4:]
 
-		if len(p) < int(length) {
-			return errors.Errorf("stun attribute length invalid %v < %v", len(p), length)
+		padding := (4 - int(length)%4) % 4
+		if len(p) < int(length)+padding {
+			return errors.Errorf("stun attribute length invalid %v < %v+%v", len(p), length, padding)
 		}
 
 		value := p[:length]
-		p = p[length:]
-
-		if length%4 != 0 {
-			p = p[4-length%4:]
-		}
+		p = p[int(length)+padding:]
 
 		switch typ {
 		case 0x0006:

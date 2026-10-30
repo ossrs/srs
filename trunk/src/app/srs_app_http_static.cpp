@@ -63,7 +63,7 @@ void SrsHlsVirtualConn::expire()
 
 SrsHlsStream::SrsHlsStream()
 {
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     config_ = _srs_config;
     stat_ = _srs_stat;

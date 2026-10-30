@@ -255,11 +255,14 @@ void MockDtls::reset()
     last_version_ = "";
     recv_key_ = "";
     send_key_ = "";
+    peer_fingerprint_ = "AA:BB:CC";
+    last_fingerprint_algo_ = "";
 
     initialize_count_ = 0;
     start_active_handshake_count_ = 0;
     on_dtls_count_ = 0;
     get_srtp_key_count_ = 0;
+    get_peer_fingerprint_count_ = 0;
 }
 
 srs_error_t MockDtls::initialize(std::string role, std::string version)
@@ -290,6 +293,14 @@ srs_error_t MockDtls::get_srtp_key(std::string &recv_key, std::string &send_key)
     }
     recv_key = recv_key_;
     send_key = send_key_;
+    return srs_success;
+}
+
+srs_error_t MockDtls::get_peer_fingerprint(std::string algo, std::string &fingerprint)
+{
+    get_peer_fingerprint_count_++;
+    last_fingerprint_algo_ = algo;
+    fingerprint = peer_fingerprint_;
     return srs_success;
 }
 
@@ -366,6 +377,7 @@ void MockRtcNetwork::reset()
     protect_rtp_count_ = 0;
     protect_rtcp_count_ = 0;
     write_count_ = 0;
+    packets_.clear();
     is_established_ = true;
 }
 
@@ -432,6 +444,7 @@ bool MockRtcNetwork::is_establelished()
 srs_error_t MockRtcNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
     write_count_++;
+    packets_.push_back(std::string((char *)buf, size));
     if (nwrite) {
         *nwrite = (ssize_t)size;
     }
@@ -589,6 +602,8 @@ public:
         // Replace the real DTLS with our mock
         srs_freep(dtls_);
         dtls_ = mock_dtls;
+        remote_fingerprint_algo_ = "sha-256";
+        remote_fingerprint_ = mock_dtls->peer_fingerprint_;
 
         // Replace the real SRTP with our mock if provided
         if (mock_srtp) {

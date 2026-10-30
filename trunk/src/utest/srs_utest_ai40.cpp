@@ -5200,6 +5200,60 @@ VOID TEST(KernelTsTest, SrtPublisherCorruptAdaptationFieldFailsThePacket)
     }
 }
 
+// The adaptation field extension length is one byte from the publisher, up to 255, while fewer bytes are left in the
+// packet. The packet is refused, and the server does not abort.
+VOID TEST(KernelTsTest, SrtPublisherAdaptationExtensionPastThePacketFailsThePacket)
+{
+    TsMessages h;
+    string af("\xb7\x01\xff\x00", 4);
+    string pkt = ts_packet_af(0x100, false, 2, af, "");
+    packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+    EXPECT_EQ(0, (int)h.msgs_.size());
+}
+
+// The ltw field needs 2 bytes after the extension flags, but the extension length only counts the flags.
+VOID TEST(KernelTsTest, SrtPublisherAdaptationExtensionFieldsOverflowFailsThePacket)
+{
+    TsMessages h;
+    string af("\x0a\x01\x01\x80\x12\x34", 6);
+    string pkt = ts_packet_af(0x100, false, 3, af, string(1, (char)0x00));
+    packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+    EXPECT_EQ(0, (int)h.msgs_.size());
+}
+
+// The fields the flags announce must stay inside the adaptation field: the PCR takes 6 bytes of a 1-byte field, or an
+// extension of 100 bytes in a 3-byte field.
+VOID TEST(KernelTsTest, SrtPublisherAdaptationFieldsOverflowFailsThePacket)
+{
+    if (true) {
+        TsMessages h;
+        string af("\x01\x10\x00\x00\x00\x00\x7e\x00", 8);
+        string pkt = ts_packet_af(0x100, false, 3, af, "");
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+        EXPECT_EQ(0, (int)h.msgs_.size());
+    }
+
+    if (true) {
+        TsMessages h;
+        string af("\x03\x01\x64\x00", 4);
+        string pkt = ts_packet_af(0x100, false, 3, af, "");
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+        EXPECT_EQ(0, (int)h.msgs_.size());
+    }
+}
+
+// An extension whose reserved bytes fill the whole adaptation field, to the last byte of the packet, is accepted.
+VOID TEST(KernelTsTest, SrtPublisherAdaptationExtensionFillingThePacketIsAccepted)
+{
+    srs_error_t err;
+
+    TsMessages h;
+    string af = string("\xb7\x01\xb5\x00", 4) + string(180, (char)0xff);
+    string pkt = ts_packet_af(0x100, false, 2, af, "");
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkt, &h));
+    EXPECT_EQ(0, (int)h.msgs_.size());
+}
+
 // An encoder with SCTE-35 ad markers sends a registration descriptor in its PMT, an ISO 639 language descriptor on
 // its audio, and a SCTE-35 stream. The ingest keeps the H.264 and AAC streams, drops the SCTE-35 stream, and skips its
 // packets.

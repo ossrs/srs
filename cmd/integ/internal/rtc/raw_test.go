@@ -431,12 +431,12 @@ type fakeRaw struct {
 	// srtp protects what the server sends and unprotects what it receives,
 	// once the handshake is done; bad counts the packets it couldn't
 	// unprotect, and rtcp is the RTCP packets it received, in clear.
-	srtp       *srtpPair
-	bad        int
-	rtcp       [][]byte
-	ready      chan struct{}
-	vs         *sender
-	as         *sender
+	srtp  *srtpPair
+	bad   int
+	rtcp  [][]byte
+	ready chan struct{}
+	vs    *sender
+	as    *sender
 	// closeDelay is how long the server waits, once the client closed, before
 	// it closes the connection too, at closedAt.
 	closeDelay time.Duration

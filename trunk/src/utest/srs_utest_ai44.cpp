@@ -2413,13 +2413,13 @@ public:
         api_->publish_->config_ = &conf_;
         api_->publish_->stat_ = &stat_;
         api_->publish_->hooks_ = &hooks_;
-        dynamic_cast<SrsSecurity *>(api_->publish_->security_)->config_ = &conf_;
+        dynamic_cast<SrsSecurity *>(dynamic_cast<SrsEnhancedSecurity *>(api_->publish_->security_)->security_)->config_ = &conf_;
         api_->play_->config_ = &conf_;
         api_->play_->stat_ = &stat_;
         api_->play_->rtc_sources_ = &rtc_sources_;
         api_->play_->live_sources_ = &live_sources_;
         api_->play_->hooks_ = &hooks_;
-        dynamic_cast<SrsSecurity *>(api_->play_->security_)->config_ = &conf_;
+        dynamic_cast<SrsSecurity *>(dynamic_cast<SrsEnhancedSecurity *>(api_->play_->security_)->security_)->config_ = &conf_;
 
         return err;
     }
