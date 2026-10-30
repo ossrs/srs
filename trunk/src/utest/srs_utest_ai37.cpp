@@ -331,6 +331,27 @@ srs_error_t MockRtcPublishForJsonApi::serve_http(ISrsHttpResponseWriter *w, ISrs
     return srs_error_copy(serve_error_);
 }
 
+MockHttpServeCoroutine::MockHttpServeCoroutine(ISrsHttpHandler *handler, ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    handler_ = handler;
+    w_ = w;
+    r_ = r;
+    done_ = false;
+    err_ = srs_success;
+}
+
+MockHttpServeCoroutine::~MockHttpServeCoroutine()
+{
+    srs_freep(err_);
+}
+
+srs_error_t MockHttpServeCoroutine::cycle()
+{
+    err_ = handler_->serve_http(w_, r_);
+    done_ = true;
+    return srs_success;
+}
+
 // Hand the records each side sent to the other side, until neither side has anything more to send.
 srs_error_t dtls_exchange(SrsDtls *client, MockDtlsCallbackForHandshake *ccb, SrsDtls *server, MockDtlsCallbackForHandshake *scb)
 {
@@ -1735,6 +1756,68 @@ VOID TEST(GoApiRtcPublishTest, JsonApiResolvesAndRefuses)
 
     api.config_ = NULL;
     api.stat_ = NULL;
+}
+
+// JSON containers nested n levels, outermost first, with a number innermost: arrays as [[1]], objects as {"a":{"a":1}}.
+static string ai37_json_nested(int n, bool object)
+{
+    string head, tail;
+    for (int i = 0; i < n; i++) {
+        head += object ? "{\"a\":" : "[";
+        tail += object ? "}" : "]";
+    }
+    return head + "1" + tail;
+}
+
+// Any client controls how deep the JSON body nests, before any authentication, and each level recurses on the 128KB
+// coroutine stack that serves the request. A body of a few KB nested deep must be refused with code 400, instead of
+// overflowing the stack and killing the server.
+VOID TEST(GoApiRtcPlayTest, JsonApiRefusesDeeplyNestedBody)
+{
+    srs_error_t err;
+
+    MockAppConfig config;
+    MockRtcApiServerForPlay server;
+    MockRtcPlayForJsonApi api(&server);
+    api.config_ = &config;
+
+    MockResponseWriter writer;
+    MockHttpMessageForRtcApi message;
+    message.body_content_ = "{\"sdp\":" + ai37_json_nested(10000, false) + ",\"streamurl\":\"webrtc://localhost/live/livestream\"}";
+
+    MockHttpServeCoroutine serving(&api, &writer, &message);
+    SrsSTCoroutine trd("json-api", &serving);
+    HELPER_ASSERT_SUCCESS(trd.start());
+    for (int i = 0; i < 1000 && !serving.done_; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    trd.stop();
+
+    EXPECT_TRUE(serving.done_);
+    HELPER_EXPECT_SUCCESS(srs_error_copy(serving.err_));
+    string response = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    EXPECT_TRUE(response.find("\"code\":400") != string::npos) << response;
+    EXPECT_EQ(0, api.serve_count_);
+
+    api.config_ = NULL;
+}
+
+// JSON from a client, an HTTP API body, or from a hook server, an HTTP callback response, parses up to 64 nested
+// arrays or objects, which no real request comes near, and one level more is refused like any invalid JSON.
+VOID TEST(ProtocolJsonTest, NestedContainersDepthLimit)
+{
+    for (int i = 0; i < 2; i++) {
+        bool object = (i == 1);
+
+        SrsJsonAny *allowed = SrsJsonAny::loads(ai37_json_nested(64, object));
+        EXPECT_TRUE(allowed != NULL) << "object=" << object;
+        EXPECT_TRUE(allowed && (object ? allowed->is_object() : allowed->is_array())) << "object=" << object;
+        srs_freep(allowed);
+
+        SrsJsonAny *exceeded = SrsJsonAny::loads(ai37_json_nested(65, object));
+        EXPECT_TRUE(exceeded == NULL) << "object=" << object;
+        srs_freep(exceeded);
+    }
 }
 
 // Each SRT option the acceptor sets on its listener reads back from libsrt.

@@ -243,4 +243,22 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
 };
 
+// A coroutine that serves one HTTP request, so the handler runs on a coroutine stack as in the server.
+class MockHttpServeCoroutine : public ISrsCoroutineHandler
+{
+public:
+    ISrsHttpHandler *handler_;
+    ISrsHttpResponseWriter *w_;
+    ISrsHttpMessage *r_;
+    bool done_;
+    srs_error_t err_;
+
+public:
+    MockHttpServeCoroutine(ISrsHttpHandler *handler, ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+    virtual ~MockHttpServeCoroutine();
+
+public:
+    virtual srs_error_t cycle();
+};
+
 #endif

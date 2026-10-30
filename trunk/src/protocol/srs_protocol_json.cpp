@@ -1764,7 +1764,12 @@ SrsJsonArray *SrsJsonAny::array()
     return new SrsJsonArray();
 }
 
-SrsJsonAny *srs_json_parse_tree(json_value *node)
+// The client controls how deep the JSON nests, and each level recurses on the small coroutine
+// stack, so a few KB of nesting overflows it.
+#define SRS_JSON_MAX_DEPTH 64
+
+// The depth is how deep the node nests in its containers, 1 at the top level.
+SrsJsonAny *srs_json_parse_tree(json_value *node, int depth)
 {
     if (!node) {
         return NULL;
@@ -1782,10 +1787,14 @@ SrsJsonAny *srs_json_parse_tree(json_value *node)
     case json_boolean:
         return SrsJsonAny::boolean(node->u.boolean != 0);
     case json_object: {
+        if (depth > SRS_JSON_MAX_DEPTH) {
+            return NULL;
+        }
+
         SrsJsonObject *obj = SrsJsonAny::object();
         for (int i = 0; i < (int)node->u.object.length; i++) {
             json_object_entry &entry = node->u.object.values[i];
-            SrsJsonAny *value = srs_json_parse_tree(entry.value);
+            SrsJsonAny *value = srs_json_parse_tree(entry.value, depth + 1);
 
             if (!value) {
                 srs_freep(obj);
@@ -1797,10 +1806,14 @@ SrsJsonAny *srs_json_parse_tree(json_value *node)
         return obj;
     }
     case json_array: {
+        if (depth > SRS_JSON_MAX_DEPTH) {
+            return NULL;
+        }
+
         SrsJsonArray *arr = SrsJsonAny::array();
         for (int i = 0; i < (int)node->u.array.length; i++) {
             json_value *p = node->u.array.values[i];
-            SrsJsonAny *value = srs_json_parse_tree(p);
+            SrsJsonAny *value = srs_json_parse_tree(p, depth + 1);
 
             if (!value) {
                 srs_freep(arr);
@@ -1823,7 +1836,7 @@ SrsJsonAny *SrsJsonAny::loads(string str)
     }
 
     json_value *j = json_parse(str.data(), str.length());
-    SrsJsonAny *sj = srs_json_parse_tree(j);
+    SrsJsonAny *sj = srs_json_parse_tree(j, 1);
     json_value_free(j);
 
     return sj;
