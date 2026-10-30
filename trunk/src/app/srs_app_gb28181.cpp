@@ -831,19 +831,10 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: use right way.
-    for (int i = 0; i < 10; i++) {
-        if (msgs_.find(msg->timestamp_) == msgs_.end()) {
-            break;
-        }
-
-        // adjust the ts, add 1ms.
+    // While another message holds the time, adjust the ts, add 1ms. The map holds a finite number of messages, so a
+    // free time is found, and no message is replaced.
+    while (msgs_.find(msg->timestamp_) != msgs_.end()) {
         msg->timestamp_ += 1;
-
-        if (i >= 100) {
-            srs_warn("Muxer: free the msg for dts exists, dts=%" PRId64, msg->timestamp_);
-            srs_freep(msg);
-            return err;
-        }
     }
 
     if (msg->is_audio()) {
@@ -1022,6 +1013,11 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             return srs_error_wrap(err, "demux avc annexb");
         }
 
+        // Two start codes in a row, or one at the end of the pack, give an empty NALU.
+        if (frame == NULL || frame_size == 0) {
+            continue;
+        }
+
         // 5bits, 7.3.1 NAL unit syntax,
         // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
@@ -1048,7 +1044,8 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
                 return srs_error_wrap(err, "demux sps");
             }
 
-            if (h264_sps_ == sps) {
+            // A cut SPS has no profile or level to build a sequence header from, so keep the SPS we have.
+            if (sps.empty() || h264_sps_ == sps) {
                 continue;
             }
             h264_sps_changed_ = true;
@@ -1192,6 +1189,11 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             return srs_error_wrap(err, "demux hevc annexb");
         }
 
+        // Two start codes in a row, or one at the end of the pack, give an empty NALU.
+        if (frame == NULL || frame_size == 0) {
+            continue;
+        }
+
         // 6bits, 7.4.2.2 NAL unit header semantics
         // ITU-T-H.265-2021.pdf, page 85.
         // 32: VPS, 33: SPS, 34: PPS ...
@@ -1227,7 +1229,8 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
                 return srs_error_wrap(err, "demux sps");
             }
 
-            if (h265_sps_ == sps) {
+            // A cut SPS has no profile or level to build a sequence header from, so keep the SPS we have.
+            if (sps.empty() || h265_sps_ == sps) {
                 continue;
             }
             vps_sps_pps_change_ = true;

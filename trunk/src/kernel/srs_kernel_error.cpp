@@ -129,7 +129,7 @@ char *addr2line_format(void *addr, char *symbol, char *buffer, int nn_buffer)
 }
 #endif
 
-int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf)
+int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf, int nn_buf)
 {
 #if defined(SRS_BACKTRACE) && defined(__linux)
     void *frame = parse_symbol_offset(symbol);
@@ -137,7 +137,7 @@ int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf)
         return ERROR_BACKTRACE_PARSE_OFFSET;
     }
 
-    char *fmt = addr2line_format(frame, symbol, out_buf, sizeof(out_buf));
+    char *fmt = addr2line_format(frame, symbol, out_buf, nn_buf);
     if (fmt != out_buf) {
         return ERROR_BACKTRACE_ADDR2LINE;
     }
@@ -166,7 +166,7 @@ void asan_report_callback(const char *str)
         }
 
         buf[0] = 0;
-        int r0 = srs_parse_asan_backtrace_symbols((char *)log.c_str(), buf);
+        int r0 = srs_parse_asan_backtrace_symbols((char *)log.c_str(), buf, sizeof(buf));
         if (r0 != ERROR_SUCCESS) {
             srs_error("%s, r0=%d", log.c_str(), r0);
         } else {
@@ -303,6 +303,13 @@ SrsCplxError *SrsCplxError::create(const char *func, const char *file, int line,
     int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
 
+    // Ensure buffer is null-terminated even if vsnprintf failed or truncated.
+    if (r0 < 0) {
+        buffer[0] = '\0';
+    } else if (r0 >= maxLogBuf) {
+        buffer[maxLogBuf - 1] = '\0';
+    }
+
     SrsCplxError *err = new SrsCplxError();
 
     err->func_ = func;
@@ -310,9 +317,7 @@ SrsCplxError *SrsCplxError::create(const char *func, const char *file, int line,
     err->line_ = line;
     err->code_ = code;
     err->rerrno_ = rerrno;
-    if (r0 > 0 && r0 < maxLogBuf) {
-        err->msg_ = string(buffer, r0);
-    }
+    err->msg_ = string(buffer);
     err->wrapped_ = NULL;
     if (_srs_context) {
         err->cid_ = _srs_context->get_id();
@@ -478,27 +483,35 @@ std::string SrsCplxError::error_code_strlong(SrsCplxError *err)
     return it->second;
 }
 
+#if defined(SRS_BACKTRACE) && defined(__linux)
+// Log the stack of the caller, one frame per line, with the function and source line when addr2line finds them.
+void srs_backtrace_log()
+{
+    void *addresses[64];
+    int nn_addresses = backtrace(addresses, sizeof(addresses) / sizeof(void *));
+    char **symbols = backtrace_symbols(addresses, nn_addresses);
+
+    // No error code for assert failed.
+    errno = 0;
+
+    char buffer[128];
+    srs_error("backtrace %d frames of %s %s", nn_addresses, _srs_binary, RTMP_SIG_SRS_SERVER);
+    for (int i = 0; i < nn_addresses; i++) {
+        void *frame = parse_symbol_offset(symbols[i]);
+        char *fmt = addr2line_format(frame, symbols[i], buffer, sizeof(buffer));
+        int parsed = (fmt == buffer);
+        srs_error("#%d %p %d %s", i, frame, parsed, fmt);
+    }
+
+    free(symbols);
+}
+#endif
+
 void SrsCplxError::srs_assert(bool expression)
 {
 #if defined(SRS_BACKTRACE) && defined(__linux)
     if (!expression) {
-        void *addresses[64];
-        int nn_addresses = backtrace(addresses, sizeof(addresses) / sizeof(void *));
-        char **symbols = backtrace_symbols(addresses, nn_addresses);
-
-        // No error code for assert failed.
-        errno = 0;
-
-        char buffer[128];
-        srs_error("backtrace %d frames of %s %s", nn_addresses, _srs_binary, RTMP_SIG_SRS_SERVER);
-        for (int i = 0; i < nn_addresses; i++) {
-            void *frame = parse_symbol_offset(symbols[i]);
-            char *fmt = addr2line_format(frame, symbols[i], buffer, sizeof(buffer));
-            int parsed = (fmt == buffer);
-            srs_error("#%d %p %d %s", i, frame, parsed, fmt);
-        }
-
-        free(symbols);
+        srs_backtrace_log();
     }
 #endif
 

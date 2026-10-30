@@ -407,16 +407,15 @@ private:
     virtual srs_error_t recv_token_normal(std::string &token);
     // Read a normal token from io, error when token state is not eof.
     virtual srs_error_t recv_token_eof(std::string &token);
-    // Read the token util got eof, for example, to read the response status Reason-Phrase
-    // @param pconsumed, output the token parsed length. NULL to ignore.
-    virtual srs_error_t recv_token_util_eof(std::string &token, int *pconsumed = NULL);
+    // Read a line ended by CRLF, CR or LF, without the line end.
+    virtual srs_error_t recv_line(std::string &line);
     // Read a token from io, split by SP, endswith CRLF:
     //       token1 SP token2 SP ... tokenN CRLF
     // @param token, output the read token.
     // @param state, output the token parse state.
     // @param normal_ch, the char to indicates the normal token.
     //       the SP use to indicates the normal token, @see SRS_RTSP_SP
-    //       the 0x00 use to ignore normal token flag. @see recv_token_util_eof
+    //       the 0x00 use to ignore normal token flag.
     // @param pconsumed, output the token parsed length. NULL to ignore.
     virtual srs_error_t recv_token(std::string &token, SrsRtspTokenState &state, char normal_ch = SRS_RTSP_SP, int *pconsumed = NULL);
 };

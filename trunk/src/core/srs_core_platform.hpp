@@ -274,6 +274,11 @@ extern int srs_daemon_ready();
 //   as Ctrl+Break, in a job that ends it when SRS quits.
 extern pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *stdout_file,
                                const char *stderr_file, const char *cid, const char *info);
+#ifndef _WIN32
+// Open the file to append, creating it, and make to_fd a copy of it; the spawned child uses it for its stdout,
+// stderr and stdin. Does nothing for a NULL or empty file. Returns -1 when the open or the dup2 fails.
+extern int srs_redirect_output(const char *file, int to_fd);
+#endif
 
 ///////////////////////////////////////////////////////////
 // 3. Calls: signals

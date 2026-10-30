@@ -692,6 +692,10 @@ srs_error_t SrsHlsFmp4Muxer::write_audio(SrsMediaPacket *shared_audio, SrsFormat
         }
     }
 
+    // First, update the duration of the segment, as we might reap the segment. The duration should
+    // cover from the first frame to the last frame.
+    current_->append(shared_audio->timestamp_);
+
     // For pure audio, we use a larger threshold to reap segment.
     bool pure_audio_stream = (latest_vcodec_ == SrsVideoCodecIdForbidden || latest_vcodec_ == SrsVideoCodecIdDisabled);
 
@@ -723,6 +727,10 @@ srs_error_t SrsHlsFmp4Muxer::write_video(SrsMediaPacket *shared_video, SrsFormat
             return srs_error_wrap(err, "open segment");
         }
     }
+
+    // First, update the duration of the segment, as we might reap the segment. The duration should
+    // cover from the first frame to the last frame.
+    current_->append(shared_video->timestamp_);
 
     bool reopen = false;
     if (is_segment_overflow()) {
@@ -1156,12 +1164,13 @@ srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
         }
     }
 
-    // remove the temp file.
+    // remove the temp file, and keep the error of the write or rename.
     SrsUniquePtr<SrsPath> path(app_factory_->create_path());
     if (path->exists(temp_m3u8)) {
-        if ((err = path->unlink(temp_m3u8)) != srs_success) {
-            srs_warn("refresh: ignore remove m3u8 failed, %s", srs_error_desc(err).c_str());
-            srs_freep(err);
+        srs_error_t r0 = path->unlink(temp_m3u8);
+        if (r0 != srs_success) {
+            srs_warn("refresh: ignore remove m3u8 failed, %s", srs_error_desc(r0).c_str());
+            srs_freep(r0);
         }
     }
 
@@ -1561,8 +1570,11 @@ srs_error_t SrsHlsMuxer::do_recover_hls()
     if ((err = srs_io_readall(fr.get(), body)) != srs_success) {
         return srs_error_wrap(err, "read data");
     }
+    // An empty m3u8, such as one left by a power loss right after its rename, has nothing to recover, so start a new
+    // one as if there were none.
     if (body.empty()) {
-        return srs_error_wrap(err, "read empty m3u8");
+        srs_warn("hls: ignore empty m3u8=%s", m3u8_.c_str());
+        return err;
     }
 
     bool discon = false;
@@ -2095,12 +2107,13 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
         }
     }
 
-    // remove the temp file.
+    // remove the temp file, and keep the error of the write or rename.
     SrsUniquePtr<SrsPath> path(app_factory_->create_path());
     if (path->exists(temp_m3u8)) {
-        if ((err = path->unlink(temp_m3u8)) != srs_success) {
-            srs_warn("refresh: ignore remove m3u8 failed, %s", srs_error_desc(err).c_str());
-            srs_freep(err);
+        srs_error_t r0 = path->unlink(temp_m3u8);
+        if (r0 != srs_success) {
+            srs_warn("refresh: ignore remove m3u8 failed, %s", srs_error_desc(r0).c_str());
+            srs_freep(r0);
         }
     }
 

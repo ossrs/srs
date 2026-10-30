@@ -515,6 +515,7 @@ class SrsMetaCache
 SRS_DECLARE_PRIVATE: // clang-format on
     // The cached metadata, FLV script data tag.
     SrsMediaPacket *meta_;
+    SrsMediaPacket *previous_meta_;
     // The cached video sequence header, for example, sps/pps for h.264.
     SrsMediaPacket *video_;
     SrsMediaPacket *previous_video_;
@@ -550,6 +551,10 @@ public:
     virtual srs_error_t dumps(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 
 public:
+    // Previous exists metadata.
+    virtual SrsMediaPacket *previous_data();
+    // Update previous metadata, drop old one, set to new metadata.
+    virtual void update_previous_data();
     // Previous exists sequence header.
     virtual SrsMediaPacket *previous_vsh();
     virtual SrsMediaPacket *previous_ash();

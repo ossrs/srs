@@ -3,10 +3,12 @@
 # Build and run the C++ unit tests of this checkout, from trunk/ so the cwd-relative test data is found.
 #
 # Usage:
-#   bash skills/srs-develop/scripts/srs-utest-run.sh [--configure] [gtest-filter]
+#   bash skills/srs-develop/scripts/srs-utest-run.sh [--configure] [--disabled] [gtest-filter]
 #
 #   --configure     Re-run ./configure with the Full-tier flags, then remove the utest objects, which do not
 #                   depend on the configure header. Done on its own in a new checkout or after trunk/configure or trunk/auto/module_files.sh changes.
+#   --disabled      Also run the DISABLED_ tests, such as a test that shows an unfixed bug. Give a filter to run only
+#                   that test, such as 'RtmpTest.DISABLED_PlayClosesTwice'.
 #   gtest-filter    Run only these tests, such as 'ForwarderTest.*'. Default: all tests.
 #
 # Exit code is the exit code of srs_utest, or 1 if the build fails.
@@ -17,10 +19,12 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 cd "$ROOT/trunk" || exit 1
 
 CONFIGURE=no
+ARGS=()
 FILTER=
 for arg in "$@"; do
     case "$arg" in
         --configure) CONFIGURE=yes ;;
+        --disabled) ARGS+=(--gtest_also_run_disabled_tests) ;;
         *) FILTER="$arg" ;;
     esac
 done
@@ -54,7 +58,6 @@ if ! make -j10 utest >objs/utest-build.log 2>&1; then
 fi
 
 if [[ -n "$FILTER" ]]; then
-    ./objs/srs_utest --gtest_filter="$FILTER"
-else
-    ./objs/srs_utest
+    ARGS+=(--gtest_filter="$FILTER")
 fi
+./objs/srs_utest "${ARGS[@]}"

@@ -721,6 +721,8 @@ srs_error_t SrsRtspRtpBuilder::initialize(ISrsRequest *r)
 
     // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
+    format_->avc_parse_sps_ = config_->get_parse_sps(r->vhost_);
+    meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
 
     srs_trace("RTSP bridge from RTMP, try_annexb_first=%d", format_->try_annexb_first_);
 
@@ -930,7 +932,8 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
             return srs_error_wrap(err, "package stap-a");
         }
 
-        if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
+        // No STAP when the sequence header has no parameter sets, which the key frame then carries in band.
+        if (pkt->payload() && (err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
         }
     }

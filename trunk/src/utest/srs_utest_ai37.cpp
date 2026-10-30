@@ -332,7 +332,7 @@ srs_error_t MockRtcPublishForJsonApi::serve_http(ISrsHttpResponseWriter *w, ISrs
 }
 
 // Hand the records each side sent to the other side, until neither side has anything more to send.
-static srs_error_t dtls_exchange(SrsDtls *client, MockDtlsCallbackForHandshake *ccb, SrsDtls *server, MockDtlsCallbackForHandshake *scb)
+srs_error_t dtls_exchange(SrsDtls *client, MockDtlsCallbackForHandshake *ccb, SrsDtls *server, MockDtlsCallbackForHandshake *scb)
 {
     srs_error_t err = srs_success;
 
@@ -397,7 +397,7 @@ static int build_rtcp_rr(char *buf)
 }
 
 // Protect an RTP and an RTCP packet by one side and unprotect them by the other.
-static void expect_srtp_round_trip(ISrsSRTP *sender, ISrsSRTP *receiver, uint16_t seq)
+void expect_srtp_round_trip(ISrsSRTP *sender, ISrsSRTP *receiver, uint16_t seq)
 {
     srs_error_t err;
 

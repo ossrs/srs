@@ -400,6 +400,7 @@ srs_error_t MockTsHandler::on_ts_message(SrsTsMessage *m)
 
 MockPsHandler::MockPsHandler()
 {
+    error_code_ = 0;
 }
 
 MockPsHandler::~MockPsHandler()
@@ -409,6 +410,10 @@ MockPsHandler::~MockPsHandler()
 
 srs_error_t MockPsHandler::on_ts_message(SrsTsMessage *m)
 {
+    if (error_code_) {
+        return srs_error_new(error_code_, "mock refuses the message");
+    }
+
     msgs_.push_back(m->detach());
     return srs_success;
 }

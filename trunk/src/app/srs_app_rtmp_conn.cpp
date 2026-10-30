@@ -812,17 +812,18 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
             }
         }
 
+        // Quit when recv thread error, to detect the client disconnecting event. Check it before
+        // waiting, because the recv thread wakes the consumer only while it waits, so a close
+        // during the send interval or the yield below wakes nothing.
+        if ((err = rtrd->error_code()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: recv thread");
+        }
+
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // wait for message to incoming.
         // @see https://github.com/ossrs/srs/issues/257
         consumer->wait(mw_msgs_, mw_sleep_);
 #endif
-
-        // Quit when recv thread error. Check recv thread error when wakeup, in order
-        // to detect the client disconnecting event.
-        if ((err = rtrd->error_code()) != srs_success) {
-            return srs_error_wrap(err, "rtmp: recv thread");
-        }
 
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.

@@ -50,6 +50,7 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 - `skills/internal-audit-for-srs/SKILL.md` — Audit a change in a fresh subagent that reads the code before the commit message and the tests; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
 - `skills/internal-obs-control/SKILL.md` — Drive isolated OBS instances for the OBS test scripts.
+- `skills/internal-chrome-control/SKILL.md` — Drive a headless Chrome or Edge for the Chrome test scripts: WHIP, WHEP, HTTP-FLV, HTTP-TS and HLS with `getStats()` samples.
 - `skills/internal-perf-for-srs/SKILL.md` — Run an SRS performance round: load tool, profiles, ranked bottlenecks and reports. This skill remains responsible for the code changes and their checks.
 
 ## Cross-Component Verification
@@ -83,6 +84,7 @@ Use **Bash** for skill-owned automation and AI test scripts, including regressio
 - Do not create or run Python scripts, inline Python, or Python validation helpers unless the user explicitly requests Python.
 - Use shell utilities such as `curl` and `jq` for HTTP and JSON work; check required commands before running the test.
 - The `skills/internal-obs-control` scripts are an approved exception: they use stdlib Python 3.9+. The `srs-develop` test scripts calling them stay Bash 3.2 compatible.
+- The `skills/internal-chrome-control` scripts are an approved exception: they use Node.js 22.12+ and `puppeteer-core` pinned in their lockfile. The `srs-develop` test scripts calling them stay Bash 3.2 compatible.
 
 ## Build and Test in Place
 
@@ -129,6 +131,7 @@ Apply these rules whenever a task produces a commit:
 - Never run `git add`; the user stages the files they approve. The exception is a resolved conflict in a merge or cherry-pick the user asked for.
 - Never run `git push` unless the user explicitly asks.
 - Commit only when the user explicitly asks. Asking for a step that makes a commit, such as a merge or a cherry-pick, asks for that commit.
+- After a cherry-pick to another branch, such as a release branch, audit the new commit with `internal-audit-for-srs` before reporting it, and report its findings with the pick.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, `Codex:`, or `Kiro:`.
 - If Claude made changes, use this commit message format. End it with the co-author line the Claude Code harness gives; it names the current model, so do not hard-code one:

@@ -9,7 +9,7 @@ esac
 
 root=$PWD
 dir="$root/trunk/objs/windows-daemon-test/release path"
-port=${SRS_TEST_PORT_BASE:-15600}
+port=${SRS_TEST_PORT_BASE:-16400}
 mkdir -p "$dir/objs" "$dir/conf" "$dir/run"
 cp trunk/objs/windows/srs.exe "$dir/objs/srs.exe" || exit 1
 failed=0

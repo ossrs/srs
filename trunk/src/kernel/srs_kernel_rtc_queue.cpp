@@ -73,7 +73,8 @@ void SrsRtpRingBuffer::remove(uint16_t at)
 
 uint32_t SrsRtpRingBuffer::get_extended_highest_sequence()
 {
-    return nn_seq_flip_backs_ * 65536 + end_ - 1;
+    uint16_t highest = end_ - 1;
+    return nn_seq_flip_backs_ * 65536 + highest;
 }
 
 bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack_last)
@@ -93,10 +94,11 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
         nack_first = end_;
         nack_last = seq;
 
-        // When distance(seq,high_)>0 and seq<high_, seq must flip back,
-        // for example, high_=65535, seq=1, distance(65535,1)>0 and 1<65535.
-        // TODO: FIXME: The first flip may be dropped.
-        if (seq < end_) {
+        // When distance(seq,highest)>0 and seq<highest, seq must flip back,
+        // for example, highest=65535, seq=0, distance(65535,0)>0 and 0<65535.
+        // Compare with the highest seq, not end_, which is already 0 after seq 65535.
+        uint16_t highest = end_ - 1;
+        if (seq < highest) {
             ++nn_seq_flip_backs_;
         }
         end_ = seq + 1;
@@ -108,7 +110,8 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
 
     // Out-of-order sequence, seq before low_.
     if (srs_rtp_seq_distance(seq, begin_) > 0) {
-        nack_first = seq;
+        // The seq itself has arrived, so NACK only the packets after it.
+        nack_first = seq + 1;
         nack_last = begin_;
         begin_ = seq;
 

@@ -118,14 +118,14 @@ bool is_common_space(char ch)
 extern bool _srs_in_docker;
 
 // Detect docker by https://stackoverflow.com/a/41559867
-srs_error_t srs_detect_docker()
+srs_error_t srs_detect_docker(string cgroup_file)
 {
     srs_error_t err = srs_success;
 
     _srs_in_docker = false;
 
     SrsFileReader fr;
-    if ((err = fr.open("/proc/1/cgroup")) != srs_success) {
+    if ((err = fr.open(cgroup_file)) != srs_success) {
         return err;
     }
 
@@ -1615,7 +1615,7 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
     }
 
     // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
+    if ((err = srs_detect_docker("/proc/1/cgroup")) != srs_success) {
         srs_freep(err);
     }
 
@@ -1791,7 +1791,7 @@ srs_error_t SrsConfig::parse_argv(int &i, char **argv)
             show_help_ = false;
             if (*p) {
                 config_file_ = p;
-                continue;
+                return err;
             }
             if (argv[++i]) {
                 config_file_ = argv[i];
@@ -2963,7 +2963,7 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
                     if (m != "enabled" && m != "rtmp_to_rtsp") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.srt.%s of %s", m.c_str(), vhost->arg0().c_str());
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtsp.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             }
@@ -5891,12 +5891,7 @@ SrsConfDirective *SrsConfig::get_transcode(string vhost, string scope)
         return NULL;
     }
 
-    conf = conf->get("transcode");
-    if (!conf || conf->arg0() != scope) {
-        return NULL;
-    }
-
-    return conf;
+    return conf->get("transcode", scope);
 }
 
 bool SrsConfig::get_transcode_enabled(SrsConfDirective *conf)

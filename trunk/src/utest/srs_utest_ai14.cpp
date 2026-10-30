@@ -1757,6 +1757,8 @@ MockLiveSourceForOriginHub::MockLiveSourceForOriginHub()
     on_source_id_changed_error_ = srs_success;
     on_publish_error_ = srs_success;
     on_audio_error_ = srs_success;
+    on_video_error_ = srs_success;
+    on_aggregate_error_ = srs_success;
     on_meta_data_error_ = srs_success;
 }
 
@@ -1768,6 +1770,8 @@ MockLiveSourceForOriginHub::~MockLiveSourceForOriginHub()
     srs_freep(on_source_id_changed_error_);
     srs_freep(on_publish_error_);
     srs_freep(on_audio_error_);
+    srs_freep(on_video_error_);
+    srs_freep(on_aggregate_error_);
     srs_freep(on_meta_data_error_);
 }
 
@@ -1821,13 +1825,13 @@ srs_error_t MockLiveSourceForOriginHub::on_audio(SrsRtmpCommonMessage *audio)
 srs_error_t MockLiveSourceForOriginHub::on_video(SrsRtmpCommonMessage *video)
 {
     on_video_count_++;
-    return srs_success;
+    return srs_error_copy(on_video_error_);
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_aggregate(SrsRtmpCommonMessage *msg)
 {
     on_aggregate_count_++;
-    return srs_success;
+    return srs_error_copy(on_aggregate_error_);
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)

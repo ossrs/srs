@@ -15,7 +15,8 @@
 #   deps    builds ST and the third-party libraries and runs a link check per library
 #   build   builds srs.exe, counts the files of each module that compiled, and starts srs.exe once
 #           to check it answers on RTMP, HTTP and the API, at the ports from SRS_TEST_PORT_BASE
-#   utest   builds and runs srs_utest.exe
+#   utest   builds and runs srs_utest.exe; the optional pattern goes to --gtest_filter, such as
+#           'WindowsPlatformTest.*:PlatformTest.*', to run only those tests
 #   integ   runs cmd/integ against srs.exe; the optional pattern goes to go test -run, such as
 #           'TestRtmp_|TestHttpFlv_'
 #   obs     runs the OBS cases against srs.exe, with OBS on the host
@@ -37,7 +38,7 @@
 # this is not native Windows, and 3 for bad arguments or when not run in an SRS checkout.
 
 usage() {
-  echo "Usage: $0 [--alone] deps|build|utest|integ [pattern]|obs|full|package [version]|vs"
+  echo "Usage: $0 [--alone] deps|build|utest [filter]|integ [pattern]|obs|full|package [version]|vs"
   exit 3
 }
 
@@ -90,9 +91,9 @@ TARGET=$1
 PATTERN=
 VERSION=
 case $TARGET in
-  integ) [[ $# -le 2 ]] || usage; PATTERN=$2 ;;
+  integ|utest) [[ $# -le 2 ]] || usage; PATTERN=$2 ;;
   package) [[ $# -le 2 ]] || usage; VERSION=$2 ;;
-  deps|build|utest|obs|full|vs) [[ $# == 1 ]] || usage ;;
+  deps|build|obs|full|vs) [[ $# == 1 ]] || usage ;;
   *) usage ;;
 esac
 [[ -z $ALONE && $TARGET != full ]] || STEPS=$TARGET
@@ -323,7 +324,8 @@ step_utest() {
     echo "See trunk/objs/windows-utest-build.log"
     return 1
   fi
-  (cd trunk && timeout -k 10 $UTEST_TIMEOUT ./objs/windows/srs_utest.exe) > trunk/objs/windows-utest.log 2>&1
+  (cd trunk && timeout -k 10 $UTEST_TIMEOUT ./objs/windows/srs_utest.exe ${PATTERN:+"--gtest_filter=$PATTERN"}) \
+    > trunk/objs/windows-utest.log 2>&1
   code=$?
   if ! grep -q '^\[==========\] .* ran\.' trunk/objs/windows-utest.log; then
     echo "UTEST srs_utest.exe exited $code with no summary"

@@ -49,7 +49,9 @@ void SrsFragment::append(int64_t dts)
         start_dts_ = dts_in_tbn;
     }
 
-    // TODO: FIXME: Use cumulus dts.
+    // TODO: FIXME: Refine it, HLS takes the encoder's timestamps with jitter off, so an encoder that restarts its
+    // clocks mid-segment without publishing again, such as a camera rebooted behind a relay, has the segment listed
+    // short: the time before the restart is lost. Consider a time_jitter config for HLS, as DVR has.
     start_dts_ = srs_min(start_dts_, dts_in_tbn);
     dur_ = dts_in_tbn - start_dts_;
 }

@@ -81,11 +81,26 @@ MockHttpHooksForHlsNotify::MockHttpHooksForHlsNotify()
 {
     on_hls_notify_count_ = 0;
     on_hls_notify_error_ = srs_success;
+    on_hls_error_ = srs_success;
 }
 
 MockHttpHooksForHlsNotify::~MockHttpHooksForHlsNotify()
 {
     srs_freep(on_hls_notify_error_);
+    srs_freep(on_hls_error_);
+}
+
+srs_error_t MockHttpHooksForHlsNotify::on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
+                                              std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration)
+{
+    on_hls_ts_urls_.push_back(ts_url);
+    return srs_error_copy(on_hls_error_);
+}
+
+void MockHttpHooksForHlsNotify::set_on_hls_error(srs_error_t err)
+{
+    srs_freep(on_hls_error_);
+    on_hls_error_ = srs_error_copy(err);
 }
 
 srs_error_t MockHttpHooksForHlsNotify::on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify)

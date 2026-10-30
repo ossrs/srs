@@ -3291,7 +3291,11 @@ ISrsTsTransmuxer::~ISrsTsTransmuxer()
 SrsTsTransmuxer::SrsTsTransmuxer()
 {
     writer_ = NULL;
-    format_ = new SrsFormat();
+    SrsFormat *format = new SrsFormat();
+    // The TS muxer needs no SPS details, and the source already parsed the SPS as its vhost's parse_sps says, so a
+    // stream the source took with parse_sps off is not refused here.
+    format->avc_parse_sps_ = false;
+    format_ = format;
     tsmc_ = new SrsTsMessageCache();
     context_ = new SrsTsContext();
     tscw_ = NULL;

@@ -10,6 +10,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_process.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_consts.hpp>
@@ -34,6 +35,7 @@ SrsNgExec::SrsNgExec()
     pprint_ = NULL;
 
     config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 void SrsNgExec::assemble()
@@ -49,6 +51,7 @@ SrsNgExec::~SrsNgExec()
     srs_freep(pprint_);
 
     config_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsNgExec::on_publish(ISrsRequest *req)
@@ -82,6 +85,8 @@ srs_error_t SrsNgExec::cycle()
 {
     srs_error_t err = srs_success;
 
+    SrsUniquePtr<ISrsTime> time(app_factory_->create_time());
+
     while (true) {
         // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
@@ -95,12 +100,12 @@ srs_error_t SrsNgExec::cycle()
             srs_freep(err);
         }
 
-        srs_usleep(SRS_RTMP_EXEC_CIMS);
+        time->usleep(SRS_RTMP_EXEC_CIMS);
     }
 
-    std::vector<SrsProcess *>::iterator it;
+    std::vector<ISrsProcess *>::iterator it;
     for (it = exec_publishs_.begin(); it != exec_publishs_.end(); ++it) {
-        SrsProcess *ep = *it;
+        ISrsProcess *ep = *it;
         ep->stop();
     }
 
@@ -116,9 +121,9 @@ srs_error_t SrsNgExec::do_cycle()
         return err;
     }
 
-    std::vector<SrsProcess *>::iterator it;
+    std::vector<ISrsProcess *>::iterator it;
     for (it = exec_publishs_.begin(); it != exec_publishs_.end(); ++it) {
-        SrsProcess *process = *it;
+        ISrsProcess *process = *it;
 
         // start all processes.
         if ((err = process->start()) != srs_success) {
@@ -156,7 +161,7 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
     std::vector<SrsConfDirective *> eps = config_->get_exec_publishs(req->vhost_);
     for (int i = 0; i < (int)eps.size(); i++) {
         SrsConfDirective *ep = eps.at(i);
-        SrsProcess *process = new SrsProcess();
+        ISrsProcess *process = app_factory_->create_process();
 
         std::string binary = ep->arg0();
         std::vector<std::string> argv;
@@ -190,9 +195,9 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
 
 void SrsNgExec::clear_exec_publish()
 {
-    std::vector<SrsProcess *>::iterator it;
+    std::vector<ISrsProcess *>::iterator it;
     for (it = exec_publishs_.begin(); it != exec_publishs_.end(); ++it) {
-        SrsProcess *ep = *it;
+        ISrsProcess *ep = *it;
         srs_freep(ep);
     }
     exec_publishs_.clear();

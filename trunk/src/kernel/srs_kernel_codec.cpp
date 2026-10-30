@@ -188,6 +188,17 @@ SrsAudioSampleRate srs_audio_sample_rate_from_number(uint32_t v)
     if (v == 48000)
         return SrsAudioSampleRate48000;
 
+    if (v == 7350)
+        return SrsAudioSampleRate7350;
+    if (v == 32000)
+        return SrsAudioSampleRate32000;
+    if (v == 64000)
+        return SrsAudioSampleRate64000;
+    if (v == 88200)
+        return SrsAudioSampleRate88200;
+    if (v == 96000)
+        return SrsAudioSampleRate96000;
+
     if (v == 8000)
         return SrsAudioSampleRateNB8kHz;
     if (v == 12000)
@@ -244,6 +255,17 @@ uint32_t srs_audio_sample_rate2number(SrsAudioSampleRate v)
     if (v == SrsAudioSampleRate48000)
         return 48000;
 
+    if (v == SrsAudioSampleRate7350)
+        return 7350;
+    if (v == SrsAudioSampleRate32000)
+        return 32000;
+    if (v == SrsAudioSampleRate64000)
+        return 64000;
+    if (v == SrsAudioSampleRate88200)
+        return 88200;
+    if (v == SrsAudioSampleRate96000)
+        return 96000;
+
     if (v == SrsAudioSampleRateNB8kHz)
         return 8000;
     if (v == SrsAudioSampleRateMB12kHz)
@@ -269,6 +291,16 @@ string srs_audio_sample_rate2str(SrsAudioSampleRate v)
         return "22050";
     case SrsAudioSampleRate44100:
         return "44100";
+    case SrsAudioSampleRate7350:
+        return "7350";
+    case SrsAudioSampleRate32000:
+        return "32000";
+    case SrsAudioSampleRate64000:
+        return "64000";
+    case SrsAudioSampleRate88200:
+        return "88200";
+    case SrsAudioSampleRate96000:
+        return "96000";
     case SrsAudioSampleRateNB8kHz:
         return "NB8kHz";
     case SrsAudioSampleRateMB12kHz:
@@ -769,7 +801,8 @@ bool SrsAudioCodecConfig::is_aac_codec_ok()
 
 // The fields the VPS and SPS do not set, such as avg_frame_rate_, go into the hvcC that
 // SrsRawHEVCStream muxes, so they start at zero for the same parameter sets to give the same hvcC.
-SrsHevcDecoderConfigurationRecord::SrsHevcDecoderConfigurationRecord()
+// A slice may name a PPS, and a PPS an SPS, that was never received: it reads as zero, not as the memory before.
+SrsHevcDecoderConfigurationRecord::SrsHevcDecoderConfigurationRecord() : sps_table_(), pps_table_()
 {
     configuration_version_ = 0;
     general_profile_space_ = 0;

@@ -1144,8 +1144,9 @@ void srs_update_network_devices()
 
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
             // @remark, we use our algorithm, not sysstat.
-            char fname[7];
-            sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
+            // A name shorter than 6 chars is padded to 6, a longer one is not, so read up to the colon.
+            char fname[sizeof(r.name_)];
+            sscanf(buf, "%15[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
                    fname, &r.rbytes_, &r.rpackets_, &r.rerrs_, &r.rdrop_, &r.rfifo_, &r.rframe_, &r.rcompressed_, &r.rmulticast_,
                    &r.sbytes_, &r.spackets_, &r.serrs_, &r.sdrop_, &r.sfifo_, &r.scolls_, &r.scarrier_, &r.scompressed_);
 

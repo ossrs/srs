@@ -190,10 +190,12 @@ ISrsBasicRtmpClient *MockEdgeAppFactory::create_rtmp_client(std::string url, srs
 
 MockEdgeForwarderFactory::MockEdgeForwarderFactory()
 {
+    coroutine_start_error_ = srs_success;
 }
 
 MockEdgeForwarderFactory::~MockEdgeForwarderFactory()
 {
+    srs_freep(coroutine_start_error_);
 }
 
 ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
@@ -216,7 +218,9 @@ ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string ur
 
 ISrsCoroutine *MockEdgeForwarderFactory::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
 {
-    return new MockCoroutineForForwarder(0);
+    MockCoroutineForForwarder *trd = new MockCoroutineForForwarder(0);
+    trd->start_error_ = srs_error_copy(coroutine_start_error_);
+    return trd;
 }
 
 // Test SrsEdgeRtmpUpstream::connect() - major use scenario
@@ -4935,8 +4939,9 @@ VOID TEST(DvrSegmenterTest, WriteAudioTypicalScenario)
     // Open the segmenter to initialize jitter and encoder
     HELPER_EXPECT_SUCCESS(segmenter->open());
 
-    // Create audio format with AAC codec using MockSrsFormat
+    // Create audio format with AAC codec using MockSrsFormat, for the frames written, not the sequence header
     SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+    format->audio_->aac_packet_type_ = SrsAudioAacFrameTraitRawData;
 
     // Create first audio packet with timestamp 0
     SrsUniquePtr<MockSrsMediaPacket> audio_packet1(new MockSrsMediaPacket(false, 0));
@@ -4986,8 +4991,9 @@ VOID TEST(DvrSegmenterTest, WriteVideoTypicalScenario)
     // Open the segmenter to initialize jitter and encoder
     HELPER_EXPECT_SUCCESS(segmenter->open());
 
-    // Create video format with H.264 codec using MockSrsFormat
+    // Create video format with H.264 codec using MockSrsFormat, for the frames written, not the sequence header
     SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+    format->video_->avc_packet_type_ = SrsVideoAvcFrameTraitNALU;
 
     // Create first video packet with timestamp 0
     SrsUniquePtr<MockSrsMediaPacket> video_packet1(new MockSrsMediaPacket(true, 0));

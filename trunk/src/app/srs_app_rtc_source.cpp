@@ -1087,6 +1087,8 @@ srs_error_t SrsRtcRtpBuilder::initialize(ISrsRequest *r)
 
     // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
+    format_->avc_parse_sps_ = config_->get_parse_sps(r->vhost_);
+    meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
 
     keep_bframe_ = config_->get_rtc_keep_bframe(req_->vhost_);
     keep_avc_nalu_sei_ = config_->get_rtc_keep_avc_nalu_sei(req_->vhost_);
@@ -1230,6 +1232,7 @@ srs_error_t SrsRtcRtpBuilder::transcode(SrsParsedAudioPacket *audio)
 {
     srs_error_t err = srs_success;
 
+    // TODO: FIXME: Refine it, one frame the transcoder refuses, such as a corrupt AAC frame, disconnects the publisher.
     std::vector<SrsParsedAudioPacket *> out_audios;
     if ((err = codec_->transcode(audio, out_audios)) != srs_success) {
         return srs_error_wrap(err, "recode error");
@@ -1344,7 +1347,8 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
         }
         pkt->set_avsync_time(msg->timestamp_);
 
-        if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
+        // No STAP when the sequence header has no parameter sets, which the key frame then carries in band.
+        if (pkt->payload() && (err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
         }
     }
@@ -1838,7 +1842,12 @@ srs_error_t SrsRtcFrameBuilderAudioPacketCache::process_packet(SrsRtpPacket *src
     // any RTC player, then if one RTP packet is lost, the audio cache will not request the lost
     // packet. This means some audio packets are lost.
     while (!audio_buffer_.empty()) {
-        std::map<uint16_t, SrsRtpPacket *>::iterator it = audio_buffer_.begin();
+        // The map sorts by the 16-bit number, so at the sequence wrap 0 sorts before 65535: take the first packet
+        // after the last one, wrapping to the start of the map.
+        std::map<uint16_t, SrsRtpPacket *>::iterator it = audio_buffer_.lower_bound((uint16_t)(last_audio_seq_num_ + 1));
+        if (it == audio_buffer_.end()) {
+            it = audio_buffer_.begin();
+        }
         uint16_t next_seq = it->first;
 
         // Check if the packet is within our sliding window
@@ -1932,10 +1941,11 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     video_codec_ = video_codec;
     last_video_sequence_header_.clear();
 
-    // There is no G.711 decoder to transcode it to AAC, so the stream is converted without its audio,
-    // while WebRTC players still get the stream as it was published.
+    // The audio transcoder decodes only Opus, AAC and MP3. For other codecs, such as G.711, G.722 or Speex, there is
+    // no decoder to transcode it to AAC, so the stream is converted without its audio, while WebRTC players still get
+    // the stream as it was published.
     // TODO: FIXME: Add a G.711 transcoder to convert PCMU and PCMA to AAC for RTMP.
-    if (audio_codec == SrsAudioCodecIdPCMU || audio_codec == SrsAudioCodecIdPCMA) {
+    if (audio_codec != SrsAudioCodecIdOpus && audio_codec != SrsAudioCodecIdAAC && audio_codec != SrsAudioCodecIdMP3) {
         srs_trace("RTC: %s audio is not converted to RTMP, only the video", srs_audio_codec_id2str(audio_codec).c_str());
         return err;
     }
@@ -2866,6 +2876,8 @@ SrsMediaPayloadType SrsVideoPayload::generate_media_payload_type_h265()
 }
 
 // level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
+// Other parameters, such as sprop-parameter-sets, are skipped as srs_parse_h264_fmtp does.
+// See https://www.rfc-editor.org/rfc/rfc6184#section-8.1
 srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 {
     srs_error_t err = srs_success;
@@ -2877,7 +2889,7 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
 
         std::vector<std::string> kv = split_str(attribute, "=");
         if (kv.size() != 2) {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", attribute.c_str());
+            continue;
         }
 
         if (kv[0] == "profile-level-id") {
@@ -2894,8 +2906,6 @@ srs_error_t SrsVideoPayload::set_h264_param_desc(std::string fmtp)
             h264_param_.packetization_mode_ = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
             h264_param_.level_asymmetry_allow_ = kv[1];
-        } else {
-            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid h264 param=%s", kv[0].c_str());
         }
     }
 

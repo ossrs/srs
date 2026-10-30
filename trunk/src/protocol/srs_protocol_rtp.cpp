@@ -45,14 +45,6 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket
         return err;
     }
 
-    pkt->header_.set_payload_type(video_payload_type_);
-    pkt->header_.set_ssrc(video_ssrc_);
-    pkt->frame_type_ = SrsFrameTypeVideo;
-    pkt->header_.set_marker(false);
-    pkt->header_.set_sequence(video_sequence_++);
-    pkt->header_.set_timestamp(msg->timestamp_ * 90);
-
-    ISrsRtpPayloader *stap = NULL;
     vector<vector<char> *> params;
     int size = 0;
 
@@ -68,23 +60,36 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket
                 size += nal_data.nal_unit_length_;
             }
         }
-
-        stap = new SrsRtpSTAPPayloadHevc();
-        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
-        pkt->nalu_type_ = kStapHevc;
     } else if (format->vcodec_->id_ == SrsVideoCodecIdAVC) {
         params.push_back(&format->vcodec_->sequenceParameterSetNALUnit_);
         params.push_back(&format->vcodec_->pictureParameterSetNALUnit_);
         size = format->vcodec_->sequenceParameterSetNALUnit_.size() + format->vcodec_->pictureParameterSetNALUnit_.size();
+    }
 
+    // An encoder may send the parameter sets in band, in each key frame, with none in its sequence header, as
+    // ISO/IEC 14496-15 allows for hev1 and avc3. There is no STAP to send then, and the packet is left without payload.
+    if (size == 0) {
+        return err;
+    }
+
+    pkt->header_.set_payload_type(video_payload_type_);
+    pkt->header_.set_ssrc(video_ssrc_);
+    pkt->frame_type_ = SrsFrameTypeVideo;
+    pkt->header_.set_marker(false);
+    pkt->header_.set_sequence(video_sequence_++);
+    pkt->header_.set_timestamp(msg->timestamp_ * 90);
+
+    ISrsRtpPayloader *stap = NULL;
+    if (format->vcodec_->id_ == SrsVideoCodecIdHEVC) {
+        stap = new SrsRtpSTAPPayloadHevc();
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
+        pkt->nalu_type_ = kStapHevc;
+    } else {
         stap = new SrsRtpSTAPPayload();
         pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
         pkt->nalu_type_ = kStapA;
     }
 
-    if (size == 0) {
-        return srs_error_new(ERROR_RTC_RTP_MUXER, "vps/sps/pps empty");
-    }
     char *payload = pkt->wrap(size);
 
     for (vector<vector<char> *>::iterator it = params.begin(); it != params.end(); ++it) {
@@ -159,15 +164,16 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsMediaPacket *msg, const vector<
 
         int header_size = is_hevc ? SrsHevcNaluHeaderSize : SrsAvcNaluHeaderSize;
 
-        // Package NALUs in FU-A RTP packets.
-        int fu_payload_size = kRtpMaxPayloadSize;
-
         // The first byte is store in FU-A header.
         uint8_t header = raw->skip_bytes(header_size);
 
         int nb_left = nn_bytes - header_size;
 
-        int num_of_packet = 1 + (nn_bytes - 1) / fu_payload_size;
+        // Package NALUs in FU-A RTP packets. An FU-A must not have both the start and end bits, see
+        // RFC 6184 5.8, so a NALU that fits one fragment is still cut into two.
+        int fu_payload_size = srs_min(kRtpMaxPayloadSize, nb_left - 1);
+
+        int num_of_packet = 1 + (nb_left - 1) / fu_payload_size;
         for (int i = 0; i < num_of_packet; ++i) {
             int packet_size = srs_min(nb_left, fu_payload_size);
 
@@ -255,6 +261,10 @@ srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsMediaPacket *msg, SrsNaluSample 
     char *p = sample->bytes_ + header_size;
     int nb_left = sample->size_ - header_size;
     uint8_t header = sample->bytes_[0];
+
+    // An FU-A must not have both the start and end bits, see RFC 6184 5.8, so a NALU that fits one
+    // fragment is still cut into two.
+    fu_payload_size = srs_min(fu_payload_size, nb_left - 1);
 
     int num_of_packet = 1 + (nb_left - 1) / fu_payload_size;
     for (int i = 0; i < num_of_packet; ++i) {

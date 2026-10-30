@@ -1,0 +1,15 @@
+{
+  "name": "internal-chrome-control",
+  "private": true,
+  "description": "Drive an installed Chrome or Edge as a test client for SRS.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "test": "node --test \"scripts/*.test.js\""
+  },
+  "dependencies": {
+    "puppeteer-core": "25.14.0"
+  }
+}

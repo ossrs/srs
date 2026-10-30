@@ -44,6 +44,7 @@ class ISrsRtcConnection;
 class ISrsExecRtcAsyncTask;
 class ISrsFFMPEG;
 class ISrsIngesterFFMPEG;
+class ISrsProcess;
 class ISrsProtocolUtility;
 class ISrsRtcPublishStream;
 class ISrsRtcPacketReceiver;
@@ -107,6 +108,7 @@ public:
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid) = 0;
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin) = 0;
     virtual ISrsIngesterFFMPEG *create_ingester_ffmpeg() = 0;
+    virtual ISrsProcess *create_process() = 0;
     virtual ISrsProtocolUtility *create_protocol_utility() = 0;
     virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid) = 0;
     virtual ISrsRtcPlayStream *create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid) = 0;
@@ -166,6 +168,7 @@ public:
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid);
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin);
     virtual ISrsIngesterFFMPEG *create_ingester_ffmpeg();
+    virtual ISrsProcess *create_process();
     virtual ISrsProtocolUtility *create_protocol_utility();
     virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid);
     virtual ISrsRtcPlayStream *create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid);

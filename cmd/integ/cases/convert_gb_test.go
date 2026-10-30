@@ -296,12 +296,14 @@ var (
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
 	}
 
-	// gbFmp4Player plays Fmp4's HLS: the first 4s segment (fmp4Segment).
+	// gbFmp4Player plays Fmp4's HLS: the first segment, which ends at the
+	// keyframe a second after fmp4Segment, as gbHlsTsPlayer's does: at
+	// fmp4Segment the segment lasts 1ms less.
 	gbFmp4Player = convertPlayer{
 		name: "HlsFmp4", video: same("h264", "hevc"), audio: same("aac"),
 		play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 			path := "live/" + streamName(c)
-			src.through(c, srs, path, file, fmp4Segment)
+			src.through(c, srs, path, file, fmp4Segment+time.Second)
 			return playHLSWithin(c, flvURL(srs, path+".m3u8"), segmentsOf(w, 3*time.Second), fmp4PlayWait)
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,

@@ -118,6 +118,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 class ISrsGbSession : public ISrsResource, public ISrsCoroutineHandler, public ISrsExecutorHandler
 {
 public:
+    // The device ID generated and set by external SIP server, using SRS HTTP API. This
+    // device ID is used to generate the RTMP stream name.
     std::string device_id_;
 
 public:
@@ -205,11 +207,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     uint64_t media_recovered_;
     uint64_t media_msgs_dropped_;
     uint64_t media_reserved_;
-
-public:
-    // The device ID generated and set by external SIP server, using SRS HTTP API. This
-    // device ID is used to generate the RTMP stream name.
-    std::string device_id_;
 
 public:
     SrsGbSession();

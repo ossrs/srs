@@ -104,6 +104,10 @@ srs_error_t SrsDvrSegmenter::open()
     if (path_util.exists(path)) {
         return srs_error_new(ERROR_DVR_CANNOT_APPEND, "DVR can't append to exists path=%s", path.c_str());
     }
+
+    // Each file spans only its own frames.
+    srs_freep(fragment_);
+    fragment_ = new SrsFragment();
     fragment_->set_path(path);
 
     // create dir first.
@@ -121,14 +125,23 @@ srs_error_t SrsDvrSegmenter::open()
         return srs_error_wrap(err, "open file %s", path.c_str());
     }
 
-    // Set libc file write cache buffer size
+    // Set libc file write cache buffer size, then initialize the encoder, which writes the file header.
     if ((err = fs_->set_iobuf_size(SRS_FWRITE_CACHE_SIZE)) != srs_success) {
-        return srs_error_wrap(err, "set iobuf size for file %s", path.c_str());
+        err = srs_error_wrap(err, "set iobuf size for file %s", path.c_str());
+    } else if ((err = open_encoder()) != srs_success) {
+        err = srs_error_wrap(err, "open encoder");
     }
 
-    // initialize the encoder.
-    if ((err = open_encoder()) != srs_success) {
-        return srs_error_wrap(err, "open encoder");
+    // A file whose header can't be written, such as on a full disk, holds no recording. Close and remove it, so it is
+    // never named nor reported by a later close.
+    if (err != srs_success) {
+        fs_->close();
+        srs_error_t r0 = fragment_->unlink_tmpfile();
+        if (r0 != srs_success) {
+            srs_warn("dvr unlink tmp file failed %s", srs_error_desc(r0).c_str());
+            srs_freep(r0);
+        }
+        return err;
     }
 
     srs_trace("dvr stream %s to file %s", req_->stream_.c_str(), path.c_str());
@@ -151,7 +164,10 @@ srs_error_t SrsDvrSegmenter::write_audio(SrsMediaPacket *shared_audio, SrsFormat
         return srs_error_wrap(err, "jitter");
     }
 
-    if ((err = on_update_duration(audio.get())) != srs_success) {
+    // The sequence headers are not media. A new segment gets the cached ones, which keep their old timestamp, so
+    // counting them would span the segment from that time.
+    bool is_sequence_header = format->is_aac_sequence_header() || format->is_mp3_sequence_header();
+    if (!is_sequence_header && (err = on_update_duration(audio.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
 
@@ -177,7 +193,9 @@ srs_error_t SrsDvrSegmenter::write_video(SrsMediaPacket *shared_video, SrsFormat
         return srs_error_wrap(err, "encode video");
     }
 
-    if ((err = on_update_duration(video.get())) != srs_success) {
+    // The sequence header is not media. A new segment gets the cached one, which keeps its old timestamp, so counting
+    // it would span the segment from that time.
+    if (!format->is_avc_sequence_header() && (err = on_update_duration(video.get())) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
 
@@ -197,6 +215,14 @@ srs_error_t SrsDvrSegmenter::close()
     err = close_encoder();
     fs_->close(); // Always close the file.
     if (err != srs_success) {
+        // An MP4 with no sample, such as a publish with no frame, is never reaped, so remove its tmp file.
+        if (srs_error_code(err) == ERROR_MP4_ILLEGAL_MOOV) {
+            srs_error_t r0 = fragment_->unlink_tmpfile();
+            if (r0 != srs_success) {
+                srs_warn("dvr unlink tmp file failed %s", srs_error_desc(r0).c_str());
+                srs_freep(r0);
+            }
+        }
         return srs_error_wrap(err, "close encoder");
     }
 
@@ -728,15 +754,21 @@ srs_error_t SrsDvrPlan::on_reap_segment()
 // for the same stream when context switches occurred during initialization.
 srs_error_t SrsDvrPlan::create_plan(ISrsAppConfig *config, string vhost, ISrsDvrPlan **pplan)
 {
+    SrsDvrPlan *dvr_plan = NULL;
+
     std::string plan = config->get_dvr_plan(vhost);
     if (srs_config_dvr_is_plan_segment(plan)) {
-        *pplan = new SrsDvrSegmentPlan();
+        dvr_plan = new SrsDvrSegmentPlan();
     } else if (srs_config_dvr_is_plan_session(plan)) {
-        *pplan = new SrsDvrSessionPlan();
+        dvr_plan = new SrsDvrSessionPlan();
     } else {
         return srs_error_new(ERROR_DVR_ILLEGAL_PLAN, "illegal plan=%s, vhost=%s",
                              plan.c_str(), vhost.c_str());
     }
+
+    // The plan reads the config its DVR reads.
+    dvr_plan->config_ = config;
+    *pplan = dvr_plan;
 
     return srs_success;
 }

@@ -216,7 +216,7 @@ State Threads is maintained in the separate `ossrs/state-threads` project at `st
    - Integration tests: `tools/`, after the unit tests.
    - ASAN or Valgrind build: when the change touches stacks, context switching, `st_destroy`, or thread lifetime.
    - Each platform the map detects, never assumed, with `scripts/st-test.sh`: macOS locally, then Linux in Docker and, for a committed change, Windows in parallel.
-   - On a Windows host: the Windows unit and integration tests locally, and the Linux ones in WSL on the same checkout.
+   - On a Windows host: the Windows unit and integration tests locally, and the Linux ones in Docker, never in WSL.
 3. Report the results per OS and CPU, as the test platforms in `references/testable-code.md` describe, and every CPU and OS combination touched by the change that was not built and tested.
 
 ### Step 4: Sync and Verify SRS
