@@ -2487,6 +2487,68 @@ VOID TEST(ProtocolAMF0Test, Amf0Object2)
     }
 }
 
+// Encode AMF0 containers nested inside each other, one level per char of kinds:
+// 'o' object, 'e' ECMA array, 's' strict array, outermost first.
+static string mock_amf0_nested(string kinds)
+{
+    string head, tail;
+    for (int i = 0; i < (int)kinds.length(); i++) {
+        bool innermost = (i == (int)kinds.length() - 1);
+        if (kinds[i] == 'o') {
+            head += innermost ? string("\x03\x00\x00\x09", 4) : string("\x03\x00\x01" "a", 4);
+            tail = (innermost ? string() : string("\x00\x00\x09", 3)) + tail;
+        } else if (kinds[i] == 'e') {
+            head += innermost ? string("\x08\x00\x00\x00\x00\x00\x00\x09", 8) : string("\x08\x00\x00\x00\x01\x00\x01" "a", 8);
+            tail = (innermost ? string() : string("\x00\x00\x09", 3)) + tail;
+        } else {
+            head += innermost ? string("\x0a\x00\x00\x00\x00", 5) : string("\x0a\x00\x00\x00\x01", 5);
+        }
+    }
+    return head + tail;
+}
+
+static srs_error_t mock_amf0_read_nested(string kinds)
+{
+    string data = mock_amf0_nested(kinds);
+    SrsBuffer b((char *)data.data(), (int)data.length());
+
+    SrsAmf0Any *any = NULL;
+    srs_error_t err = srs_amf0_read_any(&b, &any);
+    srs_freep(any);
+    return err;
+}
+
+// A peer controls how deep the AMF0 containers nest, for example in an RTMP connect command
+// object, so decoding must stop at a fixed depth instead of recursing until the coroutine
+// stack overflows.
+VOID TEST(ProtocolAMF0Test, NestedContainersDepthLimit)
+{
+    srs_error_t err;
+
+    const char *kinds[] = {"o", "e", "s", "oes"};
+    for (int i = 0; i < (int)(sizeof(kinds) / sizeof(kinds[0])); i++) {
+        string allowed, exceeded;
+        while ((int)allowed.length() < 64) {
+            allowed += kinds[i];
+        }
+        allowed = allowed.substr(0, 64);
+        exceeded = allowed + kinds[i][0];
+
+        HELPER_EXPECT_SUCCESS(mock_amf0_read_nested(allowed));
+
+        err = mock_amf0_read_nested(exceeded);
+        EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err)) << "kinds=" << kinds[i];
+        srs_freep(err);
+
+        err = mock_amf0_read_nested(allowed + allowed);
+        EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err)) << "kinds=" << kinds[i];
+        srs_freep(err);
+
+        // A rejected message must not leave the next one with less depth to use.
+        HELPER_EXPECT_SUCCESS(mock_amf0_read_nested(allowed));
+    }
+}
+
 VOID TEST(ProtocolJSONTest, Interfaces)
 {
     if (true) {

@@ -44,9 +44,14 @@ using namespace srs_internal;
 // User defined
 #define RTMP_AMF0_Invalid 0x3F
 
+// The peer controls how deep containers nest, and each level recurses on the small coroutine
+// stack, so a few KB of nesting overflows it.
+#define SRS_AMF0_MAX_DEPTH 64
+
 SrsAmf0Any::SrsAmf0Any()
 {
     marker_ = RTMP_AMF0_Invalid;
+    depth_ = 1;
 }
 
 SrsAmf0Any::~SrsAmf0Any()
@@ -672,6 +677,10 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
+    if (depth_ > SRS_AMF0_MAX_DEPTH) {
+        return srs_error_new(ERROR_RTMP_AMF0_DECODE, "object depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
+    }
+
     // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "object requires 1 only %d bytes", stream->left());
@@ -700,7 +709,11 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
         }
         // property-value: any
         SrsAmf0Any *property_value = NULL;
-        if ((err = srs_amf0_read_any(stream, &property_value)) != srs_success) {
+        if ((err = SrsAmf0Any::discovery(stream, &property_value)) != srs_success) {
+            return srs_error_wrap(err, "discovery property value, name=%s", property_name.c_str());
+        }
+        property_value->depth_ = depth_ + 1;
+        if ((err = property_value->read(stream)) != srs_success) {
             srs_freep(property_value);
             return srs_error_wrap(err, "read property value, name=%s", property_name.c_str());
         }
@@ -850,6 +863,10 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
+    if (depth_ > SRS_AMF0_MAX_DEPTH) {
+        return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EcmaArray depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
+    }
+
     // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
@@ -887,7 +904,12 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
         }
         // property-value: any
         SrsAmf0Any *property_value = NULL;
-        if ((err = srs_amf0_read_any(stream, &property_value)) != srs_success) {
+        if ((err = SrsAmf0Any::discovery(stream, &property_value)) != srs_success) {
+            return srs_error_wrap(err, "discovery property value, name=%s", property_name.c_str());
+        }
+        property_value->depth_ = depth_ + 1;
+        if ((err = property_value->read(stream)) != srs_success) {
+            srs_freep(property_value);
             return srs_error_wrap(err, "read property value, name=%s", property_name.c_str());
         }
 
@@ -1031,6 +1053,10 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
+    if (depth_ > SRS_AMF0_MAX_DEPTH) {
+        return srs_error_new(ERROR_RTMP_AMF0_DECODE, "StrictArray depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
+    }
+
     // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
@@ -1054,7 +1080,12 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
     for (int i = 0; i < count && !stream->empty(); i++) {
         // property-value: any
         SrsAmf0Any *elem = NULL;
-        if ((err = srs_amf0_read_any(stream, &elem)) != srs_success) {
+        if ((err = SrsAmf0Any::discovery(stream, &elem)) != srs_success) {
+            return srs_error_wrap(err, "discovery property");
+        }
+        elem->depth_ = depth_ + 1;
+        if ((err = elem->read(stream)) != srs_success) {
+            srs_freep(elem);
             return srs_error_wrap(err, "read property");
         }
 
