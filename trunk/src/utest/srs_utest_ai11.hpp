@@ -117,10 +117,13 @@ public:
     std::string last_version_;
     std::string recv_key_;
     std::string send_key_;
+    std::string peer_fingerprint_;
+    std::string last_fingerprint_algo_;
     int initialize_count_;
     int start_active_handshake_count_;
     int on_dtls_count_;
     int get_srtp_key_count_;
+    int get_peer_fingerprint_count_;
 
 public:
     MockDtls();
@@ -131,6 +134,7 @@ public:
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char *data, int nb_data);
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);
+    virtual srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint);
 
 public:
     void reset();
@@ -157,6 +161,7 @@ public:
     int protect_rtp_count_;
     int protect_rtcp_count_;
     int write_count_;
+    std::vector<std::string> packets_;
     bool is_established_;
 
 public:

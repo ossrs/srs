@@ -6,8 +6,10 @@ package rtc
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pion/dtls/v3"
+	"github.com/pion/dtls/v3/pkg/crypto/fingerprint"
 	"github.com/pion/dtls/v3/pkg/crypto/selfsign"
 	"github.com/pion/ice/v4"
 	"github.com/pion/rtcp"
@@ -46,6 +49,7 @@ type RawSession struct {
 	mux    *mux
 	dconn  *dtls.Conn
 	srtp   *srtpPair
+	cert   tls.Certificate
 }
 
 // WriteRaw sends b to the server as it is, with no SRTP.
@@ -90,7 +94,16 @@ func rawConnect(ctx context.Context, url string, opts *Options, publish, withDTL
 	if err != nil {
 		return nil, err
 	}
-	s := &RawSession{Session: Session{Offer: withSetup(offer, opts.setup()), opts: opts}}
+	// SRS checks the DTLS certificate against the a=fingerprint of the offer,
+	// so the offer has the fingerprint of the certificate this session uses.
+	cert, err := selfsign.GenerateSelfSigned()
+	if err != nil {
+		return nil, err
+	}
+	if offer, err = withFingerprint(offer, cert); err != nil {
+		return nil, err
+	}
+	s := &RawSession{Session: Session{Offer: withSetup(offer, opts.setup()), opts: opts}, cert: cert}
 	if err := s.connect(ctx, url, withDTLS); err != nil {
 		s.Close()
 		return nil, err
@@ -119,12 +132,8 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 		return nil
 	}
 
-	cert, err := selfsign.GenerateSelfSigned()
-	if err != nil {
-		return err
-	}
 	cfg := &dtls.Config{
-		Certificates:           []tls.Certificate{cert},
+		Certificates:           []tls.Certificate{s.cert},
 		InsecureSkipVerify:     true,
 		ClientAuth:             dtls.RequireAnyClientCert,
 		SRTPProtectionProfiles: []dtls.SRTPProtectionProfile{dtls.SRTP_AES128_CM_HMAC_SHA1_80},
@@ -692,4 +701,24 @@ func (c *dtlsConn) SetWriteDeadline(time.Time) error { return nil }
 // says.
 func isRTCP(b []byte) bool {
 	return len(b) >= 2 && b[1] >= 192 && b[1] <= 223
+}
+
+// withFingerprint returns the offer with the sha-256 fingerprint of cert in
+// each a=fingerprint line.
+func withFingerprint(offer string, cert tls.Certificate) (string, error) {
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return "", err
+	}
+	fp, err := fingerprint.Fingerprint(x509Cert, crypto.SHA256)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(offer, "\r\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "a=fingerprint:") {
+			lines[i] = "a=fingerprint:sha-256 " + fp
+		}
+	}
+	return strings.Join(lines, "\r\n"), nil
 }
