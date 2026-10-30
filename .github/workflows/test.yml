@@ -10,82 +10,17 @@ permissions: read-all
 # test(6m)
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
-# cygwin64-cache(1m)
-#     cygwin64(6m) - Must depends on cygwin64-cache.
-#     fast(0s) - To limit all fastly run jobs after slow jobs.
-#         build-centos7(3m)
-#         build-ubuntu16(3m)
-#         build-ubuntu18(2m)
-#         build-ubuntu20(2m)
-#         build-cross-arm(3m)
-#         build-cross-aarch64(3m)
-#         multiple-arch-amd64(2m)
-#         coverage(3m)
+# fast(0s) - To limit all fastly run jobs after slow jobs.
+#     build-centos7(3m)
+#     build-ubuntu16(3m)
+#     build-ubuntu18(2m)
+#     build-ubuntu20(2m)
+#     build-cross-arm(3m)
+#     build-cross-aarch64(3m)
+#     multiple-arch-amd64(2m)
+#     coverage(3m)
 
 jobs:
-  cygwin64-cache:
-    name: cygwin64-cache
-    steps:
-      - name: Download Cache for Cygwin
-        run: |
-          echo "Generate convert.sh" &&
-          echo "for file in \$(find objs -type l); do" > convert.sh &&
-          echo "    REAL=\$(readlink -f \$file) &&" >> convert.sh &&
-          echo "    echo \"convert \$file to \$REAL\" &&" >> convert.sh &&
-          echo "    rm -rf \$file &&" >> convert.sh &&
-          echo "    cp -r \$REAL \$file" >> convert.sh &&
-          echo "done" >> convert.sh &&
-          cat convert.sh &&
-          docker run --rm -v $(pwd):/srs -w /usr/local/srs-cache/srs/trunk ossrs/srs:cygwin64-cache \
-              bash -c "bash /srs/convert.sh && tar cf /srs/objs.tar.bz2 objs" &&
-          pwd && du -sh *
-      ##################################################################################################################
-      - uses: actions/upload-artifact@v4
-        with:
-          name: srs-cache
-          path: objs.tar.bz2
-          retention-days: 1
-    runs-on: ubuntu-22.04
-
-  cygwin64:
-    name: cygwin64
-    needs:
-      - cygwin64-cache
-    steps:
-      # See https://github.com/cygwin/cygwin-install-action#parameters
-      # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
-      - name: Setup Cygwin
-        uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # master
-        with:
-          platform: x86_64
-          packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
-          install-dir: C:\cygwin64
-      ##################################################################################################################
-      - name: Checkout repository
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
-      ##################################################################################################################
-      # Note that we must download artifact after checkout code, because it will change the files in workspace.
-      - uses: actions/download-artifact@v4
-        with:
-          name: srs-cache
-      # https://github.com/marketplace/actions/delete-artifact?version=v5.0.0#-compatibility
-      - uses: geekyeggo/delete-artifact@v5.0.0
-        with:
-          name: srs-cache
-      ##################################################################################################################
-      - name: Build and test SRS
-        env:
-          SHELLOPTS: igncr
-          SRS_WORKSPACE: ${{ github.workspace }}
-        shell: C:\cygwin64\bin\bash.exe --login '{0}'
-        run: |
-          WORKDIR=$(cygpath -u $SRS_WORKSPACE) && export PATH=/usr/bin:/usr/local/bin && cd ${WORKDIR} &&
-          pwd && rm -rf /usr/local/srs-cache && mkdir -p /usr/local/srs-cache/srs/trunk && ls -lh &&
-          tar xf objs.tar.bz2 -C /usr/local/srs-cache/srs/trunk/ && du -sh /usr/local/srs-cache/srs/trunk/* && 
-          cd ${WORKDIR}/trunk && ./configure --h265=on --gb28181=on --utest=on && ls -lh && du -sh * && du -sh objs/* &&
-          cd ${WORKDIR}/trunk && make utest && ./objs/srs_utest
-    runs-on: windows-latest
-
   build-centos7:
     name: build-centos7
     needs:
@@ -302,15 +237,12 @@ jobs:
 
   fast:
     name: fast
-    needs:
-      - cygwin64-cache
     steps:
       - run: echo 'Start fast jobs'
     runs-on: ubuntu-22.04
 
   test-done:
     needs:
-      - cygwin64
       - coverage
       - test
       - build-centos7
