@@ -80,6 +80,10 @@ OBS tests:
 
 Windows tests:
 
+- `srs-windows-daemon-test.sh` — native Windows startup regression against the built
+  `trunk/objs/windows/srs.exe`: no-argument launches from `objs` and elsewhere, explicit config,
+  `work_dir`, environment-only daemon, foreground override, config check and startup failure.
+  Uses ports 15600–15601 by default, moved by `SRS_TEST_PORT_BASE`.
 - `srs-windows-runner.sh` — the native Windows build and tests of SRS on the Windows test host.
   - Use it for changes that reach the Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`.
   - Run it from here with `windows-host-run.sh [--wip] <checkout> srs-windows-runner.sh [--alone] <step> [pattern]`.
@@ -345,7 +349,8 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 15300–15399 | `obs-whip-publish-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15400–15499 | `obs-linux-test.sh` at `SRS_TEST_PORT_BASE`: published from its SRS container on `127.0.0.1`, RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15500–15599 | `srs-windows-runner.sh` on the Windows test host, not the local machine: its `build` step starts `srs.exe` at `SRS_TEST_PORT_BASE` with RTMP +0, HTTP +1, API +2 | 100 | 3 | 97, inside the existing slot |
-| 15600–15999 | Reserved for new test layers | 400 | 0 | 400 |
+| 15600–15699 | `srs-windows-daemon-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
+| 15700–15999 | Reserved for new test layers | 300 | 0 | 300 |
 | 16000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 5,000 | 0 | 4,997 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |

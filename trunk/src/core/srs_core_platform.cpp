@@ -646,7 +646,135 @@ pid_t srs_fork()
 
 bool srs_daemon_supported()
 {
-    return false;
+    return true;
+}
+
+static std::wstring srs_startup_directory;
+static HANDLE srs_daemon_event = NULL;
+
+int srs_process_initialize(int &argc, char **&argv)
+{
+    wchar_t path[32768];
+    if (argc == 1) {
+        DWORD n = ::GetModuleFileNameW(NULL, path, sizeof(path) / sizeof(path[0]));
+        if (!n || n >= sizeof(path) / sizeof(path[0])) {
+            errno = EINVAL;
+            return -1;
+        }
+
+        std::wstring executable(path, n);
+        std::wstring root = executable.substr(0, executable.find_last_of(L"\\/")) + L"\\..";
+        if (::_wchdir(root.c_str()) != 0) {
+            return -1;
+        }
+
+        std::wstring config = root + L"\\conf\\srs.conf";
+        int size = ::WideCharToMultiByte(CP_UTF8, 0, config.c_str(), -1, NULL, 0, NULL, NULL);
+        static std::vector<char> filename;
+        filename.resize(size);
+        if (!size || !::WideCharToMultiByte(CP_UTF8, 0, config.c_str(), -1, &filename[0], size, NULL, NULL)) {
+            errno = EINVAL;
+            return -1;
+        }
+
+        static char *args[4];
+        args[0] = argv[0];
+        args[1] = (char *)"-c";
+        args[2] = &filename[0];
+        args[3] = NULL;
+        argc = 3;
+        argv = args;
+    }
+
+    DWORD n = ::GetCurrentDirectoryW(sizeof(path) / sizeof(path[0]), path);
+    if (!n || n >= sizeof(path) / sizeof(path[0])) {
+        errno = EINVAL;
+        return -1;
+    }
+    srs_startup_directory.assign(path, n);
+    return 0;
+}
+
+int srs_daemon_start()
+{
+    wchar_t name[64];
+    DWORD n = ::GetEnvironmentVariableW(L"_SRS_DAEMON_EVENT", name, sizeof(name) / sizeof(name[0]));
+    if (n) {
+        ::SetEnvironmentVariableW(L"_SRS_DAEMON_EVENT", NULL);
+        if (n >= sizeof(name) / sizeof(name[0])) {
+            errno = EINVAL;
+            return -1;
+        }
+        srs_daemon_event = ::OpenEventW(EVENT_MODIFY_STATE, FALSE, name);
+        if (!srs_daemon_event) {
+            errno = EINVAL;
+            return -1;
+        }
+        return 0;
+    }
+
+    wchar_t executable[32768];
+    n = ::GetModuleFileNameW(NULL, executable, sizeof(executable) / sizeof(executable[0]));
+    if (!n || n >= sizeof(executable) / sizeof(executable[0])) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ::_snwprintf(name, sizeof(name) / sizeof(name[0]), L"Local\\srs_daemon_%lu", ::GetCurrentProcessId());
+    HANDLE ready = ::CreateEventW(NULL, TRUE, FALSE, name);
+    if (!ready) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!::SetEnvironmentVariableW(L"_SRS_DAEMON_EVENT", name)) {
+        ::CloseHandle(ready);
+        errno = EINVAL;
+        return -1;
+    }
+
+    // Like nginx's Win32 process spawn, re-exec the original command without inheriting the console.
+    std::wstring cmd = ::GetCommandLineW();
+    std::vector<wchar_t> line(cmd.begin(), cmd.end());
+    line.push_back(L'\0');
+    STARTUPINFOW si;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi;
+    memset(&pi, 0, sizeof(pi));
+    BOOL started = ::CreateProcessW(executable, &line[0], NULL, NULL, FALSE, CREATE_NO_WINDOW,
+                                    NULL, srs_startup_directory.c_str(), &si, &pi);
+    ::SetEnvironmentVariableW(L"_SRS_DAEMON_EVENT", NULL);
+    if (!started) {
+        ::CloseHandle(ready);
+        errno = EINVAL;
+        return -1;
+    }
+    ::CloseHandle(pi.hThread);
+
+    HANDLE events[] = {ready, pi.hProcess};
+    DWORD result = ::WaitForMultipleObjects(2, events, FALSE, 10000);
+    if (result != WAIT_OBJECT_0 && result != WAIT_OBJECT_0 + 1) {
+        ::TerminateProcess(pi.hProcess, 1);
+        ::WaitForSingleObject(pi.hProcess, 5000);
+    }
+    ::CloseHandle(pi.hProcess);
+    ::CloseHandle(ready);
+    if (result != WAIT_OBJECT_0) {
+        errno = result == WAIT_TIMEOUT ? ETIMEDOUT : ECHILD;
+        return -1;
+    }
+    return 1;
+}
+
+int srs_daemon_ready()
+{
+    if (!srs_daemon_event) {
+        return 0;
+    }
+    BOOL ok = ::SetEvent(srs_daemon_event);
+    ::CloseHandle(srs_daemon_event);
+    srs_daemon_event = NULL;
+    return ok ? 0 : -1;
 }
 
 static std::wstring srs_utf8_to_wide(const char *s)
@@ -1228,6 +1356,38 @@ pid_t srs_fork()
 bool srs_daemon_supported()
 {
     return true;
+}
+
+int srs_process_initialize(int &argc, char **&argv)
+{
+    return 0;
+}
+
+int srs_daemon_start()
+{
+    pid_t pid = ::fork();
+    if (pid < 0) {
+        return -1;
+    }
+    if (pid > 0) {
+        int status = 0;
+        ::waitpid(pid, &status, 0);
+        return 1;
+    }
+
+    pid = ::fork();
+    if (pid < 0) {
+        return -1;
+    }
+    if (pid > 0) {
+        ::exit(0);
+    }
+    return 0;
+}
+
+int srs_daemon_ready()
+{
+    return 0;
 }
 
 static int srs_redirect_output(const char *file, int to_fd)

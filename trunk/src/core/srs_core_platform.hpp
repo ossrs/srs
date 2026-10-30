@@ -255,8 +255,15 @@ extern pid_t srs_waitpid(pid_t pid, int *status, int options);
 extern pid_t srs_getppid();
 // Start a child process; Windows has no fork.
 extern pid_t srs_fork();
-// Whether SRS can run as a daemon, which forks.
+// Windows defaults an argument-free launch to the packaged config and release working directory.
+// Also remembers the original working directory for a daemon re-exec, before work_dir is applied.
+extern int srs_process_initialize(int &argc, char **&argv);
+// Whether SRS can run as a daemon.
 extern bool srs_daemon_supported();
+// Returns 1 in the launcher, 0 in the daemon, or -1 on failure. Unix double-forks; Windows re-execs
+// without a console and waits for srs_daemon_ready or for the child to fail.
+extern int srs_daemon_start();
+extern int srs_daemon_ready();
 
 // Start bin as a child process with argv, ended by a NULL, which waits for it with srs_waitpid.
 // - Its stdout and stderr append to the files, or go to SRS's own when a file is empty; its stdin is the

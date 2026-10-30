@@ -1150,11 +1150,7 @@ VOID TEST(ConfigMainTest, CheckConf_daemon)
 
     if (true) {
         MockSrsConfig conf;
-#ifdef _WIN32
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
-#else
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
-#endif
     }
 
     if (true) {
@@ -2861,15 +2857,8 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
 
     if (true) {
         MockSrsConfig conf;
-#ifdef _WIN32
-        err = conf.mock_parse(_MIN_OK_CONF "daemon on;");
-        ASSERT_TRUE(err != srs_success);
-        EXPECT_TRUE(srs_error_desc(err).find("daemon is not supported") != string::npos);
-        srs_freep(err);
-#else
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
         EXPECT_TRUE(conf.get_daemon());
-#endif
     }
 
     if (true) {

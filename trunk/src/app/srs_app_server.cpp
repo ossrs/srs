@@ -563,6 +563,10 @@ srs_error_t SrsServer::run()
     }
 #endif
 
+    if (srs_daemon_ready() < 0) {
+        return srs_error_new(-1, "notify daemon startup");
+    }
+
     return cycle();
 }
 // LCOV_EXCL_STOP

@@ -2281,10 +2281,6 @@ srs_error_t SrsConfig::check_normal_config()
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
     }
-    // Windows has no fork, so refuse daemon rather than silently run in the foreground.
-    if (get_daemon() && !srs_daemon_supported()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "daemon is not supported on this OS, set daemon off or SRS_DAEMON=off");
-    }
     // HDS is removed, so refuse its env vars rather than ignore them.
     if (true) {
         const char *removed[] = {"SRS_VHOST_HDS_ENABLED", "SRS_VHOST_HDS_HDS_PATH", "SRS_VHOST_HDS_HDS_FRAGMENT", "SRS_VHOST_HDS_HDS_WINDOW"};
@@ -3129,8 +3125,7 @@ bool SrsConfig::get_daemon()
 
     SrsConfDirective *conf = root_->get("daemon");
 
-    // Without a config file, run in the foreground unless SRS_DAEMON sets it. Where daemon is not supported,
-    // only an explicit daemon on is refused, so a config file without the directive still runs.
+    // Without a config file, run in the foreground unless SRS_DAEMON sets it.
     if (!conf || conf->arg0().empty()) {
         return !env_only_ && srs_daemon_supported();
     }
