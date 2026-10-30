@@ -102,7 +102,7 @@ chmod +x /tmp/srs-windows-runner-test/bin/cmake
 
 # The fake srs.exe, which a passing build of the srs target copies into trunk/objs/windows. It logs
 # each call with its directory and the env it reads, one line per call. With -v it prints 8.0.64 and
-# exits with STUB_SRS_V_EXIT. With -t it refuses daemon, or passes with STUB_SRS_DAEMON_OK, and
+# exits with STUB_SRS_V_EXIT. With -t it accepts daemon, or fails with STUB_SRS_DAEMON_FAIL, and
 # passes conf/console.conf, which sets daemon off, unless STUB_SRS_CONSOLE_FAIL. With -e it
 # exits at once with STUB_SRS_START_EXIT, or writes the ports it listens on to the listening file,
 # except the one named by STUB_SRS_CLOSED (rtmp, http or api), and runs until SIGTERM removes it.
@@ -114,7 +114,7 @@ case $1 in
   -v) echo 8.0.64; exit ${STUB_SRS_V_EXIT:-0} ;;
   -t)
     echo "fake srs output"
-    if [[ -n $STUB_SRS_DAEMON_OK || ( $3 == conf/console.conf && -z $STUB_SRS_CONSOLE_FAIL ) ]]; then
+    if [[ ( $3 == conf/srs.conf && -z $STUB_SRS_DAEMON_FAIL ) || ( $3 == conf/console.conf && -z $STUB_SRS_CONSOLE_FAIL ) ]]; then
       echo "config file $3 test is successful"; exit 0
     fi
     echo "invalid config code=1023(ConfigInvalid) : daemon is not supported on this OS, set daemon off or SRS_DAEMON=off in $3"
@@ -574,12 +574,12 @@ check "build: the build output goes to the log, not the console" \
   '! out | grep -q "fake cmake output" && grep -q "fake cmake output" $FAKE/trunk/objs/windows-build.log'
 
 # After it links, the build step starts srs.exe: -v prints the version, the default config file is
-# refused for its daemon mode, and env-only srs.exe listens on RTMP, HTTP and the API at the ports
+# accepted with daemon mode, and env-only srs.exe listens on RTMP, HTTP and the API at the ports
 # from SRS_TEST_PORT_BASE, answers /api/v1/versions with the same version, and stops.
 srs_calls() { cat /tmp/srs-windows-runner-test/srs.log 2>/dev/null; }
 check "start: srs.exe -v prints the version" 'out | grep -q "^START version PASS: 8.0.64$"'
-check "start: conf/srs.conf refused for daemon mode, in trunk, logging to the console" \
-  'out | grep -q "^START daemon PASS" && srs_calls | grep -q "^-t -c conf/srs.conf DIR=$FAKE/trunk TANK=console "'
+check "start: conf/srs.conf accepted with daemon mode, in trunk, logging to the console" \
+  'out | grep -q "^START daemon PASS: conf/srs.conf accepted with daemon mode$" && srs_calls | grep -q "^-t -c conf/srs.conf DIR=$FAKE/trunk TANK=console "'
 check "start: env-only srs.exe in trunk with RTMP, HTTP and API at the default ports" \
   'srs_calls | grep -q "^-e DIR=$FAKE/trunk TANK= RTMP=15500 HTTP=on:15501 API=on:15502$"'
 check "start: RTMP, HTTP and the API answer the same version" \
@@ -594,9 +594,9 @@ check "start: ports from SRS_TEST_PORT_BASE" \
 STUB_SRS_V_EXIT=1 run utest
 check "start: -v fails, the build step fails, the later steps do not run" \
   '[[ $CODE == 1 ]] && out | grep -q "^START version FAIL" && [[ $(steps) == "deps build" ]] && ! srs_calls | grep -q "^-e "'
-STUB_SRS_DAEMON_OK=1 run build
-check "start: conf/srs.conf accepted with daemon on, fails" \
-  '[[ $CODE == 1 ]] && out | grep -q "^START daemon FAIL" && out | grep -q "test is successful"'
+STUB_SRS_DAEMON_FAIL=1 run build
+check "start: conf/srs.conf rejected with daemon on, fails before starting srs.exe" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START daemon FAIL" && out | grep -q "daemon is not supported" && ! srs_calls | grep -q "^-e "'
 STUB_SRS_START_EXIT=1 run build
 check "start: srs.exe quits at startup, fails with the log tail" \
   '[[ $CODE == 1 ]] && out | grep -q "^START env-only FAIL" && out | grep -q "fake srs output" && out | grep -q "windows-start.log"'
