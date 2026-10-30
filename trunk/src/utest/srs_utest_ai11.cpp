@@ -248,11 +248,14 @@ void MockDtls::reset()
     last_version_ = "";
     recv_key_ = "";
     send_key_ = "";
+    peer_fingerprint_ = "AA:BB:CC";
+    last_fingerprint_algo_ = "";
 
     initialize_count_ = 0;
     start_active_handshake_count_ = 0;
     on_dtls_count_ = 0;
     get_srtp_key_count_ = 0;
+    get_peer_fingerprint_count_ = 0;
 }
 
 srs_error_t MockDtls::initialize(std::string role, std::string version)
@@ -283,6 +286,14 @@ srs_error_t MockDtls::get_srtp_key(std::string &recv_key, std::string &send_key)
     }
     recv_key = recv_key_;
     send_key = send_key_;
+    return srs_success;
+}
+
+srs_error_t MockDtls::get_peer_fingerprint(std::string algo, std::string &fingerprint)
+{
+    get_peer_fingerprint_count_++;
+    last_fingerprint_algo_ = algo;
+    fingerprint = peer_fingerprint_;
     return srs_success;
 }
 
@@ -359,6 +370,7 @@ void MockRtcNetwork::reset()
     protect_rtp_count_ = 0;
     protect_rtcp_count_ = 0;
     write_count_ = 0;
+    packets_.clear();
     is_established_ = true;
 }
 
@@ -425,6 +437,7 @@ bool MockRtcNetwork::is_establelished()
 srs_error_t MockRtcNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
     write_count_++;
+    packets_.push_back(std::string((char *)buf, size));
     if (nwrite) {
         *nwrite = (ssize_t)size;
     }
@@ -582,6 +595,8 @@ public:
         // Replace the real DTLS with our mock
         srs_freep(dtls_);
         dtls_ = mock_dtls;
+        remote_fingerprint_algo_ = "sha-256";
+        remote_fingerprint_ = mock_dtls->peer_fingerprint_;
 
         // Replace the real SRTP with our mock if provided
         if (mock_srtp) {
@@ -1038,6 +1053,75 @@ VOID TEST(SecurityTransportTest, OnDtlsHandshakeDoneNetworkError)
     EXPECT_EQ(1, mock_dtls.get_srtp_key_count_);
     // Verify network on_dtls_handshake_done was called
     EXPECT_EQ(1, mock_network.on_dtls_handshake_done_count_);
+}
+
+// A browser offers the a=fingerprint of its DTLS certificate, and the DTLS handshake with that certificate sets up
+// SRTP. The SDP may use either case for the hex digits.
+VOID TEST(SecurityTransportTest, OnDtlsHandshakeDonePeerCertificateMatchingOffer)
+{
+    srs_error_t err;
+
+    MockRtcNetwork mock_network;
+    MockDtls mock_dtls;
+    SrsUniquePtr<TestableSecurityTransport> transport(new TestableSecurityTransport(&mock_network, &mock_dtls));
+    mock_dtls.set_srtp_keys(std::string(30, 'r'), std::string(30, 's'));
+
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "passive";
+    cfg.dtls_version_ = "dtls1.2";
+    cfg.remote_fingerprint_algo_ = "sha-256";
+    cfg.remote_fingerprint_ = "aa:bb:cc";
+    HELPER_ASSERT_SUCCESS(transport->initialize(&cfg));
+
+    HELPER_EXPECT_SUCCESS(transport->on_dtls_handshake_done());
+    EXPECT_EQ(1, mock_dtls.get_peer_fingerprint_count_);
+    EXPECT_STREQ("sha-256", mock_dtls.last_fingerprint_algo_.c_str());
+    EXPECT_EQ(1, mock_network.on_dtls_handshake_done_count_);
+}
+
+// RFC 8842 section 5.1: the certificate in the DTLS handshake MUST match the a=fingerprint of the SDP. Someone on the
+// media path answers the DTLS handshake with their own certificate, while the offer, sent over HTTPS, has the
+// browser's fingerprint. SRS must not set up SRTP with them.
+VOID TEST(SecurityTransportTest, OnDtlsHandshakeDonePeerCertificateNotInOfferIsRefused)
+{
+    MockRtcNetwork mock_network;
+    MockDtls mock_dtls;
+    SrsUniquePtr<TestableSecurityTransport> transport(new TestableSecurityTransport(&mock_network, &mock_dtls));
+    mock_dtls.set_srtp_keys(std::string(30, 'r'), std::string(30, 's'));
+    mock_dtls.peer_fingerprint_ = "DD:EE:FF";
+
+    srs_error_t err = transport->on_dtls_handshake_done();
+    EXPECT_EQ(ERROR_RTC_DTLS, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_FALSE(transport->handshake_done_);
+    EXPECT_EQ(0, mock_dtls.get_srtp_key_count_);
+    EXPECT_EQ(0, mock_network.on_dtls_handshake_done_count_);
+}
+
+// RFC 8842 section 5.1 requires the a=fingerprint in an offer that uses DTLS. Without one, nothing ties the certificate
+// to the peer, so SRS refuses the session rather than accept any certificate.
+VOID TEST(SecurityTransportTest, OnDtlsHandshakeDoneOfferWithoutFingerprintIsRefused)
+{
+    srs_error_t err;
+
+    MockRtcNetwork mock_network;
+    MockDtls mock_dtls;
+    SrsUniquePtr<TestableSecurityTransport> transport(new TestableSecurityTransport(&mock_network, &mock_dtls));
+    mock_dtls.set_srtp_keys(std::string(30, 'r'), std::string(30, 's'));
+
+    SrsSessionConfig cfg;
+    cfg.dtls_role_ = "passive";
+    cfg.dtls_version_ = "dtls1.2";
+    HELPER_ASSERT_SUCCESS(transport->initialize(&cfg));
+
+    err = transport->on_dtls_handshake_done();
+    EXPECT_EQ(ERROR_RTC_DTLS, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_FALSE(transport->handshake_done_);
+    EXPECT_EQ(0, mock_dtls.get_peer_fingerprint_count_);
+    EXPECT_EQ(0, mock_network.on_dtls_handshake_done_count_);
 }
 
 VOID TEST(SecurityTransportTest, OnDtlsApplicationDataSuccess)

@@ -26,6 +26,8 @@ class SrsSessionConfig
 public:
     std::string dtls_role_;
     std::string dtls_version_;
+    std::string remote_fingerprint_algo_;
+    std::string remote_fingerprint_;
 };
 
 class SrsSessionInfo
@@ -225,6 +227,8 @@ public:
     std::string get_ice_ufrag() const;
     std::string get_ice_pwd() const;
     std::string get_dtls_role() const;
+    std::string get_fingerprint_algo() const;
+    std::string get_fingerprint() const;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

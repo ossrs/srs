@@ -1024,6 +1024,31 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessage)
     ASSERT_TRUE(NULL != spkt);
 }
 
+// An unauthenticated peer sends connect with a command object nested 2000 levels deep, about
+// 6KB, which recursed until it overflowed the 128KB connection coroutine stack and killed the
+// server. The utest runs on the main thread stack, so it checks the decode is rejected.
+VOID TEST(ProtocolStackTest, ConnectAppDeeplyNestedCommandObject)
+{
+    srs_error_t err = srs_success;
+
+    string payload;
+    payload += string("\x02\x00\x07" "connect", 10);
+    payload += string("\x00\x3f\xf0\x00\x00\x00\x00\x00\x00", 9);
+    for (int i = 0; i < 1999; i++) {
+        payload += string("\x03\x00\x01" "a", 4);
+    }
+    payload += string("\x03\x00\x00\x09", 4);
+    for (int i = 0; i < 1999; i++) {
+        payload += string("\x00\x00\x09", 3);
+    }
+
+    SrsBuffer b((char *)payload.data(), (int)payload.length());
+    SrsConnectAppPacket pkt;
+    err = pkt.decode(&b);
+    EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err));
+    srs_freep(err);
+}
+
 // for librtmp, if ping, it will send a fresh stream with fmt=1,
 // 0x42             where: fmt=1, cid=2, protocol contorl user-control message
 // 0x00 0x00 0x00   where: timestamp=0

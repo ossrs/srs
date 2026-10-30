@@ -1044,6 +1044,36 @@ std::string SrsSdp::get_dtls_role() const
     return "";
 }
 
+std::string SrsSdp::get_fingerprint_algo() const
+{
+    if (!session_info_.fingerprint_.empty()) {
+        return session_info_.fingerprint_algo_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
+    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        const SrsMediaDesc *desc = &(*iter);
+        return desc->session_info_.fingerprint_algo_;
+    }
+
+    return "";
+}
+
+std::string SrsSdp::get_fingerprint() const
+{
+    if (!session_info_.fingerprint_.empty()) {
+        return session_info_.fingerprint_;
+    }
+
+    // Because we use BUNDLE, so we can choose the first element.
+    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        const SrsMediaDesc *desc = &(*iter);
+        return desc->session_info_.fingerprint_;
+    }
+
+    return "";
+}
+
 srs_error_t SrsSdp::parse_line(const std::string &line)
 {
     srs_error_t err = srs_success;

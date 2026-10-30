@@ -1242,6 +1242,46 @@ func TestWebRTCProxyServer_HandleClientUDP_StunBadPacket(t *testing.T) {
 	}
 }
 
+func TestWebRTCProxyServer_HandleClientUDP_StunLastAttributeWithoutPadding(t *testing.T) {
+	// A one-byte USERNAME needs three padding bytes (RFC 5389 section 15).
+	// Anyone can send a binding request without them, so it must be an
+	// error, not a panic that stops the proxy.
+	f := newWebRTCFixture()
+	addr := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 7002}
+
+	for padding := 0; padding < 3; padding++ {
+		pkt := newStunBindingRequest("A")
+		pkt = pkt[:len(pkt)-3+padding]
+		binary.BigEndian.PutUint16(pkt[2:4], uint16(len(pkt)-20))
+
+		if err := f.server.handleClientUDP(context.Background(), addr, pkt); err == nil {
+			t.Fatalf("padding=%v: expected error for missing padding", padding)
+		}
+	}
+	if f.lb.LoadWebRTCByUfragCallCount() != 0 {
+		t.Fatal("LB.LoadWebRTCByUfrag should not be called for a bad STUN packet")
+	}
+}
+
+func TestWebRTCProxyServer_HandleClientUDP_StunTruncatedAttributeHeader(t *testing.T) {
+	// A message ending with 1 to 3 bytes, too few for the next attribute's
+	// type and length, must be an error, not a panic that stops the proxy.
+	f := newWebRTCFixture()
+	addr := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 7002}
+
+	for extra := 1; extra < 4; extra++ {
+		pkt := append(newStunBindingRequest("ufrag:abc"), make([]byte, extra)...)
+		binary.BigEndian.PutUint16(pkt[2:4], uint16(len(pkt)-20))
+
+		if err := f.server.handleClientUDP(context.Background(), addr, pkt); err == nil {
+			t.Fatalf("extra=%v: expected error for truncated attribute header", extra)
+		}
+	}
+	if f.lb.LoadWebRTCByUfragCallCount() != 0 {
+		t.Fatal("LB.LoadWebRTCByUfrag should not be called for a bad STUN packet")
+	}
+}
+
 func TestWebRTCProxyServer_HandleClientUDP_StunCachedUsername(t *testing.T) {
 	// A STUN packet whose USERNAME matches a connection already in the
 	// username cache must route directly to that connection. We pre-wire

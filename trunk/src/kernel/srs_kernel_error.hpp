@@ -112,7 +112,8 @@
     XX(ERROR_NOT_IMPLEMENTED, 1099, "NotImplemented", "Feature is not implemented")                                    \
     XX(ERROR_NOT_SUPPORTED, 1100, "NotSupported", "Feature is not supported")                                          \
     XX(ERROR_SYSTEM_FILE_UNLINK, 1101, "FileUnlink", "Failed to unlink file")                                          \
-    XX(ERROR_SYSTEM_AUTH, 1102, "SystemAuth", "Failed to authenticate stream")
+    XX(ERROR_SYSTEM_AUTH, 1102, "SystemAuth", "Failed to authenticate stream")                                         \
+    XX(ERROR_SYSTEM_SECURITY_NAME, 1103, "SecurityName", "Invalid app or stream name for system security")
 
 /**************************************************/
 /* RTMP protocol error. */

@@ -620,7 +620,7 @@ SrsLiveStream::SrsLiveStream(ISrsRequest *r, ISrsBufferCache *c)
 {
     cache_ = c;
     req_ = r->copy()->as_http();
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     config_ = _srs_config;
     live_sources_ = _srs_sources;

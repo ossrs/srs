@@ -237,15 +237,13 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
         uint16_t type = stream->read_2bytes();
         uint16_t len = stream->read_2bytes();
 
-        if (stream->left() < len) {
-            return srs_error_new(ERROR_RTC_STUN, "invalid stun packet");
+        int padding = (len % 4 != 0) ? 4 - (len % 4) : 0;
+        if (stream->left() < len + padding) {
+            return srs_error_new(ERROR_RTC_STUN, "invalid stun packet, attr len=%d, padding=%d, left=%d", len, padding, stream->left());
         }
 
         string val = stream->read_string(len);
-        // padding
-        if (len % 4 != 0) {
-            stream->read_string(4 - (len % 4));
-        }
+        stream->skip(padding);
 
         // Only FINGERPRINT may follow MESSAGE-INTEGRITY, and the other attributes after it are ignored, see RFC 5389
         // section 15.4, because the signature does not cover them.

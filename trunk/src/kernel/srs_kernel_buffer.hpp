@@ -242,7 +242,7 @@ public:
     // @param required_size Number of bytes needed for the operation.
     // @return true if left() >= required_size, false otherwise.
     // @remark Always call this before read/write operations to avoid buffer overruns.
-    // @remark Asserts that required_size is non-negative.
+    // @remark Returns false for a negative required_size, so a size computed from untrusted data needs no other check.
     bool require(int required_size);
 
 public:

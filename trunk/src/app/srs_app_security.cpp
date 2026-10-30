@@ -8,6 +8,7 @@
 
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 using namespace std;
 
@@ -176,4 +177,35 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective *rules, SrsRtmpConnType typ
     }
 
     return srs_success; // OK
+}
+
+SrsEnhancedSecurity::SrsEnhancedSecurity()
+{
+    security_ = new SrsSecurity();
+}
+
+SrsEnhancedSecurity::~SrsEnhancedSecurity()
+{
+    srs_freep(security_);
+}
+
+srs_error_t SrsEnhancedSecurity::check(SrsRtmpConnType type, string ip, ISrsRequest *req)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = system_check(type, ip, req)) != srs_success) {
+        return srs_error_wrap(err, "system security");
+    }
+
+    return security_->check(type, ip, req);
+}
+
+srs_error_t SrsEnhancedSecurity::system_check(SrsRtmpConnType type, string ip, ISrsRequest *req)
+{
+    // A dot-dot in the app or stream escapes hls_path, dvr_path and dash_path when SRS builds the file path.
+    if (srs_strings_contains(req->app_, "..") || srs_strings_contains(req->stream_, "..")) {
+        return srs_error_new(ERROR_SYSTEM_SECURITY_NAME, "invalid app=%s, stream=%s", req->app_.c_str(), req->stream_.c_str());
+    }
+
+    return srs_success;
 }

@@ -1388,6 +1388,47 @@ VOID TEST(GbMediaTcpConnTest, StaleMediaOutlivesSession)
     current->gb_manager_ = NULL;
 }
 
+// RFC 4571 frames an RTP packet with 2 bytes of length, so a camera, or a peer that bound a session by its SSRC, may
+// send one of 65535 bytes. When it follows a packet cut inside a pack header, the held bytes and the packet must still
+// fit the connection's buffer, or the read writes past it on the heap.
+VOID TEST(GbMediaTcpConnTest, LargestRtpPacketAfterCutPack_ReadStaysInBuffer)
+{
+    std::string rtp_header("\x80\x60\x00\x01\x00\x00\x00\x00\x00\x00\x30\x39", 12);
+    // The first 10 bytes of a PS pack header, which the connection holds for the next packet.
+    std::string cut = rtp_header + std::string("\x00\x00\x01\xba\x44\x00\x04\x00\x04\x01", 10);
+    // The frame is 65535 bytes, the most its length can say.
+    std::string largest = rtp_header + std::string(65535 - 12, '\x5a');
+
+    std::string read_data;
+    read_data.push_back((char)((cut.size() >> 8) & 0xff));
+    read_data.push_back((char)(cut.size() & 0xff));
+    read_data += cut;
+    read_data.push_back((char)((largest.size() >> 8) & 0xff));
+    read_data.push_back((char)(largest.size() & 0xff));
+    read_data += largest;
+
+    MockProtocolReadWriterForTcpNetwork *mock_io = new MockProtocolReadWriterForTcpNetwork();
+    mock_io->set_read_data(read_data);
+    SrsUniquePtr<MockGbSessionForMediaConn> mock_session(new MockGbSessionForMediaConn());
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    conn->setup_owner(wrapper.get(), owner.get(), NULL);
+    srs_freep(conn->conn_);
+    conn->conn_ = mock_io;
+    conn->session_ = mock_session.get();
+
+    // The connection reads both packets, the largest one after the 10 bytes held, then ends at the end of the data.
+    srs_error_t err = conn->do_cycle();
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+    EXPECT_EQ(read_data.size(), mock_io->read_pos_);
+    EXPECT_EQ(1u, conn->pack_->media_reserved_);
+
+    conn->session_ = NULL;
+}
+
 // Test SrsMpegpsQueue::push - covers the major use scenario:
 // 1. Push audio and video packets with unique timestamps
 // 2. Handle timestamp collision by adjusting timestamp (+1ms)
@@ -5684,6 +5725,44 @@ VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
     tcp_conn->wrapper_ = NULL;
     tcp_network->sendonly_skt_ = NULL;
     mock_session->tcp_network_ = NULL;
+    mock_conn_manager->session_to_return_ = NULL;
+}
+
+// A WebRTC over TCP client whose first binding request ends with a USERNAME of one byte and none of the padding RFC
+// 5389 section 15 requires is refused before any session is looked up, rather than aborting the server.
+VOID TEST(RtcTcpConnTest, HandshakeWithStunWithoutPadding_Refused)
+{
+    srs_error_t err;
+
+    std::string stun("\x00\x01\x00\x05\x21\x12\xa4\x42", 8);
+    stun.append(12, '\x11');
+    stun.append("\x00\x06\x00\x01"
+                "A",
+                5);
+    std::string read_data;
+    read_data.push_back((char)((stun.size() >> 8) & 0xff));
+    read_data.push_back((char)(stun.size() & 0xff));
+    read_data += stun;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> mock_io(new MockProtocolReadWriterForTcpNetwork());
+    mock_io->set_read_data(read_data);
+
+    SrsUniquePtr<MockResourceManagerForTcpConnHandshake> mock_conn_manager(new MockResourceManagerForTcpConnHandshake());
+    SrsUniquePtr<MockRtcConnectionForTcpConnHandshake> mock_session(new MockRtcConnectionForTcpConnHandshake());
+    mock_conn_manager->session_to_return_ = mock_session.get();
+
+    SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), "192.168.1.100", 8080);
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(tcp_conn));
+    tcp_conn->conn_manager_ = mock_conn_manager.get();
+    tcp_conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_FAILED(tcp_conn->handshake());
+    EXPECT_FALSE(mock_session->switch_to_context_called_);
+    EXPECT_TRUE(tcp_conn->session_ == NULL);
+
+    tcp_conn->skt_ = NULL;
+    tcp_conn->conn_manager_ = NULL;
+    tcp_conn->wrapper_ = NULL;
     mock_conn_manager->session_to_return_ = NULL;
 }
 

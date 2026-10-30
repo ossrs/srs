@@ -110,6 +110,14 @@ class SrsAmf0Any
 public:
     char marker_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    friend class SrsAmf0Object;
+    friend class SrsAmf0EcmaArray;
+    friend class SrsAmf0StrictArray;
+    // How deep this value nests in its containers, 1 at the top level.
+    int depth_;
+
 public:
     SrsAmf0Any();
     virtual ~SrsAmf0Any();

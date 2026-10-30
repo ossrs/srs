@@ -224,7 +224,7 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
 
     rtmp_ = new SrsRtmpServer(transport_->io());
     refer_ = new SrsRefer();
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
     duration_ = 0;
     wakable_ = NULL;
 

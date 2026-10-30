@@ -153,6 +153,11 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPlayer)
         EXPECT_TRUE(audio_desc->candidates_[0].ip_ == "192.168.1.100");
         EXPECT_TRUE(audio_desc->session_info_.setup_ == "passive");
 
+        // The session takes the a=fingerprint of the offer, so the DTLS handshake can check the peer certificate.
+        EXPECT_STREQ("sha-256", local_sdp.session_negotiate_.remote_fingerprint_algo_.c_str());
+        EXPECT_STREQ("AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+                     local_sdp.session_negotiate_.remote_fingerprint_.c_str());
+
         SrsMediaDesc *video_desc = &local_sdp.media_descs_[1];
         EXPECT_TRUE(!video_desc->session_info_.ice_pwd_.empty());
         EXPECT_TRUE(!video_desc->session_info_.fingerprint_.empty());

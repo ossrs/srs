@@ -339,6 +339,48 @@ VOID TEST(ProtocolJsonTest, SrsJsonLoads)
     }
 }
 
+// JSON containers nested n levels, outermost first, with a number innermost: arrays as [[1]], objects as {"a":{"a":1}}.
+static string mock_json_nested(int n, bool object)
+{
+    string head, tail;
+    for (int i = 0; i < n; i++) {
+        head += object ? "{\"a\":" : "[";
+        tail += object ? "}" : "]";
+    }
+    return head + "1" + tail;
+}
+
+// JSON from a client, an HTTP API body, or from a hook server, an HTTP callback response, parses up to 64 nested
+// arrays or objects, which no real request comes near, and one level more is refused like any invalid JSON.
+VOID TEST(ProtocolJsonTest, NestedContainersDepthLimit)
+{
+    for (int i = 0; i < 2; i++) {
+        bool object = (i == 1);
+
+        SrsJsonAny *allowed = SrsJsonAny::loads(mock_json_nested(64, object));
+        EXPECT_TRUE(allowed != NULL) << "object=" << object;
+        EXPECT_TRUE(allowed && (object ? allowed->is_object() : allowed->is_array())) << "object=" << object;
+        srs_freep(allowed);
+
+        SrsJsonAny *exceeded = SrsJsonAny::loads(mock_json_nested(65, object));
+        EXPECT_TRUE(exceeded == NULL) << "object=" << object;
+        srs_freep(exceeded);
+    }
+}
+
+// Any client controls how deep the JSON body of an HTTP API nests, before any authentication, and each level
+// recursed on the 128KB coroutine stack that serves the request. A body of a few KB nested deep is refused.
+VOID TEST(ProtocolJsonTest, DeeplyNestedBodyRefused)
+{
+    for (int i = 0; i < 2; i++) {
+        bool object = (i == 1);
+
+        SrsJsonAny *json = SrsJsonAny::loads(mock_json_nested(10000, object));
+        EXPECT_TRUE(json == NULL) << "object=" << object;
+        srs_freep(json);
+    }
+}
+
 VOID TEST(ProtocolRawAvcTest, SrsRawH264StreamBasic)
 {
     SrsRawH264Stream h264;
@@ -1279,6 +1321,30 @@ VOID TEST(ProtocolRtcStunTest, SrsStunPacketDecode)
     HELPER_EXPECT_SUCCESS(stun.decode(valid_stun, sizeof(valid_stun)));
     EXPECT_TRUE(stun.is_binding_request());
     EXPECT_EQ(BindingRequest, stun.get_message_type());
+}
+
+// A binding request whose last attribute is not a multiple of 4 bytes, without the padding RFC 5389 section 15
+// requires after it, is refused. Anyone can send it without a password, so it must not abort the server.
+VOID TEST(ProtocolRtcStunTest, LastAttributeWithoutPaddingRefused)
+{
+    // A USERNAME of one byte needs three padding bytes; the datagram carries none, or only two of them.
+    for (int padding = 0; padding < 3; padding++) {
+        string attr("\x00\x06\x00\x01"
+                    "A",
+                    5);
+        attr.append(padding, '\0');
+
+        string request("\x00\x01\x00\x00\x21\x12\xa4\x42", 8);
+        request.append(12, '\x11');
+        request[2] = (char)((attr.size() >> 8) & 0xff);
+        request[3] = (char)(attr.size() & 0xff);
+        request += attr;
+
+        SrsStunPacket stun;
+        srs_error_t err = stun.decode(request.data(), (int)request.size());
+        EXPECT_EQ(ERROR_RTC_STUN, srs_error_code(err)) << "padding=" << padding;
+        srs_freep(err);
+    }
 }
 
 VOID TEST(ProtocolRtcStunTest, SrsStunPacketEncode)

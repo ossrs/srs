@@ -214,7 +214,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     req_ = new SrsRequest();
     req_->ip_ = ip;
 
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     stat_ = _srs_stat;
     config_ = _srs_config;

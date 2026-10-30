@@ -4910,6 +4910,68 @@ VOID TEST(KernelTSTest, SrsTsPacket_create_pes_continue)
     srs_freep(pkt);
 }
 
+// Decodes a TS packet with the adaptation field control and the adaptation field, from its length byte, padded to
+// 188 bytes.
+static srs_error_t ts_decode_packet_af(uint8_t afc, const std::string &af)
+{
+    std::string p;
+    p.push_back((char)0x47);
+    p.push_back((char)0x01);
+    p.push_back((char)0x00);
+    p.push_back((char)((afc << 4) & 0x30));
+    p += af;
+    if (p.size() < 188) {
+        p += std::string(188 - p.size(), (char)0xff);
+    }
+    p = p.substr(0, 188);
+
+    SrsTsContext ctx;
+    SrsTsPacket pkt(&ctx);
+    SrsBuffer b((char *)p.data(), (int)p.size());
+    SrsTsMessage *msg = NULL;
+    srs_error_t err = pkt.decode(&b, &msg);
+    srs_freep(msg);
+    return err;
+}
+
+// The adaptation field extension length is one byte from the publisher, up to 255, while fewer bytes are left in the
+// packet. The packet is refused, and the server does not abort.
+VOID TEST(KernelTSTest, AdaptationExtensionPastThePacketFailsThePacket)
+{
+    srs_error_t err = ts_decode_packet_af(2, std::string("\xb7\x01\xff\x00", 4));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+}
+
+// The ltw field needs 2 bytes after the extension flags, but the extension length only counts the flags.
+VOID TEST(KernelTSTest, AdaptationExtensionFieldsOverflowFailsThePacket)
+{
+    srs_error_t err = ts_decode_packet_af(3, std::string("\x0a\x01\x01\x80\x12\x34", 6));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+}
+
+// The fields the flags announce must stay inside the adaptation field: the PCR takes 6 bytes of a 1-byte field, or an
+// extension of 100 bytes in a 3-byte field.
+VOID TEST(KernelTSTest, AdaptationFieldsOverflowFailsThePacket)
+{
+    srs_error_t err = ts_decode_packet_af(3, std::string("\x01\x10\x00\x00\x00\x00\x7e\x00", 8));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+
+    err = ts_decode_packet_af(3, std::string("\x03\x01\x64\x00", 4));
+    EXPECT_EQ(ERROR_STREAM_CASTER_TS_AF, srs_error_code(err));
+    srs_freep(err);
+}
+
+// An extension whose reserved bytes fill the whole adaptation field, to the last byte of the packet, is accepted.
+VOID TEST(KernelTSTest, AdaptationExtensionFillingThePacketIsAccepted)
+{
+    srs_error_t err;
+
+    HELPER_EXPECT_SUCCESS(ts_decode_packet_af(2, std::string("\xb7\x01\xb5\x00", 4) + std::string(180, (char)0xff)));
+}
+
 VOID TEST(KernelTSTest, SrsEncFileWriter_write)
 {
     // Test SrsEncFileWriter::write method

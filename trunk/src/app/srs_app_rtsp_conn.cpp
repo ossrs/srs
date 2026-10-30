@@ -410,7 +410,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     cache_buffer_ = new SrsBuffer((char *)cache_iov_->iov_base, kRtpPacketSize);
 
     delta_ = new SrsEphemeralDelta();
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     rtsp_manager_ = _srs_rtsp_manager;
     stat_ = _srs_stat;

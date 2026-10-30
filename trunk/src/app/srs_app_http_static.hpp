@@ -65,7 +65,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsSecurity *security_;
+    ISrsSecurity *security_;
 };
 
 // The Vod streaming, like FLV, MP4 or HLS streaming.

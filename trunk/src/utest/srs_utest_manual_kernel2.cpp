@@ -985,8 +985,7 @@ VOID TEST(KernelBufferTest, SrsBufferRequire)
     // Test require with zero and negative values
     buf.skip(-10); // Reset to beginning
     EXPECT_TRUE(buf.require(0));
-    // Note: According to header comment, require should assert for negative values
-    // but we won't test that as it would crash the test
+    EXPECT_FALSE(buf.require(-1));
 }
 
 VOID TEST(KernelBufferTest, SrsBufferSkipOperations)

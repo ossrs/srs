@@ -145,6 +145,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
 
 public:
     srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);
+    srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint);
     void callback_by_ssl(std::string type, std::string desc);
 
 // clang-format off
@@ -236,6 +237,7 @@ public:
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char *data, int nb_data) = 0;
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key) = 0;
+    virtual srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint) = 0;
 };
 
 // The DTLS transport.
@@ -262,6 +264,7 @@ public:
 
 public:
     srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);
+    srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint);
 };
 
 // The interface for SRTP.

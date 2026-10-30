@@ -1226,12 +1226,19 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
             DTS_next_AU2_ = (DTS_next_AU2_ >> 1) & 0x7FFF;
         }
 
-        nb_af_ext_reserved_ = adaptation_field_extension_length_ - (stream->pos() - pos_af_ext);
+        // The adaptation_field_extension_length counts the bytes after itself.
+        nb_af_ext_reserved_ = adaptation_field_extension_length_ - (stream->pos() - pos_af_ext - 1);
+        if (!stream->require(nb_af_ext_reserved_)) {
+            return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af extension reserved=%d", nb_af_ext_reserved_);
+        }
         stream->skip(nb_af_ext_reserved_);
     }
     // LCOV_EXCL_STOP
 
     nb_af_reserved_ = adaption_field_length_ - (stream->pos() - pos_af);
+    if (!stream->require(nb_af_reserved_)) {
+        return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af reserved=%d", nb_af_reserved_);
+    }
     stream->skip(nb_af_reserved_);
 
     srs_info("ts: af parsed, discontinuity=%d random=%d priority=%d PCR=%d OPCR=%d slicing=%d private=%d extension=%d/%d pcr=%" PRId64 "/%d opcr=%" PRId64 "/%d",
