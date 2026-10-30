@@ -6237,6 +6237,45 @@ VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
     mock_conn_manager->session_to_return_ = NULL;
 }
 
+// A WebRTC over TCP client whose first binding request ends with a USERNAME of one byte and none of the padding RFC
+// 5389 section 15 requires is refused before any session is looked up, rather than aborting the server.
+VOID TEST(RtcTcpConnTest, HandshakeWithStunWithoutPadding_Refused)
+{
+    srs_error_t err;
+
+    std::string stun("\x00\x01\x00\x05\x21\x12\xa4\x42", 8);
+    stun.append(12, '\x11');
+    stun.append("\x00\x06\x00\x01"
+                "A",
+                5);
+    std::string read_data;
+    read_data.push_back((char)((stun.size() >> 8) & 0xff));
+    read_data.push_back((char)(stun.size() & 0xff));
+    read_data += stun;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> mock_io(new MockProtocolReadWriterForTcpNetwork());
+    mock_io->set_read_data(read_data);
+
+    SrsUniquePtr<MockResourceManagerForTcpConnHandshake> mock_conn_manager(new MockResourceManagerForTcpConnHandshake());
+    SrsUniquePtr<MockRtcConnectionForTcpConnHandshake> mock_session(new MockRtcConnectionForTcpConnHandshake());
+    mock_conn_manager->session_to_return_ = mock_session.get();
+
+    SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), "192.168.1.100", 8080);
+    tcp_conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(tcp_conn));
+    tcp_conn->conn_manager_ = mock_conn_manager.get();
+    tcp_conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_FAILED(tcp_conn->handshake());
+    EXPECT_FALSE(mock_session->switch_to_context_called_);
+    EXPECT_TRUE(tcp_conn->session_ == NULL);
+
+    tcp_conn->skt_ = NULL;
+    tcp_conn->conn_manager_ = NULL;
+    tcp_conn->wrapper_ = NULL;
+    mock_conn_manager->session_to_return_ = NULL;
+}
+
 // Issue #4642: A second TCP connection for the same RTC session must not
 // displace the first owner, otherwise the first connection keeps a stale
 // session pointer after the session interrupts only the recorded owner.

@@ -2306,6 +2306,30 @@ VOID TEST(ProtocolRtcStunTest, AttributeLongerThanMessage_RefusedBeforeSession)
     EXPECT_FALSE(network_got_it);
 }
 
+// A binding request whose last attribute is not a multiple of 4 bytes, without the padding RFC 5389 section 15
+// requires after it, is refused before it reaches the session. Anyone can send it without a password, so it must not
+// abort the server.
+VOID TEST(ProtocolRtcStunTest, LastAttributeWithoutPadding_RefusedBeforeSession)
+{
+    // A USERNAME of one byte needs three padding bytes; the datagram carries none, or only two of them.
+    for (int padding = 0; padding < 3; padding++) {
+        std::string attr("\x00\x06\x00\x01"
+                         "A",
+                         5);
+        attr.append(padding, '\0');
+
+        std::string request("\x00\x01\x00\x00\x21\x12\xa4\x42", 8);
+        request.append(12, '\x11');
+        request[2] = (char)((attr.size() >> 8) & 0xff);
+        request[3] = (char)(attr.size() & 0xff);
+        request += attr;
+
+        bool network_got_it = true;
+        EXPECT_EQ(ERROR_RTC_STUN, stun_session_manager_receive(request, &network_got_it));
+        EXPECT_FALSE(network_got_it);
+    }
+}
+
 // An edge pulls a stream with a token from its origin: it connects, plays the stream with
 // the token in the stream name, then reads the origin's metadata and video as its ingester
 // does, with the ingester's read timeout.
