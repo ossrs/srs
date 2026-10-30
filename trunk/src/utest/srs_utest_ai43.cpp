@@ -785,6 +785,35 @@ VOID TEST(AppGb28181Test, CameraCutsPackHeaderAcrossRtpPackets_HeldForNextPacket
     EXPECT_EQ(string(gb_utest_h264_p, sizeof(gb_utest_h264_p)), sent[2].substr(sent[2].size() - sizeof(gb_utest_h264_p)));
 }
 
+// RFC 4571 frames an RTP packet with 2 bytes of length, so a camera, or a peer that bound a session by its SSRC, may
+// send one of 65535 bytes. When it follows a packet cut inside a pack header, the held bytes and the packet must still
+// fit the connection's buffer of 65535 bytes, or the read writes past it on the heap.
+VOID TEST(AppGb28181Test, CameraSendsLargestRtpPacketAfterCutPack_ReadStaysInBuffer)
+{
+    srs_error_t err = srs_success;
+
+    MockLogForSignal log;
+    std::vector<string> sent;
+    GbUtestCamera camera;
+    camera.factory_.clients_.push_back(new GbUtestRtmpOrigin(&sent));
+
+    string pack = ps_pack_header() + ps_system_header() + gb_utest_psm(SrsTsStreamVideoH264, 0) +
+                  gb_utest_pes(0xe0, 90000, gb_utest_h264_key());
+    camera.send_rtp(pack + ps_pack_header().substr(0, 10));
+    // The RTP header is 12 bytes, so the frame is 65535 bytes, the most its length can say.
+    camera.send_rtp(string(65535 - 12, '\x5a'));
+
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    err = camera.conn_->cycle();
+    _srs_log = original;
+    HELPER_EXPECT_SUCCESS(err);
+
+    // The 10 bytes were held for the largest packet, which was read without overflowing the buffer.
+    EXPECT_EQ(1, gb_utest_count(log.traces_, "PS: Reserved bytes for next loop", "left=10"));
+    EXPECT_FALSE(camera.conn_->is_connected());
+}
+
 // A camera disconnects in the middle of an RTP packet. The connection ends as a closed client, drops the packet cut
 // short and the pack it had not handed on, and is no longer connected.
 VOID TEST(AppGb28181Test, CameraDisconnectsInsideRtpPacket_ConnectionEnds)
