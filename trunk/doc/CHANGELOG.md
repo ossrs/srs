@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-30, Merge [#4794](https://github.com/ossrs/srs/pull/4794): Security: Fix bugs found by security reports. v8.0.74 (#4794)
 * v8.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v8.0.73
 * v8.0, 2026-10-29, Merge [#4792](https://github.com/ossrs/srs/pull/4792): Chrome: Control skill and Chrome tests in the Full tier. v8.0.72 (#4792)
 * v8.0, 2026-10-28, Merge [#4791](https://github.com/ossrs/srs/pull/4791): UTest: Raise C++ utest coverage from 90.75% to 95.6% and fix the bugs it found. v8.0.71 (#4791)
