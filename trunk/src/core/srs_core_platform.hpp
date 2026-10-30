@@ -241,8 +241,14 @@ extern pid_t srs_waitpid(pid_t pid, int *status, int options);
 extern pid_t srs_getppid();
 // Windows has no fork.
 extern pid_t srs_fork();
-// A daemon forks.
+// Windows defaults an argument-free launch to the packaged config and release working directory.
+// Also remembers the original working directory for a daemon re-exec, before work_dir is applied.
+extern int srs_process_initialize(int &argc, char **&argv);
 extern bool srs_daemon_supported();
+// Returns 1 in the launcher, 0 in the daemon, or -1 on failure. Unix double-forks; Windows re-execs
+// without a console and waits for srs_daemon_ready or for the child to fail.
+extern int srs_daemon_start();
+extern int srs_daemon_ready();
 
 // The argv ends with a NULL. Windows has no fork: there the child is a process group of its own, which
 // srs_kill sends SIGTERM to as Ctrl+Break, in a job that ends it when SRS quits.

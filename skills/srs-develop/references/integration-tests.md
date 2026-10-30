@@ -95,6 +95,10 @@ They drive Chrome with `skills/internal-chrome-control/SKILL.md`. Each case uses
 
 Windows tests:
 
+- `srs-windows-daemon-test.sh` — native Windows startup regression against the built
+  `trunk/objs/windows/srs.exe`: no-argument launches from `objs` and elsewhere, explicit config,
+  `work_dir`, environment-only daemon, foreground override, config check and startup failure.
+  Uses ports 16400–16401 by default, moved by `SRS_TEST_PORT_BASE`.
 - `srs-windows-runner.sh` — the native Windows build and tests of SRS on the Windows test host.
   - Use it for changes that reach the Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`.
   - Run it from here with `windows-host-run.sh [--wip] <checkout> srs-windows-runner.sh [--alone] <step> [pattern]`.
@@ -379,7 +383,8 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 15800–15899 | `chrome-http-test.sh` at `SRS_TEST_PORT_BASE`: two SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3 and +4..+7; the driver's page server +9 | 100 | 9 | 91, inside the existing slot |
 | 15900–15999 | `chrome-codec-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, the driver's page server +9 | 100 | 5 | 95, inside the existing slot |
 | 16000–16399 | `chrome-linux-test.sh`: the four Chrome cases at 16000, 16100, 16200 and 16300, with the ports of the 15600–15999 slots. Each SRS container publishes RTMP, HTTP and API on `127.0.0.1` and RTC UDP on the host's own IPv4; the driver's page server +9 is on the host | 400 | 36 | 364, inside the existing slots |
-| 16400–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,600 | 0 | 4,597 |
+| 16400–16499 | `srs-windows-daemon-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
+| 16500–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,500 | 0 | 4,497 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
 | 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |
