@@ -31,7 +31,7 @@ using namespace std;
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(ISrsRtcApiServer *server)
 {
     server_ = server;
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     config_ = _srs_config;
     stat_ = _srs_stat;
@@ -386,7 +386,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
 SrsGoApiRtcPublish::SrsGoApiRtcPublish(ISrsRtcApiServer *server)
 {
     server_ = server;
-    security_ = new SrsSecurity();
+    security_ = new SrsEnhancedSecurity();
 
     config_ = _srs_config;
     stat_ = _srs_stat;
