@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* <strong>v7.0, 2026-10-30, [7.0 alpha4(7.0.215)](https://github.com/ossrs/srs/releases/tag/v7.0-a4) released. 333567 lines.</strong>
 * v7.0, 2026-10-30, Merge [#4794](https://github.com/ossrs/srs/pull/4794): Security: Fix bugs found by security reports. v7.0.215 (#4794)
 * v7.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v7.0.214
 * v7.0, 2026-10-28, Fix DVR and HEVC faults and a lock abort found by the utest coverage tests. v7.0.213
