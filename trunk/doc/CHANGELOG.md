@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* <strong>v8.0, 2026-10-30, [8.0 dev3(8.0.74)](https://github.com/ossrs/srs/releases/tag/v8.0-d3) released. 410579 lines.</strong>
 * v8.0, 2026-10-30, Merge [#4794](https://github.com/ossrs/srs/pull/4794): Security: Fix bugs found by security reports. v8.0.74 (#4794)
 * v8.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v8.0.73
 * v8.0, 2026-10-29, Merge [#4792](https://github.com/ossrs/srs/pull/4792): Chrome: Control skill and Chrome tests in the Full tier. v8.0.72 (#4792)
