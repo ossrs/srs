@@ -222,7 +222,7 @@ step_build() {
 }
 
 # Once srs.exe links, it starts in trunk, as SRS runs from there: -v prints the version, the default
-# config file is refused, since its daemon mode does not work on Windows, and env-only srs.exe listens
+# config file is accepted with daemon mode, and env-only srs.exe listens
 # on RTMP +0, HTTP +1 and the API +2 from SRS_TEST_PORT_BASE, answers /api/v1/versions with the same
 # version, and stops. Its output goes to trunk/objs/windows-start.log.
 PORT_BASE=${SRS_TEST_PORT_BASE:-15500}
@@ -234,13 +234,12 @@ start_check() {
   fi
   echo "START version PASS: $version"
 
-  output=$(cd trunk && SRS_LOG_TANK=console ./objs/windows/srs.exe -t -c conf/srs.conf 2>&1)
-  if [[ $? == 0 || $output != *"daemon is not supported"* ]]; then
-    echo "START daemon FAIL: conf/srs.conf not refused for daemon mode"
+  if ! output=$(cd trunk && SRS_LOG_TANK=console ./objs/windows/srs.exe -t -c conf/srs.conf 2>&1); then
+    echo "START daemon FAIL: conf/srs.conf rejected with daemon mode"
     echo "$output" | tail -n 5
     return 1
   fi
-  echo "START daemon PASS: conf/srs.conf refused for daemon mode"
+  echo "START daemon PASS: conf/srs.conf accepted with daemon mode"
 
   for p in $rtmp $http $api; do
     if port_open $p; then
