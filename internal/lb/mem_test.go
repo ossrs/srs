@@ -284,3 +284,22 @@ func TestMemLB_LoadWebRTCByUfrag_NotFound(t *testing.T) {
 		t.Fatalf("expected error, got %v", err)
 	}
 }
+
+func TestMemLB_DeleteWebRTCPreservesReplacement(t *testing.T) {
+	b := newMem()
+	ctx := context.Background()
+	old := &stubRTC{ufrag: "old"}
+	fresh := &stubRTC{ufrag: "new"}
+	_ = b.StoreWebRTC(ctx, "shared", old)
+	_ = b.StoreWebRTC(ctx, "shared", fresh)
+	_ = b.DeleteWebRTC(ctx, "shared", old)
+	if _, err := b.LoadWebRTCByUfrag(ctx, "old"); err == nil {
+		t.Fatal("old session retained")
+	}
+	if got, err := b.LoadWebRTCByUfrag(ctx, "new"); err != nil || got != fresh {
+		t.Fatal("new session removed")
+	}
+	if got, ok := b.rtcStreamURL.Load("shared"); !ok || got != fresh {
+		t.Fatal("new stream mapping removed")
+	}
+}

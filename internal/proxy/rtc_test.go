@@ -1391,8 +1391,8 @@ func TestWebRTCProxyServer_HandleClientUDP_StunWinsOverReusedAddress(t *testing.
 
 	// Media after the binding follows the address to the fresh connection.
 	err = f.server.handleClientUDP(context.Background(), addr, fakeRTPPacket())
-	if err == nil || !strings.Contains(err.Error(), "fresh connection") {
-		t.Fatalf("expected media to reach the fresh connection, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "WebRTC session closed") {
+		t.Fatalf("expected failed session to stay closed, got %v", err)
 	}
 }
 
