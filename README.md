@@ -63,6 +63,13 @@ To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clust
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
 
+## One-Click Deploy
+
+<a href="https://repocloud.io/details/SRS/"><img src="https://d16t0pc4846x52.cloudfront.net/deploylobe.svg" alt="Deploy on RepoCloud" height="42"></a>
+<a href="https://marketplace.digitalocean.com/apps/srs"><img src="https://www.deploytodo.com/do-btn-blue.svg" alt="Deploy on DigitalOcean" height="42"></a>
+
+DigitalOcean: the Marketplace page covers the first steps once the Droplet is created.
+
 <a name="ai-agent"></a>
 
 ## AI Agent
