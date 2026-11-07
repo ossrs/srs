@@ -1,6 +1,6 @@
 # Smells
 
-Mistakes an agent has made in this project, one line each, each confirmed by the user's own read, with an example. The auditor reads this in phase 2, after its blind read, and reports each match with the file and line.
+Mistakes an agent has made in this project, one line each, each confirmed by the user's own read, with an example. The auditor reads this in phase 2, after its blind read, and reports each match with the file and line. These are hints, not a checklist: a match is a suspect to prove, and most bugs are not on this list.
 
 Add a line only when the user's read catches something the audit missed, with an example and no commit or review ID. Do not add lines from guesswork.
 
