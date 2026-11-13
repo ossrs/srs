@@ -440,19 +440,22 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
         return srs_error_wrap(err, "udp");
     }
 
-    // Switch to the peer address only after the session accepted the request, so the response goes there too.
-    if (skt) {
+    // Only the first address, or the pair nominated by the controlling agent via USE-CANDIDATE, may receive
+    // media. Other binding requests are connectivity checks, see RFC 8445 section 7.3.1.5.
+    if (skt && (!sendonly_skt_ || r->get_use_candidate())) {
         update_sendonly_socket(skt);
     }
 
-    if ((err = on_binding_request(r, ice_pwd)) != srs_success) {
+    // The response goes back to the source of this request, even when media is sent to another address, so a
+    // check from a non-nominated candidate still completes.
+    if ((err = on_binding_request(skt, r, ice_pwd)) != srs_success) {
         return srs_error_wrap(err, "stun binding request failed");
     }
 
     return err;
 }
 
-srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pwd)
+srs_error_t SrsRtcUdpNetwork::on_binding_request(ISrsUdpMuxSocket *skt, SrsStunPacket *r, string ice_pwd)
 {
     srs_error_t err = srs_success;
 
@@ -464,15 +467,28 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
     stun_binding_response.set_local_ufrag(r->get_remote_ufrag());
     stun_binding_response.set_remote_ufrag(r->get_local_ufrag());
     stun_binding_response.set_transcation_id(r->get_transcation_id());
+    // The mux socket caches the source address until peer_id() refreshes it, so refresh it before using the
+    // source for the mapped address.
+    if (skt) {
+        skt->peer_id();
+    }
+    // The mapped address is the source of this request, not the address media is sent to.
+    string peer_ip = skt ? skt->get_peer_ip() : get_peer_ip();
+    int peer_port = skt ? skt->get_peer_port() : get_peer_port();
     // FIXME: inet_addr is deprecated, IPV6 support
-    stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
-    stun_binding_response.set_mapped_port(get_peer_port());
+    stun_binding_response.set_mapped_address(be32toh(inet_addr(peer_ip.c_str())));
+    stun_binding_response.set_mapped_port(peer_port);
 
     if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
-    if ((err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
+    if (skt) {
+        delta_->add_delta(0, stream->pos());
+        if ((err = skt->sendto(stream->data(), stream->pos(), SRS_UTIME_NO_TIMEOUT)) != srs_success) {
+            return srs_error_wrap(err, "stun binding response send failed");
+        }
+    } else if ((err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
         return srs_error_wrap(err, "stun binding response send failed");
     }
 

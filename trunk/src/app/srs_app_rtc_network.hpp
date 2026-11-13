@@ -219,7 +219,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    srs_error_t on_binding_request(SrsStunPacket *r, std::string ice_pwd);
+    srs_error_t on_binding_request(ISrsUdpMuxSocket *skt, SrsStunPacket *r, std::string ice_pwd);
     // DTLS transport functions.
 public:
     srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
