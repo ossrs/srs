@@ -4678,9 +4678,9 @@ static srs_error_t rtc_network_utest_start(RtcConnUtestClient &client, RtcNetwor
 }
 
 // The ICE check of the client, signed with the ICE password of the server's answer.
-static std::string rtc_network_utest_check(RtcConnUtestClient &client)
+static std::string rtc_network_utest_check(RtcConnUtestClient &client, bool nominate = true)
 {
-    return stun_controlling_binding_request(client.conn_->username(), client.answer_.get_ice_pwd(), true);
+    return stun_controlling_binding_request(client.conn_->username(), client.answer_.get_ice_pwd(), nominate);
 }
 
 // Whether the datagram is the server's binding response to the client's check: for the check's transaction, and
@@ -4704,6 +4704,25 @@ static srs_error_t rtc_network_utest_response(const std::string &datagram, RtcCo
     }
 
     return err;
+}
+
+// The port in the XOR-MAPPED-ADDRESS of a binding response, as the browser reads it.
+static uint16_t rtc_network_utest_mapped_port(const std::string &datagram)
+{
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer((char *)datagram.data(), (int)datagram.size()));
+    stream->skip(20);
+
+    while (stream->left() >= 4) {
+        uint16_t type = (uint16_t)stream->read_2bytes();
+        uint16_t len = (uint16_t)stream->read_2bytes();
+        if (type == XorMappedAddress) {
+            stream->skip(2);
+            return (uint16_t)stream->read_2bytes() ^ (uint16_t)(kStunMagicCookie >> 16);
+        }
+        stream->skip(len + (4 - len % 4) % 4);
+    }
+
+    return 0;
 }
 
 // The RTC server's UDP port on loopback, and the client sockets that send to it, each from its own address: a
@@ -4766,6 +4785,11 @@ public:
         return "127.0.0.1:" + srs_strconv_format_int(port);
     }
 
+    int peer_port(int index)
+    {
+        return srs_get_local_port(srs_netfd_fileno(clients_[index]));
+    }
+
     // Sends the datagram from the client, and receives it on the server's port as the UDP listener does.
     srs_error_t deliver(int index, const std::string &datagram)
     {
@@ -4799,11 +4823,11 @@ public:
 
     // The client's ICE check, received on the server's port, handed to the session's UDP network as the session
     // manager does with a binding request.
-    srs_error_t check(int index, RtcConnUtestClient &client)
+    srs_error_t check(int index, RtcConnUtestClient &client, bool nominate = true)
     {
         srs_error_t err = srs_success;
 
-        if ((err = deliver(index, rtc_network_utest_check(client))) != srs_success) {
+        if ((err = deliver(index, rtc_network_utest_check(client, nominate))) != srs_success) {
             return srs_error_wrap(err, "deliver");
         }
 
@@ -4923,6 +4947,117 @@ VOID TEST(AppRtcNetworkTest, ClientAddressChangesAndBack_SessionFollowsIt)
     HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
     EXPECT_STREQ("media", udp.recv(wifi).c_str());
     EXPECT_TRUE(udp.recv(cellular, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// A browser with more than one host candidate sends its connectivity checks from each address before it nominates a
+// pair. The server answers every check at the address it came from, but media follows only the first address until
+// the controlling agent nominates a pair with USE-CANDIDATE; checks from other addresses never move it.
+VOID TEST(AppRtcNetworkTest, ClientChecksBeforeNomination_AnsweredButDoNotMoveMedia)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int wifi = 0, cellular = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&wifi));
+    HELPER_ASSERT_SUCCESS(udp.client(&cellular));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+
+    // The first check has no USE-CANDIDATE, so it only gives the session a provisional address.
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player, false));
+    std::string response = udp.recv(wifi);
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(response, player));
+    EXPECT_EQ(udp.peer_port(wifi), rtc_network_utest_mapped_port(response));
+
+    // A check from another interface is answered there, but does not redirect media.
+    HELPER_ASSERT_SUCCESS(udp.check(cellular, player, false));
+    response = udp.recv(cellular);
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(response, player));
+    EXPECT_EQ(udp.peer_port(cellular), rtc_network_utest_mapped_port(response));
+
+    // Checks from the selected address in between keep the session on it, even when another candidate is
+    // checked again.
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+    HELPER_ASSERT_SUCCESS(udp.check(cellular, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(cellular), player));
+
+    char media[] = "media";
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(wifi).c_str());
+    EXPECT_TRUE(udp.recv(cellular, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    // The controlling agent nominates the cellular pair, so media follows it.
+    HELPER_ASSERT_SUCCESS(udp.check(cellular, player, true));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(cellular), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(cellular).c_str());
+    EXPECT_TRUE(udp.recv(wifi, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    // A check from the other address after nomination is answered, but does not steal media.
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(cellular).c_str());
+    EXPECT_TRUE(udp.recv(wifi, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// A client that moves to another local port, as on a NAT rebinding, sends its checks only from the new address.
+// The server follows it after two consecutive checks, and follows it back when it returns to the first address.
+VOID TEST(AppRtcNetworkTest, ClientMovesPort_SessionFollowsAfterTwoChecks)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int first = 0, second = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&first));
+    HELPER_ASSERT_SUCCESS(udp.client(&second));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+
+    char media[] = "media";
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+
+    // The first check from the new port is a candidate, like any other check; the second consecutive one
+    // shows that the client moved, because the selected address sent nothing in between.
+    HELPER_ASSERT_SUCCESS(udp.check(second, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(second), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+    EXPECT_TRUE(udp.recv(second, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    HELPER_ASSERT_SUCCESS(udp.check(second, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(second), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(second).c_str());
+    EXPECT_TRUE(udp.recv(first, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    // Moving back follows the same rule.
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+    EXPECT_TRUE(udp.recv(second, 50 * SRS_UTIME_MILLISECONDS).empty());
 }
 
 // A publisher with encryption off is published at its first ICE check, with no DTLS. The packets the session refuses
