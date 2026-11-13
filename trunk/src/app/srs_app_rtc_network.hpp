@@ -198,6 +198,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Pithy print for address change, use port as error code.
     SrsErrorPithyPrint *pp_address_change_;
+    // The address of the last binding request, and how many consecutive requests came from it.
+    std::string last_binding_peer_id_;
+    int nn_binding_same_peer_;
     // The peer address, client maybe use more than one address, it's the current selected one.
     ISrsUdpMuxSocket *sendonly_skt_;
     // The address list, client may use multiple addresses.
@@ -219,6 +222,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsUdpMuxSocket *cache_peer_address(ISrsUdpMuxSocket *skt);
     srs_error_t on_binding_request(ISrsUdpMuxSocket *skt, SrsStunPacket *r, std::string ice_pwd);
     // DTLS transport functions.
 public:

@@ -925,6 +925,8 @@ public:
     std::string token();
     // Set the publish token for this session if publisher.
     void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
+    // Whether this session has a player, so its UDP output is media rather than RTCP feedback.
+    bool is_playing();
 
 public:
     virtual ISrsKbpsDelta *delta();

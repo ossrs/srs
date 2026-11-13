@@ -188,6 +188,7 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     state_ = SrsRtcNetworkStateInit;
     conn_ = conn;
     delta_ = delta;
+    nn_binding_same_peer_ = 0;
     sendonly_skt_ = NULL;
     pp_address_change_ = new SrsErrorPithyPrint();
     transport_ = new SrsSecurityTransport(this);
@@ -371,6 +372,30 @@ int SrsRtcUdpNetwork::get_peer_port()
     return sendonly_skt_->get_peer_port();
 }
 
+ISrsUdpMuxSocket *SrsRtcUdpNetwork::cache_peer_address(ISrsUdpMuxSocket *skt)
+{
+    string peer_id = skt->peer_id();
+
+    // Find object from cache.
+    map<string, ISrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
+    if (it != peer_addresses_.end()) {
+        ISrsUdpMuxSocket *addr_cache = it->second;
+        return addr_cache;
+    }
+
+    // If no cache, build cache and setup the relations in connection.
+    ISrsUdpMuxSocket *addr_cache = skt->copy_sendonly();
+    peer_addresses_[peer_id] = addr_cache;
+    conn_manager_->add_with_id(peer_id, conn_);
+
+    uint64_t fast_id = skt->fast_id();
+    if (fast_id) {
+        conn_manager_->add_with_fast_id(fast_id, conn_);
+    }
+
+    return addr_cache;
+}
+
 void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
 {
     // TODO: FIXME: Refine performance.
@@ -384,14 +409,8 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
         return;
     }
 
-    // Find object from cache.
-    ISrsUdpMuxSocket *addr_cache = NULL;
-    if (true) {
-        map<string, ISrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
-        if (it != peer_addresses_.end()) {
-            addr_cache = it->second;
-        }
-    }
+    bool cached = peer_addresses_.find(peer_id) != peer_addresses_.end();
+    ISrsUdpMuxSocket *addr_cache = cache_peer_address(skt);
 
     // Show address change log.
     if (prev_peer_id.empty()) {
@@ -400,18 +419,7 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
         uint32_t nn = 0;
         if (pp_address_change_->can_print(skt->get_peer_port(), &nn)) {
             srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u/%u, nn_address=%u", prev_peer_id.c_str(),
-                      peer_id.c_str(), (addr_cache ? 1 : 0), pp_address_change_->nn_count_, nn, peer_addresses_.size());
-        }
-    }
-
-    // If no cache, build cache and setup the relations in connection.
-    if (!addr_cache) {
-        peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        conn_manager_->add_with_id(peer_id, conn_);
-
-        uint64_t fast_id = skt->fast_id();
-        if (fast_id) {
-            conn_manager_->add_with_fast_id(fast_id, conn_);
+                      peer_id.c_str(), (cached ? 1 : 0), pp_address_change_->nn_count_, nn, peer_addresses_.size());
         }
     }
 
@@ -440,10 +448,35 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
         return srs_error_wrap(err, "udp");
     }
 
-    // Only the first address, or the pair nominated by the controlling agent via USE-CANDIDATE, may receive
-    // media. Other binding requests are connectivity checks, see RFC 8445 section 7.3.1.5.
-    if (skt && (!sendonly_skt_ || r->get_use_candidate())) {
-        update_sendonly_socket(skt);
+    if (skt) {
+        // Remember the source address for inbound RTP/RTCP even before it is selected for output, so a
+        // publisher that moves to a new port does not lose media while its second check confirms the move.
+        ISrsUdpMuxSocket *peer = cache_peer_address(skt);
+        string peer_id = peer->peer_id();
+
+        // A publisher's session sends only RTCP feedback, so follow its address on the first check, as before. For
+        // a player, a client that moves to another address, as on a NAT rebinding, sends its checks from the new
+        // address only; follow it after two consecutive checks, so the round-robin checks of a multi-homed client
+        // do not move the media.
+        SrsRtcConnection *session = dynamic_cast<SrsRtcConnection *>(conn_);
+        bool publishing_only = session && !session->is_playing();
+
+        if (sendonly_skt_ && sendonly_skt_->peer_id() == peer_id) {
+            last_binding_peer_id_ = peer_id;
+            nn_binding_same_peer_ = 0;
+        } else {
+            if (last_binding_peer_id_ == peer_id) {
+                ++nn_binding_same_peer_;
+            } else {
+                last_binding_peer_id_ = peer_id;
+                nn_binding_same_peer_ = 1;
+            }
+
+            if (!sendonly_skt_ || r->get_use_candidate() || publishing_only || nn_binding_same_peer_ >= 2) {
+                update_sendonly_socket(skt);
+                nn_binding_same_peer_ = 0;
+            }
+        }
     }
 
     // The response goes back to the source of this request, even when media is sent to another address, so a

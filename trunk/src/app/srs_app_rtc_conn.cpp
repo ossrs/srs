@@ -2478,6 +2478,11 @@ void SrsRtcConnection::set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> pu
     publish_token_ = publish_token;
 }
 
+bool SrsRtcConnection::is_playing()
+{
+    return !players_.empty();
+}
+
 ISrsKbpsDelta *SrsRtcConnection::delta()
 {
     return networks_->delta();

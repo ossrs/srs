@@ -4982,6 +4982,13 @@ VOID TEST(AppRtcNetworkTest, ClientChecksBeforeNomination_AnsweredButDoNotMoveMe
     HELPER_EXPECT_SUCCESS(rtc_network_utest_response(response, player));
     EXPECT_EQ(udp.peer_port(cellular), rtc_network_utest_mapped_port(response));
 
+    // Checks from the selected address in between keep the session on it, even when another candidate is
+    // checked again.
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+    HELPER_ASSERT_SUCCESS(udp.check(cellular, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(cellular), player));
+
     char media[] = "media";
     HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
     EXPECT_STREQ("media", udp.recv(wifi).c_str());
@@ -5000,6 +5007,57 @@ VOID TEST(AppRtcNetworkTest, ClientChecksBeforeNomination_AnsweredButDoNotMoveMe
     HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
     EXPECT_STREQ("media", udp.recv(cellular).c_str());
     EXPECT_TRUE(udp.recv(wifi, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// A client that moves to another local port, as on a NAT rebinding, sends its checks only from the new address.
+// The server follows it after two consecutive checks, and follows it back when it returns to the first address.
+VOID TEST(AppRtcNetworkTest, ClientMovesPort_SessionFollowsAfterTwoChecks)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int first = 0, second = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&first));
+    HELPER_ASSERT_SUCCESS(udp.client(&second));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+
+    char media[] = "media";
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+
+    // The first check from the new port is a candidate, like any other check; the second consecutive one
+    // shows that the client moved, because the selected address sent nothing in between.
+    HELPER_ASSERT_SUCCESS(udp.check(second, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(second), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+    EXPECT_TRUE(udp.recv(second, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    HELPER_ASSERT_SUCCESS(udp.check(second, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(second), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(second).c_str());
+    EXPECT_TRUE(udp.recv(first, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    // Moving back follows the same rule.
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+    HELPER_ASSERT_SUCCESS(udp.check(first, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(first), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(first).c_str());
+    EXPECT_TRUE(udp.recv(second, 50 * SRS_UTIME_MILLISECONDS).empty());
 }
 
 // A publisher with encryption off is published at its first ICE check, with no DTLS. The packets the session refuses
