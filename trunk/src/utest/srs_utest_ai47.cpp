@@ -74,9 +74,11 @@
 #include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
 
 #include <vector>
 
@@ -490,9 +492,11 @@ VOID TEST(MemoryAuditTest, SrsRtcpNack_SparseLossesOverflowEncodeAborts)
                 _exit(2);
             }
 
-            // Past the first NACK interval of 10ms, as the publisher's NACK timer finds them.
-            usleep(30 * 1000);
-            srs_time_now_realtime();
+            // Past the first NACK interval of 10ms, as the publisher's NACK timer finds them. A forked child has
+            // no ST event loop to sleep in, so it waits on the clock.
+            srs_utime_t start = srs_time_now_realtime();
+            while (srs_time_now_realtime() - start < 30 * SRS_UTIME_MILLISECONDS) {
+            }
 
             // As SrsRtcConnection::check_send_nacks builds and encodes the NACK.
             SrsRtcpNack nack(0x1234);
@@ -1253,6 +1257,7 @@ VOID TEST(MemoryAuditTest, SrsAudioTranscoder_StereoToMonoAacCrashes)
 }
 #endif
 
+#ifndef _WIN32 // Windows deletes no open file.
 // A DASH video segment whose tmp file is gone when it ends, as when the operator removes the stream's dir or a cleanup
 // job deletes it. The reap flushes the segment encoder, frees the file writer, then fails to rename the tmp file. The
 // controller returns the error, and the hub stops DASH with on_unpublish, which reaps the same segment again: its
@@ -1287,6 +1292,7 @@ VOID TEST(MemoryAuditTest, SrsMp4M2tsSegmentEncoder_ReapAfterFailedRenameUsesFre
     EXPECT_TRUE(err != srs_success);
     srs_freep(err);
 }
+#endif
 
 // An edge that pulls HTTP-FLV from its origin turns each FLV tag into a message, an audio tag of size 0 too, and
 // SrsLiveSource::on_audio, unlike on_video and SrsProtocol, does not drop the empty one. SrsFormat::on_audio returns
@@ -2366,7 +2372,7 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_NackFillingBufferOverflowsSrtcpTrail
     EXPECT_EQ(370, (int)track->nack_receiver_->queue_.size());
 
     // Past the first NACK interval of 10ms, as the connection's NACK timer finds them.
-    usleep(30 * 1000);
+    srs_usleep(30 * SRS_UTIME_MILLISECONDS);
     srs_time_now_realtime();
 
     MockRtcAsyncTaskExecutor exec;
@@ -2804,7 +2810,9 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_TcpConnStoppedBeforeSessionFreed)
     // Both time out in the same tick, and the manager frees them.
     manager.remove(session);
     manager.remove(other);
-    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    for (int i = 0; i < 100 && !manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
 
     // The conn was stopped while the session was whole, and the other client was freed once.
     EXPECT_TRUE(conn->interrupted_);
@@ -3651,7 +3659,7 @@ VOID TEST(MemoryAuditTest, SrsRtcTcpNetwork_SendToStalledPeerNeverReturns)
     struct linger lg;
     lg.l_onoff = 1;
     lg.l_linger = 0;
-    setsockopt(srs_netfd_fileno(client), SOL_SOCKET, SO_LINGER, &lg, sizeof(lg));
+    setsockopt(srs_netfd_fileno(client), SOL_SOCKET, SO_LINGER, (const char *)&lg, sizeof(lg));
     srs_close_stfd(client);
     report_trd->stop();
     media_trd->stop();
@@ -3837,6 +3845,7 @@ public:
 // while a client waited: no other coroutine ran, none closed an fd, and the server spun at 100% CPU. Linux leaves the
 // client in the backlog on EMFILE, so the spin never ended and the whole server hung; macOS drops that client, so it
 // spun as long as new clients kept coming. Every TCP listener runs this loop. It should wait after an accept error.
+#ifndef _WIN32 // POSIX only: RLIMIT_NOFILE
 VOID TEST(MemoryAuditTest, SrsTcpListener_AcceptErrorSpinsWithoutYield)
 {
     srs_error_t err = srs_success;
@@ -3912,6 +3921,7 @@ VOID TEST(MemoryAuditTest, SrsTcpListener_AcceptErrorSpinsWithoutYield)
         srs_close_stfd(clients[i]);
     }
 }
+#endif
 
 // Closing a TCP listener stops its coroutine, which interrupts the accept. The accept then fails like an accept out of
 // fds, and the listener waited after it before it saw the stop, so every listener's close took that wait. A graceful
