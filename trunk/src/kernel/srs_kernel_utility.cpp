@@ -404,14 +404,21 @@ int srs_do_create_dir_recursively(string dir)
         return ERROR_SYSTEM_DIR_EXISTS;
     }
 
-    // create the missing parents first, from the top down. The search starts after the first byte, so the root of an
-    // absolute path, such as the parent of /a, is never made. Loop instead of recursing, because the dir holds the client's app and stream, which may have
-    // thousands of levels, too deep for a coroutine stack.
-    for (size_t pos = dir.find("/", 1); pos != std::string::npos; pos = dir.find("/", pos + 1)) {
-        std::string parent = dir.substr(0, pos);
-        if (path.exists(parent)) {
-            continue;
+    // Walk up to the deepest parent that exists, remembering where each missing parent ends. The root, such as the
+    // parent of /a, is never made, and neither is a Windows drive such as C:, which fails stat. Loop instead of
+    // recursing, because the dir holds the client's app and stream, which may have thousands of levels, too deep for
+    // a coroutine stack.
+    std::vector<size_t> missing;
+    for (size_t pos = dir.rfind("/"); pos != std::string::npos && pos > 0; pos = dir.rfind("/", pos - 1)) {
+        if (path.exists(dir.substr(0, pos))) {
+            break;
         }
+        missing.push_back(pos);
+    }
+
+    // create the missing parents, from the top down.
+    for (int i = (int)missing.size() - 1; i >= 0; i--) {
+        std::string parent = dir.substr(0, missing[i]);
 
         // Another process may create the parent between the stat and the mkdir, which is ok.
         if (_srs_mkdir_fn(parent.c_str()) < 0 && errno != EEXIST) {

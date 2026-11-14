@@ -1654,6 +1654,39 @@ VOID TEST(MemoryAuditTest, SrsDoCreateDirRecursively_DeepStreamOverflowsCoroutin
     EXPECT_GT(128 * 1024, depth);
 }
 
+static std::vector<std::string> memory_audit_mkdir_paths;
+static int memory_audit_mock_mkdir_record(const char *path)
+{
+    memory_audit_mkdir_paths.push_back(path);
+    return 0;
+}
+
+// Only the dirs below the deepest existing parent are made. On Windows a drive such as C: fails stat, and its mkdir
+// fails with an errno other than EEXIST on some hosts, so a dir in the temp dir can't be made if the drive is tried.
+VOID TEST(MemoryAuditTest, SrsDoCreateDirRecursively_OnlyMissingDirsMade)
+{
+    srs_error_t err = srs_success;
+
+    std::string base = srs_utest_tmp_dir();
+    ASSERT_TRUE(SrsPath().exists(base));
+    std::string dir = base + "/srs-memory-audit-missing/live/livestream";
+    ASSERT_FALSE(SrsPath().exists(base + "/srs-memory-audit-missing"));
+
+    extern srs_mkdir_t _srs_mkdir_fn;
+    srs_mkdir_t old = _srs_mkdir_fn;
+    _srs_mkdir_fn = memory_audit_mock_mkdir_record;
+    memory_audit_mkdir_paths.clear();
+
+    err = SrsPath().mkdir_all(dir);
+    _srs_mkdir_fn = old;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(3, (int)memory_audit_mkdir_paths.size());
+    EXPECT_STREQ((base + "/srs-memory-audit-missing").c_str(), memory_audit_mkdir_paths[0].c_str());
+    EXPECT_STREQ((base + "/srs-memory-audit-missing/live").c_str(), memory_audit_mkdir_paths[1].c_str());
+    EXPECT_STREQ(dir.c_str(), memory_audit_mkdir_paths[2].c_str());
+}
+
 // An RTMP ping request on chunk stream 2, fmt 0: a 6-byte user control message, event 6 with a 4-byte timestamp.
 static void memory_audit_append_rtmp_ping(MockBufferIO *io, uint8_t ts)
 {

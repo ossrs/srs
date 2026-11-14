@@ -7,7 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
-* v8.0, 2026-11-14, Merge [#4800](https://github.com/ossrs/srs/pull/4800): Security: Fix crashes, memory corruption, leaks and stalls found by the C++ memory audit. v8.0.75 (#4800)
+* v8.0, 2026-11-14, Merge [#4800](https://github.com/ossrs/srs/pull/4800): Security: Fix 58 bugs found by the C++ memory audit. v8.0.75 (#4800)
 * <strong>v8.0, 2026-10-30, [8.0 dev3(8.0.74)](https://github.com/ossrs/srs/releases/tag/v8.0-d3) released. 410579 lines.</strong>
 * v8.0, 2026-10-30, Merge [#4794](https://github.com/ossrs/srs/pull/4794): Security: Fix bugs found by security reports. v8.0.74 (#4794)
 * v8.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v8.0.73
