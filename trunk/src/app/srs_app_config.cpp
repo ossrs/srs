@@ -477,17 +477,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
         // to:
         //      stream_caster { caster gb28181; sip { candidate *; } }
         if (dir->name_ == "stream_caster") {
-            for (vector<SrsConfDirective *>::iterator it = dir->directives_.begin(); it != dir->directives_.end();) {
-                SrsConfDirective *conf = *it;
-                if (conf->name_ == "host") {
-                    srs_warn("transform: Config move host to sip.candidate for GB");
-                    conf->name_ = "candidate";
-                    dir->get_or_create("sip")->directives_.push_back(conf->copy());
-                    it = dir->directives_.erase(it);
-                    srs_freep(conf);
-                    continue;
-                }
-                ++it;
+            SrsConfDirective *host = NULL;
+            while ((host = dir->get("host")) != NULL) {
+                srs_warn("transform: Config move host to sip.candidate for GB");
+                dir->remove(host);
+                host->name_ = "candidate";
+                dir->get_or_create("sip")->directives_.push_back(host);
             }
         }
 
@@ -2448,14 +2443,56 @@ srs_error_t SrsConfig::check_normal_config()
     // check chunk size
     ////////////////////////////////////////////////////////////////////////
     if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
-        srs_warn("chunk_size=%s should be in [%d, %d]", get_global_chunk_size(),
+        srs_warn("chunk_size=%d should be in [%d, %d]", get_global_chunk_size(),
                  SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
     }
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective *vhost = vhosts[i];
         if (get_chunk_size(vhost->arg0()) < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || get_chunk_size(vhost->arg0()) > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
-            srs_warn("chunk_size=%s of %s should be in [%d, %d]", get_global_chunk_size(), vhost->arg0().c_str(),
+            srs_warn("chunk_size=%d of %s should be in [%d, %d]", get_chunk_size(vhost->arg0()), vhost->arg0().c_str(),
                      SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the DASH window and fragment and the HLS notify size, from the env and the file, as the getters read
+    // them. The MPD lists the last dash_window_size segments of fragments of dash_fragment, so it needs at least
+    // one of each, and hls_nb_notify is the size to read of the notify response, so it can not be negative.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        string value = srs_getenv("SRS_VHOST_DASH_DASH_WINDOW_SIZE");
+        if (!value.empty() && ::atoi(value.c_str()) < 1) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_DASH_DASH_WINDOW_SIZE=%s, should be at least 1", value.c_str());
+        }
+        value = srs_getenv("SRS_VHOST_DASH_DASH_FRAGMENT");
+        if (!value.empty() && (srs_utime_t)(::atof(value.c_str()) * SRS_UTIME_SECONDS) <= 0) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_DASH_DASH_FRAGMENT=%s, should be above 0", value.c_str());
+        }
+        value = srs_getenv("SRS_VHOST_HLS_HLS_NB_NOTIFY");
+        if (!value.empty() && ::atoi(value.c_str()) < 0) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_HLS_HLS_NB_NOTIFY=%s, should not be negative", value.c_str());
+        }
+
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts[i];
+            SrsConfDirective *dash = vhost->get("dash");
+            SrsConfDirective *hls = vhost->get("hls");
+
+            SrsConfDirective *conf = dash ? dash->get("dash_window_size") : NULL;
+            if (conf && !conf->arg0().empty() && ::atoi(conf->arg0().c_str()) < 1) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s dash_window_size=%s, should be at least 1",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
+            }
+            conf = dash ? dash->get("dash_fragment") : NULL;
+            if (conf && !conf->arg0().empty() && (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS) <= 0) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s dash_fragment=%s, should be above 0",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
+            }
+            conf = hls ? hls->get("hls_nb_notify") : NULL;
+            if (conf && !conf->arg0().empty() && ::atoi(conf->arg0().c_str()) < 0) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s hls_nb_notify=%s, should not be negative",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
+            }
         }
     }
 

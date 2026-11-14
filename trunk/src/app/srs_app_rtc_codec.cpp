@@ -111,6 +111,9 @@ SrsAudioTranscoder::SrsAudioTranscoder()
     enc_frame_ = NULL;
     enc_packet_ = NULL;
     swr_ = NULL;
+    swr_in_layout_ = 0;
+    swr_in_format_ = 0;
+    swr_in_rate_ = 0;
     swr_data_ = NULL;
     fifo_ = NULL;
     new_pkt_pts_ = AV_NOPTS_VALUE;
@@ -300,10 +303,14 @@ srs_error_t SrsAudioTranscoder::init_enc(SrsAudioCodecId dst_codec, int dst_chan
     return srs_success;
 }
 
-srs_error_t SrsAudioTranscoder::init_swr(AVCodecContext *decoder)
+srs_error_t SrsAudioTranscoder::init_swr(AVFrame *frame)
 {
+    swr_in_layout_ = frame->channel_layout ? frame->channel_layout : av_get_default_channel_layout(frame->channels);
+    swr_in_format_ = frame->format;
+    swr_in_rate_ = frame->sample_rate;
+
     swr_ = swr_alloc_set_opts(NULL, enc_->channel_layout, enc_->sample_fmt, enc_->sample_rate,
-                              decoder->channel_layout, decoder->sample_fmt, decoder->sample_rate, 0, NULL);
+                              swr_in_layout_, (AVSampleFormat)swr_in_format_, swr_in_rate_, 0, NULL);
     if (!swr_) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "alloc swr");
     }
@@ -370,8 +377,16 @@ srs_error_t SrsAudioTranscoder::decode_and_resample(SrsParsedAudioPacket *pkt)
                                  av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, error));
         }
 
+        // The decoded audio may change, such as AAC from stereo to mono, so rebuild the resampler for it, which
+        // otherwise reads a channel the frame does not have.
+        uint64_t layout = dec_frame_->channel_layout ? dec_frame_->channel_layout : av_get_default_channel_layout(dec_frame_->channels);
+        if (swr_ && (layout != swr_in_layout_ || dec_frame_->format != swr_in_format_ || dec_frame_->sample_rate != swr_in_rate_)) {
+            swr_free(&swr_);
+            free_swr_samples();
+        }
+
         // Decoder is OK now, try to init swr if not initialized.
-        if (!swr_ && (err = init_swr(dec_)) != srs_success) {
+        if (!swr_ && (err = init_swr(dec_frame_)) != srs_success) {
             return srs_error_wrap(err, "resample init");
         }
 

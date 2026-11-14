@@ -320,7 +320,7 @@ public:
     virtual ~ISrsRtcTcpConn();
 
 public:
-    // Interrupt the TCP connection.
+    // Interrupt the TCP connection, and wait until it leaves the packet it is handling.
     virtual void interrupt() = 0;
 };
 
@@ -336,6 +336,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Because session references to this object, so we should directly use the session ptr.
     ISrsRtcConnection *session_;
+    // Whether the coroutine is in the session, handling a packet, and whether interrupt waits for it to leave.
+    bool handling_;
+    bool waiting_;
+    srs_cond_t handled_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -372,7 +376,7 @@ public:
 
 public:
     ISrsKbpsDelta *delta();
-    // Interrupt transport by session.
+    // Interrupt transport by session, and wait until it leaves the packet it is handling.
     void interrupt();
     // Interface ISrsResource.
 public:

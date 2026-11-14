@@ -85,6 +85,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     AVPacket *enc_packet_;
 
     SwrContext *swr_;
+    // The input the resampler is built for, from the decoded frame.
+    uint64_t swr_in_layout_;
+    int swr_in_format_;
+    int swr_in_rate_;
     // buffer for swr out put
     uint8_t **swr_data_;
     AVAudioFifo *fifo_;
@@ -116,7 +120,7 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t init_dec(SrsAudioCodecId from);
     srs_error_t init_enc(SrsAudioCodecId to, int channels, int samplerate, int bit_rate);
-    srs_error_t init_swr(AVCodecContext *decoder);
+    srs_error_t init_swr(AVFrame *frame);
     srs_error_t init_fifo();
 
     srs_error_t decode_and_resample(SrsParsedAudioPacket *pkt);

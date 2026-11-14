@@ -725,9 +725,8 @@ VOID TEST(FragmentedMp4Test, InitializeWriteAndReap)
     EXPECT_EQ(2000, dts); // Should return last dts from encoder
 
     // Clean up - set to NULL to avoid double-free
-    // Note: fw_ was already freed by reap(), so just set to NULL
+    // Note: reap() only closes fw_, so the fmp4 frees it
     fmp4->config_ = NULL;
-    fmp4->fw_ = NULL;
     fmp4->enc_ = NULL;
     srs_freep(mock_encoder);
     fmp4->fragment_ = NULL;
@@ -5944,7 +5943,6 @@ VOID TEST(HookRejectionTest, HttpFlvRejectedViewerReceivesHookStatus)
     stream.config_ = &config;
     stream.hooks_ = &hooks;
     stream.entry_ = new SrsHttpMuxEntry();
-    stream.entry_->enabled = false;
 
     err = stream.serve_http(&writer, message.get());
     EXPECT_TRUE(err != srs_success);

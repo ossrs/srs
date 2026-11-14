@@ -218,6 +218,11 @@ SrsRtpNackForReceiver::~SrsRtpNackForReceiver()
 void SrsRtpNackForReceiver::insert(uint16_t first, uint16_t last)
 {
     for (uint16_t s = first; s != last; ++s) {
+        // Stop at the limit, as check_queue_size clears a full list. A sequence jump can name a gap of 32767.
+        if (queue_.size() >= max_queue_size_) {
+            break;
+        }
+
         queue_[s] = SrsRtpNackInfo();
     }
 }

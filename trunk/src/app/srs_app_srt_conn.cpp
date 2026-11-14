@@ -163,6 +163,9 @@ srs_error_t SrsSrtRecvThread::do_cycle()
             if (srs_error_code(err) != ERROR_SRT_TIMEOUT) {
                 return srs_error_wrap(err, "srt read");
             }
+
+            // A player sends nothing, so its read times out after each idle period; ignore it.
+            srs_freep(err);
         }
     }
 

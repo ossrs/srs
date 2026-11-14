@@ -1025,6 +1025,7 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
     // Create mock segment
     MockHlsM4sSegment segment;
     segment.sequence_no_ = 10;                         // 10 % 5 == 0, so key should be written
+    segment.encrypted_ = true;                         // Encrypted by config_cipher when it opened
     segment.is_sequence_header_ = true;                // Should write discontinuity
     segment.duration_ = 5000 * SRS_UTIME_MILLISECONDS; // 5 seconds
     segment.fullpath_ = "/path/to/segment-[duration].m4s";
@@ -1073,6 +1074,7 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentDefaultKeyUrl)
 
     MockHlsM4sSegment segment;
     segment.sequence_no_ = 10;
+    segment.encrypted_ = true;
     segment.fullpath_ = "./objs/nginx/html/test_app/test_stream-10.m4s";
 
     // The key is written beside the playlist, so the URI resolves from the playlist to the key.
@@ -1139,6 +1141,7 @@ VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentWithEncryption)
     // Create mock segment
     MockHlsSegmentForRefreshM3u8 segment;
     segment.sequence_no_ = 10;                           // 10 % 5 == 0, so key should be written
+    segment.encrypted_ = true;                           // Encrypted by config_cipher when it opened
     segment.set_is_sequence_header(true);                // Should write discontinuity
     segment.set_duration(5000 * SRS_UTIME_MILLISECONDS); // 5 seconds
 
@@ -1187,6 +1190,7 @@ VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentDefaultKeyUrl)
 
     MockHlsSegmentForRefreshM3u8 segment;
     segment.sequence_no_ = 10;
+    segment.encrypted_ = true;
 
     // The key is written beside the playlist, so the URI resolves from the playlist to the key.
     std::stringstream ss;

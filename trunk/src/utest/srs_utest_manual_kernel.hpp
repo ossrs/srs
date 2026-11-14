@@ -75,7 +75,7 @@ public:
 
 public:
     virtual bool is_open();
-    virtual void seek2(int64_t offset);
+    virtual srs_error_t seek2(int64_t offset);
     virtual int64_t tellg();
     virtual int64_t filesize();
     virtual char *data();

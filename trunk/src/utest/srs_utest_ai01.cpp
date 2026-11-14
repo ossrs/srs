@@ -3778,14 +3778,11 @@ VOID TEST(ConfigDashTest, CheckDashFragment)
         EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_dash_fragment("test.com"));
     }
 
-    // Test zero and negative values
+    // Test zero and negative values, refused as a fragment must be above zero
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment 0;}}"));
-        EXPECT_EQ(0, conf.get_dash_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
-        EXPECT_EQ((srs_utime_t)(-5 * SRS_UTIME_SECONDS), conf.get_dash_fragment("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment 0;}}"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
     }
 }
 
@@ -4123,14 +4120,11 @@ VOID TEST(ConfigDashTest, CheckDashWindowSize)
         EXPECT_EQ(100, conf.get_dash_window_size("test.com"));
     }
 
-    // Test zero and negative values
+    // Test zero and negative values, refused as the window must be at least 1
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_window_size 0;}}"));
-        EXPECT_EQ(0, conf.get_dash_window_size("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_window_size -5;}}"));
-        EXPECT_EQ(-5, conf.get_dash_window_size("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_window_size 0;}}"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_window_size -5;}}"));
     }
 }
 

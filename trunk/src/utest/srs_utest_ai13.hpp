@@ -82,7 +82,7 @@ public:
     virtual srs_error_t open_append(std::string file);
     virtual void close();
     virtual bool is_open();
-    virtual void seek2(int64_t offset);
+    virtual srs_error_t seek2(int64_t offset);
     virtual int64_t tellg();
     virtual srs_error_t write(void *buf, size_t count, ssize_t *pnwrite);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);

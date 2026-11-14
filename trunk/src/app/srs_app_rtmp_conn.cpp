@@ -191,6 +191,12 @@ srs_error_t SrsRtmpsTransport::handshake()
 {
     string crt_file = config_->get_rtmps_ssl_cert();
     string key_file = config_->get_rtmps_ssl_key();
+
+    // Set the timeouts before the TLS handshake, so a client that sends nothing is dropped, as a plain RTMP client is
+    // in the RTMP handshake.
+    ssl_->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+    ssl_->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
+
     srs_error_t err = ssl_->handshake(key_file, crt_file);
     if (err != srs_success) {
         return srs_error_wrap(err, "ssl handshake");
@@ -759,6 +765,7 @@ srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> 
             // If failed to discovery stream in this coworker, we should request the next one util the last.
             // @see https://github.com/ossrs/srs/issues/1223
             if (i < (int)coworkers.size() - 1) {
+                srs_freep(err);
                 continue;
             }
             return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
@@ -806,7 +813,13 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
     // when mw_sleep changed, resize the socket send buffer.
     mw_msgs_ = config_->get_mw_msgs(req->vhost_, realtime_, false);
     mw_sleep_ = config_->get_mw_sleep(req->vhost_);
-    transport_->set_socket_buffer(mw_sleep_);
+
+    // The send buffer only tunes the latency, so play on when the socket refuses it.
+    if ((err = transport_->set_socket_buffer(mw_sleep_)) != srs_success) {
+        srs_warn("ignore send buffer err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
     // initialize the send_min_interval
     send_min_interval_ = config_->get_send_min_interval(req->vhost_);
 

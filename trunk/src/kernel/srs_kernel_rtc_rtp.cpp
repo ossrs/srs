@@ -118,7 +118,20 @@ srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16
         uint8_t id = (v & 0xF0) >> 4;
         uint8_t len = (v & 0x0F) + 1;
 
+        // RFC 8285 reserves id 15, which ends the extension.
+        if (id == 15) {
+            break;
+        }
+
+        // An element must fit in the extension, or the walk reads past the packet.
+        if (len > extension_length) {
+            return srs_error_new(ERROR_RTC_RTP_MUXER, "extension element %d of %d bytes, left %d", id, len, extension_length);
+        }
+
         if (id == twcc_id) {
+            if (len < 2) {
+                return srs_error_new(ERROR_RTC_RTP_MUXER, "twcc element of %d bytes", len);
+            }
             twcc_sn = ntohs(*((uint16_t *)buf));
             return err;
         } else {

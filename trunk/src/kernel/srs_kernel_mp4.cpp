@@ -6848,6 +6848,11 @@ srs_error_t SrsMp4Encoder::flush()
             srs_freep(desc.decSpecificInfo_);
 
             if (SrsMp4ObjectTypeAac == desc.objectTypeIndication) {
+                // An empty AAC sequence header leaves no ASC, and the decoder specific info can not be empty.
+                if (pasc_.empty()) {
+                    return srs_error_new(ERROR_MP4_ILLEGAL_TRACK, "aac track without asc");
+                }
+
                 SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
                 desc.decSpecificInfo_ = asc;
                 asc->asc_ = pasc_;

@@ -161,9 +161,9 @@ bool MockSrsFileWriter::is_open()
     return opened;
 }
 
-void MockSrsFileWriter::seek2(int64_t offset)
+srs_error_t MockSrsFileWriter::seek2(int64_t offset)
 {
-    lseek(offset, SEEK_SET, NULL);
+    return lseek(offset, SEEK_SET, NULL);
 }
 
 int64_t MockSrsFileWriter::tellg()
