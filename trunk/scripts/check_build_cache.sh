@@ -36,7 +36,9 @@ for pair in st:st-srs openssl:openssl-1.1-fit srtp2:libsrtp-2-fit ffmpeg:ffmpeg-
     if [[ $lib != patches && ! -d ${cache}/3rdparty/${lib} ]]; then
         failed+=(${src}); echo "Cache miss ${src}, configure would build it from source."; continue
     fi
-    changed=$(diff -rq 3rdparty/${src} ${source}/3rdparty/${src} 2>&1)
+    # The ST tests are built by its own utest targets, never into the cached library.
+    exclude=; if [[ $src == st-srs ]]; then exclude="--exclude=utest"; fi
+    changed=$(diff -rq $exclude 3rdparty/${src} ${source}/3rdparty/${src} 2>&1)
     if [[ -n $changed ]]; then
         failed+=(${src})
         echo "Stale ${src}, $(echo "$changed" | wc -l | tr -d ' ') files differ from this tree, for example:"

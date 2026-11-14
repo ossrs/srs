@@ -17,6 +17,11 @@
 #include <srs_kernel_rtc_rtp.hpp>
 
 const int kRtcpPacketSize = 1500;
+
+// The max number of lost packets one NACK may request; the rest of a larger NACK are ignored, so one NACK never
+// makes the server resend its whole cache. 128 packets is about 300ms of video at 4Mbps, as much as a resend can
+// repair before the player gives up on the frames; a larger loss is recovered by a keyframe instead.
+const int kRtcpNackMaxLostSns = 128;
 const uint8_t kRtcpVersion = 0x2;
 
 // 1500 - 20(ip_header) - 8(udp_header)

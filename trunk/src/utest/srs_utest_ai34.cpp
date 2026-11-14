@@ -1693,7 +1693,7 @@ static bool utest_forward_started(SrsForwarder *forwarder)
 
 // With forward disabled, neither the destinations nor the backend create a forwarder, and the
 // backend is never asked.
-VOID TEST(OriginHubForwardTest, DisabledCreatesNoForwarders)
+VOID TEST(OriginHubForwardTest, ForwardOffCreatesNoForwarders)
 {
     srs_error_t err;
 
@@ -2476,11 +2476,8 @@ VOID TEST(HttpHooksForwardBackendTest, KeepsUrlsInOrderAndSkipsEmptyStrings)
     }
 }
 
-// A non-string entry in urls aborts the server: on_forward_backend() calls to_str() on each entry,
-// and SrsJsonAny::to_str() asserts the value is a string. Disabled because the assert kills the
-// test binary; run it with --gtest_also_run_disabled_tests to see the abort. When fixed, the hook
-// should fail or skip the entry, and this test should pin that instead.
-VOID TEST(HttpHooksForwardBackendTest, DISABLED_NonStringUrlAbortsServer)
+// A non-string entry in urls fails the hook, as a broken response, instead of asserting in to_str().
+VOID TEST(HttpHooksForwardBackendTest, NonStringUrlFails)
 {
     srs_error_t err;
 

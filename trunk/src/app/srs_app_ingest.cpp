@@ -383,21 +383,24 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
 {
     srs_error_t err = srs_success;
 
-    int port;
-    if (true) {
-        std::vector<std::string> ip_ports = config_->get_listens();
-        srs_assert(ip_ports.size() > 0);
-
-        std::string ip;
-        std::string ep = ip_ports[0];
-        srs_net_split_for_listener(ep, ip, port);
-    }
-
     std::string output = config_->get_engine_output(engine);
     // output stream, to other/self server
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_strings_replace(output, "[vhost]", vhost->arg0());
-    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(port));
+
+    // The [port] is the first RTMP listen, which a server without RTMP does not have.
+    if (output.find("[port]") != std::string::npos) {
+        std::vector<std::string> ip_ports = config_->get_listens();
+        if (ip_ports.empty()) {
+            return srs_error_new(ERROR_ENCODER_OUTPUT, "no rtmp listen for [port] of %s", output.c_str());
+        }
+
+        int port;
+        std::string ip;
+        std::string ep = ip_ports[0];
+        srs_net_split_for_listener(ep, ip, port);
+        output = srs_strings_replace(output, "[port]", srs_strconv_format_int(port));
+    }
     output = srs_path_build_timestamp(config_, output);
     // Remove the only param with default vhost.
     output = srs_strings_replace(output, "vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST, "");

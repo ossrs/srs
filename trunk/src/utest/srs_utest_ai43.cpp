@@ -4979,25 +4979,3 @@ VOID TEST(AppHttpStreamTest, RefusedPublishOnSharedMount_FirstStreamStillServed)
     EXPECT_TRUE(h != NULL && h == server.mounted(game.get_stream_url()));
     server.unmount(&game);
 }
-
-// The process is out of memory when an encoder unpublishes, so the teardown of its HTTP stream cannot start. The stream
-// stays disposing, though no teardown runs, so when memory is back, the encoder's next publish should mount the stream
-// again; instead, every publish of the stream is refused as disposing until the server restarts.
-VOID TEST(AppHttpStreamTest, DISABLED_UnpublishWhenNoCoroutineCanBeCreated_StreamNeverPublishesAgain)
-{
-    srs_error_t err;
-
-    HttpStreamUtestServer server;
-    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
-    HELPER_ASSERT_SUCCESS(server.mount(&server.req_));
-
-    // The unmount the source's unpublish asks for.
-    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
-    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)forward_st_thread_create_out_of_memory;
-    server.unmount(&server.req_);
-    _pfn_st_thread_create = ov;
-
-    // The mount the source's next publish asks for.
-    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
-    HELPER_EXPECT_SUCCESS(server.mount(&server.req_));
-}

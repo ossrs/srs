@@ -463,6 +463,8 @@ SrsHttpRedirectHandler::~SrsHttpRedirectHandler()
 
 srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = srs_success;
+
     string location = url;
     if (!r->query().empty()) {
         location += "?" + r->query();
@@ -475,11 +477,16 @@ srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter *w, ISrsHt
     w->header()->set("Location", location);
     w->write_header(code);
 
-    w->write((char *)msg.data(), (int)msg.length());
-    w->final_request();
+    if ((err = w->write((char *)msg.data(), (int)msg.length())) != srs_success) {
+        return srs_error_wrap(err, "write redirect");
+    }
+
+    if ((err = w->final_request()) != srs_success) {
+        return srs_error_wrap(err, "final request");
+    }
 
     srs_info("redirect to %s.", location.c_str());
-    return srs_success;
+    return err;
 }
 
 SrsHttpNotFoundHandler::SrsHttpNotFoundHandler()

@@ -96,6 +96,8 @@ SrsHlsSegment::SrsHlsSegment(SrsTsContext *c, SrsAudioCodecId ac, SrsVideoCodecI
     sequence_no_ = 0;
     writer_ = w;
     tscw_ = new SrsTsContextWriter(writer_, c, ac, vc);
+    memset(iv_, 0, 16);
+    encrypted_ = false;
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -106,6 +108,7 @@ SrsHlsSegment::~SrsHlsSegment()
 void SrsHlsSegment::config_cipher(unsigned char *key, unsigned char *iv)
 {
     memcpy(this->iv_, iv, 16);
+    encrypted_ = true;
 
     SrsEncFileWriter *fw = dynamic_cast<SrsEncFileWriter *>(writer_);
     srs_assert(fw);
@@ -217,6 +220,8 @@ SrsHlsM4sSegment::SrsHlsM4sSegment(ISrsFileWriter *fw)
 {
     fw_ = fw;
     sequence_no_ = 0;
+    memset(iv_, 0, 16);
+    encrypted_ = false;
 }
 
 SrsHlsM4sSegment::~SrsHlsM4sSegment()
@@ -250,6 +255,7 @@ void SrsHlsM4sSegment::config_cipher(unsigned char *key, unsigned char *iv)
     // TODO: set key and iv to mp4 box
     enc_.config_cipher(key, iv);
     memcpy(this->iv_, iv, 16);
+    encrypted_ = true;
 }
 
 void SrsHlsM4sSegment::config_video_cipher(SrsVideoCodecId codec, int nalu_length_size)
@@ -1251,7 +1257,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
         ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
     }
 
-    if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
+    if (hls_keys_ && segment->encrypted_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
         char hexiv[33];
         srs_hex_encode_to_string(hexiv, segment->iv_, 16);
         hexiv[32] = '\0';
@@ -1578,6 +1584,9 @@ srs_error_t SrsHlsMuxer::do_recover_hls()
     }
 
     bool discon = false;
+    bool encrypted = false;
+    unsigned char iv[16];
+    memset(iv, 0, 16);
 
     std::string ptl;
     while (!body.empty()) {
@@ -1621,6 +1630,18 @@ srs_error_t SrsHlsMuxer::do_recover_hls()
         // the discontinuity tag.
         if (srs_strings_starts_with(line, "#EXT-X-DISCONTINUITY")) {
             discon = true;
+        }
+
+        // #EXT-X-KEY:METHOD=AES-128,URI="livestream-5.key",IV=0x0102030405060708090A0B0C0D0E0F10
+        // the IV the next segment is encrypted with, which the m3u8 refresh writes again. Without it, the refresh
+        // writes no key for the segment rather than a wrong IV.
+        if (srs_strings_starts_with(line, "#EXT-X-KEY:")) {
+            std::string hexiv;
+            if ((pos = line.find(",IV=0x")) != string::npos) {
+                hexiv = line.substr(pos + 6);
+            }
+            encrypted = hexiv.length() == 32 && srs_hex_decode_string(iv, hexiv.c_str(), 32) == 16;
+            continue;
         }
 
         // #EXTINF:11.401,
@@ -1670,6 +1691,10 @@ srs_error_t SrsHlsMuxer::do_recover_hls()
             seg->set_path(hls_path_ + "/" + req_->app_ + "/" + ts_url);
             seg->uri_ = ts_url;
             seg->set_sequence_header(discon);
+            if (encrypted) {
+                memcpy(seg->iv_, iv, 16);
+                seg->encrypted_ = true;
+            }
 
             seg->append(0);
             seg->append(ts_duration * 1000);
@@ -1681,6 +1706,7 @@ srs_error_t SrsHlsMuxer::do_recover_hls()
         }
 
         discon = false;
+        encrypted = false;
     }
 
     return err;
@@ -2193,7 +2219,7 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::st
         ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
     }
 
-    if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
+    if (hls_keys_ && segment->encrypted_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
         char hexiv[33];
         srs_hex_encode_to_string(hexiv, segment->iv_, 16);
         hexiv[32] = '\0';

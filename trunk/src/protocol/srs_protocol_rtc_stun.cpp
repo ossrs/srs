@@ -350,6 +350,13 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
     string property_username = encode_username();
     string mapped_address = encode_mapped_address();
 
+    // The header, the username and mapped address, then the 24 bytes integrity and 8 bytes fingerprint. The username
+    // comes from the client, so a long one does not fit the caller's buffer.
+    int nb_response = 20 + (int)property_username.size() + (int)mapped_address.size() + 24 + 8;
+    if (!stream->require(nb_response)) {
+        return srs_error_new(ERROR_RTC_STUN, "stun response requires %d only %d bytes", nb_response, stream->left());
+    }
+
     stream->write_2bytes(BindingResponse);
     stream->write_2bytes(property_username.size() + mapped_address.size());
     stream->write_4bytes(kStunMagicCookie);
@@ -386,10 +393,11 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
 
 string SrsStunPacket::encode_username()
 {
-    char buf[1460];
-    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
-
     string username = remote_ufrag_ + ":" + local_ufrag_;
+
+    // The type, length, username and padding, sized for a username of any length.
+    vector<char> buf(4 + username.size() + 4);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(&buf[0], (int)buf.size()));
 
     stream->write_2bytes(Username);
     stream->write_2bytes(username.size());

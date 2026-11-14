@@ -2124,6 +2124,12 @@ srs_error_t SrsLiveSource::on_audio(SrsRtmpCommonMessage *shared_audio)
     }
     last_packet_time_ = shared_audio->header_.timestamp_;
 
+    // Drop the empty audio, as an edge pulling HTTP-FLV may get from its origin, like the protocol and on_video do.
+    if (shared_audio->size() <= 0) {
+        srs_warn("drop empty audio");
+        return srs_success;
+    }
+
     // convert shared_audio to msg, user should not use shared_audio again.
     // the payload is transfer to msg, and set to NULL in shared_audio.
     SrsMediaPacket msg;

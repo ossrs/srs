@@ -604,13 +604,17 @@ srs_error_t SrsSslConnection::write(void *plaintext, size_t nn_plaintext, ssize_
             *nwrite += (ssize_t)r0;
         }
 
+        // Copy the records out and empty the BIO before the socket write, which may switch to the recv coroutine,
+        // whose SSL_read may append to the BIO and move its buffer. What it appends goes out with the next write.
         uint8_t *data = NULL;
         int size = BIO_get_mem_data(bio_out_, &data);
-        if ((err = transport_->write(data, size, NULL)) != srs_success) {
-            return srs_error_wrap(err, "tls: write data=%p, size=%d", data, size);
-        }
+        SrsUniquePtr<char[]> cipher(new char[size]);
+        memcpy(cipher.get(), data, size);
         if ((r0 = BIO_reset(bio_out_)) != 1) {
             return srs_error_new(ERROR_TLS_WRITE, "BIO_reset r0=%d", r0);
+        }
+        if ((err = transport_->write(cipher.get(), size, NULL)) != srs_success) {
+            return srs_error_wrap(err, "tls: write data=%p, size=%d", cipher.get(), size);
         }
     }
 

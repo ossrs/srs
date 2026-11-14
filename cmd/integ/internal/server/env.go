@@ -116,6 +116,9 @@ type Config struct {
 	// the HTTPS API and the HTTPS server another: SRS then serves the API on
 	// the server's port.
 	OneHTTPPort bool
+	// RTCOnHTTPPort makes WebRTC over TCP listen on the HTTP server's port:
+	// SRS then peeks at each client's first bytes to tell WebRTC from HTTP.
+	RTCOnHTTPPort bool
 	// APIPort is the HTTP API's port, one ReservePort handed out, for a
 	// server whose API others must know before it starts, such as an origin
 	// of an origin cluster; 0 allocates one.
@@ -175,6 +178,11 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 	}
 	if cfg.OneHTTPPort {
 		if err := checkOneHTTPPort(on, ports); err != nil {
+			return nil, err
+		}
+	}
+	if cfg.RTCOnHTTPPort {
+		if err := checkRTCOnHTTPPort(on, ports); err != nil {
 			return nil, err
 		}
 	}
