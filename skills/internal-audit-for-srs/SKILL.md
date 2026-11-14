@@ -99,7 +99,17 @@ Append each one's sections to its `audit-<n>.md`.
 
 ### 4. Phase 3, prove
 
-Create a proof worktree per auditor, detached at the audited commit, so no branch moves: `git worktree add --detach <dir>/proof-<n> <tip>`. Continue each subagent with:
+Phase 3 builds and runs the code at the audited commit. When that commit is a pull request's head, from Review a PR or Scan PRs, the parent first reads every changed file that runs during configure, build or test:
+
+- `trunk/configure`, `trunk/auto/`, Makefiles, and shell, Python or Go scripts.
+- Test code: `trunk/src/utest`, `cmd/integ`, `*_test.go`.
+- `trunk/3rdparty/` and `.github/`.
+
+The parent judges whether running them could harm this machine, its data or its accounts, and skips phase 3 when any of them could, or when it cannot tell what a change does.
+
+A skipped phase 3 is a finding: the parent tells the user the risky lines, with the file and line, and the audit ends after phase 2 with nothing run. When the check finds nothing, phase 3 runs.
+
+Create a proof worktree per auditor, detached at the audited commit, so no branch moves: `git worktree add --detach <dir>/proof-<n> <tip>`. These worktrees are the audit's own, an exception to the worktree rule in `skills/srs-develop/SKILL.md`. Note `git worktree list` before creating them. Continue each subagent with:
 
 ```
 Phase 3. Prove one bug. Your proof worktree is <dir>/proof-<n>, detached at <tip>; write and run tests only there.
@@ -113,6 +123,8 @@ Never edit the audited branch or its worktree, never commit, never fix. End with
 Append each one's sections to its `audit-<n>.md`. When one auditor proves a P0, the parent stops the others: the audit needs one bug. A proven P1 does not stop the others, since one of them may still prove a P0.
 
 For each proof worktree, save the proof test, new files included, with `git -C <dir>/proof-<n> add -A` and then `git -C <dir>/proof-<n> diff --cached` to `<dir>/proof-<n>.diff`, so a fix can take it as its regression test. Then remove the worktree with `git worktree remove --force <dir>/proof-<n>`.
+
+Remove every proof worktree, also one whose auditor was stopped, failed or never ran. Then run `git worktree prune` and compare `git worktree list` with the list noted before phase 3; tell the user about any worktree left over.
 
 ### 5. Hand over
 

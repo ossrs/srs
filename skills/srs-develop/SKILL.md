@@ -113,7 +113,7 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 ## Git Worktree
 
-Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request.
+Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request. The audit's proof worktrees are the exception: `skills/internal-audit-for-srs/SKILL.md` creates them in the scratchpad and removes them when it ends.
 
 Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
 

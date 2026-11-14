@@ -2439,8 +2439,22 @@ void SrsRtcConnection::on_before_dispose(ISrsResource *c)
 
 void SrsRtcConnection::on_disposing(ISrsResource *c)
 {
-    if (disposing_) {
+    SrsRtcConnection *session = dynamic_cast<SrsRtcConnection *>(c);
+    if (session != this) {
         return;
+    }
+
+    // Stop the TCP conn before the session is freed, because its coroutine may be in a send of a player or a
+    // publisher, such as a NACK resend, and return into it. The stop waits for that coroutine, which the manager
+    // allows here, but not while it frees the session.
+    ISrsRtcTcpNetwork *tcp = dynamic_cast<ISrsRtcTcpNetwork *>(networks_->tcp());
+    if (!tcp) {
+        return;
+    }
+
+    SrsSharedResource<ISrsRtcTcpConn> owner = tcp->owner();
+    if (owner.get()) {
+        owner->interrupt();
     }
 }
 

@@ -2691,6 +2691,126 @@ VOID TEST(MemoryAuditTest, SrsRtcTcpConn_SessionFreedDuringDtlsSendUsesFreedDtls
     srs_close_stfd(lfd);
 }
 
+// A resource of another client, which counts how many times it is freed.
+class MemoryAuditCountedResource : public ISrsResource
+{
+public:
+    SrsContextId cid_;
+    int *nn_freed_;
+
+public:
+    MemoryAuditCountedResource(int *nn_freed)
+    {
+        nn_freed_ = nn_freed;
+    }
+    virtual ~MemoryAuditCountedResource()
+    {
+        (*nn_freed_)++;
+    }
+
+public:
+    virtual const SrsContextId &get_id() { return cid_; }
+    virtual std::string desc() { return "MemoryAuditCountedResource"; }
+};
+
+// The TCP conn of a session, whose coroutine is in a send of the session, such as a NACK resend of a player, when
+// the session is freed. interrupt() waits for the coroutine to leave the send, and meanwhile another client closes,
+// which removes its resource again. It notes how many players the session still had when it was stopped.
+class MemoryAuditTcpConnInSend : public ISrsRtcTcpConn
+{
+public:
+    SrsContextId cid_;
+    SrsRtcConnection *session_;
+    ISrsResourceManager *manager_;
+    ISrsResource *closing_;
+    bool interrupted_;
+    int nn_players_;
+
+public:
+    MemoryAuditTcpConnInSend(SrsRtcConnection *session, ISrsResourceManager *manager, ISrsResource *closing)
+    {
+        session_ = session;
+        manager_ = manager;
+        closing_ = closing;
+        interrupted_ = false;
+        nn_players_ = -1;
+    }
+    virtual ~MemoryAuditTcpConnInSend()
+    {
+    }
+
+public:
+    virtual const SrsContextId &get_id() { return cid_; }
+    virtual std::string desc() { return "MemoryAuditTcpConnInSend"; }
+    virtual std::string remote_ip() { return "127.0.0.1"; }
+    virtual srs_error_t cycle() { return srs_success; }
+    virtual void on_executor_done(ISrsInterruptable *executor) {}
+
+public:
+    virtual void interrupt()
+    {
+        // Once stopped, the coroutine handles no more packets, so a later interrupt returns at once.
+        if (interrupted_) {
+            return;
+        }
+        interrupted_ = true;
+        nn_players_ = (int)session_->players_.size();
+
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        manager_->remove(closing_);
+    }
+};
+
+// B96, B103: when the RTC server frees a WebRTC over TCP session, it must stop the session's TCP conn before it frees
+// any part of the session, because the conn's coroutine may be in a send of a player, such as a NACK resend, and
+// returns into it. The wait for that coroutine must also happen where the resource manager allows a coroutine
+// switch, so that another client of the same batch, removed again meanwhile by its own conn, is freed once.
+VOID TEST(MemoryAuditTest, SrsRtcConnection_TcpConnStoppedBeforeSessionFreed)
+{
+    srs_error_t err;
+
+    // The session switches this coroutine to its context; keep ours for the tests that run after.
+    SrsContextRestore(_srs_context->get_id());
+
+    // The RTC server's resource manager, with its own coroutine as the server starts it.
+    SrsResourceManager manager("utest-rtc");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // A WHEP session over TCP with one player, which the manager owns and frees.
+    MockRtcAsyncTaskExecutor exec;
+    MockRtcPacketSender sender;
+    SrsRtcConnection *session = new SrsRtcConnection(&exec, SrsContextId());
+    session->conn_manager_ = &manager;
+    session->assemble();
+    session->players_["/live/livestream"] = new SrsRtcPlayStream(&exec, session, &sender, SrsContextId());
+    manager.add(session);
+
+    // Another client of the server.
+    int nn_freed = 0;
+    MemoryAuditCountedResource *other = new MemoryAuditCountedResource(&nn_freed);
+    manager.add(other);
+
+    // The session's TCP conn, in a send of the session.
+    MemoryAuditTcpConnInSend *conn = new MemoryAuditTcpConnInSend(session, &manager, other);
+    SrsSharedResource<ISrsRtcTcpConn> owner(conn);
+    ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session->tcp());
+    ASSERT_TRUE(network != NULL);
+    network->set_owner(owner);
+
+    // Both time out in the same tick, and the manager frees them.
+    manager.remove(session);
+    manager.remove(other);
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    // The conn was stopped while the session was whole, and the other client was freed once.
+    EXPECT_TRUE(conn->interrupted_);
+    EXPECT_EQ(1, conn->nn_players_);
+    EXPECT_EQ(1, nn_freed);
+    EXPECT_TRUE(manager.empty());
+}
+
 // Feed a WHIP H.264 publisher's stream to a frame builder with RTC to RTMP on: one IDR packet, then count packets of
 // a one-byte NALU (only the header, as SrsRtcVideoRecvTrack decodes a raw NALU), each with the marker bit and its
 // own timestamp, so each is a whole frame of no payload. Return how many frames the builder sent, or -1 on an error.
