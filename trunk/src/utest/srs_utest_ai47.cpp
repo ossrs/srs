@@ -32,6 +32,7 @@
 #include <srs_kernel_mp4.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_resource.hpp>
+#include <srs_kernel_rtc_queue.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_conn.hpp>
@@ -73,6 +74,7 @@
 #include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -3011,6 +3013,55 @@ VOID TEST(MemoryAuditTest, SrsRtcFrameBuilder_HeldFramesRecurseOverCoroutineStac
     EXPECT_LT(stack_used, coroutine_stack);
 }
 
+// A WHIP publisher's IDR frame loses its middle packet, and more than 512 later packets come before the resend, so the
+// slot of the IDR's last packet now holds a later packet. The cache took that slot for an earlier packet of the IDR
+// frame and failed the resend as a cache overflow, which the publisher's connection returns as an error: over TCP, it
+// ends the session. A valid publisher's late resend should be taken, or its frame dropped, with no error.
+VOID TEST(MemoryAuditTest, SrsRtcFrameBuilder_LateResendAfterCacheWrapFailsPublisher)
+{
+    srs_error_t err = srs_success;
+
+    char idr_data[] = {0x65, (char)0x88, (char)0x84, 0x00, 0x33};
+    char frame_data[] = {0x41, (char)0x9a};
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+    MockRequest req("test.vhost", "live", "whip_late_resend");
+    HELPER_EXPECT_SUCCESS(builder.initialize(&req, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
+
+    // The IDR frame is packets 0 to 2 with one timestamp and the marker on 2; packet 1 is lost. Then 600 one-packet
+    // frames, 3 to 602, and the resend of packet 1 last.
+    const int nb_frames = 600;
+    int nb_failed = 0;
+    for (int i = 0; i <= nb_frames + 3; i++) {
+        int n = (i == nb_frames + 3) ? 1 : i;
+        if (n == 1 && i == 1) {
+            continue;
+        }
+
+        SrsRtpPacket pkt;
+        pkt.header_.set_ssrc(5678);
+        pkt.header_.set_sequence((uint16_t)(1000 + n));
+        pkt.header_.set_timestamp(n <= 2 ? 90000 : 90000 + n * 3000);
+        pkt.header_.set_marker(n != 0 && n != 1);
+        pkt.frame_type_ = SrsFrameTypeVideo;
+        pkt.set_avsync_time(n <= 2 ? 1000 : 1000 + n * 33);
+
+        SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+        pkt.nalu_type_ = (n <= 2) ? SrsAvcNaluTypeIDR : SrsAvcNaluTypeNonIDR;
+        raw->payload_ = (n <= 2) ? idr_data : frame_data;
+        raw->nn_payload_ = (n <= 2) ? (int)sizeof(idr_data) : (int)sizeof(frame_data);
+        pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+        if ((err = builder.on_rtp(&pkt)) != srs_success) {
+            nb_failed++;
+            srs_freep(err);
+        }
+    }
+
+    EXPECT_EQ(0, nb_failed);
+}
+
 // An SRT player sends no data, so each read of its recv coroutine times out after peer_idle_timeout. The
 // coroutine keeps going on ERROR_SRT_TIMEOUT but never frees that error, so every idle period of every SRT
 // player leaks one error. Under LeakSanitizer, each timeout below is a direct leak from SrsCplxError::create.
@@ -3607,4 +3658,279 @@ VOID TEST(MemoryAuditTest, SrsRtcTcpNetwork_SendToStalledPeerNeverReturns)
 
     network.update_sendonly_socket(NULL);
     srs_close_stfd(lfd);
+}
+
+// A WebRTC publisher jumps its RTP sequence by 32767, the most the forward check accepts. SrsRtcRecvTrack::on_nack
+// asks the ring buffer for the gap, and SrsRtpNackForReceiver::insert added every missing seq to its map, 32766 nodes,
+// before check_queue_size saw the list was over its limit and cleared it. The clear also resets the ring buffer, so
+// the next packet starts it again and the one after can jump again: every two packets cost 32766 map inserts and
+// frees on the one ST thread. The list should stop at its limit.
+VOID TEST(MemoryAuditTest, SrsRtpNackForReceiver_SequenceJumpInsertsWholeGap)
+{
+    srs_error_t err = srs_success;
+
+    // The list never holds more than its limit, whatever gap it is given.
+    if (true) {
+        SrsRtpRingBuffer rtp(1000);
+        SrsRtpNackForReceiver nack(&rtp, 1000 * 2 / 3);
+        nack.insert(100, 100 + 32767);
+        EXPECT_EQ(1000 * 2 / 3, (int)nack.queue_.size());
+
+        // The list is full, so it is cleared.
+        nack.check_queue_size();
+        EXPECT_TRUE(nack.queue_.empty());
+
+        // A gap under the limit is kept whole.
+        nack.insert(100, 110);
+        EXPECT_EQ(10, (int)nack.queue_.size());
+    }
+
+    MockRtcPacketReceiver receiver;
+    MockCircuitBreaker breaker;
+    breaker.hybrid_high_water_level_ = false;
+
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.id_ = "video-track";
+    desc.ssrc_ = 0x2345;
+    desc.is_active_ = true;
+    SrsUniquePtr<SrsRtcVideoRecvTrack> track(new SrsRtcVideoRecvTrack(&receiver, &desc, false));
+    track->circuit_breaker_ = &breaker;
+
+    // Through the track: 100 pairs, a packet that starts the ring buffer, then one 32767 after it.
+    for (int i = 0; i < 100; i++) {
+        uint16_t seqs[] = {(uint16_t)(i * 7), (uint16_t)(i * 7 + 32767)};
+        for (int j = 0; j < 2; j++) {
+            SrsRtpPacket pkt;
+            pkt.header_.set_ssrc(0x2345);
+            pkt.header_.set_sequence(seqs[j]);
+            SrsRtpPacket *p = &pkt;
+            HELPER_ASSERT_SUCCESS(track->on_nack(&p));
+        }
+    }
+
+    // Each jump fills the list to its limit, which is then cleared, so the list is empty.
+    EXPECT_TRUE(track->nack_receiver_->queue_.empty());
+}
+
+// When WebRTC over TCP shares the HTTP port, the server peeks at each new client's first bytes to tell WebRTC from
+// HTTP. The peek waits for the bytes with no recv timeout, so it used to hold the listener's own coroutine: a client
+// that connects and sends fewer bytes, or none, such as a browser's speculative preconnect, kept every later client
+// from being taken. The peek should run in the client's own coroutine.
+VOID TEST(MemoryAuditTest, SrsBufferedReadWriter_IdleClientBlocksSharedHttpPort)
+{
+    srs_error_t err;
+
+    SrsResourceManager manager("utest-shared-port-idle");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->conn_manager_ = &manager;
+    server->reuse_rtc_over_server_ = true;
+
+    MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(&acceptor));
+    int port = srs_utest_random_port();
+    listener->set_endpoint("127.0.0.1", port);
+    HELPER_ASSERT_SUCCESS(listener->listen());
+
+    // The idle client sends 4 bytes, fewer than the peek needs, and then waits. Its peek is counted as a connection.
+    srs_netfd_t stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+    SrsTcpConnection *idle = new SrsTcpConnection(stfd);
+    HELPER_ASSERT_SUCCESS(idle->write((void *)"GET ", 4, NULL));
+    for (int i = 0; i < 100 && manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(1, (int)manager.size());
+    EXPECT_TRUE(acceptor.accepted_);
+    EXPECT_TRUE(acceptor.error_.empty());
+
+    // A normal HTTP client comes after it and sends its whole request line.
+    stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+    SrsTcpConnection *web = new SrsTcpConnection(stfd);
+    const char http[] = "GET / HTTP/1.1\r\n";
+    HELPER_ASSERT_SUCCESS(web->write((void *)http, sizeof(http) - 1, NULL));
+
+    // The server takes the HTTP client while the idle one still waits: its peek and the HTTP connection.
+    int nn_http = 0;
+    for (int i = 0; i < 100 && nn_http == 0; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        for (int j = 0; j < (int)manager.size(); j++) {
+            nn_http += dynamic_cast<SrsHttpxConn *>(manager.at(j)) ? 1 : 0;
+        }
+    }
+    EXPECT_EQ(1, nn_http);
+    for (int i = 0; i < 100 && manager.size() != 2; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(2, (int)manager.size());
+
+    // When the idle client leaves, its peek fails and only the HTTP connection is left.
+    srs_freep(idle);
+    for (int i = 0; i < 100 && manager.size() != 1; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(1, (int)manager.size());
+    EXPECT_TRUE(dynamic_cast<SrsHttpxConn *>(manager.at(0)) != NULL);
+
+    // The HTTP client leaves too, and its connection ends.
+    srs_freep(web);
+    for (int i = 0; i < 100 && !manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(manager.empty());
+
+    server->conn_manager_ = NULL;
+}
+
+// A listener coroutine whose pull() succeeds a fixed number of times, then stops the accept loop.
+class MemoryAuditCountedCoroutine : public ISrsCoroutine
+{
+public:
+    int nb_pulls_;
+    int max_pulls_;
+    SrsContextId cid_;
+
+public:
+    MemoryAuditCountedCoroutine(int max_pulls) : nb_pulls_(0), max_pulls_(max_pulls) {}
+    virtual ~MemoryAuditCountedCoroutine() {}
+
+public:
+    virtual srs_error_t start() { return srs_success; }
+    virtual void stop() {}
+    virtual void interrupt() {}
+    virtual srs_error_t pull()
+    {
+        if (++nb_pulls_ > max_pulls_) {
+            return srs_error_new(ERROR_THREAD_INTERRUPED, "stop");
+        }
+        return srs_success;
+    }
+    virtual const SrsContextId &cid() { return cid_; }
+    virtual void set_cid(const SrsContextId &cid) { cid_ = cid; }
+};
+
+// Any other coroutine of the server, such as a connection that would close its fd.
+class MemoryAuditProbeCoroutine : public ISrsCoroutineHandler
+{
+public:
+    bool ran_;
+
+public:
+    MemoryAuditProbeCoroutine() : ran_(false) {}
+    virtual ~MemoryAuditProbeCoroutine() {}
+
+public:
+    virtual srs_error_t cycle()
+    {
+        ran_ = true;
+        return srs_success;
+    }
+};
+
+// When the process is out of fds, accept fails with EMFILE right away and ST returns NULL without waiting.
+// SrsTcpListener::cycle() logged and ignored the error and called accept again at once, so the loop never yielded
+// while a client waited: no other coroutine ran, none closed an fd, and the server spun at 100% CPU. Linux leaves the
+// client in the backlog on EMFILE, so the spin never ended and the whole server hung; macOS drops that client, so it
+// spun as long as new clients kept coming. Every TCP listener runs this loop. It should wait after an accept error.
+VOID TEST(MemoryAuditTest, SrsTcpListener_AcceptErrorSpinsWithoutYield)
+{
+    srs_error_t err = srs_success;
+
+    int port = 0;
+    srs_netfd_t lfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &lfd));
+
+    // Clients wait in the backlog, more than the failed accepts below, since macOS drops one per EMFILE.
+    const int nb_loops = 5;
+    std::vector<srs_netfd_t> clients;
+    int max_fd = srs_netfd_fileno(lfd);
+    for (int i = 0; i < nb_loops + 10; i++) {
+        srs_netfd_t client = NULL;
+        HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &client));
+        clients.push_back(client);
+        max_fd = srs_max(max_fd, srs_netfd_fileno(client));
+    }
+
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(NULL));
+    listener->lfd_ = lfd;
+    srs_freep(listener->trd_);
+    listener->trd_ = new MemoryAuditCountedCoroutine(nb_loops);
+
+    // Control: the probe runs as soon as the test coroutine yields.
+    if (true) {
+        MemoryAuditProbeCoroutine probe;
+        SrsUniquePtr<SrsSTCoroutine> trd(new SrsSTCoroutine("probe", &probe));
+        HELPER_ASSERT_SUCCESS(trd->start());
+        EXPECT_FALSE(probe.ran_);
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        EXPECT_TRUE(probe.ran_);
+    }
+
+    // Run the process out of fds: lower the soft limit and fill every free fd number under it.
+    struct rlimit saved;
+    ASSERT_EQ(0, getrlimit(RLIMIT_NOFILE, &saved));
+    struct rlimit lowered = saved;
+    lowered.rlim_cur = max_fd + 1;
+    ASSERT_EQ(0, setrlimit(RLIMIT_NOFILE, &lowered));
+    std::vector<int> fillers;
+    for (int fd = dup(0); fd >= 0; fd = dup(0)) {
+        fillers.push_back(fd);
+    }
+    int dup_errno = errno;
+
+    // Precondition: accept fails.
+    err = listener->do_cycle();
+    bool accept_failed = (err != srs_success);
+    srs_freep(err);
+
+    // Then the accept loop runs nb_loops times, while the probe waits to run.
+    MemoryAuditProbeCoroutine probe;
+    SrsUniquePtr<SrsSTCoroutine> trd(new SrsSTCoroutine("probe", &probe));
+    HELPER_ASSERT_SUCCESS(trd->start());
+    err = listener->cycle();
+    srs_freep(err);
+    bool ran_during_accept_loop = probe.ran_;
+
+    for (int i = 0; i < (int)fillers.size(); i++) {
+        ::close(fillers[i]);
+    }
+    ASSERT_EQ(0, setrlimit(RLIMIT_NOFILE, &saved));
+
+    EXPECT_EQ(EMFILE, dup_errno);
+    EXPECT_TRUE(accept_failed);
+    EXPECT_LT(nb_loops, ((MemoryAuditCountedCoroutine *)listener->trd_)->nb_pulls_);
+
+    // The loop waits after each failed accept, so other coroutines run and can close their fds.
+    EXPECT_TRUE(ran_during_accept_loop);
+
+    for (int i = 0; i < (int)clients.size(); i++) {
+        srs_close_stfd(clients[i]);
+    }
+}
+
+// Closing a TCP listener stops its coroutine, which interrupts the accept. The accept then fails like an accept out of
+// fds, and the listener waited after it before it saw the stop, so every listener's close took that wait. A graceful
+// quit closes the listeners one by one, so each port stayed open that much longer than the one before. A listener
+// should close at once.
+VOID TEST(MemoryAuditTest, SrsTcpListener_CloseWaitsAfterInterruptedAccept)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(NULL));
+    listener->set_endpoint("127.0.0.1", srs_utest_random_port());
+    HELPER_ASSERT_SUCCESS(listener->listen());
+
+    // The listener's coroutine waits in accept.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    listener->close();
+    srs_utime_t duration = srs_time_now_realtime() - starttime;
+
+    EXPECT_LT(duration, 50 * SRS_UTIME_MILLISECONDS);
 }

@@ -345,7 +345,12 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stfd);
+    virtual srs_error_t start_resource(ISrsResource *resource);
     virtual srs_error_t on_before_connection(const char *label, int fd, const std::string &ip, int port);
+
+public:
+    // A client of the HTTP port shared with WebRTC over TCP, called by its peeker in the client's own coroutine.
+    virtual srs_error_t on_peeked_client(ISrsListener *listener, srs_netfd_t stfd, const std::string &ip, int port);
 
     // Interface ISrsLiveSourceHandler
 public:
@@ -355,6 +360,31 @@ public:
 
 // @global main SRS server, for debugging
 extern SrsServer *_srs_server;
+
+// A client of the HTTP port shared with WebRTC over TCP. Its executor runs it in the client's own coroutine, which
+// waits for the client's first bytes and hands it to the server as a WebRTC or HTTP connection.
+class SrsAsyncClientPeeker : public ISrsResource, public ISrsCoroutineHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    SrsServer *server_;
+    ISrsListener *listener_;
+    srs_netfd_t stfd_;
+    std::string ip_;
+    int port_;
+    SrsContextId cid_;
+
+public:
+    SrsAsyncClientPeeker(SrsServer *server, ISrsListener *listener, srs_netfd_t stfd, std::string ip, int port);
+    virtual ~SrsAsyncClientPeeker();
+    // Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+    // Interface ISrsResource
+public:
+    virtual const SrsContextId &get_id();
+    virtual std::string desc();
+};
 
 // The signal manager interface.
 class ISrsSignalManager

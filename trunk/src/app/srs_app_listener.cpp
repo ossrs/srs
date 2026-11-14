@@ -36,6 +36,9 @@ SrsPps *_srs_pps_spkts = NULL;
 // sleep in srs_utime_t for udp recv packet.
 #define SrsUdpPacketRecvCycleInterval 0
 
+// The wait in srs_utime_t after a failed TCP accept.
+#define SRS_TCP_ACCEPT_ERROR_WAIT (100 * SRS_UTIME_MILLISECONDS)
+
 ISrsUdpHandler::ISrsUdpHandler()
 {
 }
@@ -343,6 +346,14 @@ srs_error_t SrsTcpListener::do_cycle()
 
     srs_netfd_t fd = srs_accept(lfd_, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
     if (fd == NULL) {
+        // Closing the listener interrupts the accept, so return at once.
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "accept at fd=%d", srs_netfd_fileno(lfd_));
+        }
+
+        // Accept fails at once when the process is out of fds, and the client stays in the backlog. Wait before the
+        // next accept, so other coroutines run and close their fds.
+        srs_usleep(SRS_TCP_ACCEPT_ERROR_WAIT);
         return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd_));
     }
 

@@ -1612,9 +1612,11 @@ int32_t SrsRtcFrameBuilderVideoPacketCache::find_next_lost_sn(uint16_t current_s
         uint16_t lost_sn = current_sn + i;
 
         if (!is_slot_in_use(lost_sn)) {
-            // The slot still holds an earlier packet of this frame, so the frame has more packets than the cache.
+            // The slot still holds an earlier packet of this frame, so the frame has more packets than the cache. A
+            // slot that holds a later packet, which came while this one was lost, leaves this one lost.
             const RtcPacketCache &cache = cache_pkts_[cache_index(lost_sn)];
-            if (cache.in_use_ && srs_rtp_seq_distance(header_sn, cache.sn_) >= 0) {
+            bool earlier_of_frame = srs_rtp_seq_distance(header_sn, cache.sn_) >= 0 && srs_rtp_seq_distance(cache.sn_, lost_sn) > 0;
+            if (cache.in_use_ && earlier_of_frame) {
                 break;
             }
             return lost_sn;

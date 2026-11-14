@@ -2430,7 +2430,9 @@ VOID TEST(ServerTcpClientTest, SharedPortRefusesClientThatSendsNothing)
 {
     srs_error_t err;
 
-    MockConnectionManagerForResampleKbps manager;
+    SrsResourceManager manager("utest-shared-port-nothing");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
     SrsUniquePtr<SrsServer> server(new SrsServer());
     server->assemble();
     server->conn_manager_ = &manager;
@@ -2449,9 +2451,13 @@ VOID TEST(ServerTcpClientTest, SharedPortRefusesClientThatSendsNothing)
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     }
 
+    // The client is taken at once, and its peek fails in its own coroutine.
     ASSERT_TRUE(acceptor.accepted_);
-    EXPECT_TRUE(acceptor.error_.find("peek") != string::npos) << acceptor.error_;
-    EXPECT_TRUE(manager.connections_.empty());
+    EXPECT_TRUE(acceptor.error_.empty()) << acceptor.error_;
+    for (int i = 0; i < 100 && !manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(manager.empty());
 
     server->conn_manager_ = NULL;
 }
