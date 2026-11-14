@@ -465,17 +465,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
         // to:
         //      stream_caster { caster gb28181; sip { candidate *; } }
         if (dir->name_ == "stream_caster") {
-            for (vector<SrsConfDirective *>::iterator it = dir->directives_.begin(); it != dir->directives_.end();) {
-                SrsConfDirective *conf = *it;
-                if (conf->name_ == "host") {
-                    srs_warn("transform: Config move host to sip.candidate for GB");
-                    conf->name_ = "candidate";
-                    dir->get_or_create("sip")->directives_.push_back(conf->copy());
-                    it = dir->directives_.erase(it);
-                    srs_freep(conf);
-                    continue;
-                }
-                ++it;
+            SrsConfDirective *host = NULL;
+            while ((host = dir->get("host")) != NULL) {
+                srs_warn("transform: Config move host to sip.candidate for GB");
+                dir->remove(host);
+                host->name_ = "candidate";
+                dir->get_or_create("sip")->directives_.push_back(host);
             }
         }
 
@@ -2236,6 +2231,30 @@ static const char *srs_config_hls_ratios[][2] = {
     {"hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
 };
 
+// The integer directives of a vhost with a lowest value, by section, name, env var and the lowest value. The MPD
+// lists the last dash_window_size segments, so it needs at least 1, and hls_nb_notify is the size to read of the
+// notify response, so it can not be negative.
+static const char *srs_config_vhost_mins[][3] = {
+    {"dash", "dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE"},
+    {"hls", "hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY"},
+};
+static const int srs_config_vhost_min_values[] = {1, 0};
+
+// Whether the value is a finite number not below the lowest value.
+static bool srs_config_min_valid(const string &value, int min)
+{
+    double v;
+    return srs_config_parse_finite(value, &v) && v >= min;
+}
+
+// Whether a dash_fragment, in seconds, is above zero once the getter casts it to srs_utime_t, as the MPD writer
+// names the segments of a fragment and a fragment of zero has no segment.
+static bool srs_config_dash_fragment_valid(const string &value)
+{
+    double v;
+    return srs_config_parse_finite(value, &v) && (srs_utime_t)(v * SRS_UTIME_SECONDS) > 0;
+}
+
 srs_error_t SrsConfig::check_config()
 {
     srs_error_t err = srs_success;
@@ -2579,6 +2598,50 @@ srs_error_t SrsConfig::check_normal_config()
                     return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s hls %s=%s, not a ratio that is finite and above zero",
                                          vhost->arg0().c_str(), srs_config_hls_ratios[j][0], conf->arg0().c_str());
                 }
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the integers with a lowest value and the DASH fragment, from the file and the env, before any getter
+    // reads them.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        for (int i = 0; i < (int)(sizeof(srs_config_vhost_mins) / sizeof(srs_config_vhost_mins[0])); i++) {
+            string env = srs_config_vhost_mins[i][2];
+            string value = srs_getenv(env);
+            int min = srs_config_vhost_min_values[i];
+            if (!value.empty() && !srs_config_min_valid(value, min)) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s=%s, not a number of at least %d",
+                                     env.c_str(), value.c_str(), min);
+            }
+        }
+
+        string value = srs_getenv("SRS_VHOST_DASH_DASH_FRAGMENT");
+        if (!value.empty() && !srs_config_dash_fragment_valid(value)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_DASH_DASH_FRAGMENT=%s, not a time above zero",
+                                 value.c_str());
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            for (int j = 0; j < (int)(sizeof(srs_config_vhost_mins) / sizeof(srs_config_vhost_mins[0])); j++) {
+                SrsConfDirective *section = vhost->get(srs_config_vhost_mins[j][0]);
+                SrsConfDirective *conf = section ? section->get(srs_config_vhost_mins[j][1]) : NULL;
+                int min = srs_config_vhost_min_values[j];
+                if (conf && !conf->arg0().empty() && !srs_config_min_valid(conf->arg0(), min)) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s %s %s=%s, not a number of at least %d",
+                                         vhost->arg0().c_str(), srs_config_vhost_mins[j][0], srs_config_vhost_mins[j][1], conf->arg0().c_str(), min);
+                }
+            }
+
+            SrsConfDirective *dash = vhost->get("dash");
+            SrsConfDirective *conf = dash ? dash->get("dash_fragment") : NULL;
+            if (conf && !conf->arg0().empty() && !srs_config_dash_fragment_valid(conf->arg0())) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s dash dash_fragment=%s, not a time above zero",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
             }
         }
     }
@@ -3060,13 +3123,13 @@ srs_error_t SrsConfig::check_normal_config()
     // check chunk size
     ////////////////////////////////////////////////////////////////////////
     if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
-        srs_warn("chunk_size=%s should be in [%d, %d]", get_global_chunk_size(),
+        srs_warn("chunk_size=%d should be in [%d, %d]", get_global_chunk_size(),
                  SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
     }
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective *vhost = vhosts[i];
         if (get_chunk_size(vhost->arg0()) < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || get_chunk_size(vhost->arg0()) > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
-            srs_warn("chunk_size=%s of %s should be in [%d, %d]", get_global_chunk_size(), vhost->arg0().c_str(),
+            srs_warn("chunk_size=%d of %s should be in [%d, %d]", get_chunk_size(vhost->arg0()), vhost->arg0().c_str(),
                      SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
         }
     }

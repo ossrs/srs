@@ -942,7 +942,7 @@ VOID TEST(FFMPEGStartTest, StartBuildsCopyArguments)
 }
 
 // An engine without video or without audio tells FFmpeg to drop it.
-VOID TEST(FFMPEGStartTest, StartDropsDisabledStreams)
+VOID TEST(FFMPEGStartTest, StartDropsStreamsTurnedOff)
 {
     srs_error_t err;
 

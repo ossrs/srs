@@ -1108,6 +1108,11 @@ srs_error_t SrsRtcpTWCC::do_encode(SrsBuffer *buffer)
     } else {
         base_sn_ = next_base_sn_;
         it_sn = recv_sns_.find(base_sn_);
+        // The set orders numbers circularly, which breaks once a publisher spreads them over half the circle, so
+        // find() may miss the number; drop the rest of this feedback then.
+        if (it_sn == recv_sns_.end()) {
+            return srs_error_new(ERROR_RTC_RTCP, "twcc: next base sn %u not found", base_sn_);
+        }
     }
 
     // The reference time and deltas come from received packets; it_sn points at
@@ -1314,13 +1319,19 @@ srs_error_t SrsRtcpNack::decode(SrsBuffer *buffer)
     media_ssrc_ = buffer->read_4bytes();
     char bitmask[20];
     for (int i = 0; i < (header_.length - 2); i++) {
+        // Skip the pairs after the most lost packets one NACK may ask for.
+        if ((int)lost_sns_.size() >= kRtcpNackMaxLostSns) {
+            buffer->skip(4 * (header_.length - 2 - i));
+            break;
+        }
+
         uint16_t pid = buffer->read_2bytes();
         uint16_t blp = buffer->read_2bytes();
         lost_sns_.insert(pid);
         memset(bitmask, 0, 20);
         for (int j = 0; j < 16; j++) {
             bitmask[j] = (blp & (1 << j)) >> j ? '1' : '0';
-            if ((blp & (1 << j)) >> j)
+            if (((blp & (1 << j)) >> j) && (int)lost_sns_.size() < kRtcpNackMaxLostSns)
                 lost_sns_.insert(pid + j + 1);
         }
         bitmask[16] = '\n';
@@ -1362,6 +1373,10 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
         return srs_error_new(ERROR_RTC_RTCP, "requires %d bytes", nb_bytes());
     }
 
+    // The chunks after the header and two SSRCs that fit in the packet. Many sparse losses need more chunks, so the
+    // rest are left out, and the receiver asks for them again in its next NACK.
+    size_t max_chunks = (nb_bytes() - 12) / 4;
+
     vector<SrsPidBlp> chunks;
     do {
         SrsPidBlp chunk;
@@ -1381,6 +1396,10 @@ srs_error_t SrsRtcpNack::encode(SrsBuffer *buffer)
             } else if ((sn - pid) > 16) {
                 // append full chunk
                 chunks.push_back(chunk);
+                if (chunks.size() >= max_chunks) {
+                    chunk.in_use_ = false;
+                    break;
+                }
 
                 // start new chunk
                 chunk.pid_ = sn;

@@ -138,14 +138,16 @@ SRS_DECLARE_PROTECTED: // clang-format on
     int nn_arq_packets_;
     uint8_t last_handshake_type_;
     uint8_t last_content_type_;
+    // The records OpenSSL wrote, sent after it returns, because a send may switch coroutines.
+    std::vector<std::string> out_records_;
 
 public:
     SrsDtlsImpl(ISrsDtlsCallback *callback);
     virtual ~SrsDtlsImpl();
 
 public:
-    // Internal API for sending DTLS packets.
-    srs_error_t write_dtls_data(void *data, int size);
+    // Called by the OpenSSL BIO callback, a C function, to queue each DTLS record it writes.
+    void queue_dtls_data(void *data, int size);
 
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
@@ -155,6 +157,9 @@ public:
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     srs_error_t do_on_dtls(char *data, int nb_data);
+    // Send the queued records, after OpenSSL returns.
+    void flush_dtls_data();
+    srs_error_t write_dtls_data(void *data, int size);
     void state_trace(uint8_t *data, int length, bool incoming, int r0);
 
 public:

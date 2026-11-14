@@ -60,6 +60,9 @@ public:
     SrsTsContextWriter *tscw_;
     // Will be saved in m3u8 file.
     unsigned char iv_[16];
+    // Whether the segment is encrypted with iv_, so the m3u8 writes its key. A segment of a publish without keys is
+    // not, even when a reload turns keys on while it is still in the window.
+    bool encrypted_;
     // The full key path.
     std::string keypath_;
 
@@ -120,6 +123,9 @@ public:
     int sequence_no_;
     // IV for encryption, saved in m3u8 file.
     unsigned char iv_[16];
+    // Whether the segment is encrypted with iv_, so the m3u8 writes its key. A segment of a publish without keys is
+    // not, even when a reload turns keys on while it is still in the window.
+    bool encrypted_;
 
 public:
     SrsHlsM4sSegment(ISrsFileWriter *fw);

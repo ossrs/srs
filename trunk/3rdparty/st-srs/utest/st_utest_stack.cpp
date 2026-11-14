@@ -86,7 +86,7 @@ VOID TEST(RandomizeStacksTest, SwitchReturnsPrevious)
 // Without randomization every coroutine's stack starts at the same place within its page, so the frame of the same
 // function sits at the same page offset in each one. With randomization on, new coroutines put it at different
 // offsets, each shifted by a multiple of 16 bytes so the stack stays aligned, and each coroutine runs normally.
-// Locks in current behavior.
+// Locks in current behavior. Skips when the stacks don't start at one page offset without randomization.
 VOID TEST(RandomizeStacksTest, StacksStartAtDifferentOffsets)
 {
     const int n = 16;
@@ -100,7 +100,11 @@ VOID TEST(RandomizeStacksTest, StacksStartAtDifferentOffsets)
         ASSERT_TRUE(trd != NULL);
         EXPECT_EQ(0, st_thread_join(trd, NULL));
         if (i == 0) plain = c.frame_ & (pagesize - 1);
-        EXPECT_EQ(plain, c.frame_ & (pagesize - 1));
+        // A heap that hands each stack a different address, such as malloc on Windows with MALLOC_STACK, moves the
+        // frame by itself, so the offsets can't show the randomization.
+        if ((c.frame_ & (pagesize - 1)) != plain) {
+            GTEST_SKIP() << "the stacks don't start at one page offset, such as malloc on Windows with MALLOC_STACK";
+        }
     }
 
     // On: different page offsets, each a multiple of 16 bytes away from the plain one. All n coroutines landing on one

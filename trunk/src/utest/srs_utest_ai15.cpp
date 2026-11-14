@@ -1731,7 +1731,7 @@ VOID TEST(ServerTest, ListenRtcUdpStopsAtFailedListener)
 
 // Passes from the start and locks in accepted behavior: no UDP listener is created when WebRTC is disabled or
 // limited to TCP, which is how listen_rtc_udp() behaved before its listeners came from the factory.
-VOID TEST(ServerTest, ListenRtcUdpCreatesNoListenerWhenDisabledOrTcpOnly)
+VOID TEST(ServerTest, ListenRtcUdpCreatesNoListenerWhenOffOrTcpOnly)
 {
     srs_error_t err;
 
@@ -1916,7 +1916,7 @@ VOID TEST(ServerTest, ListenSrtFailsWhenNoAcceptorListens)
 
 // Passes from the start and locks in accepted behavior: no SRT acceptor is created when SRT is disabled, which is
 // how listen_srt_mpegts() behaved before its acceptors came from the factory.
-VOID TEST(ServerTest, ListenSrtCreatesNoAcceptorWhenDisabled)
+VOID TEST(ServerTest, ListenSrtCreatesNoAcceptorWhenOff)
 {
     srs_error_t err;
 

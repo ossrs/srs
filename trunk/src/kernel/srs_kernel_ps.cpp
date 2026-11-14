@@ -377,6 +377,11 @@ srs_error_t SrsPsPacket::decode_system(SrsBuffer *stream)
         return srs_error_new(ERROR_GB_PS_HEADER, "requires %d only %d bytes", header_length_, stream->left());
     }
 
+    // The fixed fields from rate_bound to the reserved bits are 6 bytes.
+    if (header_length_ < 6) {
+        return srs_error_new(ERROR_GB_PS_HEADER, "system header length %d less than 6", header_length_);
+    }
+
     SrsBuffer b(stream->head(), header_length_);
     stream->skip(header_length_);
 
