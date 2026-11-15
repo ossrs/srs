@@ -163,6 +163,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool reuse_api_over_server_;
     // If reusing, WebRTC TCP use the same port of HTTP server.
     bool reuse_rtc_over_server_;
+    // How long a client of the port shared with WebRTC over TCP may wait before its first bytes.
+    srs_utime_t peek_timeout_;
     // RTMP stream listeners, over TCP.
     SrsMultipleTcpListeners *rtmp_listener_;
     // RTMPS stream listeners, over TCP.

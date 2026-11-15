@@ -202,6 +202,7 @@ SrsServer::SrsServer()
     http_server_ = new SrsHttpServer();
     reuse_api_over_server_ = false;
     reuse_rtc_over_server_ = false;
+    peek_timeout_ = SRS_HTTP_RECV_TIMEOUT;
 
     http_heartbeat_ = new SrsHttpHeartbeat();
     ingester_ = new SrsIngester();
@@ -1612,13 +1613,16 @@ srs_error_t SrsServer::on_peeked_client(ISrsListener *listener, srs_netfd_t stfd
     SrsTcpConnection *skt = new SrsTcpConnection(stfd);
     SrsBufferedReadWriter *io = new SrsBufferedReadWriter(skt);
 
-    // Peek first N bytes to finger out the real client type.
+    // Peek first N bytes to finger out the real client type. The peeked client counts as a connection, so drop a
+    // client that sends nothing, as the HTTP connection does, or idle clients fill the connection limit.
     uint8_t b[10];
     int nn = sizeof(b);
+    io->set_recv_timeout(peek_timeout_);
     if ((err = io->peek((char *)b, &nn)) != srs_success) {
         srs_freep(io);
         return srs_error_wrap(err, "peek");
     }
+    io->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
 
     // If first message is BindingRequest(00 01), prefixed with length(2B), it's WebRTC client. Generally, the frame
     // length minus message length should be 20, that is the header size of STUN is 20 bytes. For example:
