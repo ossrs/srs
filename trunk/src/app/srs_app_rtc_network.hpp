@@ -260,6 +260,8 @@ public:
     virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt) = 0;
     // Set the address of peer.
     virtual void set_peer_id(const std::string &ip, int port) = 0;
+    // Drop the socket, so later sends fail at once, and wait for the sends in progress to return.
+    virtual void stop_sends() = 0;
 };
 
 class SrsRtcTcpNetwork : public ISrsRtcTcpNetwork
@@ -270,6 +272,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsEphemeralDelta *delta_;
     ISrsProtocolReadWriter *sendonly_skt_;
     ISrsRtcBlackhole *blackhole_;
+    // The coroutines in a send now, such as the shared timer or a player, and the cond to wait for them.
+    int writers_;
+    srs_cond_t writers_done_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -291,6 +296,7 @@ public:
     virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
     virtual SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
     virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    virtual void stop_sends();
     // ISrsRtcNetwork
 public:
     // Callback when DTLS connected.

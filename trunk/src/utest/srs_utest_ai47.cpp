@@ -2854,6 +2854,130 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_TcpConnStoppedBeforeSessionFreed)
     EXPECT_TRUE(manager.empty());
 }
 
+// The TCP socket of a WebRTC client that stopped reading: a send waits for room until its send timeout, which the
+// test fires.
+class MemoryAuditFullRtcTcpSocket : public ISrsProtocolReadWriter
+{
+public:
+    srs_cond_t timeout_;
+    int nn_waiting_;
+
+public:
+    MemoryAuditFullRtcTcpSocket()
+    {
+        timeout_ = srs_cond_new();
+        nn_waiting_ = 0;
+    }
+    virtual ~MemoryAuditFullRtcTcpSocket()
+    {
+        srs_cond_destroy(timeout_);
+    }
+
+public:
+    virtual void set_recv_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_recv_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual void set_send_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_send_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual int64_t get_recv_bytes() { return 0; }
+    virtual int64_t get_send_bytes() { return 0; }
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite) { return wait(); }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite) { return wait(); }
+
+private:
+    srs_error_t wait()
+    {
+        nn_waiting_++;
+        srs_cond_wait(timeout_);
+        nn_waiting_--;
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "send timeout");
+    }
+};
+
+// The shared timer, in a send of a session's RTCP, which ends by a write to the session's TCP network, and then goes
+// on in the session, as SrsRtcConnection::send_rtcp returns to the publisher.
+class MemoryAuditTimerRtcpSender : public ISrsCoroutineHandler
+{
+public:
+    ISrsRtcNetwork *network_;
+    bool done_;
+    bool established_;
+
+public:
+    MemoryAuditTimerRtcpSender(ISrsRtcNetwork *network)
+    {
+        network_ = network;
+        done_ = false;
+        established_ = false;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        char rtcp[64] = {0};
+        srs_error_t err = network_->write(rtcp, sizeof(rtcp), NULL);
+        srs_freep(err);
+        established_ = network_->is_establelished();
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// A WebRTC over TCP session is sent to by coroutines other than its TCP conn's, such as the shared timer for RTCP and
+// the player for media, and a send waits up to its timeout when the client stops reading. When the client then
+// closes DTLS, the manager frees the session, and it must wait for those sends too, or the send returns into the
+// freed network.
+VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendWaitedBeforeSessionFreed)
+{
+    srs_error_t err;
+
+    SrsContextRestore(_srs_context->get_id());
+
+    SrsResourceManager manager("utest-rtc");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // A session over TCP, whose DTLS is done, and whose client stopped reading.
+    MockRtcAsyncTaskExecutor exec;
+    SrsRtcConnection *session = new SrsRtcConnection(&exec, SrsContextId());
+    session->conn_manager_ = &manager;
+    session->assemble();
+    manager.add(session);
+
+    MemoryAuditFullRtcTcpSocket skt;
+    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ASSERT_TRUE(network != NULL);
+    network->update_sendonly_socket(&skt);
+    network->set_state(SrsRtcNetworkStateEstablished);
+
+    // The timer sends RTCP, and waits for room in the socket.
+    MemoryAuditTimerRtcpSender sender(network);
+    SrsSTCoroutine trd("timer", &sender, _srs_context->get_id());
+    HELPER_ASSERT_SUCCESS(trd.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    ASSERT_EQ(1, skt.nn_waiting_);
+
+    // The client's DTLS alert removes the session, and the manager disposes it while the send waits.
+    manager.remove(session);
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(manager.empty());
+    EXPECT_FALSE(sender.done_);
+
+    // The send times out, and the timer goes on in the session, which is still whole.
+    srs_cond_signal(skt.timeout_);
+    for (int i = 0; i < 100 && !sender.done_; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(sender.done_);
+    EXPECT_TRUE(sender.established_);
+
+    // The manager frees the session after the send.
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    trd.stop();
+}
+
 // Feed a WHIP H.264 publisher's stream to a frame builder with RTC to RTMP on: one IDR packet, then count packets of
 // a one-byte NALU (only the header, as SrsRtcVideoRecvTrack decodes a raw NALU), each with the marker bit and its
 // own timestamp, so each is a whole frame of no payload. Return how many frames the builder sent, or -1 on an error.
