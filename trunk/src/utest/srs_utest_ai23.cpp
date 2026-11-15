@@ -5125,6 +5125,22 @@ int64_t MockProtocolReadWriterForTcpNetwork::get_send_bytes()
 
 srs_error_t MockProtocolReadWriterForTcpNetwork::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
+    if (write_error_ != srs_success) {
+        return srs_error_copy(write_error_);
+    }
+
+    // Store the data of all buffers as one write.
+    std::string data;
+    for (int i = 0; i < iov_size; i++) {
+        data.append((char *)iov[i].iov_base, iov[i].iov_len);
+    }
+    written_data_.push_back(data);
+    send_bytes_ += data.size();
+
+    if (nwrite) {
+        *nwrite = data.size();
+    }
+
     return srs_success;
 }
 
@@ -5274,15 +5290,9 @@ VOID TEST(RtcTcpNetworkTest, HandleStunBindingRequest)
     // Verify state transitioned to Dtls
     EXPECT_EQ(SrsRtcNetworkStateDtls, tcp_network->state_);
 
-    // Verify that data was written (STUN binding response)
-    // The write() method is called with 2-byte length prefix + STUN response data
-    EXPECT_TRUE(mock_io->written_data_.size() >= 2);
-
-    // First write should be 2-byte length prefix
-    EXPECT_EQ(2, (int)mock_io->written_data_[0].size());
-
-    // Second write should be the STUN response data
-    EXPECT_TRUE(mock_io->written_data_[1].size() > 0);
+    // Verify that the STUN binding response was written in one write, after its 2-byte length prefix.
+    EXPECT_EQ(1, (int)mock_io->written_data_.size());
+    EXPECT_TRUE(mock_io->written_data_[0].size() > 2);
 
     // Clean up
     tcp_network->sendonly_skt_ = NULL;
@@ -6109,4 +6119,132 @@ VOID TEST(RtcTcpNetworkTest, WriteWithoutSocketFails)
     // GOAL: the write fails with an error instead of crashing.
     char data[] = "dtls";
     HELPER_EXPECT_FAILED(network->write(data, sizeof(data), NULL));
+}
+
+// A TCP socket of a WebRTC client whose send buffer is full: the first send waits until the client drains it,
+// and while the socket is full, another send times out.
+class MockFullTcpSocketForRtcSend : public ISrsProtocolReadWriter
+{
+public:
+    bool block_next_;
+    bool fail_;
+    srs_cond_t drained_;
+    int nn_writes_;
+
+public:
+    MockFullTcpSocketForRtcSend()
+    {
+        block_next_ = false;
+        fail_ = false;
+        drained_ = srs_cond_new();
+        nn_writes_ = 0;
+    }
+    virtual ~MockFullTcpSocketForRtcSend()
+    {
+        srs_cond_destroy(drained_);
+    }
+
+private:
+    srs_error_t send(ssize_t size, ssize_t *nwrite)
+    {
+        nn_writes_++;
+        if (block_next_) {
+            // Wait for room in the socket, as st_write polls for POLLOUT, which switches coroutines.
+            block_next_ = false;
+            srs_cond_wait(drained_);
+        } else if (fail_) {
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "send timeout");
+        }
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return srs_success;
+    }
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        return send(size, nwrite);
+    }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        ssize_t size = 0;
+        for (int i = 0; i < iov_size; i++) {
+            size += iov[i].iov_len;
+        }
+        return send(size, nwrite);
+    }
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual void set_recv_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_recv_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual int64_t get_recv_bytes() { return 0; }
+    virtual void set_send_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_send_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual int64_t get_send_bytes() { return 0; }
+};
+
+// A sender of the session, such as the player's send coroutine, sending one packet over the TCP network.
+class MockRtcTcpSender : public ISrsCoroutineHandler
+{
+public:
+    SrsRtcTcpNetwork *network_;
+    bool done_;
+    srs_error_t result_;
+    ssize_t nwrite_;
+
+public:
+    MockRtcTcpSender(SrsRtcTcpNetwork *network)
+    {
+        network_ = network;
+        done_ = false;
+        result_ = srs_success;
+        nwrite_ = 0;
+    }
+    virtual srs_error_t cycle()
+    {
+        char pkt[100] = {0};
+        result_ = network_->write(pkt, sizeof(pkt), &nwrite_);
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// Two coroutines send to one WebRTC client over TCP, such as the player's media and the NACK resend or the timer's
+// RTCP. RFC 4571 frames each packet, so each send must either finish its frame or fail cleanly. A sender that
+// waits for a full socket must not crash when another sender's send fails meanwhile.
+VOID TEST(RtcTcpNetworkTest, SendFailureWhileAnotherSenderWaits)
+{
+    srs_error_t err;
+
+    MockFullTcpSocketForRtcSend skt;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(NULL, NULL));
+    network->update_sendonly_socket(&skt);
+
+    // Sender A starts its packet, and waits for room in the socket.
+    skt.block_next_ = true;
+    MockRtcTcpSender sender(network.get());
+    SrsSTCoroutine trd("sender", &sender, _srs_context->get_id());
+    HELPER_EXPECT_SUCCESS(trd.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_FALSE(sender.done_);
+
+    // Sender B's send on the full socket times out, as with the send timeout, and the socket is dropped.
+    skt.fail_ = true;
+    char pkt[100] = {0};
+    HELPER_EXPECT_FAILED(network->write(pkt, sizeof(pkt), NULL));
+
+    // The client drains the socket, so A's send finishes with its whole frame.
+    skt.fail_ = false;
+    srs_cond_signal(skt.drained_);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(sender.done_);
+    HELPER_EXPECT_SUCCESS(sender.result_);
+    EXPECT_EQ(100, (int)sender.nwrite_);
+
+    // The socket stays dropped, so later sends fail at once.
+    HELPER_EXPECT_FAILED(network->write(pkt, sizeof(pkt), NULL));
+    EXPECT_EQ(2, skt.nn_writes_);
+
+    trd.stop();
 }

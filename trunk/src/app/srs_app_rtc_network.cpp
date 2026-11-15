@@ -750,21 +750,27 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
         return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
     }
 
-    // Encode and send 2 bytes size, in network order.
+    // Send 2 bytes size, in network order, and the data in one write. A write may switch coroutines, and another
+    // sender may drop the socket meanwhile, so the socket is not used for a second write.
     srs_assert(size <= 65535);
     uint8_t b[2] = {uint8_t(size >> 8), uint8_t(size)};
 
+    iovec iovs[2];
+    iovs[0].iov_base = (char *)b;
+    iovs[0].iov_len = sizeof(b);
+    iovs[1].iov_base = buf;
+    iovs[1].iov_len = size;
+
+    ssize_t n = 0;
     // A failed send, such as a timeout, may leave part of a packet on the stream, so the client can parse no later
     // packet. Drop the socket, so later sends fail at once instead of waiting for the timeout again.
-    if ((err = sendonly_skt_->write((char *)b, sizeof(b), NULL)) != srs_success) {
+    if ((err = sendonly_skt_->writev(iovs, 2, &n)) != srs_success) {
         sendonly_skt_ = NULL;
-        return srs_error_wrap(err, "rtc tcp write len(%d)", size);
+        return srs_error_wrap(err, "rtc tcp write len(%d) and body", size);
     }
 
-    // Send the data in size of bytes.
-    if ((err = sendonly_skt_->write(buf, size, nwrite)) != srs_success) {
-        sendonly_skt_ = NULL;
-        return srs_error_wrap(err, "rtc tcp write body");
+    if (nwrite) {
+        *nwrite = n - sizeof(b);
     }
 
     return err;
