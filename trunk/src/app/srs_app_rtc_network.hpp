@@ -249,6 +249,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcConnection *conn_;
     ISrsEphemeralDelta *delta_;
     ISrsProtocolReadWriter *sendonly_skt_;
+    // The coroutines in a send now, such as the shared timer or a player, and the cond to wait for them.
+    int writers_;
+    srs_cond_t writers_done_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -270,6 +273,8 @@ public:
     void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
     SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
     void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    // Drop the socket, so later sends fail at once, and wait for the sends in progress to return.
+    void stop_sends();
     // ISrsRtcNetwork
 public:
     // Callback when DTLS connected.

@@ -511,6 +511,8 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     conn_ = conn;
     delta_ = delta;
     sendonly_skt_ = NULL;
+    writers_ = 0;
+    writers_done_ = srs_cond_new();
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
@@ -525,6 +527,7 @@ SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
         owner_->interrupt();
     }
     srs_freep(transport_);
+    srs_cond_destroy(writers_done_);
 }
 
 void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
@@ -535,6 +538,16 @@ void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
     // session.
     if (sendonly_skt_) {
         sendonly_skt_->set_send_timeout(SRS_RTC_TCP_SEND_TIMEOUT);
+    }
+}
+
+void SrsRtcTcpNetwork::stop_sends()
+{
+    sendonly_skt_ = NULL;
+
+    // A send waits at most for the send timeout.
+    while (writers_ > 0) {
+        srs_cond_wait(writers_done_);
     }
 }
 
@@ -762,9 +775,14 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     iovs[1].iov_len = size;
 
     ssize_t n = 0;
+    writers_++;
+    err = sendonly_skt_->writev(iovs, 2, &n);
+    writers_--;
+    srs_cond_signal(writers_done_);
+
     // A failed send, such as a timeout, may leave part of a packet on the stream, so the client can parse no later
     // packet. Drop the socket, so later sends fail at once instead of waiting for the timeout again.
-    if ((err = sendonly_skt_->writev(iovs, 2, &n)) != srs_success) {
+    if (err != srs_success) {
         sendonly_skt_ = NULL;
         return srs_error_wrap(err, "rtc tcp write len(%d) and body", size);
     }
