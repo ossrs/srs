@@ -7,6 +7,7 @@
 #include <srs_app_config.hpp>
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2233,18 +2234,26 @@ static const char *srs_config_hls_ratios[][2] = {
 
 // The integer directives of a vhost with a lowest value, by section, name, env var and the lowest value. The MPD
 // lists the last dash_window_size segments, so it needs at least 1, and hls_nb_notify is the size to read of the
-// notify response, so it can not be negative.
+// notify response, so it can not be negative. The getters read them with atoi.
 static const char *srs_config_vhost_mins[][3] = {
     {"dash", "dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE"},
     {"hls", "hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY"},
 };
 static const int srs_config_vhost_min_values[] = {1, 0};
 
-// Whether the value is a finite number not below the lowest value.
+// Whether the value is a decimal integer in the range of an int and not below the lowest value. The getter reads it
+// with atoi, which gives another number for a value out of that range, such as 0 for 4294967296, or one it stops
+// reading early, such as 0 for 0x10, so only a value atoi reads whole is checked.
 static bool srs_config_min_valid(const string &value, int min)
 {
-    double v;
-    return srs_config_parse_finite(value, &v) && v >= min;
+    const char *s = value.c_str();
+    char *end = NULL;
+    errno = 0;
+    long v = ::strtol(s, &end, 10);
+    if (end == s || *end != '\0' || errno == ERANGE) {
+        return false;
+    }
+    return v >= min && v <= INT_MAX;
 }
 
 // Whether a dash_fragment, in seconds, is above zero once the getter casts it to srs_utime_t, as the MPD writer

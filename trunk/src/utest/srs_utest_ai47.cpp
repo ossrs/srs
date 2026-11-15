@@ -973,12 +973,16 @@ static void memory_audit_config_taken(const MemoryAuditConfigValue &v)
 // The MPD writer lists the last window of segments from index "size - window", so with a "dash_window_size" of 0
 // that index is one past the last segment, and with a negative window further: std::vector::at throws out_of_range,
 // nothing catches it, and the server aborts as soon as a stream publishes to the vhost. The config check refuses a
-// window below 1, from the config file or the env, so the writer gets a valid window.
+// window below 1, from the config file or the env, so the writer gets a valid window. The getter reads the window
+// with atoi, which reads 4294967296 as 0 and 0x10 as 0, so the check also refuses a value atoi does not read whole.
 VOID TEST(MemoryAuditTest, SrsMpdWriter_ZeroWindowSizeReadsPastSegments)
 {
     MemoryAuditConfigValue bad[] = {
         {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "0"},
         {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "-1"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "4294967296"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "0x10"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "1e3"},
     };
     for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
         memory_audit_config_refused(bad[i]);
@@ -1010,11 +1014,17 @@ VOID TEST(MemoryAuditTest, SrsMpdWriter_ZeroFragmentAborts)
 // CDN and read at most hls_nb_notify bytes of it into a buffer of srs_min(nb_notify, 4096) bytes, so a negative
 // hls_nb_notify makes the buffer new char[negative], which throws std::bad_array_new_length that nothing catches,
 // and the server aborts at the first segment. The config check refuses a negative hls_nb_notify, from the config
-// file or the env; 0 reads nothing and is taken.
+// file or the env; 0 reads nothing and is taken. The getter reads it with atoi, which reads 4294967295 as -1, so the
+// check also refuses a value out of the range of an int.
 VOID TEST(MemoryAuditTest, SrsHttpHooks_HlsNotifyNegativeSizeAborts)
 {
-    MemoryAuditConfigValue bad = {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "-1"};
-    memory_audit_config_refused(bad);
+    MemoryAuditConfigValue bad[] = {
+        {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "-1"},
+        {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "4294967295"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        memory_audit_config_refused(bad[i]);
+    }
 
     MemoryAuditConfigValue good = {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "0"};
     memory_audit_config_taken(good);
