@@ -4920,3 +4920,93 @@ VOID TEST(RtcFrameBuilderTest, OnRtpG711AudioDropped)
     ASSERT_TRUE(target.last_frame_ != NULL);
     EXPECT_TRUE(target.last_frame_->is_video());
 }
+
+// Feeds one RTMP audio tag to the format, in a payload freed when the message is, at the end of this call, as the
+// live source frees a frame once its last copy is sent.
+static srs_error_t stream_bridge_format_audio(SrsRtmpFormat *format, const string &tag)
+{
+    char *payload = new char[tag.size()];
+    memcpy(payload, tag.data(), tag.size());
+
+    SrsMediaPacket msg;
+    msg.message_type_ = SrsFrameTypeAudio;
+    msg.wrap(payload, (int)tag.size());
+    return format->on_audio(&msg);
+}
+
+// An MP3 frame: the FLV audio header 0x2f, then a 417-byte MPEG-1 Layer III frame, 128 kbps, 44.1 kHz, stereo.
+static string stream_bridge_mp3_tag()
+{
+    string frame(417, '\0');
+    frame[0] = (char)0xff;
+    frame[1] = (char)0xfb;
+    frame[2] = (char)0x90;
+    frame[3] = (char)0x64;
+    return string(1, (char)0x2f) + frame;
+}
+
+// An RTMP publisher sends MP3 audio, then an audio tag of only its 1-byte FLV header (0x2f). The live source does not
+// drop it, since its size is 1, and the MP3 demuxer adds no sample for 0 data bytes. At each frame of the stream the
+// parsed audio packet holds only the current frame's samples, never a pointer into a frame already freed.
+VOID TEST(StreamBridgeTest, SrsParsedPacket_Mp3HeaderOnlyTagKeepsFreedSamples)
+{
+    srs_error_t err;
+
+    SrsRtmpFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+
+    // An MP3 frame: one sample, into the frame's payload, freed after the call.
+    HELPER_ASSERT_SUCCESS(stream_bridge_format_audio(&format, stream_bridge_mp3_tag()));
+    EXPECT_EQ(1, format.audio_->nb_samples_);
+
+    // The header-only tag: no sample, and none left of the freed frame.
+    HELPER_EXPECT_SUCCESS(stream_bridge_format_audio(&format, string(1, (char)0x2f)));
+    EXPECT_EQ(0, format.audio_->nb_samples_);
+    EXPECT_TRUE(format.audio_->samples_[0].bytes_ == NULL);
+    EXPECT_EQ(0, format.audio_->samples_[0].size_);
+
+    // The next MP3 frame: one sample again.
+    HELPER_EXPECT_SUCCESS(stream_bridge_format_audio(&format, stream_bridge_mp3_tag()));
+    EXPECT_EQ(1, format.audio_->nb_samples_);
+}
+
+#ifdef SRS_FFMPEG_FIT
+// Feeds one RTMP audio tag to the RTMP to WebRTC bridge, in a payload freed when the message is, at the end of this call.
+static srs_error_t stream_bridge_rtc_audio(SrsRtcRtpBuilder *builder, const string &tag, int64_t timestamp)
+{
+    char *payload = new char[tag.size()];
+    memcpy(payload, tag.data(), tag.size());
+
+    SrsMediaPacket msg;
+    msg.message_type_ = SrsFrameTypeAudio;
+    msg.timestamp_ = timestamp;
+    msg.wrap(payload, (int)tag.size());
+    return builder->on_frame(&msg);
+}
+
+// An RTMP publisher to a vhost with rtmp_to_rtc sends MP3 audio, then a header-only audio tag (0x2f). The bridge
+// sends MP3 to the transcoder, which reads the packet's first sample. With the previous frame's sample left in the
+// packet, it decodes the freed payload, a heap-use-after-free that ASan reports.
+VOID TEST(StreamBridgeTest, SrsAudioTranscoder_Mp3HeaderOnlyTagReadsFreedFrame)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_ASSERT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    HELPER_ASSERT_SUCCESS(builder.initialize(req.get()));
+
+    // MP3 frames, transcoded to Opus for the WebRTC players. The zero-filled frames may not decode, which is fine.
+    int64_t timestamp = 0;
+    for (int i = 0; i < 3; i++, timestamp += 26) {
+        err = stream_bridge_rtc_audio(&builder, stream_bridge_mp3_tag(), timestamp);
+        srs_freep(err);
+    }
+
+    // The header-only tag has nothing to decode.
+    HELPER_EXPECT_SUCCESS(stream_bridge_rtc_audio(&builder, string(1, (char)0x2f), timestamp));
+}
+#endif

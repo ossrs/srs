@@ -119,7 +119,15 @@ SrsParsedPacket::~SrsParsedPacket()
 srs_error_t SrsParsedPacket::initialize(SrsCodecConfig *c)
 {
     codec_ = c;
+
+    // Drop the last frame's samples, which point into its payload, freed once that frame is sent. A frame that adds
+    // no sample, such as an MP3 tag with no data, must not leave a reader the freed bytes in samples_[0].
+    for (int i = 0; i < nb_samples_; i++) {
+        samples_[i].bytes_ = NULL;
+        samples_[i].size_ = 0;
+    }
     nb_samples_ = 0;
+
     dts_ = 0;
     cts_ = 0;
     return srs_success;
