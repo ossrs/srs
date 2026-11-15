@@ -2895,9 +2895,9 @@ private:
     }
 };
 
-// The shared timer, in a send of a session's RTCP, which ends by a write to the session's TCP network, and then goes
-// on in the session, as SrsRtcConnection::send_rtcp returns to the publisher.
-class MemoryAuditTimerRtcpSender : public ISrsCoroutineHandler
+// The NACK timer of a session, in a send to the session's TCP network, which then goes on in the session, as
+// SrsRtcConnection::do_check_send_nacks does.
+class MemoryAuditNackTimerSender : public ISrsRtcConnectionNackTimerHandler
 {
 public:
     ISrsRtcNetwork *network_;
@@ -2905,7 +2905,7 @@ public:
     bool established_;
 
 public:
-    MemoryAuditTimerRtcpSender(ISrsRtcNetwork *network)
+    MemoryAuditNackTimerSender(ISrsRtcNetwork *network)
     {
         network_ = network;
         done_ = false;
@@ -2913,7 +2913,7 @@ public:
     }
 
 public:
-    virtual srs_error_t cycle()
+    virtual srs_error_t do_check_send_nacks()
     {
         char rtcp[64] = {0};
         srs_error_t err = network_->write(rtcp, sizeof(rtcp), NULL);
@@ -2924,11 +2924,29 @@ public:
     }
 };
 
-// A WebRTC over TCP session is sent to by coroutines other than its TCP conn's, such as the shared timer for RTCP and
-// the player for media, and a send waits up to its timeout when the client stops reading. When the client then
-// closes DTLS, the manager frees the session, and it must wait for those sends too, or the send returns into the
-// freed network.
-VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendWaitedBeforeSessionFreed)
+// The shared timer, which calls a session's timer.
+class MemoryAuditSharedTimerCall : public ISrsCoroutineHandler
+{
+public:
+    ISrsFastTimerHandler *timer_;
+
+public:
+    MemoryAuditSharedTimerCall(ISrsFastTimerHandler *timer)
+    {
+        timer_ = timer;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        return timer_->on_timer(20 * SRS_UTIME_MILLISECONDS);
+    }
+};
+
+// A WebRTC over TCP session is sent to by the shared timer, and a send waits up to its timeout when the client stops
+// reading. When the client then closes DTLS, the manager frees the session, which must wait for the timer to leave it,
+// or the send returns into the freed network.
+VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendDoneBeforeSessionFreed)
 {
     srs_error_t err;
 
@@ -2952,14 +2970,19 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendWaitedBeforeSessionFreed)
     network->update_sendonly_socket(&skt);
     network->set_state(SrsRtcNetworkStateEstablished);
 
-    // The timer sends RTCP, and waits for room in the socket.
-    MemoryAuditTimerRtcpSender sender(network);
-    SrsSTCoroutine trd("timer", &sender, _srs_context->get_id());
+    // The session's NACK timer, whose send waits for room in the socket.
+    MemoryAuditNackTimerSender sender(network);
+    SrsRtcConnectionNackTimer *timer = new SrsRtcConnectionNackTimer(&sender);
+    srs_freep(session->timer_nack_);
+    session->timer_nack_ = timer;
+
+    MemoryAuditSharedTimerCall call(timer);
+    SrsSTCoroutine trd("timer", &call, _srs_context->get_id());
     HELPER_ASSERT_SUCCESS(trd.start());
     srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     ASSERT_EQ(1, skt.nn_waiting_);
 
-    // The client's DTLS alert removes the session, and the manager disposes it while the send waits.
+    // The client's DTLS alert removes the session while the send waits.
     manager.remove(session);
     srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     EXPECT_TRUE(manager.empty());
@@ -2973,9 +2996,111 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendWaitedBeforeSessionFreed)
     EXPECT_TRUE(sender.done_);
     EXPECT_TRUE(sender.established_);
 
-    // The manager frees the session after the send.
     srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     trd.stop();
+}
+
+// A sender of the session other than its TCP conn's coroutine, such as the DTLS client's ARQ when the client's offer
+// is a=setup:passive, which writes to the TCP network until the client's socket is full.
+class MemoryAuditRtcTcpArqSender : public ISrsCoroutineHandler
+{
+public:
+    SrsRtcTcpNetwork *network_;
+    bool done_;
+
+public:
+    MemoryAuditRtcTcpArqSender(SrsRtcTcpNetwork *network)
+    {
+        network_ = network;
+        done_ = false;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        static char pkt[60000];
+        for (int i = 0; i < 4096; i++) {
+            srs_error_t err = network_->write(pkt, sizeof(pkt), NULL);
+            if (err != srs_success) {
+                srs_freep(err);
+                break;
+            }
+        }
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// A WebRTC client over TCP, before DTLS is done, stops reading, so another coroutine's send waits in writev on the TCP
+// conn's socket. Then the client sends a bad frame, and the TCP conn ends, releases the network, and is freed. Its
+// socket must not be closed while a send still waits on it, or the close fails with EBUSY and aborts the server.
+VOID TEST(MemoryAuditTest, SrsRtcTcpConn_ClosedBeforeDtlsWhileOtherSendWaits)
+{
+    srs_error_t err;
+
+    SrsContextRestore(_srs_context->get_id());
+
+    SrsResourceManager manager("utest-rtc-tcp");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    // A real TCP pair, as the server's WebRTC TCP listener accepts it.
+    int port = 0;
+    srs_netfd_t lfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &lfd));
+
+    srs_netfd_t cfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &cfd));
+    srs_netfd_t sfd = srs_accept(lfd, NULL, NULL, 1 * SRS_UTIME_SECONDS);
+    ASSERT_TRUE(sfd != NULL);
+
+    // The session, whose TCP network is not established yet, owned by the TCP conn, as after its STUN handshake.
+    MockRtcAsyncTaskExecutor exec;
+    SrsRtcConnection *session = new SrsRtcConnection(&exec, SrsContextId());
+    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ASSERT_TRUE(network != NULL);
+
+    // The TCP conn, its shared wrapper and its executor coroutine, as SrsServer::start_resource makes them.
+    MockAppStatistic stat;
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(new SrsTcpConnection(sfd), "127.0.0.1", port);
+    conn->assemble();
+    conn->conn_manager_ = &manager;
+    conn->stat_ = &stat;
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper = new SrsSharedResource<ISrsRtcTcpConn>(conn);
+    SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(&manager, wrapper, conn, conn);
+    executor->assemble();
+    conn->setup_owner(wrapper, executor, executor);
+    conn->session_ = session;
+    network->set_owner(*wrapper);
+    network->update_sendonly_socket(conn->skt_);
+    network->set_state(SrsRtcNetworkStateDtls);
+
+    // The other sender fills the socket, and waits in writev for room.
+    MemoryAuditRtcTcpArqSender sender(network);
+    SrsSTCoroutine trd("arq", &sender, _srs_context->get_id());
+    HELPER_ASSERT_SUCCESS(trd.start());
+    srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+    ASSERT_FALSE(sender.done_);
+
+    // The client sends a frame longer than a packet, so the TCP conn ends.
+    uint8_t bad[2] = {0xff, 0xff};
+    SrsStSocket client(cfd);
+    client.set_send_timeout(1 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(client.write(bad, sizeof(bad), NULL));
+    HELPER_ASSERT_SUCCESS(executor->start());
+
+    // The TCP conn releases the network once no send waits on its socket, and then the manager frees it.
+    for (int i = 0; i < 300 && network->owner().get() != NULL; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(network->owner().get() == NULL);
+    EXPECT_TRUE(sender.done_);
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+
+    trd.stop();
+    srs_freep(session);
+    srs_close_stfd(cfd);
+    srs_close_stfd(lfd);
 }
 
 // Feed a WHIP H.264 publisher's stream to a frame builder with RTC to RTMP on: one IDR packet, then count packets of

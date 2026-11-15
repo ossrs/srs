@@ -2456,10 +2456,6 @@ void SrsRtcConnection::on_disposing(ISrsResource *c)
     if (owner.get()) {
         owner->interrupt();
     }
-
-    // Other coroutines send to the session too, such as the shared timer for RTCP and the player for media, and may
-    // wait in a send to a client that stopped reading, so wait for them as well.
-    tcp->stop_sends();
 }
 
 SrsSdp *SrsRtcConnection::get_local_sdp()
