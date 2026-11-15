@@ -926,10 +926,11 @@ srs_error_t SrsRtcTcpConn::cycle()
             session_->expire();
         } else {
             // Not established, so release the network to allow the client to reconnect over TCP, and never
-            // send by the socket of this connection, which is freed with it.
+            // send by the socket of this connection, which is freed with it. Another coroutine, such as the DTLS
+            // client's ARQ, may still wait in a send on that socket, and closing a socket with a waiter aborts.
             SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session_->tcp());
             if (network && network->owner().get() == this) {
-                network->update_sendonly_socket(NULL);
+                network->stop_sends();
                 network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
             }
         }
