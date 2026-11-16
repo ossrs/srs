@@ -536,6 +536,10 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
     }
     // A removed session is found until the manager frees it, which happens whenever a send of this packet switches
     // coroutines, so take it as gone.
+    // TODO: FIXME: Refine the lifetime of the session. It is a raw pointer, and the manager frees it once it is removed
+    // and this coroutine switches. A STUN or DTLS response is one send, which never lets the manager run, but a NACK
+    // resend sends many packets and yields between them, so a session removed meanwhile may be freed while this
+    // packet still uses it.
     if (session && session->is_disposing()) {
         session = NULL;
     }

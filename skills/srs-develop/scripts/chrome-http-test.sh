@@ -13,13 +13,18 @@
 # opens a few seconds late, such as on the slower Windows test host, then
 # starts at a segment with no SPS, and hls.js plays audio only and stalls. So
 # the segments end only at keyframes.
+#
+# Those segments are up to 6 s long, and hls.js reloads the playlist about
+# once per target duration, so the 4 s window of chrome-test-lib.sh can drop a
+# segment before hls.js sees it. hls.js then skips it and restarts its
+# timeline. So the window holds 30 s.
 set -eu
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 source "$SCRIPT_DIR/chrome-test-lib.sh"
 
 chrome_test_init http 15800
 chrome_test_srs 0
-chrome_test_start SRS_VHOST_HLS_HLS_AOF_RATIO=10
+chrome_test_start SRS_VHOST_HLS_HLS_AOF_RATIO=10 SRS_VHOST_HLS_HLS_WINDOW=30
 chrome_test_srs 1
 chrome_test_start 'SRS_VHOST_HTTP_REMUX_MOUNT=[vhost]/[app]/[stream].ts' SRS_VHOST_HLS_ENABLED=off
 

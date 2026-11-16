@@ -973,12 +973,16 @@ static void memory_audit_config_taken(const MemoryAuditConfigValue &v)
 // The MPD writer lists the last window of segments from index "size - window", so with a "dash_window_size" of 0
 // that index is one past the last segment, and with a negative window further: std::vector::at throws out_of_range,
 // nothing catches it, and the server aborts as soon as a stream publishes to the vhost. The config check refuses a
-// window below 1, from the config file or the env, so the writer gets a valid window.
+// window below 1, from the config file or the env, so the writer gets a valid window. The getter reads the window
+// with atoi, which reads 4294967296 as 0 and 0x10 as 0, so the check also refuses a value atoi does not read whole.
 VOID TEST(MemoryAuditTest, SrsMpdWriter_ZeroWindowSizeReadsPastSegments)
 {
     MemoryAuditConfigValue bad[] = {
         {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "0"},
         {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "-1"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "4294967296"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "0x10"},
+        {"dash{dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "1e3"},
     };
     for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
         memory_audit_config_refused(bad[i]);
@@ -1010,11 +1014,17 @@ VOID TEST(MemoryAuditTest, SrsMpdWriter_ZeroFragmentAborts)
 // CDN and read at most hls_nb_notify bytes of it into a buffer of srs_min(nb_notify, 4096) bytes, so a negative
 // hls_nb_notify makes the buffer new char[negative], which throws std::bad_array_new_length that nothing catches,
 // and the server aborts at the first segment. The config check refuses a negative hls_nb_notify, from the config
-// file or the env; 0 reads nothing and is taken.
+// file or the env; 0 reads nothing and is taken. The getter reads it with atoi, which reads 4294967295 as -1, so the
+// check also refuses a value out of the range of an int.
 VOID TEST(MemoryAuditTest, SrsHttpHooks_HlsNotifyNegativeSizeAborts)
 {
-    MemoryAuditConfigValue bad = {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "-1"};
-    memory_audit_config_refused(bad);
+    MemoryAuditConfigValue bad[] = {
+        {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "-1"},
+        {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "4294967295"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        memory_audit_config_refused(bad[i]);
+    }
 
     MemoryAuditConfigValue good = {"hls{hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY", "0"};
     memory_audit_config_taken(good);
@@ -1347,6 +1357,97 @@ VOID TEST(MemoryAuditTest, SrsParsedPacket_EmptyAudioKeepsFreedSamples)
     EXPECT_TRUE(buf == NULL);
     srs_freepa(buf);
 }
+
+// Feeds one RTMP audio tag to the format, in a payload freed when the message is, at the end of this call, as the
+// live source frees a frame once its last copy is sent.
+static srs_error_t memory_audit_format_audio(SrsRtmpFormat *format, const string &tag)
+{
+    char *payload = new char[tag.size()];
+    memcpy(payload, tag.data(), tag.size());
+
+    SrsMediaPacket msg;
+    msg.message_type_ = SrsFrameTypeAudio;
+    msg.wrap(payload, (int)tag.size());
+    return format->on_audio(&msg);
+}
+
+// An MP3 frame: the FLV audio header 0x2f, then a 417-byte MPEG-1 Layer III frame, 128 kbps, 44.1 kHz, stereo.
+static string memory_audit_mp3_tag()
+{
+    string frame(417, '\0');
+    frame[0] = (char)0xff;
+    frame[1] = (char)0xfb;
+    frame[2] = (char)0x90;
+    frame[3] = (char)0x64;
+    return string(1, (char)0x2f) + frame;
+}
+
+// An RTMP publisher sends MP3 audio, then an audio tag of only its 1-byte FLV header (0x2f). The live source does not
+// drop it, since its size is 1, and the MP3 demuxer adds no sample for 0 data bytes. At each frame of the stream the
+// parsed audio packet holds only the current frame's samples, never a pointer into a frame already freed.
+VOID TEST(MemoryAuditTest, SrsParsedPacket_Mp3HeaderOnlyTagKeepsFreedSamples)
+{
+    srs_error_t err;
+
+    SrsRtmpFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+
+    // An MP3 frame: one sample, into the frame's payload, freed after the call.
+    HELPER_ASSERT_SUCCESS(memory_audit_format_audio(&format, memory_audit_mp3_tag()));
+    EXPECT_EQ(1, format.audio_->nb_samples_);
+
+    // The header-only tag: no sample, and none left of the freed frame.
+    HELPER_EXPECT_SUCCESS(memory_audit_format_audio(&format, string(1, (char)0x2f)));
+    EXPECT_EQ(0, format.audio_->nb_samples_);
+    EXPECT_TRUE(format.audio_->samples_[0].bytes_ == NULL);
+    EXPECT_EQ(0, format.audio_->samples_[0].size_);
+
+    // The next MP3 frame: one sample again.
+    HELPER_EXPECT_SUCCESS(memory_audit_format_audio(&format, memory_audit_mp3_tag()));
+    EXPECT_EQ(1, format.audio_->nb_samples_);
+}
+
+#ifdef SRS_FFMPEG_FIT
+// Feeds one RTMP audio tag to the RTMP to WebRTC bridge, in a payload freed when the message is, at the end of this call.
+static srs_error_t memory_audit_rtc_audio(SrsRtcRtpBuilder *builder, const string &tag, int64_t timestamp)
+{
+    char *payload = new char[tag.size()];
+    memcpy(payload, tag.data(), tag.size());
+
+    SrsMediaPacket msg;
+    msg.message_type_ = SrsFrameTypeAudio;
+    msg.timestamp_ = timestamp;
+    msg.wrap(payload, (int)tag.size());
+    return builder->on_frame(&msg);
+}
+
+// An RTMP publisher to a vhost with rtmp_to_rtc sends MP3 audio, then a header-only audio tag (0x2f). The bridge
+// sends MP3 to the transcoder, which reads the packet's first sample. With the previous frame's sample left in the
+// packet, it decodes the freed payload, a heap-use-after-free that ASan reports.
+VOID TEST(MemoryAuditTest, SrsAudioTranscoder_Mp3HeaderOnlyTagReadsFreedFrame)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_ASSERT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
+    HELPER_ASSERT_SUCCESS(builder.initialize(req.get()));
+
+    // MP3 frames, transcoded to Opus for the WebRTC players. The zero-filled frames may not decode, which is fine.
+    int64_t timestamp = 0;
+    for (int i = 0; i < 3; i++, timestamp += 26) {
+        err = memory_audit_rtc_audio(&builder, memory_audit_mp3_tag(), timestamp);
+        srs_freep(err);
+    }
+
+    // The header-only tag has nothing to decode.
+    HELPER_EXPECT_SUCCESS(memory_audit_rtc_audio(&builder, string(1, (char)0x2f), timestamp));
+}
+#endif
 
 // Sends the datagram from the client to the server's UDP port, and receives it on the server's socket, as the RTC
 // server's UDP listener coroutine does before it dispatches the packet.
@@ -2854,6 +2955,255 @@ VOID TEST(MemoryAuditTest, SrsRtcConnection_TcpConnStoppedBeforeSessionFreed)
     EXPECT_TRUE(manager.empty());
 }
 
+// The TCP socket of a WebRTC client that stopped reading: a send waits for room until its send timeout, which the
+// test fires.
+class MemoryAuditFullRtcTcpSocket : public ISrsProtocolReadWriter
+{
+public:
+    srs_cond_t timeout_;
+    int nn_waiting_;
+
+public:
+    MemoryAuditFullRtcTcpSocket()
+    {
+        timeout_ = srs_cond_new();
+        nn_waiting_ = 0;
+    }
+    virtual ~MemoryAuditFullRtcTcpSocket()
+    {
+        srs_cond_destroy(timeout_);
+    }
+
+public:
+    virtual void set_recv_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_recv_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual void set_send_timeout(srs_utime_t tm) {}
+    virtual srs_utime_t get_send_timeout() { return SRS_UTIME_NO_TIMEOUT; }
+    virtual int64_t get_recv_bytes() { return 0; }
+    virtual int64_t get_send_bytes() { return 0; }
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread) { return srs_error_new(ERROR_SOCKET_READ, "no read"); }
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite) { return wait(); }
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite) { return wait(); }
+
+private:
+    srs_error_t wait()
+    {
+        nn_waiting_++;
+        srs_cond_wait(timeout_);
+        nn_waiting_--;
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "send timeout");
+    }
+};
+
+// The NACK timer of a session, in a send to the session's TCP network, which then goes on in the session, as
+// SrsRtcConnection::do_check_send_nacks does.
+class MemoryAuditNackTimerSender : public ISrsRtcConnectionNackTimerHandler
+{
+public:
+    ISrsRtcNetwork *network_;
+    bool done_;
+    bool established_;
+
+public:
+    MemoryAuditNackTimerSender(ISrsRtcNetwork *network)
+    {
+        network_ = network;
+        done_ = false;
+        established_ = false;
+    }
+
+public:
+    virtual srs_error_t do_check_send_nacks()
+    {
+        char rtcp[64] = {0};
+        srs_error_t err = network_->write(rtcp, sizeof(rtcp), NULL);
+        srs_freep(err);
+        established_ = network_->is_establelished();
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// The shared timer, which calls a session's timer.
+class MemoryAuditSharedTimerCall : public ISrsCoroutineHandler
+{
+public:
+    ISrsFastTimerHandler *timer_;
+
+public:
+    MemoryAuditSharedTimerCall(ISrsFastTimerHandler *timer)
+    {
+        timer_ = timer;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        return timer_->on_timer(20 * SRS_UTIME_MILLISECONDS);
+    }
+};
+
+// A WebRTC over TCP session is sent to by the shared timer, and a send waits up to its timeout when the client stops
+// reading. When the client then closes DTLS, the manager frees the session, which must wait for the timer to leave it,
+// or the send returns into the freed network.
+VOID TEST(MemoryAuditTest, SrsRtcConnection_TimerSendDoneBeforeSessionFreed)
+{
+    srs_error_t err;
+
+    SrsContextRestore(_srs_context->get_id());
+
+    SrsResourceManager manager("utest-rtc");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // A session over TCP, whose DTLS is done, and whose client stopped reading.
+    MockRtcAsyncTaskExecutor exec;
+    SrsRtcConnection *session = new SrsRtcConnection(&exec, SrsContextId());
+    session->conn_manager_ = &manager;
+    session->assemble();
+    manager.add(session);
+
+    MemoryAuditFullRtcTcpSocket skt;
+    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ASSERT_TRUE(network != NULL);
+    network->update_sendonly_socket(&skt);
+    network->set_state(SrsRtcNetworkStateEstablished);
+
+    // The session's NACK timer, whose send waits for room in the socket.
+    MemoryAuditNackTimerSender sender(network);
+    SrsRtcConnectionNackTimer *timer = new SrsRtcConnectionNackTimer(&sender);
+    srs_freep(session->timer_nack_);
+    session->timer_nack_ = timer;
+
+    MemoryAuditSharedTimerCall call(timer);
+    SrsSTCoroutine trd("timer", &call, _srs_context->get_id());
+    HELPER_ASSERT_SUCCESS(trd.start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    ASSERT_EQ(1, skt.nn_waiting_);
+
+    // The client's DTLS alert removes the session while the send waits.
+    manager.remove(session);
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(manager.empty());
+    EXPECT_FALSE(sender.done_);
+
+    // The send times out, and the timer goes on in the session, which is still whole.
+    srs_cond_signal(skt.timeout_);
+    for (int i = 0; i < 100 && !sender.done_; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(sender.done_);
+    EXPECT_TRUE(sender.established_);
+
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    trd.stop();
+}
+
+// A sender of the session other than its TCP conn's coroutine, such as the DTLS client's ARQ when the client's offer
+// is a=setup:passive, which writes to the TCP network until the client's socket is full.
+class MemoryAuditRtcTcpArqSender : public ISrsCoroutineHandler
+{
+public:
+    SrsRtcTcpNetwork *network_;
+    bool done_;
+
+public:
+    MemoryAuditRtcTcpArqSender(SrsRtcTcpNetwork *network)
+    {
+        network_ = network;
+        done_ = false;
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        static char pkt[60000];
+        for (int i = 0; i < 4096; i++) {
+            srs_error_t err = network_->write(pkt, sizeof(pkt), NULL);
+            if (err != srs_success) {
+                srs_freep(err);
+                break;
+            }
+        }
+        done_ = true;
+        return srs_success;
+    }
+};
+
+// A WebRTC client over TCP, before DTLS is done, stops reading, so another coroutine's send waits in writev on the TCP
+// conn's socket. Then the client sends a bad frame, and the TCP conn ends, releases the network, and is freed. Its
+// socket must not be closed while a send still waits on it, or the close fails with EBUSY and aborts the server.
+VOID TEST(MemoryAuditTest, SrsRtcTcpConn_ClosedBeforeDtlsWhileOtherSendWaits)
+{
+    srs_error_t err;
+
+    SrsContextRestore(_srs_context->get_id());
+
+    SrsResourceManager manager("utest-rtc-tcp");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    // A real TCP pair, as the server's WebRTC TCP listener accepts it.
+    int port = 0;
+    srs_netfd_t lfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &lfd));
+
+    srs_netfd_t cfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &cfd));
+    srs_netfd_t sfd = srs_accept(lfd, NULL, NULL, 1 * SRS_UTIME_SECONDS);
+    ASSERT_TRUE(sfd != NULL);
+
+    // The session, whose TCP network is not established yet, owned by the TCP conn, as after its STUN handshake.
+    MockRtcAsyncTaskExecutor exec;
+    SrsRtcConnection *session = new SrsRtcConnection(&exec, SrsContextId());
+    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ASSERT_TRUE(network != NULL);
+
+    // The TCP conn, its shared wrapper and its executor coroutine, as SrsServer::start_resource makes them.
+    MockAppStatistic stat;
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(new SrsTcpConnection(sfd), "127.0.0.1", port);
+    conn->assemble();
+    conn->conn_manager_ = &manager;
+    conn->stat_ = &stat;
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper = new SrsSharedResource<ISrsRtcTcpConn>(conn);
+    SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(&manager, wrapper, conn, conn);
+    executor->assemble();
+    conn->setup_owner(wrapper, executor, executor);
+    conn->session_ = session;
+    network->set_owner(*wrapper);
+    network->update_sendonly_socket(conn->skt_);
+    network->set_state(SrsRtcNetworkStateDtls);
+
+    // The other sender fills the socket, and waits in writev for room.
+    MemoryAuditRtcTcpArqSender sender(network);
+    SrsSTCoroutine trd("arq", &sender, _srs_context->get_id());
+    HELPER_ASSERT_SUCCESS(trd.start());
+    srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+    ASSERT_FALSE(sender.done_);
+
+    // The client sends a frame longer than a packet, so the TCP conn ends.
+    uint8_t bad[2] = {0xff, 0xff};
+    SrsStSocket client(cfd);
+    client.set_send_timeout(1 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(client.write(bad, sizeof(bad), NULL));
+    HELPER_ASSERT_SUCCESS(executor->start());
+
+    // The TCP conn releases the network once no send waits on its socket, and then the manager frees it.
+    for (int i = 0; i < 300 && network->owner().get() != NULL; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(network->owner().get() == NULL);
+    EXPECT_TRUE(sender.done_);
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+
+    trd.stop();
+    srs_freep(session);
+    srs_close_stfd(cfd);
+    srs_close_stfd(lfd);
+}
+
 // Feed a WHIP H.264 publisher's stream to a frame builder with RTC to RTMP on: one IDR packet, then count packets of
 // a one-byte NALU (only the header, as SrsRtcVideoRecvTrack decodes a raw NALU), each with the marker bit and its
 // own timestamp, so each is a whole frame of no payload. Return how many frames the builder sent, or -1 on an error.
@@ -3976,4 +4326,62 @@ VOID TEST(MemoryAuditTest, SrsTcpListener_CloseWaitsAfterInterruptedAccept)
     srs_utime_t duration = srs_time_now_realtime() - starttime;
 
     EXPECT_LT(duration, 50 * SRS_UTIME_MILLISECONDS);
+}
+
+// When WebRTC over TCP shares the HTTP port, each client's peek runs in its own coroutine and counts as a connection.
+// A client that connects and sends nothing, such as a browser's preconnect or a port scan, must be dropped like an idle
+// client of the plain HTTP port, or idle clients fill max_connections and every port refuses new clients.
+VOID TEST(MemoryAuditTest, SrsServer_IdlePeekDroppedBeforeConnectionLimit)
+{
+    srs_error_t err;
+
+    SrsResourceManager manager("utest-shared-port-limit");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    MockAppConfigForConnectionLimit config;
+    config.max_connections_ = 2;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->conn_manager_ = &manager;
+    server->config_ = &config;
+    server->reuse_rtc_over_server_ = true;
+    server->peek_timeout_ = 100 * SRS_UTIME_MILLISECONDS;
+
+    MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(&acceptor));
+    int port = srs_utest_random_port();
+    listener->set_endpoint("127.0.0.1", port);
+    HELPER_ASSERT_SUCCESS(listener->listen());
+
+    // Two clients connect and send nothing. While they wait, they fill the connection limit.
+    SrsTcpConnection *idles[2];
+    for (int i = 0; i < 2; i++) {
+        srs_netfd_t stfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+        idles[i] = new SrsTcpConnection(stfd);
+    }
+    for (int i = 0; i < 50 && manager.size() != 2; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    ASSERT_EQ(2, (int)manager.size());
+
+    // Past the peek timeout, the server drops them, though the clients are still connected.
+    for (int i = 0; i < 100 && !manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(0, (int)manager.size());
+
+    // A new client of any port, such as RTMP, is taken.
+    err = server->on_before_connection("TCP", 0, "127.0.0.1", 1935);
+    EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+    srs_freep(err);
+
+    for (int i = 0; i < 2; i++) {
+        srs_freep(idles[i]);
+    }
+    listener->close();
+    server->conn_manager_ = NULL;
+    server->config_ = NULL;
 }
