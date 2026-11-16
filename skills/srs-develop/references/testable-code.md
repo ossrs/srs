@@ -10,7 +10,7 @@ Apply this to every task that touches code, regardless of which task the router 
 
 1. **Tests first, no implementation.** Write every test that verifies the issue, the feature, or the interface. Start with integration tests through existing public APIs, such as srs-bench and the workflow utests, because they need no new interface. Then write unit tests, declaring any new interface as stubs with no behavior so they compile. Run them all. Failing is the expected result.
 2. **Refactor for testability, no implementation.** When the code under test cannot be mocked, refactor it under the testability contract below. Tests may still fail.
-3. **Implement, then make every test pass.** Fix the bug or build the feature. Edit a test in this step only to fix a proven mistake in the test itself, and say so.
+3. **Implement, then make every test pass.** Fix the bug or build the feature. Edit a test in this step only to fix a proven mistake in the test itself, and say so. Then check every comment the diff adds or changes against Comments Only for Hidden Context in `skills/srs-develop/SKILL.md`, and delete each line that fails it.
 
 Rules that hold across the steps:
 
