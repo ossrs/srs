@@ -18,6 +18,8 @@ using namespace std;
 #include <srs_app_http_static.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_http_stream.hpp>
+#include <srs_kernel_error.hpp>
 
 MockMSegmentsReader::MockMSegmentsReader()
 {
@@ -2396,3 +2398,33 @@ VOID TEST(ProtocolHTTPTest, PathEscape)
     }
 }
 
+// The stream teardown disables the entry, expires the viewers it finds and waits for them to quit, or aborts. A viewer
+// that arrives during the teardown should be refused before it counts as alive, because one that waits for its
+// on_play hook would keep the stream alive until the teardown aborts. The message has no connection, so a viewer that
+// is not refused at once crashes the child process.
+VOID TEST(ProtocolHTTPTest, LiveStreamRefusesViewerDuringTeardown)
+{
+    EXPECT_EXIT(
+        {
+            SrsRequest req;
+            req.vhost = "__defaultVhost__";
+            req.app = "live";
+            req.stream = "livestream";
+
+            SrsLiveStream stream(NULL, &req, NULL);
+            stream.entry = new SrsHttpMuxEntry();
+            stream.entry->pattern = "/live/livestream.flv";
+            stream.entry->enabled = false;
+
+            SrsHttpMessage msg;
+            MockResponseWriter w;
+            srs_error_t err = stream.serve_http(&w, &msg);
+            int code = srs_error_code(err);
+            srs_freep(err);
+
+            bool refused = (code == ERROR_RTMP_STREAM_NOT_FOUND && stream.viewers_.empty());
+            srs_freep(stream.entry);
+            _exit(refused ? 0 : 1);
+        },
+        ::testing::ExitedWithCode(0), "");
+}

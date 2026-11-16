@@ -384,6 +384,11 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         string peer_id = skt->peer_id();
         session = (SrsRtcConnection*)_srs_rtc_manager->find_by_id(peer_id);
     }
+    // A removed session is found until the manager frees it, which happens whenever a send of this packet switches
+    // coroutines, so take it as gone.
+    if (session && session->disposing_) {
+        session = NULL;
+    }
 
     if (session) {
         // When got any packet, the session is alive now.
@@ -402,6 +407,9 @@ srs_error_t SrsRtcServer::on_udp_packet(SrsUdpMuxSocket* skt)
         }
         if (!session) {
             session = find_session_by_username(ping.get_username());
+            if (session && session->disposing_) {
+                session = NULL;
+            }
         }
         if (session) {
             session->switch_to_context();

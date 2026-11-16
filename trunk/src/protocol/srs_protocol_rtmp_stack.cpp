@@ -261,12 +261,13 @@ srs_error_t SrsProtocol::manual_response_flush()
         return err;
     }
     
-    std::vector<SrsPacket*>::iterator it;
-    for (it = manual_response_queue.begin(); it != manual_response_queue.end();) {
-        SrsPacket* pkt = *it;
+    // Take the front each time and keep no iterator, because the send may switch to the receive coroutine, which
+    // pushes more responses and may move the queue to a new buffer.
+    while (!manual_response_queue.empty()) {
+        SrsPacket* pkt = manual_response_queue.front();
         
         // erase this packet, the send api always free it.
-        it = manual_response_queue.erase(it);
+        manual_response_queue.erase(manual_response_queue.begin());
         
         // use underlayer api to send, donot flush again.
         if ((err = do_send_and_free_packet(pkt, 0)) != srs_success) {

@@ -6489,3 +6489,137 @@ VOID TEST(KernelUtilityTest, Base64Decode)
         EXPECT_STRNE("admin:admin", plaintext.c_str());
     }
 }
+
+// Feeds one RTMP audio tag to the format, in a payload freed at the end of this call, as the live source frees a
+// frame once its last copy is sent.
+static srs_error_t utest_format_audio_in_freed_payload(SrsFormat* format, const string& tag)
+{
+    char* payload = new char[tag.size()];
+    memcpy(payload, tag.data(), tag.size());
+
+    srs_error_t err = format->on_audio(0, payload, (int)tag.size());
+    srs_freepa(payload);
+    return err;
+}
+
+// An MP3 frame: the FLV audio header 0x2f, then a 417-byte MPEG-1 Layer III frame, 128 kbps, 44.1 kHz, stereo.
+static string utest_mp3_tag()
+{
+    string frame(417, '\0');
+    frame[0] = (char)0xff;
+    frame[1] = (char)0xfb;
+    frame[2] = (char)0x90;
+    frame[3] = (char)0x64;
+    return string(1, (char)0x2f) + frame;
+}
+
+// An RTMP publisher sends MP3 audio, then an audio tag of only its 1-byte FLV header (0x2f). The MP3 demuxer adds no
+// sample for 0 data bytes. At each frame the parsed audio holds only the current frame's samples, never a pointer
+// into a frame already freed, which a reader such as the RTMP to WebRTC transcoder would decode.
+VOID TEST(KernelCodecTest, Mp3HeaderOnlyTagClearsFreedSamples)
+{
+    srs_error_t err;
+
+    SrsFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+
+    // An MP3 frame: one sample, into the frame's payload, freed after the call.
+    HELPER_ASSERT_SUCCESS(utest_format_audio_in_freed_payload(&format, utest_mp3_tag()));
+    EXPECT_EQ(1, format.audio->nb_samples);
+
+    // The header-only tag: no sample, and none left of the freed frame.
+    HELPER_EXPECT_SUCCESS(utest_format_audio_in_freed_payload(&format, string(1, (char)0x2f)));
+    EXPECT_EQ(0, format.audio->nb_samples);
+    EXPECT_TRUE(format.audio->samples[0].bytes == NULL);
+    EXPECT_EQ(0, format.audio->samples[0].size);
+
+    // The next MP3 frame: one sample again.
+    HELPER_EXPECT_SUCCESS(utest_format_audio_in_freed_payload(&format, utest_mp3_tag()));
+    EXPECT_EQ(1, format.audio->nb_samples);
+}
+
+// An empty audio message, as an edge pulling HTTP-FLV from its origin may get, is ignored by the format. It must not
+// leave the previous frame's samples and raw bytes, which point into that frame's freed payload, as the current frame
+// for the hub (HLS, DASH, DVR) and the RTMP to WebRTC bridge.
+VOID TEST(KernelCodecTest, EmptyAudioClearsFreedSamples)
+{
+    srs_error_t err;
+
+    SrsFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+
+    // AAC LC 44.1 kHz stereo sequence header, then one raw frame, each in its own freed payload.
+    HELPER_ASSERT_SUCCESS(utest_format_audio_in_freed_payload(&format, string("\xaf\x00\x12\x10", 4)));
+    HELPER_ASSERT_SUCCESS(utest_format_audio_in_freed_payload(&format, string("\xaf\x01\x21\x10\x04\x60\x8c\x1c", 8)));
+    ASSERT_EQ(1, format.audio->nb_samples);
+
+    // The empty audio has no sample, and the format no longer holds the freed frame's.
+    HELPER_EXPECT_SUCCESS(format.on_audio(0, NULL, 0));
+    EXPECT_EQ(0, format.audio->nb_samples);
+    EXPECT_TRUE(format.audio->samples[0].bytes == NULL);
+    EXPECT_TRUE(format.raw == NULL);
+    EXPECT_EQ(0, format.nb_raw);
+}
+
+// An HEVC VPS, SPS or PPS of one byte, its first NALU header byte only, must be refused, rather than skipping the
+// second header byte past the end of the buffer, which aborts the server.
+VOID TEST(KernelCodecTest, HevcOneByteParameterSetRefused)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsFormat format;
+        HELPER_ASSERT_SUCCESS(format.initialize());
+        char data[] = {0x40}; // nal_unit_type 32, VPS
+        SrsBuffer b(data, sizeof(data));
+        HELPER_EXPECT_FAILED(format.hevc_demux_vps(&b));
+    }
+
+    if (true) {
+        SrsFormat format;
+        HELPER_ASSERT_SUCCESS(format.initialize());
+        char data[] = {0x42}; // nal_unit_type 33, SPS
+        SrsBuffer b(data, sizeof(data));
+        HELPER_EXPECT_FAILED(format.hevc_demux_sps(&b));
+    }
+
+    if (true) {
+        SrsFormat format;
+        HELPER_ASSERT_SUCCESS(format.initialize());
+        char data[] = {0x44}; // nal_unit_type 34, PPS
+        SrsBuffer b(data, sizeof(data));
+        HELPER_EXPECT_FAILED(format.hevc_demux_pps(&b));
+    }
+}
+
+// A publisher sends an AAC sequence header with no AudioSpecificConfig, only the two FLV audio bytes, then AAC frames,
+// into a DVR MP4. The encoder keeps an empty ASC, and when the DVR closes the file, it must refuse the AAC track
+// rather than encode a decoder specific info of zero bytes, which asserts and aborts the server.
+VOID TEST(KernelMp4Test, EncoderRefusesAacTrackWithoutAsc)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter f;
+    SrsMp4Encoder enc;
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&f));
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+
+    uint8_t sh[] = {0xaf, 0x00};
+    HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char*)sh, sizeof(sh)));
+    HELPER_ASSERT_SUCCESS(enc.write_sample(
+        &fmt, SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, 0, 0, (uint8_t*)fmt.raw, fmt.nb_raw
+    ));
+
+    for (int i = 0; i < 2; i++) {
+        uint8_t raw[] = {0xaf, 0x01, 0x21, 0x11, 0x45, 0x00};
+        uint32_t dts = i * 23;
+        HELPER_ASSERT_SUCCESS(fmt.on_audio(dts, (char*)raw, sizeof(raw)));
+        HELPER_ASSERT_SUCCESS(enc.write_sample(
+            &fmt, SrsMp4HandlerTypeSOUN, 0x00, fmt.audio->aac_packet_type, dts, dts, (uint8_t*)fmt.raw, fmt.nb_raw
+        ));
+    }
+
+    enc.acodec = SrsAudioCodecIdAAC;
+    HELPER_EXPECT_FAILED(enc.flush());
+}

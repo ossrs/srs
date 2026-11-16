@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2026-11-15, Backport [#4802](https://github.com/ossrs/srs/pull/4802): Security: Fix bugs found by the C++ memory audits. v6.0.196
 * <strong>v6.0, 2026-10-30, [6.0 release3(6.0.195)](https://github.com/ossrs/srs/releases/tag/v6.0-r3) released. 172562 lines.</strong>
 * v6.0, 2026-10-30, Backport [#4794](https://github.com/ossrs/srs/pull/4794): Security: Fix bugs found by security reports. v6.0.195
 * v6.0, 2026-10-29, RTC: Fix crash and heap overflow from a malformed RTCP packet. v6.0.194

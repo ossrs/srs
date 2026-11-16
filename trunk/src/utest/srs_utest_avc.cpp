@@ -120,6 +120,13 @@ VOID TEST(SrsAVCTest, H264SequenceHeader)
         EXPECT_STREQ("world", sh.substr(16).c_str());
     }
 
+    // An SPS without its NALU header, profile, constraints and level, such as a short SPS from WHIP, is refused.
+    if (true) {
+        SrsRawH264Stream h; string sh;
+        HELPER_EXPECT_FAILED(h.mux_sequence_header("Hel", "world", sh));
+        HELPER_EXPECT_FAILED(h.mux_sequence_header("", "world", sh));
+    }
+
     // For PPS demuxing.
     if (true) {
         SrsRawH264Stream h;

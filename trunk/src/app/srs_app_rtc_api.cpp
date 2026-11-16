@@ -81,6 +81,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter* w, ISrsHttpMe
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
+            srs_freep(json);
             return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
         }
 
@@ -390,6 +391,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter* w, ISrsHtt
 
         SrsJsonAny* json = SrsJsonAny::loads(req_json);
         if (!json || !json->is_object()) {
+            srs_freep(json);
             return srs_error_new(ERROR_RTC_API_BODY, "invalid body %s", req_json.c_str());
         }
 

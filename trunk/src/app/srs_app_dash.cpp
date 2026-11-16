@@ -149,7 +149,8 @@ srs_error_t SrsFragmentedMp4::reap(uint64_t& dts)
         return srs_error_wrap(err, "Flush encoder failed");
     }
     
-    srs_freep(fw);
+    // Close but keep the writer, which the encoder borrows: when the rename fails, the segment may be reaped again.
+    fw->close();
     
     if ((err = rename()) != srs_success) {
         return srs_error_wrap(err, "rename");

@@ -595,7 +595,15 @@ SrsFrame::~SrsFrame()
 srs_error_t SrsFrame::initialize(SrsCodecConfig* c)
 {
     codec = c;
+
+    // Drop the last frame's samples, which point into its payload, freed once that frame is sent. A frame that adds
+    // no sample, such as an MP3 tag with no data, must not leave a reader the freed bytes in samples[0].
+    for (int i = 0; i < nb_samples; i++) {
+        samples[i].bytes = NULL;
+        samples[i].size = 0;
+    }
     nb_samples = 0;
+
     dts = 0;
     cts = 0;
     return srs_success;
@@ -791,6 +799,14 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char* data, int size)
     
     if (!data || size <= 0) {
         srs_info("no audio present, ignore it.");
+
+        // Clear the last frame's samples and bytes, which point into its payload, freed once that frame is sent.
+        if (audio && (err = audio->initialize(acodec)) != srs_success) {
+            return srs_error_wrap(err, "init audio");
+        }
+        raw = NULL;
+        nb_raw = 0;
+
         return err;
     }
 
@@ -1258,8 +1274,8 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
     // @see 7.3.1.2 NAL unit header syntax
     // @doc ITU-T-H.265-2021.pdf, page 53.
 
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
@@ -1387,8 +1403,8 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
     // @see 7.3.2.2.1 General sequence parameter set RBSP syntax
     // @doc ITU-T-H.265-2021.pdf, page 55.
 
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
@@ -1573,8 +1589,8 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // for NALU, ITU-T H.265 7.3.2.3 Picture parameter set RBSP syntax
     // @see 7.3.2.3 Picture parameter set RBSP syntax
     // @doc ITU-T-H.265-2021.pdf, page 57.
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
@@ -1716,6 +1732,10 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         if ((err = bs.read_bits_ue(pps->num_tile_rows_minus1)) != srs_success) {
             return srs_error_wrap(err, "num_tile_rows_minus1");
         }
+        // No level allows more than 20 tile columns or 22 tile rows, see MaxTileCols and MaxTileRows in Table A.8.
+        if (pps->num_tile_columns_minus1 >= 20 || pps->num_tile_rows_minus1 >= 22) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps tiles columns=%u, rows=%u exceed 20x22", pps->num_tile_columns_minus1 + 1, pps->num_tile_rows_minus1 + 1);
+        }
 
         if (!bs.require_bits(1)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "uniform_spacing_flag requires 1 only %d bits", bs.left_bits());
@@ -1790,6 +1810,10 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char* rbsp, int nb_rbsp)
         SrsHevcScalingListData* sld = &pps->scaling_list_data;
         for (int sizeId = 0; sizeId < 4; sizeId++) {
             for (int matrixId = 0; matrixId < 6; matrixId += (sizeId == 3) ? 3 : 1) {
+                if (!bs.require_bits(1)) {
+                    return srs_error_new(ERROR_HEVC_DECODE_ERROR, "scaling_list_pred_mode_flag requires 1 only %d bits", bs.left_bits());
+                }
+
                 // scaling_list_pred_mode_flag  u(1)
                 sld->scaling_list_pred_mode_flag[sizeId][matrixId] = bs.read_bit();
                 if (!sld->scaling_list_pred_mode_flag[sizeId][matrixId]) {

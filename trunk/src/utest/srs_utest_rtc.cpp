@@ -2130,3 +2130,31 @@ VOID TEST(DtlsFingerprintTest, PeerCertificateNotInOfferIsRefusedWhenSrsIsActive
     EXPECT_FALSE(srs.handshake_done);
     EXPECT_EQ(0, network.handshake_done_count_);
 }
+
+// A publisher's sequence number jumps, which names a gap of up to 32767 lost packets. The NACK list takes no more than
+// its limit, which check_queue_size clears, instead of inserting the whole gap.
+VOID TEST(KernelRTCTest, NackInsertStopsAtQueueLimit)
+{
+    SrsRtpRingBuffer rtp(100);
+
+    if (true) {
+        SrsRtpNackForReceiver nack(&rtp, 2);
+
+        nack.insert(100, 103);
+        EXPECT_EQ(2, (int)nack.queue_.size());
+        EXPECT_TRUE(nack.find(100) != NULL);
+        EXPECT_TRUE(nack.find(101) != NULL);
+        EXPECT_TRUE(nack.find(102) == NULL);
+
+        // The full list is cleared.
+        nack.check_queue_size();
+        EXPECT_EQ(0, (int)nack.queue_.size());
+    }
+
+    if (true) {
+        SrsRtpNackForReceiver nack(&rtp, 1000);
+
+        nack.insert(0, 32767);
+        EXPECT_EQ(1000, (int)nack.queue_.size());
+    }
+}

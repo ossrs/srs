@@ -954,13 +954,17 @@ srs_error_t SrsSslConnection::write(void* plaintext, size_t nn_plaintext, ssize_
             *nwrite += (ssize_t)r0;
         }
 
+        // Copy the records out and empty the BIO before the socket write, which may switch to the recv coroutine,
+        // whose SSL_read may append to the BIO and move its buffer. What it appends goes out with the next write.
         uint8_t* data = NULL;
         int size = BIO_get_mem_data(bio_out, &data);
-        if ((err = transport->write(data, size, NULL)) != srs_success) {
-            return srs_error_wrap(err, "https: write data=%p, size=%d", data, size);
-        }
+        SrsUniquePtr<char[]> cipher(new char[size]);
+        memcpy(cipher.get(), data, size);
         if ((r0 = BIO_reset(bio_out)) != 1) {
             return srs_error_new(ERROR_HTTPS_WRITE, "BIO_reset r0=%d", r0);
+        }
+        if ((err = transport->write(cipher.get(), size, NULL)) != srs_success) {
+            return srs_error_wrap(err, "https: write data=%p, size=%d", cipher.get(), size);
         }
     }
 

@@ -478,9 +478,11 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
 
     _srs_config->unsubscribe(this);
 
+    // Stop the sender first: its consumer stays on the source until it quits, and the join switches, so a publisher
+    // may call on_stream_change, which uses the PLI worker, in that window.
+    srs_freep(trd_);
     srs_freep(nack_epp);
     srs_freep(pli_worker_);
-    srs_freep(trd_);
     srs_freep(req_);
 
     if (true) {
@@ -1600,8 +1602,9 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
 
     // limit the max count=1024 to avoid dead loop.
     for (int i = 0; i < 1024 && rtcp_twcc_.need_feedback(); ++i) {
-        char pkt[kMaxUDPDataSize];
-        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(pkt, sizeof(pkt)));
+        // The feedback fills up to kMaxUDPDataSize, and the SRTCP trailer is written in place after it.
+        char pkt[kMaxUDPDataSize + SRTP_MAX_TRAILER_LEN];
+        SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(pkt, kMaxUDPDataSize));
 
         rtcp_twcc_.set_feedback_count(twcc_fb_count_);
         twcc_fb_count_++;
@@ -1684,12 +1687,14 @@ srs_error_t SrsRtcPublishStream::on_rtcp_xr(SrsRtcpXr* rtcp)
         stream.skip(1);
         uint16_t block_length = (stream.read_2bytes() + 1) * 4;
 
-        if (stream.pos() + block_length - 4 > rtcp->size()) {
-            return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid XR packet block, block_length=%u, nb_buf=%d", block_length, rtcp->size());
+        // The block must end in this XR packet, not only in the rest of the compound packet.
+        if (stream.pos() + block_length - 4 > length) {
+            return srs_error_new(ERROR_RTC_RTCP_CHECK, "invalid XR packet block, block_length=%u, length=%u", block_length, length);
         }
 
         if (bt == 5) {
-            for (int i = 4; i < block_length; i += 12) {
+            // Each DLRR sub-block is 12 bytes, so read only the whole ones.
+            for (int i = 4; i + 12 <= block_length; i += 12) {
                 uint32_t ssrc = stream.read_4bytes();
                 uint32_t lrr = stream.read_4bytes();
                 uint32_t dlrr = stream.read_4bytes();
@@ -1855,8 +1860,9 @@ SrsRtcConnection::SrsRtcConnection(SrsRtcServer* s, const SrsContextId& cid)
     server_ = s;
     networks_ = new SrsRtcNetworks(this);
 
+    // A packet fills up to kRtpPacketSize, and the SRTP trailer is written in place after it.
     cache_iov_ = new iovec();
-    cache_iov_->iov_base = new char[kRtpPacketSize];
+    cache_iov_->iov_base = new char[kRtpPacketSize + SRTP_MAX_TRAILER_LEN];
     cache_iov_->iov_len = kRtpPacketSize;
     cache_buffer_ = new SrsBuffer((char*)cache_iov_->iov_base, kRtpPacketSize);
 
@@ -2391,8 +2397,9 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver* nack, uint32_t ss
     ++_srs_pps_snack2->sugar;
     ++_srs_pps_srtcps->sugar;
 
-    char buf[kRtcpPacketSize];
-    SrsBuffer stream(buf, sizeof(buf));
+    // The NACK fills up to kRtcpPacketSize, and the SRTCP trailer is written in place after it.
+    char buf[kRtcpPacketSize + SRTP_MAX_TRAILER_LEN];
+    SrsBuffer stream(buf, kRtcpPacketSize);
 
     // TODO: FIXME: Check error.
     rtcpNack.encode(&stream);
@@ -2728,7 +2735,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
 
                 // if the payload is opus, and the encoding_param_ is channel
                 SrsAudioPayload* audio_payload = new SrsAudioPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
-                audio_payload->set_opus_param_desc(payload.format_specific_param_);
+
+                // The fmtp is optional, so ignore a bad one and keep the defaults.
+                if ((err = audio_payload->set_opus_param_desc(payload.format_specific_param_)) != srs_success) {
+                    srs_freep(err);
+                }
 
                 // TODO: FIXME: Only support some transport algorithms.
                 for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
@@ -2951,6 +2962,11 @@ srs_error_t SrsRtcConnection::negotiate_publish_capability(SrsRtcUserConfig* ruc
         // set track fec_ssrc and rtx_ssrc
         for (int j = 0; j < (int)remote_media_desc.ssrc_groups_.size(); ++j) {
             const SrsSSRCGroup& ssrc_group = remote_media_desc.ssrc_groups_.at(j);
+
+            // A FID or FEC group pairs the track's SSRC with a second one, so a group of one SSRC names none.
+            if (ssrc_group.ssrcs_.size() < 2) {
+                continue;
+            }
 
             SrsRtcTrackDescription* track_desc = stream_desc->find_track_description_by_ssrc(ssrc_group.ssrcs_[0]);
             if (!track_desc) {
@@ -3207,7 +3223,15 @@ srs_error_t SrsRtcConnection::negotiate_play_capability(SrsRtcUserConfig* ruc, s
         }
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
-            SrsRtcTrackDescription* track = track_descs.at(j)->copy();
+            SrsRtcTrackDescription* source_track = track_descs.at(j);
+
+            // An offer may have two m-lines of a kind, such as two video ones, so skip a source track that an
+            // earlier m-line already plays.
+            if (sub_relations.find(source_track->ssrc_) != sub_relations.end()) {
+                continue;
+            }
+
+            SrsRtcTrackDescription* track = source_track->copy();
 
             // We should clear the extmaps of source(publisher).
             // @see https://github.com/ossrs/srs/issues/2370

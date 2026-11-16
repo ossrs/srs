@@ -1957,3 +1957,19 @@ VOID TEST(KernelPSTest, PsPacketDecodePrivateStream)
     EXPECT_EQ(0, context.recover_);
 }
 
+
+// A PS system header whose header_length is below the 6 bytes of its fixed fields, from rate_bound to the reserved
+// bits, must be refused, rather than reading those fields past the end of the header, which aborts the server.
+VOID TEST(KernelPSTest, PsPacketDecodeShortSystemHeader)
+{
+    srs_error_t err = srs_success;
+
+    SrsPsContext context;
+    SrsPsPacket pkt(&context);
+
+    // The system header start code, header_length=2, then bytes that are not part of the header.
+    string raw = string("\x00\x00\x01\xbb\x00\x02\x84\xe1\xa3\x04\xe1\x7f", 12);
+    SrsBuffer b((char*)raw.data(), raw.length());
+
+    HELPER_EXPECT_FAILED(pkt.decode(&b));
+}

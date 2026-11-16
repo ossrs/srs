@@ -186,6 +186,11 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     *pstfd = NULL;
     srs_netfd_t stfd = NULL;
 
+    // The port comes from config or an origin's redirect, so refuse one that is not a TCP port.
+    if (port < 0 || port > 65535) {
+        return srs_error_new(ERROR_SYSTEM_PORT_INVALID, "invalid port=%d", port);
+    }
+
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
     srs_assert(r0 > 0 && r0 < (int)sizeof(sport));

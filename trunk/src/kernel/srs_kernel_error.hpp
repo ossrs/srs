@@ -109,7 +109,8 @@
     XX(ERROR_SYSTEM_FILE_SETVBUF           , 1096, "FileSetVBuf", "Failed to set file vbuf") \
     XX(ERROR_NO_SOURCE                     , 1097, "NoSource", "No source found") \
     XX(ERROR_STREAM_DISPOSING              , 1098, "StreamDisposing", "Stream is disposing") \
-    XX(ERROR_SYSTEM_SECURITY_NAME          , 1103, "SecurityName", "Invalid app or stream name for system security")
+    XX(ERROR_SYSTEM_SECURITY_NAME          , 1103, "SecurityName", "Invalid app or stream name for system security") \
+    XX(ERROR_SYSTEM_PORT_INVALID           , 1104, "PortInvalid", "Invalid TCP port")
 
 /**************************************************/
 /* RTMP protocol error. */

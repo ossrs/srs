@@ -320,7 +320,12 @@ srs_error_t SrsRtmpConn::on_reload_vhost_play(string vhost)
 
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
     mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    skt->set_socket_buffer(mw_sleep);
+
+    // The send buffer only tunes the latency, so go on when the socket refuses it.
+    if ((err = skt->set_socket_buffer(mw_sleep)) != srs_success) {
+        srs_warn("ignore send buffer err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     
     return err;
 }
@@ -358,7 +363,12 @@ srs_error_t SrsRtmpConn::on_reload_vhost_realtime(string vhost)
 
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
     mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    skt->set_socket_buffer(mw_sleep);
+
+    // The send buffer only tunes the latency, so go on when the socket refuses it.
+    if ((err = skt->set_socket_buffer(mw_sleep)) != srs_success) {
+        srs_warn("ignore send buffer err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     
     return err;
 }
@@ -726,6 +736,7 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
                 // If failed to discovery stream in this coworker, we should request the next one util the last.
                 // @see https://github.com/ossrs/srs/issues/1223
                 if (i < (int)coworkers.size() - 1) {
+                    srs_freep(err);
                     continue;
                 }
                 return srs_error_wrap(err, "discover coworkers, url=%s", url.c_str());
@@ -808,7 +819,12 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
     // when mw_sleep changed, resize the socket send buffer.
     mw_msgs = _srs_config->get_mw_msgs(req->vhost, realtime);
     mw_sleep = _srs_config->get_mw_sleep(req->vhost);
-    skt->set_socket_buffer(mw_sleep);
+
+    // The send buffer only tunes the latency, so play on when the socket refuses it.
+    if ((err = skt->set_socket_buffer(mw_sleep)) != srs_success) {
+        srs_warn("ignore send buffer err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
     // initialize the send_min_interval
     send_min_interval = _srs_config->get_send_min_interval(req->vhost);
     

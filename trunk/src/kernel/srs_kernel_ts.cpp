@@ -1501,8 +1501,8 @@ srs_error_t SrsMpegPES::decode(SrsBuffer* stream)
                 // This is an 8-bit field which indicates the length, in bytes, of the pack_header_field()
                 uint8_t pack_field_length = stream->read_1bytes();
                 if (pack_field_length > 0) {
-                    // the adjust required bytes.
-                    nb_required = nb_required - 16 - 1 + pack_field_length;
+                    // the adjust required bytes, without the private data and the length byte already read.
+                    nb_required = nb_required - (PES_private_data_flag ? 16 : 0) - 1 + pack_field_length;
                     if (!stream->require(nb_required)) {
                         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE ext pack");
                     }
