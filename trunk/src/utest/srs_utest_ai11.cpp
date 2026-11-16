@@ -2393,7 +2393,7 @@ void MockContext::set_current_id(const SrsContextId &id)
 }
 
 // Unit tests for SrsRtcAsyncCallOnStop::call()
-VOID TEST(RtcAsyncCallOnStopTest, CallWithHttpHooksDisabled)
+VOID TEST(RtcAsyncCallOnStopTest, CallWithHttpHooksOff)
 {
     srs_error_t err;
 
@@ -3929,7 +3929,7 @@ VOID TEST(SrsRtcPublishTwccTimerTest, OnTimer)
 }
 
 // Unit tests for SrsRtcAsyncCallOnUnpublish::call()
-VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithHttpHooksDisabled)
+VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithHttpHooksOff)
 {
     srs_error_t err;
 
@@ -4506,7 +4506,7 @@ VOID TEST(RtcBlackholeTest, CapturesConfigInConstructor)
 }
 
 // The injected config disables the black hole, so the endpoint is not read and no socket is opened.
-VOID TEST(RtcBlackholeTest, InitializeDisabledFromInjectedConfig)
+VOID TEST(RtcBlackholeTest, InitializeOffFromInjectedConfig)
 {
     srs_error_t err = srs_success;
 

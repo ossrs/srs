@@ -1499,7 +1499,7 @@ VOID TEST(AppRtmpConnTest, RtmpsEncoderCompletesTls_TransportReady)
 
 // A client that names a vhost the server lacks, on a server with no default vhost, or a vhost turned off
 // (`enabled off`), is refused before any hook or source.
-VOID TEST(AppRtmpConnTest, ClientOfUnknownOrDisabledVhost_Refused)
+VOID TEST(AppRtmpConnTest, ClientOfUnknownVhostOrVhostOff_Refused)
 {
     srs_error_t err;
 

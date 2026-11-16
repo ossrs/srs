@@ -3501,7 +3501,7 @@ VOID TEST(AppDvrTest, SessionWithJitterOff_DurationSkipsSequenceHeaders)
 
 // The operator turns the HTTP hooks off for the vhost but keeps the on_dvr URL. The recording completes, and no
 // backend is called.
-VOID TEST(AppDvrTest, HooksDisabled_OnDvrNotCalled)
+VOID TEST(AppDvrTest, HooksOff_OnDvrNotCalled)
 {
     srs_error_t err;
 
@@ -3553,7 +3553,7 @@ VOID TEST(AppDvrTest, DvrApplyOtherStream_NotRecorded)
 }
 
 // The operator turns DVR off for a vhost with segments set up. A publish records nothing.
-VOID TEST(AppDvrTest, SegmentDvrDisabled_NotRecorded)
+VOID TEST(AppDvrTest, SegmentDvrOff_NotRecorded)
 {
     srs_error_t err;
 

@@ -48,7 +48,7 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
-- `skills/internal-audit-for-srs/SKILL.md` — Audit a change in a fresh subagent that reads the code before the commit message and the tests; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
+- `skills/internal-audit-for-srs/SKILL.md` — Audit a change with three fresh subagents that read the code before the commit message and the tests, and prove one P0 (else P1) bug with a failing test; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
 - `skills/internal-obs-control/SKILL.md` — Drive isolated OBS instances for the OBS test scripts.
 - `skills/internal-chrome-control/SKILL.md` — Drive a headless Chrome or Edge for the Chrome test scripts: WHIP, WHEP, HTTP-FLV, HTTP-TS and HLS with `getStats()` samples.
 - `skills/internal-perf-for-srs/SKILL.md` — Run an SRS performance round: load tool, profiles, ranked bottlenecks and reports. This skill remains responsible for the code changes and their checks.
@@ -113,7 +113,7 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 ## Git Worktree
 
-Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request.
+Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request. The audit's proof worktrees are the exception: `skills/internal-audit-for-srs/SKILL.md` creates them in the scratchpad and removes them when it ends.
 
 Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
 

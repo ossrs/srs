@@ -223,6 +223,7 @@ SrsServer::SrsServer()
     http_server_ = new SrsHttpServer();
     reuse_api_over_server_ = false;
     reuse_rtc_over_server_ = false;
+    peek_timeout_ = SRS_HTTP_RECV_TIMEOUT;
 
     http_heartbeat_ = new SrsHttpHeartbeat();
     ingester_ = new SrsIngester();
@@ -1515,37 +1516,20 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
     srs_netfd_t stfd2 = stfd;
     stfd = NULL;
 
-    // If reuse HTTP server with WebRTC TCP, peek to detect the client.
+    // If reuse HTTP server with WebRTC TCP, peek to detect the client. The peek waits for the client's first bytes,
+    // so it runs in the client's own coroutine, and an idle client never holds the listener.
     if (reuse_rtc_over_server_ && (listener == http_listener_ || listener == https_listener_)) {
-        SrsTcpConnection *skt = new SrsTcpConnection(stfd2);
-        SrsBufferedReadWriter *io = new SrsBufferedReadWriter(skt);
-
-        // Peek first N bytes to finger out the real client type.
-        uint8_t b[10];
-        int nn = sizeof(b);
-        if ((err = io->peek((char *)b, &nn)) != srs_success) {
-            srs_freep(io);
-            return srs_error_wrap(err, "peek");
+        SrsAsyncClientPeeker *peeker = new SrsAsyncClientPeeker(this, listener, stfd2, ip, port);
+        SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(conn_manager_, peeker, peeker, NULL);
+        executor->assemble();
+        if ((err = executor->start()) != srs_success) {
+            srs_freep(executor);
+            return srs_error_wrap(err, "start peeker");
         }
 
-        // If first message is BindingRequest(00 01), prefixed with length(2B), it's WebRTC client. Generally, the frame
-        // length minus message length should be 20, that is the header size of STUN is 20 bytes. For example:
-        //      00 6c # Frame length: 0x006c = 108
-        //      00 01 # Message Type: Binding Request(0x0001)
-        //      00 58 # Message Length: 0x005 = 88
-        //      21 12 a4 42 # Message Cookie: 0x2112a442
-        //      48 32 6c 61 6b 42 35 71 42 35 4a 71 # Message Transaction ID: 12 bytes
-        if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20 && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42) {
-            SrsRtcTcpConn *conn = new SrsRtcTcpConn(io, ip, port);
-            conn->assemble();
-            resource = conn;
-        } else {
-            string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
-            string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
-            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
-            conn->assemble();
-            resource = conn;
-        }
+        // Count the client while it is peeked, for the connection limit.
+        conn_manager_->add(executor);
+        return err;
     }
 
     // Create resource by normal listeners.
@@ -1594,6 +1578,57 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             return err;
         }
     }
+
+    return start_resource(resource);
+}
+
+srs_error_t SrsServer::on_peeked_client(ISrsListener *listener, srs_netfd_t stfd, const std::string &ip, int port)
+{
+    srs_error_t err = srs_success;
+
+    // The context id may change during creating the bellow objects.
+    SrsContextRestore(_srs_context->get_id());
+
+    SrsTcpConnection *skt = new SrsTcpConnection(stfd);
+    SrsBufferedReadWriter *io = new SrsBufferedReadWriter(skt);
+
+    // Peek first N bytes to finger out the real client type. The peeked client counts as a connection, so drop a
+    // client that sends nothing, as the HTTP connection does, or idle clients fill the connection limit.
+    uint8_t b[10];
+    int nn = sizeof(b);
+    io->set_recv_timeout(peek_timeout_);
+    if ((err = io->peek((char *)b, &nn)) != srs_success) {
+        srs_freep(io);
+        return srs_error_wrap(err, "peek");
+    }
+    io->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
+
+    // If first message is BindingRequest(00 01), prefixed with length(2B), it's WebRTC client. Generally, the frame
+    // length minus message length should be 20, that is the header size of STUN is 20 bytes. For example:
+    //      00 6c # Frame length: 0x006c = 108
+    //      00 01 # Message Type: Binding Request(0x0001)
+    //      00 58 # Message Length: 0x005 = 88
+    //      21 12 a4 42 # Message Cookie: 0x2112a442
+    //      48 32 6c 61 6b 42 35 71 42 35 4a 71 # Message Transaction ID: 12 bytes
+    ISrsResource *resource = NULL;
+    if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20 && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42) {
+        SrsRtcTcpConn *conn = new SrsRtcTcpConn(io, ip, port);
+        conn->assemble();
+        resource = conn;
+    } else {
+        string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
+        string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
+        SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
+        conn->assemble();
+        resource = conn;
+    }
+
+    return start_resource(resource);
+}
+
+srs_error_t SrsServer::start_resource(ISrsResource *resource)
+{
+    srs_error_t err = srs_success;
 
     // For RTC TCP connection, use resource executor to manage the resource.
     SrsRtcTcpConn *raw_conn = dynamic_cast<SrsRtcTcpConn *>(resource);
@@ -1659,6 +1694,47 @@ void SrsServer::on_unpublish(ISrsRequest *r)
     http_server_->http_unmount(r);
 
     coworkers_->on_unpublish(r);
+}
+
+SrsAsyncClientPeeker::SrsAsyncClientPeeker(SrsServer *server, ISrsListener *listener, srs_netfd_t stfd, std::string ip, int port)
+{
+    server_ = server;
+    listener_ = listener;
+    stfd_ = stfd;
+    ip_ = ip;
+    port_ = port;
+    cid_ = _srs_context->generate_id();
+}
+
+SrsAsyncClientPeeker::~SrsAsyncClientPeeker()
+{
+    srs_close_stfd(stfd_);
+}
+
+srs_error_t SrsAsyncClientPeeker::cycle()
+{
+    srs_error_t err = srs_success;
+
+    // The server owns the fd from now on.
+    srs_netfd_t stfd = stfd_;
+    stfd_ = NULL;
+
+    if ((err = server_->on_peeked_client(listener_, stfd, ip_, port_)) != srs_success) {
+        srs_warn("peeked client ip=%s:%d, err: %s", ip_.c_str(), port_, srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    return err;
+}
+
+const SrsContextId &SrsAsyncClientPeeker::get_id()
+{
+    return cid_;
+}
+
+std::string SrsAsyncClientPeeker::desc()
+{
+    return "AsyncClientPeeker";
 }
 
 ISrsSignalManager::ISrsSignalManager()

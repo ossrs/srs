@@ -410,6 +410,10 @@ srs_error_t SrsMediaDesc::update_msid(string id)
 srs_error_t SrsMediaDesc::parse_line(const std::string &line)
 {
     srs_error_t err = srs_success;
+
+    if (line.size() < 2) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp line=%s", line.c_str());
+    }
     std::string content = line.substr(2);
 
     switch (line[0]) {
@@ -1231,12 +1235,13 @@ srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string &content)
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no media for gb ssrc %s", content.c_str());
     }
 
-    string cname = srs_fmt_sprintf("a=ssrc:%s cname:%s", content.c_str(), content.c_str());
+    // Concatenate, as srs_fmt_sprintf gives an empty string for a long y= value.
+    string cname = "a=ssrc:" + content + " cname:" + content;
     if ((err = media_descs_.back().parse_line(cname)) != srs_success) {
         return srs_error_wrap(err, "parse gb %s cname", content.c_str());
     }
 
-    string label = srs_fmt_sprintf("a=ssrc:%s label:gb28181", content.c_str());
+    string label = "a=ssrc:" + content + " label:gb28181";
     if ((err = media_descs_.back().parse_line(label)) != srs_success) {
         return srs_error_wrap(err, "parse gb %s label", content.c_str());
     }

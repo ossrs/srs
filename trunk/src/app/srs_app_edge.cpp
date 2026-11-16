@@ -270,9 +270,14 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
             string tcUrl;
             srs_net_url_parse_rtmp_url(location, tcUrl, stream_name);
 
-            int port;
+            int port = 0;
             string schema, host, vhost, param;
             srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream_name, port, param);
+
+            // The parser leaves the host empty when it refuses the location.
+            if (host.empty()) {
+                return srs_error_new(ERROR_HTTP_302_INVALID, "redirect to %s fail, invalid location", location.c_str());
+            }
 
             r->schema_ = schema;
             r->host_ = host;
@@ -326,6 +331,7 @@ srs_error_t SrsEdgeFlvUpstream::recv_message(SrsRtmpCommonMessage **pmsg)
 
     char pps[4];
     if ((err = decoder_->read_previous_tag_size(pps)) != srs_success) {
+        srs_freepa(data);
         return srs_error_wrap(err, "read pts");
     }
 
@@ -356,12 +362,16 @@ srs_error_t SrsEdgeFlvUpstream::decode_message(SrsRtmpCommonMessage *msg, SrsRtm
 
         stream.skip(-1 * stream.pos());
 
-        if (command == SRS_CONSTS_RTMP_SET_DATAFRAME) {
-            *ppacket = packet = new SrsOnMetaDataPacket();
-            return packet->decode(&stream);
-        } else if (command == SRS_CONSTS_RTMP_ON_METADATA) {
-            *ppacket = packet = new SrsOnMetaDataPacket();
-            return packet->decode(&stream);
+        // The caller owns the packet only on success, so free it when the decode fails.
+        if (command == SRS_CONSTS_RTMP_SET_DATAFRAME || command == SRS_CONSTS_RTMP_ON_METADATA) {
+            packet = new SrsOnMetaDataPacket();
+            if ((err = packet->decode(&stream)) != srs_success) {
+                srs_freep(packet);
+                return srs_error_wrap(err, "decode metadata");
+            }
+
+            *ppacket = packet;
+            return err;
         }
     }
 
@@ -666,7 +676,8 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         // RTMP 302 redirect
         if (dynamic_cast<SrsCallPacket *>(pkt.get())) {
             SrsCallPacket *call = dynamic_cast<SrsCallPacket *>(pkt.get());
-            if (!call->arguments_->is_object()) {
+            // A call without arguments, such as onBWDone(0, null), is no redirect.
+            if (!call->arguments_ || !call->arguments_->is_object()) {
                 return err;
             }
 

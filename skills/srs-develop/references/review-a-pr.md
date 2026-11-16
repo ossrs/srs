@@ -24,7 +24,7 @@
 1. Run the selected repository's diff-stat and log relative to the confirmed base. Use `git -C oryx/` for Oryx.
 2. Drill into the non-test code and doc diffs relative to that base to understand what actually changed.
 3. From those code and doc changes, tell the user the idea of the PR first: the problem it fixes or the feature it adds, and how. The PR description and discussion are claims to check against them, not the source.
-4. Audit the change with `skills/internal-audit-for-srs/SKILL.md` on `<base>..<tip>`, and give the user its findings and test gaps before the summary.
+4. Audit the change with `skills/internal-audit-for-srs/SKILL.md` on `<base>..<tip>`, and give the user its proven bug, with its red test, and its test gaps before the summary.
 5. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
 6. Pause and let the user redirect or ask for more detail.
 

@@ -668,6 +668,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t packet_video_rtmp(const uint16_t start, const uint16_t end);
+    srs_error_t packet_video_frame(const uint16_t start, const uint16_t end);
     int calculate_packet_payload_size(SrsRtpPacket *pkt);
     void write_packet_payload_to_buffer(SrsRtpPacket *pkt, SrsBuffer &payload, int &nalu_len);
 };

@@ -28,7 +28,7 @@ public:
     virtual void close() = 0;
     virtual bool is_open() = 0;
     virtual srs_error_t set_iobuf_size(int size) = 0;
-    virtual void seek2(int64_t offset) = 0;
+    virtual srs_error_t seek2(int64_t offset) = 0;
     virtual int64_t tellg() = 0;
 };
 
@@ -61,7 +61,7 @@ public:
 
 public:
     virtual bool is_open();
-    virtual void seek2(int64_t offset);
+    virtual srs_error_t seek2(int64_t offset);
     virtual int64_t tellg();
     // Interface ISrsWriteSeeker
 public:

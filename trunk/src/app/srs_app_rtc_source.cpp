@@ -1552,7 +1552,9 @@ bool SrsRtcFrameBuilderVideoPacketCache::is_slot_in_use(uint16_t sequence_number
 {
     uint16_t index = cache_index(sequence_number);
     const RtcPacketCache &cache = cache_pkts_[index];
-    return cache.in_use_;
+
+    // A slot holding an older packet of the same index does not hold this one, so this one is lost.
+    return cache.in_use_ && cache.sn_ == sequence_number;
 }
 
 uint32_t SrsRtcFrameBuilderVideoPacketCache::get_rtp_timestamp(uint16_t sequence_number)
@@ -1610,6 +1612,13 @@ int32_t SrsRtcFrameBuilderVideoPacketCache::find_next_lost_sn(uint16_t current_s
         uint16_t lost_sn = current_sn + i;
 
         if (!is_slot_in_use(lost_sn)) {
+            // The slot still holds an earlier packet of this frame, so the frame has more packets than the cache. A
+            // slot that holds a later packet, which came while this one was lost, leaves this one lost.
+            const RtcPacketCache &cache = cache_pkts_[cache_index(lost_sn)];
+            bool earlier_of_frame = srs_rtp_seq_distance(header_sn, cache.sn_) >= 0 && srs_rtp_seq_distance(cache.sn_, lost_sn) > 0;
+            if (cache.in_use_ && earlier_of_frame) {
+                break;
+            }
             return lost_sn;
         }
 
@@ -2576,6 +2585,33 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
 {
     srs_error_t err = srs_success;
 
+    // Send the frame and then each next frame that is ready, in a loop: a lost packet holds every frame after it in
+    // the cache, and its arrival makes them all ready at once, too many to recurse over on a coroutine stack. Each
+    // frame takes its packets out of the cache, so the loop ends by the time the cache is empty.
+    uint16_t frame_start = start;
+    uint16_t frame_end = end;
+    while (true) {
+        if ((err = packet_video_frame(frame_start, frame_end)) != srs_success) {
+            return srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", frame_start, frame_end);
+        }
+
+        // Try to detect and detach next RTMP packet.
+        bool got_frame;
+        if ((err = frame_detector_->detect_next_frame(frame_end + 1, frame_start, frame_end, got_frame)) != srs_success) {
+            return srs_error_wrap(err, "update frame detector failed");
+        }
+        if (!got_frame) {
+            break;
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFrameBuilder::packet_video_frame(const uint16_t start, const uint16_t end)
+{
+    srs_error_t err = srs_success;
+
     int nb_payload = 0;
     int16_t cnt = srs_rtp_seq_distance(start, end) + 1;
     srs_assert(cnt >= 1);
@@ -2611,18 +2647,12 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     if (0 == nb_payload) {
         srs_info("RTC2RTMP: empty rtp packet, start=%u, end=%u, cnt=%d", start, end, cnt);
 
-        // The chrome web browser send RTP packet with empty payload frequently,
-        // reset header_sn_, lost_sn_ and continue to found next frame in this case,
-        // otherwise, all the cached RTP packets are dropped before next key frame arrive.
-        uint16_t next_start, next_end;
-        bool got_frame;
-        if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
-            return srs_error_wrap(err, "update frame detector failed");
-        }
-        if (got_frame) {
-            if ((err = packet_video_rtmp(next_start, next_end)) != srs_success) {
-                err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
-            }
+        // The chrome web browser send RTP packet with empty payload frequently, so drop the
+        // frame's packets and let the caller continue to the next frame, otherwise, all the
+        // cached RTP packets are dropped before next key frame arrive.
+        for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
+            SrsRtpPacket *pkt_raw = video_cache_->take_packet(start + i);
+            srs_freep(pkt_raw);
         }
 
         return err;
@@ -2689,18 +2719,6 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     if ((err = frame_target_->on_frame(&msg)) != srs_success) {
         srs_warn("fail to pack video frame: %s", srs_error_summary(err).c_str());
         srs_freep(err);
-    }
-
-    // Try to detect and detach next RTMP packet.
-    uint16_t next_start, next_end;
-    bool got_frame;
-    if ((err = frame_detector_->detect_next_frame(end + 1, next_start, next_end, got_frame)) != srs_success) {
-        return srs_error_wrap(err, "update frame detector failed");
-    }
-    if (got_frame) {
-        if ((err = packet_video_rtmp(next_start, next_end)) != srs_success) {
-            err = srs_error_wrap(err, "fail to pack video frame, start=%u, end=%u", next_start, next_end);
-        }
     }
 
     return err;

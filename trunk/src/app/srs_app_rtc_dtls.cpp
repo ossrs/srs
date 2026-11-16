@@ -457,13 +457,31 @@ long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, int argi, lo
     long r0 = (BIO_CB_RETURN & cmd) ? ret : 1;
     if (cmd == BIO_CB_WRITE && argp && argi > 0) {
         SrsDtlsImpl *dtls = (SrsDtlsImpl *)BIO_get_callback_arg(bio);
-        srs_error_t err = dtls->write_dtls_data((void *)argp, argi);
+        dtls->queue_dtls_data((void *)argp, argi);
+    }
+    return r0;
+}
+
+void SrsDtlsImpl::queue_dtls_data(void *data, int size)
+{
+    // Never send from inside OpenSSL: the send may switch to a coroutine that calls OpenSSL on the same SSL, or ends
+    // the handshake and frees the buffer of this record, so copy it and send it once OpenSSL returns.
+    out_records_.push_back(std::string((char *)data, size));
+}
+
+void SrsDtlsImpl::flush_dtls_data()
+{
+    // Take each record before its send, because another coroutine may flush while the send switches.
+    while (!out_records_.empty()) {
+        std::string record = out_records_.front();
+        out_records_.erase(out_records_.begin());
+
+        srs_error_t err = write_dtls_data((void *)record.data(), (int)record.size());
         if (err != srs_success) {
             srs_warn("ignore err %s", srs_error_desc(err).c_str());
         }
         srs_freep(err);
     }
-    return r0;
 }
 
 srs_error_t SrsDtlsImpl::write_dtls_data(void *data, int size)
@@ -577,6 +595,12 @@ srs_error_t SrsDtlsImpl::start_active_handshake()
     int r0 = SSL_do_handshake(dtls_);
     int r1 = SSL_get_error(dtls_, r0);
     ERR_clear_error();
+
+    // Send what OpenSSL wrote here: not before SSL_get_error and ERR_clear_error, because a send may switch to a
+    // coroutine whose OpenSSL call changes this thread's error queue; and not after the check below, because on a
+    // fatal error the records hold the alert the peer must get.
+    flush_dtls_data();
+
     // Fatal SSL error, for example, no available suite when peer is DTLS 1.0 while we are DTLS 1.2.
     if (r0 < 0 && (r1 != SSL_ERROR_NONE && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE)) {
         return srs_error_new(ERROR_RTC_DTLS, "handshake r0=%d, r1=%d", r0, r1);
@@ -628,6 +652,12 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
     r0 = SSL_read(dtls_, buf, sizeof(buf));
     int r1 = SSL_get_error(dtls_, r0);
     ERR_clear_error();
+
+    // Send what OpenSSL wrote here: not before SSL_get_error and ERR_clear_error, because a send may switch to a
+    // coroutine whose OpenSSL call changes this thread's error queue; and not after the check below, because on a
+    // fatal error the records hold the alert the peer must get.
+    flush_dtls_data();
+
     if (r0 <= 0) {
         if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE && r1 != SSL_ERROR_ZERO_RETURN) {
             return srs_error_new(ERROR_RTC_DTLS, "DTLS: read r0=%d, r1=%d, done=%d", r0, r1, handshake_done_for_us_);
@@ -866,9 +896,15 @@ srs_error_t SrsDtlsClientImpl::cycle()
         // messages and returns 1. If too many timeouts had expired without progress or an error
         // occurs, it returns -1.
         r0 = DTLSv1_handle_timeout(dtls_);
+        int r1 = SSL_get_error(dtls_, r0);
+        ERR_clear_error();
+
+        // Send what OpenSSL wrote here: not before SSL_get_error and ERR_clear_error, because a send may switch to a
+        // coroutine whose OpenSSL call changes this thread's error queue; and not after the check below, because on
+        // an error the records may hold an alert the peer must get.
+        flush_dtls_data();
+
         if (r0 != 0 && r0 != 1) {
-            int r1 = SSL_get_error(dtls_, r0);
-            ERR_clear_error();
             return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
         }
     }

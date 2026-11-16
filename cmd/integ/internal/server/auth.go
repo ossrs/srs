@@ -82,11 +82,15 @@ func (e *ExitError) Error() string {
 
 // listenerPorts allocates a port for each listener of cfg. With OneHTTPPort,
 // the HTTP server shares the HTTP API's port, and the HTTPS server the HTTPS
-// API's.
+// API's. With RTCOnHTTPPort, WebRTC over TCP shares the HTTP server's port.
 func listenerPorts(cfg Config, alloc func() (int, error)) (map[Listener]int, error) {
 	shares := map[Listener]Listener{}
 	if cfg.OneHTTPPort {
-		shares = map[Listener]Listener{HTTPServer: HTTPAPI, HTTPSServer: HTTPSAPI}
+		shares[HTTPServer] = HTTPAPI
+		shares[HTTPSServer] = HTTPSAPI
+	}
+	if cfg.RTCOnHTTPPort {
+		shares[RTCTCP] = HTTPServer
 	}
 	ports := map[Listener]int{}
 	if cfg.APIPort > 0 {
@@ -106,11 +110,32 @@ func listenerPorts(cfg Config, alloc func() (int, error)) (map[Listener]int, err
 		ports[l] = port
 	}
 	for _, l := range cfg.Listeners {
-		if api, ok := shares[l]; ok && ports[api] != 0 {
-			ports[l] = ports[api]
+		// The port of the listener it shares, which may share another's.
+		owner := l
+		for {
+			next, ok := shares[owner]
+			if !ok {
+				break
+			}
+			owner = next
+		}
+		if owner != l && ports[owner] != 0 {
+			ports[l] = ports[owner]
 		}
 	}
 	return ports, nil
+}
+
+// checkRTCOnHTTPPort checks a RTCOnHTTPPort config: the HTTP server and WebRTC
+// over TCP are on, on one port.
+func checkRTCOnHTTPPort(on map[Listener]bool, ports map[Listener]int) error {
+	if !on[HTTPServer] || !on[RTCTCP] {
+		return fmt.Errorf("RTCOnHTTPPort needs the HTTP server and WebRTC over TCP")
+	}
+	if ports[RTCTCP] != ports[HTTPServer] {
+		return fmt.Errorf("RTCOnHTTPPort: %v has port %d, not the port %d of %v", RTCTCP, ports[RTCTCP], ports[HTTPServer], HTTPServer)
+	}
+	return nil
 }
 
 // checkOneHTTPPort checks a OneHTTPPort config: the HTTP server is on, the

@@ -408,7 +408,7 @@ VOID TEST(FileLogTest, LogDropsALevelBelowTheConfiguredOne)
 }
 
 // The disabled level turns the logger off, whatever the configured level is.
-VOID TEST(FileLogTest, LogDropsTheDisabledLevel)
+VOID TEST(FileLogTest, LogDropsAllAtTheOffLevel)
 {
     MockLogWriterForFileLog writer;
     SrsFileLog log;

@@ -2446,6 +2446,8 @@ VOID TEST(WinsockTest, SocketRoundTripsThroughInt)
 }
 
 #define WINSOCK_TEST_CHILD_OK 42
+// Set only for the child process of InitStartsAndDestroyCleansUp, so ChildInitAndDestroy runs there and skips elsewhere.
+#define WINSOCK_TEST_CHILD_ENV "ST_UTEST_WINSOCK_CHILD"
 
 static DWORD WINAPI winsock_test_thread(LPVOID arg)
 {
@@ -2457,14 +2459,14 @@ static DWORD WINAPI winsock_test_thread(LPVOID arg)
     return 0;
 }
 
-// Runs the utest again as a child process with only the disabled test, and returns its exit code, or -1.
+// Runs the utest again as a child process with only the given test, and returns its exit code, or -1.
 static int winsock_test_run_child(const char* test)
 {
     char exe[MAX_PATH];
     DWORD n = GetModuleFileNameA(NULL, exe, sizeof(exe));
     if (n == 0 || n >= sizeof(exe)) return -1;
 
-    std::string cmd = std::string("\"") + exe + "\" --gtest_also_run_disabled_tests --gtest_filter=" + test;
+    std::string cmd = std::string("\"") + exe + "\" --gtest_filter=" + test;
     std::vector<char> line(cmd.begin(), cmd.end());
     line.push_back(0);
 
@@ -2475,7 +2477,11 @@ static int winsock_test_run_child(const char* test)
     memset(&si, 0, sizeof(si));
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi;
-    if (!CreateProcessA(NULL, &line[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
+    // The child inherits the environment, so it sees the variable; the parent clears it at once.
+    SetEnvironmentVariableA(WINSOCK_TEST_CHILD_ENV, "1");
+    BOOL created = CreateProcessA(NULL, &line[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+    SetEnvironmentVariableA(WINSOCK_TEST_CHILD_ENV, NULL);
+    if (!created) return -1;
 
     // A hang kills the child and fails the test, instead of hanging the suite.
     DWORD code = (DWORD)-1;
@@ -2493,8 +2499,12 @@ static int winsock_test_run_child(const char* test)
 
 // Runs only in the child process of InitStartsAndDestroyCleansUp, because st_destroy on the main thread stops Winsock
 // for the rest of the process. Exits with WINSOCK_TEST_CHILD_OK if every check passed.
-VOID TEST(WinsockTest, DISABLED_ChildInitAndDestroy)
+VOID TEST(WinsockTest, ChildInitAndDestroy)
 {
+    if (GetEnvironmentVariableA(WINSOCK_TEST_CHILD_ENV, NULL, 0) == 0) {
+        GTEST_SKIP() << "Runs only in the child process of InitStartsAndDestroyCleansUp";
+    }
+
     // The main of the utest called st_init, which started Winsock.
     EXPECT_TRUE(winsock_test_usable());
 
@@ -2526,7 +2536,7 @@ VOID TEST(WinsockTest, DISABLED_ChildInitAndDestroy)
 // st_init starts Winsock and st_destroy cleans it up, once per OS thread's ST, like SRS calling srs_st_destroy at exit.
 VOID TEST(WinsockTest, InitStartsAndDestroyCleansUp)
 {
-    EXPECT_EQ(WINSOCK_TEST_CHILD_OK, winsock_test_run_child("WinsockTest.DISABLED_ChildInitAndDestroy"));
+    EXPECT_EQ(WINSOCK_TEST_CHILD_OK, winsock_test_run_child("WinsockTest.ChildInitAndDestroy"));
 }
 #endif
 

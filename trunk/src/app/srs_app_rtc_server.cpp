@@ -534,6 +534,15 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         string peer_id = skt->peer_id();
         session = (ISrsRtcConnection *)conn_manager_->find_by_id(peer_id);
     }
+    // A removed session is found until the manager frees it, which happens whenever a send of this packet switches
+    // coroutines, so take it as gone.
+    // TODO: FIXME: Refine the lifetime of the session. It is a raw pointer, and the manager frees it once it is removed
+    // and this coroutine switches. A STUN or DTLS response is one send, which never lets the manager run, but a NACK
+    // resend sends many packets and yields between them, so a session removed meanwhile may be freed while this
+    // packet still uses it.
+    if (session && session->is_disposing()) {
+        session = NULL;
+    }
 
     if (session) {
         // When got any packet, the session is alive now.
@@ -553,7 +562,7 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         // The username names the session, while the address may still be another session's: one whose client closed
         // without a DTLS alert keeps its address until it times out, and a new client may get that port.
         ISrsRtcConnection *named = find_rtc_session_by_username(ping.get_username());
-        if (named) {
+        if (named && !named->is_disposing()) {
             session = named;
         }
         if (session) {

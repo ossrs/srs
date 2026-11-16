@@ -240,7 +240,7 @@ VOID TEST(AppIngestTest, IngestWithoutFfmpegBinary_ServerStartRefused)
 
 // A vhost turned off keeps its ingests off, and an ingest turned off is skipped: only the enabled ingest of the
 // enabled vhost runs FFmpeg, which copies its input to the vhost's stream, as its engine is off.
-VOID TEST(AppIngestTest, DisabledVhostOrIngest_OnlyEnabledIngestRuns)
+VOID TEST(AppIngestTest, VhostOrIngestOff_OnlyEnabledIngestRuns)
 {
     srs_error_t err;
 

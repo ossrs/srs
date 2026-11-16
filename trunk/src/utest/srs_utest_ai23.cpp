@@ -6593,6 +6593,10 @@ void MockRtcTcpNetworkForTcpConn::set_peer_id(const std::string &ip, int port)
     peer_port_ = port;
 }
 
+void MockRtcTcpNetworkForTcpConn::stop_sends()
+{
+}
+
 srs_error_t MockRtcTcpNetworkForTcpConn::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
 {
     return srs_success;
