@@ -31,6 +31,10 @@ using namespace std;
 #define be32toh ntohl
 #endif
 
+// The longest a send to a WebRTC client over TCP waits when the client's buffer is full. Media that waits longer is
+// too late to play, and every such send holds up the coroutine that makes it, such as the shared timer.
+#define SRS_RTC_TCP_SEND_TIMEOUT (1 * SRS_UTIME_SECONDS)
+
 extern bool srs_is_stun(const uint8_t *data, size_t size);
 extern bool srs_is_dtls(const uint8_t *data, size_t len);
 extern bool srs_is_rtp_or_rtcp(const uint8_t *data, size_t len);
@@ -507,6 +511,8 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     conn_ = conn;
     delta_ = delta;
     sendonly_skt_ = NULL;
+    writers_ = 0;
+    writers_done_ = srs_cond_new();
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
@@ -514,15 +520,35 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 {
+    // The conn's coroutine may wait in a send of this network, under the transport, so let the rest of its sends fail
+    // at once, and wait for it to leave before freeing the transport.
+    sendonly_skt_ = NULL;
     if (owner_.get()) {
         owner_->interrupt();
     }
     srs_freep(transport_);
+    srs_cond_destroy(writers_done_);
 }
 
 void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
 {
     sendonly_skt_ = skt;
+
+    // A send to a client that stops reading must not wait forever, because the shared timer sends RTCP to every
+    // session.
+    if (sendonly_skt_) {
+        sendonly_skt_->set_send_timeout(SRS_RTC_TCP_SEND_TIMEOUT);
+    }
+}
+
+void SrsRtcTcpNetwork::stop_sends()
+{
+    sendonly_skt_ = NULL;
+
+    // A send waits at most for the send timeout.
+    while (writers_ > 0) {
+        srs_cond_wait(writers_done_);
+    }
 }
 
 srs_error_t SrsRtcTcpNetwork::on_dtls_handshake_done()
@@ -737,17 +763,32 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
         return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
     }
 
-    // Encode and send 2 bytes size, in network order.
+    // Send 2 bytes size, in network order, and the data in one write. A write may switch coroutines, and another
+    // sender may drop the socket meanwhile, so the socket is not used for a second write.
     srs_assert(size <= 65535);
     uint8_t b[2] = {uint8_t(size >> 8), uint8_t(size)};
 
-    if ((err = sendonly_skt_->write((char *)b, sizeof(b), NULL)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp write len(%d)", size);
+    iovec iovs[2];
+    iovs[0].iov_base = (char *)b;
+    iovs[0].iov_len = sizeof(b);
+    iovs[1].iov_base = buf;
+    iovs[1].iov_len = size;
+
+    ssize_t n = 0;
+    writers_++;
+    err = sendonly_skt_->writev(iovs, 2, &n);
+    writers_--;
+    srs_cond_signal(writers_done_);
+
+    // A failed send, such as a timeout, may leave part of a packet on the stream, so the client can parse no later
+    // packet. Drop the socket, so later sends fail at once instead of waiting for the timeout again.
+    if (err != srs_success) {
+        sendonly_skt_ = NULL;
+        return srs_error_wrap(err, "rtc tcp write len(%d) and body", size);
     }
 
-    // Send the data in size of bytes.
-    if ((err = sendonly_skt_->write(buf, size, nwrite)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp write body");
+    if (nwrite) {
+        *nwrite = n - sizeof(b);
     }
 
     return err;
@@ -776,6 +817,10 @@ void SrsRtcTcpConn::setup()
     pkt_ = NULL;
     delta_ = NULL;
     skt_ = NULL;
+
+    handling_ = false;
+    waiting_ = false;
+    handled_ = srs_cond_new();
 
     conn_manager_ = _srs_conn_manager;
     stat_ = _srs_stat;
@@ -812,6 +857,7 @@ SrsRtcTcpConn::~SrsRtcTcpConn()
     srs_freepa(pkt_);
     srs_freep(delta_);
     srs_freep(skt_);
+    srs_cond_destroy(handled_);
 
     conn_manager_ = NULL;
     stat_ = NULL;
@@ -834,6 +880,14 @@ void SrsRtcTcpConn::interrupt()
     session_ = NULL;
     if (owner_coroutine_)
         owner_coroutine_->interrupt();
+
+    // The session is freed after this, so wait for the coroutine to return from it, for example from a DTLS send
+    // that waits for room in the socket.
+    waiting_ = true;
+    while (handling_) {
+        srs_cond_wait(handled_);
+    }
+    waiting_ = false;
 }
 
 std::string SrsRtcTcpConn::desc()
@@ -872,10 +926,11 @@ srs_error_t SrsRtcTcpConn::cycle()
             session_->expire();
         } else {
             // Not established, so release the network to allow the client to reconnect over TCP, and never
-            // send by the socket of this connection, which is freed with it.
+            // send by the socket of this connection, which is freed with it. Another coroutine, such as the DTLS
+            // client's ARQ, may still wait in a send on that socket, and closing a socket with a waiter aborts.
             SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session_->tcp());
             if (network && network->owner().get() == this) {
-                network->update_sendonly_socket(NULL);
+                network->stop_sends();
                 network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
             }
         }
@@ -940,7 +995,13 @@ srs_error_t SrsRtcTcpConn::do_cycle()
             return srs_error_wrap(err, "process rtc tcp pkt");
         }
 
-        if ((err = on_tcp_pkt(pkt_, npkt)) != srs_success) {
+        handling_ = true;
+        err = on_tcp_pkt(pkt_, npkt);
+        handling_ = false;
+        if (waiting_) {
+            srs_cond_signal(handled_);
+        }
+        if (err != srs_success) {
             return srs_error_wrap(err, "process rtc tcp pkt");
         }
     }
@@ -997,7 +1058,14 @@ srs_error_t SrsRtcTcpConn::handshake()
     }
 
     // Use the session network to handle packet.
-    return network->on_stun(&ping, pkt_, npkt);
+    handling_ = true;
+    err = network->on_stun(&ping, pkt_, npkt);
+    handling_ = false;
+    if (waiting_) {
+        srs_cond_signal(handled_);
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)

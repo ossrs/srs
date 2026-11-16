@@ -406,22 +406,33 @@ int srs_do_create_dir_recursively(string dir)
         return ERROR_SYSTEM_DIR_EXISTS;
     }
 
-    // create parent first.
-    size_t pos;
-    if ((pos = dir.rfind("/")) != std::string::npos) {
-        std::string parent = dir.substr(0, pos);
-        ret = srs_do_create_dir_recursively(parent);
-        // return for error.
-        if (ret != ERROR_SUCCESS && ret != ERROR_SYSTEM_DIR_EXISTS) {
+    mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH;
+
+    // Walk up to the deepest parent that exists, remembering where each missing parent ends. The root, such as the
+    // parent of /a, is never made. Loop instead of recursing, because the dir holds the client's app and stream, which
+    // may have thousands of levels, too deep for a coroutine stack.
+    std::vector<size_t> missing;
+    for (size_t pos = dir.rfind("/"); pos != std::string::npos && pos > 0; pos = dir.rfind("/", pos - 1)) {
+        if (path.exists(dir.substr(0, pos))) {
+            break;
+        }
+        missing.push_back(pos);
+    }
+
+    // create the missing parents, from the top down.
+    for (int i = (int)missing.size() - 1; i >= 0; i--) {
+        std::string parent = dir.substr(0, missing[i]);
+
+        // Another process may create the parent between the stat and the mkdir, which is ok.
+        if (::mkdir(parent.c_str(), mode) < 0 && errno != EEXIST) {
+            ret = ERROR_SYSTEM_CREATE_DIR;
+            srs_error("create dir %s failed. ret=%d", parent.c_str(), ret);
             return ret;
         }
-        // parent exists, set to ok.
-        ret = ERROR_SUCCESS;
     }
 
     // LCOV_EXCL_START
     // create curren dir.
-    mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH;
     if (::mkdir(dir.c_str(), mode) < 0) {
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;

@@ -144,6 +144,11 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string
 {
     srs_error_t err = srs_success;
 
+    // The SPS needs its NALU header, profile, constraints and level.
+    if (sps.length() < 4) {
+        return srs_error_new(ERROR_STREAM_CASTER_AVC_SPS, "sps %d bytes less than 4", (int)sps.length());
+    }
+
     // 5bytes sps/pps header:
     //      configurationVersion, AVCProfileIndication, profile_compatibility,
     //      AVCLevelIndication, lengthSizeMinusOne
@@ -164,7 +169,6 @@ srs_error_t SrsRawH264Stream::mux_sequence_header(string sps, string pps, string
     // decode the SPS:
     // @see: 7.3.2.1.1, ISO_IEC_14496-10-AVC-2012.pdf, page 62
     if (true) {
-        srs_assert((int)sps.length() >= 4);
         char *frame = (char *)sps.data();
 
         // @see: Annex A Profiles and levels, ISO_IEC_14496-10-AVC-2003.pdf, page 205

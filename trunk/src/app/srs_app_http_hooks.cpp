@@ -578,6 +578,10 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     SrsJsonArray *urls = prop->to_array();
     for (int i = 0; i < urls->count(); i++) {
         prop = urls->at(i);
+        if (!prop->is_string()) {
+            return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse url %d %s", i, res.c_str());
+        }
+
         string rtmp_url = prop->to_str();
         if (!rtmp_url.empty()) {
             rtmp_urls.push_back(rtmp_url);

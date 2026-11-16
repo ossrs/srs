@@ -3474,3 +3474,69 @@ VOID TEST(RtcTcpConnTest, SharedPortClosesSocketWithConnection)
         utest_shared_port_closes_socket(&manager, &acceptor, http, 1);
     }
 }
+
+// When WebRTC over TCP shares the HTTP port, each client's peek runs in its own coroutine and counts as a connection.
+// A client that connects and sends nothing, such as a browser's preconnect or a port scan, must be dropped like an idle
+// client of the plain HTTP port, or idle clients fill max_connections and every port refuses new clients.
+VOID TEST(RtcTcpConnTest, SharedPortIdlePeekDroppedBeforeConnectionLimit)
+{
+    srs_error_t err;
+
+    SrsResourceManager manager("utest-shared-port-limit");
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    MockAppConfigForConnectionLimit config;
+    config.max_connections_ = 2;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->conn_manager_ = &manager;
+    server->config_ = &config;
+    server->reuse_rtc_over_server_ = true;
+    server->peek_timeout_ = 100 * SRS_UTIME_MILLISECONDS;
+
+    // Listen on a random port in [30000, 60000], and try another when one is taken.
+    MockSharedPortTcpAcceptor acceptor(server.get(), server->http_listener_);
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(&acceptor));
+    SrsRand rand;
+    int port = 0;
+    err = srs_success;
+    for (int i = 0; i < 10; i++) {
+        port = 30000 + (rand.integer() % (60000 - 30000 + 1));
+        listener->set_endpoint("127.0.0.1", port);
+        srs_freep(err);
+        if ((err = listener->listen()) == srs_success) {
+            break;
+        }
+    }
+    HELPER_ASSERT_SUCCESS(err);
+
+    // Two clients connect and send nothing. While they wait, they fill the connection limit.
+    SrsTcpConnection *idles[2];
+    for (int i = 0; i < 2; i++) {
+        srs_netfd_t stfd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+        idles[i] = new SrsTcpConnection(stfd);
+    }
+    for (int i = 0; i < 50 && manager.size() != 2; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    ASSERT_EQ(2, (int)manager.size());
+
+    // Past the peek timeout, the server drops them, though the clients are still connected.
+    for (int i = 0; i < 100 && !manager.empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_EQ(0, (int)manager.size());
+
+    // A new client of any port, such as RTMP, is taken.
+    err = server->on_before_connection("TCP", 0, "127.0.0.1", 1935);
+    EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+    srs_freep(err);
+
+    for (int i = 0; i < 2; i++) {
+        srs_freep(idles[i]);
+    }
+    listener->close();
+    server->conn_manager_ = NULL;
+    server->config_ = NULL;
+}

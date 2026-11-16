@@ -249,6 +249,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcConnection *conn_;
     ISrsEphemeralDelta *delta_;
     ISrsProtocolReadWriter *sendonly_skt_;
+    // The coroutines in a send now, such as the shared timer or a player, and the cond to wait for them.
+    int writers_;
+    srs_cond_t writers_done_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -270,6 +273,8 @@ public:
     void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
     SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
     void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    // Drop the socket, so later sends fail at once, and wait for the sends in progress to return.
+    void stop_sends();
     // ISrsRtcNetwork
 public:
     // Callback when DTLS connected.
@@ -320,7 +325,7 @@ public:
     virtual ~ISrsRtcTcpConn();
 
 public:
-    // Interrupt the TCP connection.
+    // Interrupt the TCP connection, and wait until it leaves the packet it is handling.
     virtual void interrupt() = 0;
 };
 
@@ -336,6 +341,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Because session references to this object, so we should directly use the session ptr.
     ISrsRtcConnection *session_;
+    // Whether the coroutine is in the session, handling a packet, and whether interrupt waits for it to leave.
+    bool handling_;
+    bool waiting_;
+    srs_cond_t handled_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -372,7 +381,7 @@ public:
 
 public:
     ISrsKbpsDelta *delta();
-    // Interrupt transport by session.
+    // Interrupt transport by session, and wait until it leaves the packet it is handling.
     void interrupt();
     // Interface ISrsResource.
 public:

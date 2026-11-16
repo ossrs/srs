@@ -308,7 +308,9 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     }
 
     // update the flesize.
-    fs_->seek2(filesize_offset_);
+    if ((err = fs_->seek2(filesize_offset_)) != srs_success) {
+        return srs_error_wrap(err, "seek filesize");
+    }
     if ((err = fs_->write(buf.get(), SrsAmf0Size::number(), NULL)) != srs_success) {
         return srs_error_wrap(err, "update filesize");
     }
@@ -322,13 +324,17 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
     }
 
     // update the duration
-    fs_->seek2(duration_offset_);
+    if ((err = fs_->seek2(duration_offset_)) != srs_success) {
+        return srs_error_wrap(err, "seek duration");
+    }
     if ((err = fs_->write(buf.get(), SrsAmf0Size::number(), NULL)) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
 
     // reset the offset.
-    fs_->seek2(cur);
+    if ((err = fs_->seek2(cur)) != srs_success) {
+        return srs_error_wrap(err, "seek end");
+    }
 
     return err;
 }

@@ -309,7 +309,9 @@ srs_error_t SrsHlsStream::serve_exists_session(ISrsHttpResponseWriter *w, ISrsHt
     w->header()->set_content_length(content.length());
     w->write_header(SRS_CONSTS_HTTP_OK);
     if (!content.empty()) {
-        w->write((char *)content.data(), content.length());
+        if ((err = w->write((char *)content.data(), content.length())) != srs_success) {
+            return srs_error_wrap(err, "write m3u8");
+        }
     }
 
     if ((err = w->final_request()) != srs_success) {

@@ -3628,16 +3628,16 @@ VOID TEST(KernelRTCQueueTest, SrsRtpNackForReceiver_CheckQueueSize)
         MockRtpRingBuffer mock_buffer;
         SrsRtpNackForReceiver nack(&mock_buffer, 2); // max_queue_size_ = 2
 
-        // Insert items to exceed max_queue_size_
-        nack.insert(100, 103); // Should insert 100, 101, 102 (3 items)
+        // Insert a gap over max_queue_size_, which stops at the limit: 100 and 101, not 102
+        nack.insert(100, 103);
 
         // Verify items are in queue before check
-        EXPECT_EQ(3, (int)nack.queue_.size());
+        EXPECT_EQ(2, (int)nack.queue_.size());
         EXPECT_TRUE(nack.find(100) != NULL);
         EXPECT_TRUE(nack.find(101) != NULL);
-        EXPECT_TRUE(nack.find(102) != NULL);
+        EXPECT_TRUE(nack.find(102) == NULL);
 
-        // Call check_queue_size - should trigger cleanup since 3 >= 2
+        // Call check_queue_size - should trigger cleanup since 2 >= 2
         nack.check_queue_size();
 
         // Verify cleanup occurred - this covers the main lines in check_queue_size()

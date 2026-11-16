@@ -657,6 +657,14 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
     SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     SrsHttpConn *hc = dynamic_cast<SrsHttpConn *>(hr->connection());
 
+    // Refuse a viewer during the teardown before it counts as alive: the teardown expires only the viewers it
+    // finds, and one that waits for its on_play hook would keep the stream alive until the teardown aborts.
+    if (!entry_->enabled) {
+        err = srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not found");
+        srs_http_stream_serve_error(w, err);
+        return err;
+    }
+
     // Add the viewer to the viewers list.
     viewers_.push_back(hc);
 
