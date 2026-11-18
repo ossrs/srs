@@ -33,6 +33,11 @@ cd SRS-Windows-x86_64-<version>
 objs\srs.exe -c conf\console.conf
 ```
 
+To run in the background, double-click `objs\srs.exe`, or start it without arguments. It loads
+`../conf/srs.conf` relative to the executable and uses the unzipped folder as its working directory,
+so the config's `./objs/...` paths work. Explicit command-line arguments keep the caller's working
+directory, unless the config sets `work_dir`.
+
 For WebRTC, set the candidate to the IP the clients reach SRS on, before you start it; for example in
 PowerShell:
 
@@ -125,11 +130,12 @@ the ST or FFmpeg source changes.
 
 ## Run
 
-`srs.exe` is a console program: it runs in the foreground, until it is stopped.
+`srs.exe` is a console program that can run in the foreground or the background.
 
-* Daemon mode is not supported. A config with `daemon on`, such as `conf/srs.conf`, is refused at
-  start with `daemon is not supported on this OS`; set `daemon off`, or `SRS_DAEMON=off`. A config
-  without `daemon` runs in the foreground.
+* With `daemon on`, such as in `conf/srs.conf`, SRS starts a background process without a console
+  window. The launcher exits after the server initializes, and returns an error if startup fails.
+  Set `daemon off`, or `SRS_DAEMON=off`, to run in the foreground. A config without `daemon` defaults
+  to background mode; `-e` defaults to foreground mode, as on Linux.
 * There is no Windows service and no installer; to run SRS as a service, use a service wrapper.
 * The log goes to the console or to the file of `srs_log_file`, as on Linux.
 * Write the paths in the config with `/`, such as `./objs/nginx/html`; a path that starts with `/`,
@@ -152,6 +158,10 @@ Windows has no signals, so SRS takes the console events and the HTTP RAW API ins
 
 A tool or a supervisor stops one `srs.exe` with Ctrl+Break, sent to the process group SRS runs in;
 Ctrl+C goes to the whole console.
+
+The background process has no console, so Ctrl+C and Ctrl+Break do not reach it. To stop it in
+PowerShell, run `Stop-Process -Id (Get-Content .\objs\srs.pid)` from the unzipped folder; this stops
+it immediately. Use the configured `pid` path if it differs from the default.
 
 The RAW API needs `http_api.raw_api.enabled on`; `rpc=reload` also needs `allow_reload on`, while
 `rpc=reopen-log` does not, since it changes no config:
@@ -222,7 +232,7 @@ the list.
   allow DTLS 1.0 too. With `rtc_server.ecdsa off`, the DTLS certificate is RSA 2048.
 * **Network interfaces.** SRS lists the IPs from `GetAdaptersAddresses` for the WebRTC candidate and
   the stats, with the adapter names, such as `Ethernet` or `Wi-Fi`.
-* **Not built.** Daemon mode, a Windows service, an installer, IOCP, gperftools, sanitizers, Valgrind
+* **Not built.** A Windows service, an installer, IOCP, gperftools, sanitizers, Valgrind
   and backtraces. Windows on ARM and 32-bit Windows are not supported.
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/windows)

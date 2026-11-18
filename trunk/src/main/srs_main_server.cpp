@@ -106,6 +106,10 @@ srs_error_t do_main(int argc, char **argv, char **envp)
     _srs_context = new SrsThreadContext();
     _srs_config = new SrsConfig();
 
+    if (srs_process_initialize(argc, argv) < 0) {
+        return srs_error_new(-1, "initialize process");
+    }
+
     // For background context id.
     _srs_context->set_id(_srs_context->generate_id());
 
@@ -423,30 +427,12 @@ srs_error_t run_directly_or_daemon()
 
     srs_trace("start daemon mode...");
 
-    int pid = srs_fork();
-
-    if (pid < 0) {
-        return srs_error_new(-1, "fork father process");
+    int r0 = srs_daemon_start();
+    if (r0 < 0) {
+        return srs_error_new(-1, "start daemon");
     }
-
-    // grandpa
-    if (pid > 0) {
-        int status = 0;
-        srs_waitpid(pid, &status, 0);
-        srs_trace("grandpa process exit.");
-        exit(0);
-    }
-
-    // father
-    pid = srs_fork();
-
-    if (pid < 0) {
-        return srs_error_new(-1, "fork child process");
-    }
-
-    if (pid > 0) {
-        srs_trace("father process exit");
-        exit(0);
+    if (r0 > 0) {
+        return srs_success;
     }
 
     // son
