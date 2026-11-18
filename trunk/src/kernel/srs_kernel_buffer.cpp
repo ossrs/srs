@@ -437,7 +437,6 @@ int32_t SrsBitBuffer::read_bits(int n)
 
 int8_t SrsBitBuffer::read_8bits()
 {
-    // FAST_8
     if (!cb_left_) {
         srs_assert(!stream_->empty());
         return stream_->read_1bytes();
@@ -448,7 +447,6 @@ int8_t SrsBitBuffer::read_8bits()
 
 int16_t SrsBitBuffer::read_16bits()
 {
-    // FAST_16
     if (!cb_left_) {
         srs_assert(!stream_->empty());
         return stream_->read_2bytes();
@@ -459,7 +457,6 @@ int16_t SrsBitBuffer::read_16bits()
 
 int32_t SrsBitBuffer::read_32bits()
 {
-    // FAST_32
     if (!cb_left_) {
         srs_assert(!stream_->empty());
         return stream_->read_4bytes();
@@ -476,23 +473,7 @@ srs_error_t SrsBitBuffer::read_bits_ue(uint32_t &v)
         return srs_error_new(ERROR_HEVC_NALU_UEV, "empty stream");
     }
 
-    // Unsigned Exp-Golomb decoding algorithm from ITU-T H.265 specification
-    // ue(v) in 9.2 Parsing process for Exp-Golomb codes
-    // ITU-T-H.265-2021.pdf, page 221.
-    //
-    // Algorithm:
-    // 1. Count leading zero bits until first '1' bit
-    // 2. Read the '1' bit (prefix)
-    // 3. Read leadingZeroBits more bits (suffix)
-    // 4. Calculate: codeNum = (2^leadingZeroBits) - 1 + suffix_value
-    //
-    // Examples:
-    //   "1"       -> leadingZeroBits=0, suffix=none  -> value=0
-    //   "010"     -> leadingZeroBits=1, suffix=0     -> value=1
-    //   "011"     -> leadingZeroBits=1, suffix=1     -> value=2
-    //   "00100"   -> leadingZeroBits=2, suffix=00    -> value=3
-
-    // Step 1: Count leading zero bits
+    // ue(v) in ITU-T H.265 (2021), 9.2 Parsing process for Exp-Golomb codes, page 221.
     int leadingZeroBits = -1;
     for (int8_t b = 0; !b && !empty(); leadingZeroBits++) {
         b = read_bit();
@@ -502,10 +483,8 @@ srs_error_t SrsBitBuffer::read_bits_ue(uint32_t &v)
         return srs_error_new(ERROR_HEVC_NALU_UEV, "%dbits overflow 31bits", leadingZeroBits);
     }
 
-    // Step 2: Calculate base value: (2^leadingZeroBits) - 1
     v = (1 << leadingZeroBits) - 1;
 
-    // Step 3: Read suffix bits and add to base value
     for (int i = 0; i < (int)leadingZeroBits; i++) {
         if (empty()) {
             return srs_error_new(ERROR_HEVC_NALU_UEV, "no bytes for leadingZeroBits=%d", leadingZeroBits);
@@ -526,30 +505,12 @@ srs_error_t SrsBitBuffer::read_bits_se(int32_t &v)
         return srs_error_new(ERROR_HEVC_NALU_SEV, "empty stream");
     }
 
-    // Signed Exp-Golomb decoding algorithm from ITU-T H.265 specification
-    // se(v) in 9.2.2 Mapping process for signed Exp-Golomb codes
-    // ITU-T-H.265-2021.pdf, page 222.
-    //
-    // Algorithm:
-    // 1. First decode as unsigned Exp-Golomb to get codeNum
-    // 2. Map to signed value using alternating positive/negative pattern:
-    //    - If codeNum is odd:  se_value = (codeNum + 1) / 2
-    //    - If codeNum is even: se_value = -(codeNum / 2)
-    //
-    // Mapping table:
-    //   codeNum: 0  1  2  3  4  5  6  7  8  ...
-    //   se(v):   0  1 -1  2 -2  3 -3  4 -4  ...
-    //
-    // This encoding efficiently represents signed integers with smaller
-    // absolute values using fewer bits.
-
-    // Step 1: Decode unsigned Exp-Golomb value
+    // se(v) in ITU-T H.265 (2021), 9.2.2 Mapping process for signed Exp-Golomb codes, page 222.
     uint32_t val = 0;
     if ((err = read_bits_ue(val)) != srs_success) {
         return srs_error_wrap(err, "read uev");
     }
 
-    // Step 2: Map unsigned code to signed value
     if (val & 0x01) {
         v = (val + 1) / 2;
     } else {
@@ -574,10 +535,8 @@ void SrsMemoryBlock::create(int size)
 {
     srs_assert(size >= 0);
 
-    // Free existing payload
     srs_freepa(payload_);
 
-    // Allocate new buffer
     if (size > 0) {
         payload_ = new char[size];
         memset(payload_, 0, size);
@@ -594,7 +553,6 @@ void SrsMemoryBlock::create(char *data, int size)
 
     create(size);
 
-    // Copy data if provided
     if (data && size > 0) {
         memcpy(payload_, data, size);
         size_ = size;
@@ -605,10 +563,8 @@ void SrsMemoryBlock::attach(char *data, int size)
 {
     srs_assert(size >= 0);
 
-    // Free existing payload
     srs_freepa(payload_);
 
-    // Attach new buffer
     payload_ = data;
     size_ = size;
 }

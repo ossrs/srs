@@ -120,24 +120,20 @@ srs_error_t srs_api_response_json_code(ISrsHttpResponseWriter *w, srs_error_t co
 
 srs_error_t srs_api_response(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string json)
 {
-    // no jsonp, directly response.
     if (!r->is_jsonp()) {
         return srs_api_response_json(w, json);
     }
 
-    // jsonp, get function name from query("callback")
     string callback = r->query_get("callback");
     return srs_api_response_jsonp(w, callback, json);
 }
 
 srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code)
 {
-    // no jsonp, directly response.
     if (!r->is_jsonp()) {
         return srs_api_response_json_code(w, code);
     }
 
-    // jsonp, get function name from query("callback")
     string callback = r->query_get("callback");
     return srs_api_response_jsonp_code(w, callback, code);
 }
@@ -147,10 +143,8 @@ void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count)
     std::string rstart = r->query_get("start");
     std::string rcount = r->query_get("count");
 
-    // Parse start parameter, default to 0, minimum 0.
     start = srs_max(0, atoi(rstart.c_str()));
 
-    // Parse count parameter, default to 10, minimum 1.
     count = rcount.empty() ? 10 : srs_max(1, atoi(rcount.c_str()));
 }
 
@@ -173,16 +167,13 @@ std::string srs_api_metrics_label_escape(const std::string &v)
     return r;
 }
 
-// @remark we will free the code.
 srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code)
 {
     srs_error_t err = srs_success;
 
-    // no jsonp, directly response.
     if (!r->is_jsonp()) {
         err = srs_api_response_json_code(w, code);
     } else {
-        // jsonp, get function name from query("callback")
         string callback = r->query_get("callback");
         err = srs_api_response_jsonp_code(w, callback, code);
     }
@@ -667,7 +658,6 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     features->set("mr", SrsJsonAny::boolean(false));
 #endif
 
-    // The build options, so a client can check the protocols and tools this binary was built with.
 #ifdef SRS_SRT
     features->set("srt", SrsJsonAny::boolean(true));
 #else
@@ -727,15 +717,12 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     data->set("uri", SrsJsonAny::str(r->uri().c_str()));
     data->set("path", SrsJsonAny::str(r->path().c_str()));
 
-    // method
     data->set("METHOD", SrsJsonAny::str(r->method_str().c_str()));
 
-    // request headers
     SrsJsonObject *headers = SrsJsonAny::object();
     data->set("headers", headers);
     r->header()->dumps(headers);
 
-    // server informations
     SrsJsonObject *server = SrsJsonAny::object();
     data->set("server", server);
 
@@ -761,8 +748,6 @@ srs_error_t SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
 {
     srs_error_t err = srs_success;
 
-    // path: {pattern}{vhost_id}
-    // e.g. /api/v1/vhosts/100     pattern= /api/v1/vhosts/, vhost_id=100
     string vid = r->parse_rest_id(entry_->pattern);
     SrsStatisticVhost *vhost = NULL;
 
@@ -819,8 +804,6 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 {
     srs_error_t err = srs_success;
 
-    // path: {pattern}{stream_id}
-    // e.g. /api/v1/streams/100     pattern= /api/v1/streams/, stream_id=100
     string sid = r->parse_rest_id(entry_->pattern);
 
     SrsStatisticStream *stream = NULL;
@@ -837,7 +820,6 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     if (r->is_http_get()) {
         if (!stream) {
-            // Add total count of streams
             int64_t send_bytes = 0, recv_bytes = 0, nstreams = 0, nclients = 0, total_nclients = 0, nerrs = 0;
             if ((err = stat_->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs)) != srs_success) {
                 int code = srs_error_code(err);
@@ -846,7 +828,6 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             }
             obj->set("total", SrsJsonAny::integer(nstreams));
 
-            // Add streams
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("streams", data);
 
@@ -889,8 +870,6 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 {
     srs_error_t err = srs_success;
 
-    // path: {pattern}{client_id}
-    // e.g. /api/v1/clients/100     pattern= /api/v1/clients/, client_id=100
     string client_id = r->parse_rest_id(entry_->pattern);
 
     SrsStatisticClient *client = NULL;
@@ -907,7 +886,6 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     if (r->is_http_get()) {
         if (!client) {
-            // Add total count of clients
             int64_t send_bytes = 0, recv_bytes = 0, nstreams = 0, nclients = 0, total_nclients = 0, nerrs = 0;
             if ((err = stat_->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs)) != srs_success) {
                 int code = srs_error_code(err);
@@ -916,7 +894,6 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             }
             obj->set("total", SrsJsonAny::integer(nclients));
 
-            // Add clients
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("clients", data);
 
@@ -975,8 +952,6 @@ srs_error_t SrsGoApiForwards::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
         return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
     }
 
-    // path: {pattern}{forward_id}
-    // e.g. /api/v1/forwards/fwd-x     pattern= /api/v1/forwards/, forward_id=fwd-x
     string forward_id = r->parse_rest_id(entry_->pattern);
 
     SrsStatisticForward *forward = NULL;
@@ -992,10 +967,8 @@ srs_error_t SrsGoApiForwards::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     obj->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
 
     if (!forward) {
-        // Filter by the stream id, e.g. ?stream=vid-xxx, empty for all streams.
         string stream_id = r->query_get("stream");
 
-        // The total after the filter, before start and count, so the client knows how many pages there are.
         obj->set("total", SrsJsonAny::integer(stat_->count_forwards(stream_id)));
 
         SrsJsonArray *data = SrsJsonAny::array();
@@ -1051,13 +1024,10 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 
     std::string rpc = r->query_get("rpc");
 
-    // the object to return for request.
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
 
-    // for rpc=raw, to query the raw api config for http api.
     if (rpc == "raw") {
-        // query global scope.
         if ((err = config_->raw_to_json(obj.get())) != srs_success) {
             int code = srs_error_code(err);
             srs_freep(err);
@@ -1067,19 +1037,15 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return srs_api_response(w, r, obj->dumps());
     }
 
-    // whether enabled the HTTP RAW API, read per request so a reload takes effect.
+    // Read per request, so a reload takes effect.
     if (!config_->get_raw_api()) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_DISABLED);
     }
 
-    //////////////////////////////////////////////////////////////////////////
-    // the rpc is required.
-    // the allowed rpc method check.
     if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch" && rpc != "reopen-log")) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW);
     }
 
-    // for rpc=reload, trigger the server to reload the config.
     if (rpc == "reload") {
         if (!config_->get_raw_api_allow_reload()) {
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_DISABLED);
@@ -1190,7 +1156,6 @@ srs_error_t SrsGoApiTcmalloc::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
         return err;
     }
 
-    // By default, response the json style response.
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
@@ -1267,13 +1232,11 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     string check = r->query_get("check");
     srs_trace("query check=%s", check.c_str());
 
-    // Must be full|added|changed|new|quick, set to full for other values.
     if (check != "full" && check != "added" && check != "changed" && check != "new" && check != "quick") {
         srs_warn("force set check=%s to full", check.c_str());
         check = "full";
     }
 
-    // Check if 'new' leak check is supported in current Valgrind version
     if (check == "new") {
 #if !defined(VALGRIND_DO_NEW_LEAK_CHECK)
         return srs_error_new(ERROR_NOT_SUPPORTED,
@@ -1289,7 +1252,6 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
         }
     }
 
-    // By default, response the json style response.
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
@@ -1300,7 +1262,7 @@ srs_error_t SrsGoApiValgrind::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     res->set("see", SrsJsonAny::str("https://valgrind.org/docs/manual/mc-manual.html"));
     obj->set("data", res);
 
-    // Does a memory check later.
+    // The check runs later, in cycle().
     if (check == "full") {
         res->set("call", SrsJsonAny::str("VALGRIND_DO_LEAK_CHECK"));
     } else if (check == "quick") {
@@ -1385,7 +1347,6 @@ srs_error_t SrsGoApiSignal::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
 
     _srs_server->on_signal(signo);
 
-    // By default, response the json style response.
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
@@ -1421,27 +1382,12 @@ SrsGoApiMetrics::~SrsGoApiMetrics()
 
 srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
-    // whether enabled the HTTP Metrics API.
     if (!enabled_) {
         return srs_api_response_code(w, r, ERROR_EXPORTER_DISABLED);
     }
 
-    /*
-     * node_uname gauge
-     * build_info gauge
-     * cpu gauge
-     * memory gauge
-     * send_bytes_total counter
-     * receive_bytes_total counter
-     * streams gauge
-     * clients gauge
-     * clients_total counter
-     * error counter
-     */
-
     std::stringstream ss;
 
-    // Get system info
     SrsProtocolUtility utility;
     utsname *system_info = utility.system_uname();
     ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
@@ -1454,7 +1400,6 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
        << "machine=\"" << srs_api_metrics_label_escape(system_info->machine) << "\""
        << "} 1\n";
 
-    // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
        << "# TYPE srs_build_info gauge\n"
        << "srs_build_info{"
@@ -1471,17 +1416,15 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         ss << ",tag=\"" << srs_api_metrics_label_escape(tag_) << "\"";
     ss << "} 1\n";
 
-    // Get ProcSelfStat
     SrsProcSelfStat *u = srs_get_self_proc_stat();
 
-    // The cpu of proc used.
     ss << "# HELP srs_cpu_percent SRS cpu used percent.\n"
        << "# TYPE srs_cpu_percent gauge\n"
        << "srs_cpu_percent "
        << u->percent_ * 100
        << "\n";
 
-    // The memory of proc used.(MBytes)
+    // rss_ counts pages, taken as 4 KB each, so this is in KB.
     int memory = (int)(u->rss_ * 4);
     ss << "# HELP srs_memory SRS memory used.\n"
        << "# TYPE srs_memory gauge\n"
@@ -1489,46 +1432,39 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
        << memory
        << "\n";
 
-    // Dump metrics by statistic.
     int64_t send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs;
     stat_->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs);
 
-    // The total of bytes sent.
     ss << "# HELP srs_send_bytes_total SRS total sent bytes.\n"
        << "# TYPE srs_send_bytes_total counter\n"
        << "srs_send_bytes_total "
        << send_bytes
        << "\n";
 
-    // The total of bytes received.
     ss << "# HELP srs_receive_bytes_total SRS total received bytes.\n"
        << "# TYPE srs_receive_bytes_total counter\n"
        << "srs_receive_bytes_total "
        << recv_bytes
        << "\n";
 
-    // Current number of online streams.
     ss << "# HELP srs_streams The number of SRS concurrent streams.\n"
        << "# TYPE srs_streams gauge\n"
        << "srs_streams "
        << nstreams
        << "\n";
 
-    // Current number of online clients.
     ss << "# HELP srs_clients The number of SRS concurrent clients.\n"
        << "# TYPE srs_clients gauge\n"
        << "srs_clients "
        << nclients
        << "\n";
 
-    // The total of clients connections.
     ss << "# HELP srs_clients_total The total counts of SRS clients.\n"
        << "# TYPE srs_clients_total counter\n"
        << "srs_clients_total "
        << total_nclients
        << "\n";
 
-    // The total of clients errors.
     ss << "# HELP srs_clients_errs_total The total errors of SRS clients.\n"
        << "# TYPE srs_clients_errs_total counter\n"
        << "srs_clients_errs_total "

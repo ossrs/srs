@@ -18,7 +18,6 @@ class ISrsSrtClientHandler;
 class ISrsAppConfig;
 class ISrsAppFactory;
 
-// Interface for SRT client acceptance
 class ISrsSrtClientHandler
 {
 public:
@@ -29,7 +28,6 @@ public:
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd) = 0;
 };
 
-// The SRT acceptor interface, which listens at an endpoint and hands each client to its handler.
 class ISrsSrtAcceptor
 {
 public:
@@ -40,7 +38,6 @@ public:
     virtual srs_error_t listen(std::string ip, int port) = 0;
 };
 
-// A common srt acceptor, for SRT server.
 class SrsSrtAcceptor : public ISrsSrtAcceptor, public ISrsSrtHandler
 {
 // clang-format off
@@ -69,12 +66,11 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t set_srt_opt();
-    // Interface ISrsSrtHandler
+
 public:
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
-// The SRT event loop, which the server initializes and starts. Its initialize also sets up the process-wide libsrt log.
 class ISrsSrtEventLoop
 {
 public:
@@ -87,19 +83,17 @@ public:
     virtual ISrsSrtPoller *poller() = 0;
 };
 
-// Start a coroutine to drive the SRT events with state-threads.
 class SrsSrtEventLoop : public ISrsSrtEventLoop, public ISrsCoroutineHandler
 {
 public:
     SrsSrtEventLoop();
     virtual ~SrsSrtEventLoop();
 
-    // Interface ISrsSrtEventLoop.
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t start();
     virtual ISrsSrtPoller *poller();
-    // Interface ISrsCoroutineHandler.
+
 public:
     virtual srs_error_t cycle();
 
@@ -109,7 +103,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
 };
 
-// SrsSrtEventLoop is global singleton instance.
 extern SrsSrtEventLoop *_srs_srt_eventloop;
 
 #endif

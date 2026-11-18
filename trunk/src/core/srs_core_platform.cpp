@@ -352,7 +352,6 @@ int srs_kill(pid_t pid, int signo)
     return 0;
 }
 
-// The status is the exit code of the child, not a Unix wait status.
 pid_t srs_waitpid(pid_t pid, int *status, int options)
 {
     std::map<pid_t, HANDLE>::iterator it = srs_children.find(pid);
@@ -695,8 +694,7 @@ static void srs_append_arg(std::wstring &cmd, const std::wstring &arg)
     cmd += L'"';
 }
 
-// An inheritable handle for a standard stream of the child: the file opened to append, the null device for
-// /dev/null, which configs and SRS name, or SRS's own stream when the file is empty.
+// Configs and SRS name the null device /dev/null.
 static HANDLE srs_child_stdio(const char *file, DWORD std_handle)
 {
     SECURITY_ATTRIBUTES sa;
@@ -725,7 +723,7 @@ static HANDLE srs_child_stdio(const char *file, DWORD std_handle)
                          FILE_ATTRIBUTE_NORMAL, NULL);
 }
 
-// The job of every child, which ends them all when SRS quits, even when it crashes.
+// Windows ends the children in the job when SRS quits, even when it crashes.
 static HANDLE srs_children_job()
 {
     static HANDLE job = NULL;
@@ -1264,7 +1262,7 @@ pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *s
     ::signal(SIGINT, SIG_IGN);
     ::signal(SIGTERM, SIG_IGN);
 
-    // No stdin for process, @bug https://github.com/ossrs/srs/issues/1592
+    // No stdin for the child, @bug https://github.com/ossrs/srs/issues/1592
     if (srs_redirect_output(stdout_file, STDOUT_FILENO) < 0 || srs_redirect_output(stderr_file, STDERR_FILENO) < 0 ||
         srs_redirect_output("/dev/null", STDIN_FILENO) < 0) {
         fprintf(stdout, "child process error, redirect io failed, errno=%d(%s)\n", errno, strerror(errno));

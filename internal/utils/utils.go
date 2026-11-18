@@ -47,11 +47,9 @@ func ApiError(ctx context.Context, w http.ResponseWriter, r *http.Request, err e
 }
 
 func ApiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
-	// Always support CORS. Note that browser may send origin header for m3u8, but no origin header
-	// for ts. So we always response CORS header.
+	// A browser may send an Origin header for m3u8 but not for ts, so the CORS headers are always set.
 	if true {
-		// SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
-		// headers, expose headers and methods.
+		// SRS needs no cookies or credentials, so * is used for the origin, headers and methods.
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
 		w.Header().Set("Access-Control-Allow-Headers", "*")
@@ -67,7 +65,6 @@ func ApiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-// ParseBody read the body from r, and unmarshal JSON to v.
 func ParseBody(r io.ReadCloser, v interface{}) error {
 	defer r.Close()
 
@@ -87,17 +84,14 @@ func ParseBody(r io.ReadCloser, v interface{}) error {
 	return nil
 }
 
-// BuildStreamURL build as vhost/app/stream for stream URL r.
 func BuildStreamURL(r string) (string, error) {
 	u, err := url.Parse(r)
 	if err != nil {
 		return "", errors.Wrapf(err, "parse url %v", r)
 	}
 
-	// If not domain or ip in hostname, it's __defaultVhost__.
 	defaultVhost := !strings.Contains(u.Hostname(), ".")
 
-	// If hostname is actually an IP address, it's __defaultVhost__.
 	if ip := net.ParseIP(u.Hostname()); ip.To4() != nil {
 		defaultVhost = true
 	}
@@ -106,11 +100,9 @@ func BuildStreamURL(r string) (string, error) {
 		return fmt.Sprintf("__defaultVhost__%v", u.Path), nil
 	}
 
-	// Ignore port, only use hostname as vhost.
 	return fmt.Sprintf("%v%v", u.Hostname(), u.Path), nil
 }
 
-// IsPeerClosedError indicates whether peer object closed the connection.
 func IsPeerClosedError(err error) bool {
 	causeErr := errors.Cause(err)
 
@@ -133,27 +125,20 @@ func IsPeerClosedError(err error) bool {
 	return false
 }
 
-// IsClosedNetworkError indicates whether the error is due to a closed network connection.
 func IsClosedNetworkError(err error) bool {
 	if err == nil {
 		return false
 	}
 
-	// Unwrap to get the underlying error
 	causeErr := errors.Cause(err)
 
-	// Check for "use of closed network connection" error
 	if netErr, ok := causeErr.(*net.OpError); ok {
 		return netErr.Err.Error() == "use of closed network connection"
 	}
 
-	// Also check if the error message contains the text
 	return strings.Contains(causeErr.Error(), "use of closed network connection")
 }
 
-// ConvertURLToStreamURL convert the URL in HTTP request to special URLs. The unifiedURL is the URL
-// in unified, foramt as scheme://vhost/app/stream without extensions. While the fullURL is the unifiedURL
-// with extension.
 func ConvertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 	scheme := "http"
 	if r.TLS != nil {
@@ -169,7 +154,6 @@ func ConvertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 
 	var appStream, streamExt string
 
-	// Parse app/stream from query string.
 	q := r.URL.Query()
 	if app := q.Get("app"); app != "" {
 		appStream = "/" + app
@@ -178,7 +162,6 @@ func ConvertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 		appStream = fmt.Sprintf("%v/%v", appStream, stream)
 	}
 
-	// Parse app/stream from path.
 	if appStream == "" {
 		streamExt = path.Ext(r.URL.Path)
 		appStream = strings.TrimSuffix(r.URL.Path, streamExt)
@@ -189,22 +172,18 @@ func ConvertURLToStreamURL(r *http.Request) (unifiedURL, fullURL string) {
 	return
 }
 
-// RtcIsSTUN returns true if data of UDP payload is a STUN packet.
 func RtcIsSTUN(data []byte) bool {
 	return len(data) > 0 && (data[0] == 0 || data[0] == 1)
 }
 
-// RtcIsRTPOrRTCP returns true if data of UDP payload is a RTP or RTCP packet.
 func RtcIsRTPOrRTCP(data []byte) bool {
 	return len(data) >= 12 && (data[0]&0xC0) == 0x80
 }
 
-// SrtIsHandshake returns true if data of UDP payload is a SRT handshake packet.
 func SrtIsHandshake(data []byte) bool {
 	return len(data) >= 4 && binary.BigEndian.Uint32(data) == 0x80000000
 }
 
-// SrtParseSocketID parse the socket id from the SRT packet.
 func SrtParseSocketID(data []byte) uint32 {
 	if len(data) >= 16 {
 		return binary.BigEndian.Uint32(data[12:])
@@ -212,10 +191,8 @@ func SrtParseSocketID(data []byte) uint32 {
 	return 0
 }
 
-// ParseIceUfragPwd parse the ice-ufrag and ice-pwd from the SDP. The value class
-// stops at any whitespace (real CRLF in raw SDP) or at a backslash, so the parser
-// is also safe against JSON-escaped SDP bodies where line breaks appear as the
-// 2-byte sequence "\r" / "\n" rather than real control characters.
+// The value also stops at a backslash, since a JSON-escaped SDP body has its line
+// breaks as the 2-byte text "\r" and "\n", not as control characters.
 func ParseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
 	if true {
 		ufragRe := regexp.MustCompile(`a=ice-ufrag:([^\s\\]+)`)
@@ -238,8 +215,7 @@ func ParseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
 	return ufrag, pwd, nil
 }
 
-// ParseSRTStreamID parse the SRT stream id to host(optional) and resource(required).
-// See https://ossrs.io/lts/en-us/docs/v7/doc/srt#srt-url
+// The stream ID format is at https://ossrs.io/lts/en-us/docs/v7/doc/srt#srt-url
 func ParseSRTStreamID(sid string) (host, resource string, err error) {
 	if true {
 		hostRe := regexp.MustCompile(`h=([^,]+)`)
@@ -261,12 +237,7 @@ func ParseSRTStreamID(sid string) (host, resource string, err error) {
 	return host, resource, nil
 }
 
-// ParseListenEndpoint parse the listen endpoint as:
-//
-//	port The tcp listen port, like 1935.
-//	protocol://ip:port The listen endpoint, like tcp://:1935 or tcp://0.0.0.0:1935
 func ParseListenEndpoint(ep string) (protocol string, ip net.IP, port uint16, err error) {
-	// If no colon in ep, it's port in string.
 	if !strings.Contains(ep, ":") {
 		if p, err := strconv.Atoi(ep); err != nil {
 			return "", nil, 0, errors.Wrapf(err, "parse port %v", ep)
@@ -275,7 +246,6 @@ func ParseListenEndpoint(ep string) (protocol string, ip net.IP, port uint16, er
 		}
 	}
 
-	// Handle URL-style format: protocol://host:port or protocol://port
 	if strings.Contains(ep, "://") {
 		parts := strings.SplitN(ep, "://", 2)
 		if len(parts) != 2 {
@@ -285,9 +255,7 @@ func ParseListenEndpoint(ep string) (protocol string, ip net.IP, port uint16, er
 		protocol = parts[0]
 		hostPort := parts[1]
 
-		// Check if there's a port specified
 		if strings.Contains(hostPort, ":") {
-			// Format: protocol://host:port
 			host, portStr, err := net.SplitHostPort(hostPort)
 			if err != nil {
 				return "", nil, 0, errors.Wrapf(err, "parse host:port %v", hostPort)
@@ -303,7 +271,6 @@ func ParseListenEndpoint(ep string) (protocol string, ip net.IP, port uint16, er
 			}
 			return protocol, ip, uint16(p), nil
 		} else {
-			// Format: protocol://port
 			p, err := strconv.Atoi(hostPort)
 			if err != nil {
 				return "", nil, 0, errors.Wrapf(err, "parse port %v", hostPort)

@@ -16,7 +16,6 @@
 
 class SrsFileReader;
 
-// The file writer factory.
 class ISrsFileWriter : public ISrsWriteSeeker
 {
 public:
@@ -32,7 +31,6 @@ public:
     virtual int64_t tellg() = 0;
 };
 
-// file writer, to write to file.
 class SrsFileWriter : public ISrsFileWriter
 {
 // clang-format off
@@ -46,31 +44,23 @@ public:
     virtual ~SrsFileWriter();
 
 public:
-    // set io buf size
     virtual srs_error_t set_iobuf_size(int size);
 
-    // open file writer, in truncate mode.
-    // @param p a string indicates the path of file to open.
     virtual srs_error_t open(std::string p);
-    // open file writer, in append mode.
-    // @param p a string indicates the path of file to open.
     virtual srs_error_t open_append(std::string p);
-    // close current writer.
-    // @remark user can reopen again.
     virtual void close();
 
 public:
     virtual bool is_open();
     virtual srs_error_t seek2(int64_t offset);
     virtual int64_t tellg();
-    // Interface ISrsWriteSeeker
+
 public:
     virtual srs_error_t write(void *buf, size_t count, ssize_t *pnwrite);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
-// The file reader factory.
 class ISrsFileReaderFactory
 {
 public:
@@ -81,7 +71,6 @@ public:
     virtual SrsFileReader *create_file_reader();
 };
 
-// The file reader.
 class ISrsFileReader : public ISrsReadSeeker
 {
 public:
@@ -100,9 +89,6 @@ public:
     virtual int64_t filesize() = 0;
 };
 
-/**
- * file reader, to read from file.
- */
 class SrsFileReader : public ISrsFileReader
 {
 // clang-format off
@@ -115,15 +101,7 @@ public:
     virtual ~SrsFileReader();
 
 public:
-    /**
-     * open file reader.
-     * @param p a string indicates the path of file to open.
-     */
     virtual srs_error_t open(std::string p);
-    /**
-     * close current reader.
-     * @remark user can reopen again.
-     */
     virtual void close();
 
 public:
@@ -133,7 +111,7 @@ public:
     virtual void skip(int64_t size);
     virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
-    // Interface ISrsReadSeeker
+
 public:
     virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
     virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);

@@ -11,52 +11,12 @@
 
 #include <stdlib.h>
 
-// Note that the SrsAutoFree is deprecated, please use SrsUniquePtr instead. For example:
-//      MyClass* p = new MyClass();
-//      SrsAutoFree(MyClass, p);
-// This can be replaced by:
-//      SrsUniquePtr<MyClass> p(new MyClass());
+// SrsAutoFree, SrsAutoFreeA and SrsAutoFreeH were replaced by SrsUniquePtr and are no longer defined.
+// They held the address of the pointer and freed the value it had at scope exit, while SrsUniquePtr
+// holds the value it is given, so create it after the pointer is set, such as after getaddrinfo.
+// See https://github.com/ossrs/srs/issues/4551
 //
-// Note: Please aware that there is a slight difference between SrsAutoFree and SrsUniquePtr.
-// SrsAutoFree will track the address of pointer, while SrsUniquePtr will not.
-//      MyClass* p;
-//      SrsAutoFree(MyClass, p); // p will be freed even p is changed later.
-//      SrsUniquePtr ptr(p); // crash because p is an invalid pointer.
-//
-// See https://github.com/ossrs/srs/issues/4551 for more details.
-//
-// To delete array. Please use SrsUniquePtr instead. For example:
-//      MyClass** pa = new MyClass*[size];
-//      SrsAutoFreeA(MyClass*, pa);
-// This can be replaced by:
-//      SrsUniquePtr<MyClass[]> pa(new MyClass[10]);
-//
-// Note: Please aware that there is a slight difference between SrsAutoFreeA and SrsUniquePtr.
-// SrsAutoFreeA will track the address of pointer, while SrsUniquePtr will not.
-//      MyClass** pa;
-//      SrsAutoFreeA(MyClass*, pa); // pa will be freed even pa is changed later.
-//      SrsUniquePtr<MyClass[]> ptr(pa); // crash because pa is an invalid pointer.
-//
-// See https://github.com/ossrs/srs/issues/4551 for more details.
-//
-// Use hook instead of delete. Please use SrsUniquePtr instead. For example:
-//      addrinfo* r = NULL;
-//      SrsAutoFreeH(addrinfo, r, freeaddrinfo);
-//      getaddrinfo("127.0.0.1", NULL, &hints, &r);
-// This can be replaced by:
-//      addrinfo* r = NULL;
-//      getaddrinfo("127.0.0.1", NULL, &hints, &r);
-//      SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo);
-//
-// Note: Please aware that there is a slight difference between SrsAutoFreeH and SrsUniquePtr.
-// SrsAutoFreeH will track the address of pointer, while SrsUniquePtr will not.
-//      addrinfo* r = NULL;
-//      SrsAutoFreeH(addrinfo, r, freeaddrinfo); // r will be freed even r is changed later.
-//      SrsUniquePtr<addrinfo> ptr(r, freeaddrinfo); // crash because r is an invalid pointer.
-//
-// See https://github.com/ossrs/srs/issues/4551 for more details.
-//
-// The template implementation.
+// Their implementation:
 // template<class T>
 // class impl_SrsAutoFree
 //{

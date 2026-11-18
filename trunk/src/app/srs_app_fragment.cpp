@@ -38,7 +38,6 @@ void SrsFragment::append(int64_t dts)
     // The max positive ms is 0x7fffffffffffffff/1000.
     static const int64_t maxMS = 0x20c49ba5e353f7LL;
 
-    // We reset negative or overflow dts to zero.
     if (dts > maxMS || dts < 0) {
         dts = 0;
     }

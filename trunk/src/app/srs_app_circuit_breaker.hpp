@@ -15,11 +15,7 @@ class ISrsAppConfig;
 class ISrsSharedTimer;
 class ISrsHost;
 
-// Interface for circuit breaker functionality to protect server in high load conditions.
-// The circuit breaker monitors CPU usage and enables different levels of protection:
-// - High water level: Disables some unnecessary features to reduce CPU load
-// - Critical water level: Disables more features to high-level protections
-// - Dying water level: Disables even normal features should be disabled to prevent server crash
+// CPU load levels, so callers can drop work before the overloaded server crashes.
 class ISrsCircuitBreaker
 {
 public:
@@ -27,26 +23,11 @@ public:
     virtual ~ISrsCircuitBreaker();
 
 public:
-    // Initialize the circuit breaker with configuration settings.
-    // @return srs_success on success, error code otherwise.
     virtual srs_error_t initialize() = 0;
 
 public:
-    // Check if server is in high water level state.
-    // When true, some unnecessary features should be disabled to reduce CPU load.
-    // @return true if high water level is active, false otherwise.
     virtual bool hybrid_high_water_level() = 0;
-
-    // Check if server is in critical water level state.
-    // When true, more features should be disabled to reduce CPU load.
-    // This includes all protections from high water level.
-    // @return true if critical water level is active, false otherwise.
     virtual bool hybrid_critical_water_level() = 0;
-
-    // Check if server is in dying water level state.
-    // When true, even normal features should be disabled to prevent server crash.
-    // This is the most severe protection level.
-    // @return true if dying water level is active, false otherwise.
     virtual bool hybrid_dying_water_level() = 0;
 };
 

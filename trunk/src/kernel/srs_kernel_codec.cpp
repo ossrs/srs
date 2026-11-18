@@ -27,14 +27,7 @@ srs_error_t srs_avc_nalu_read_uev(SrsBitBuffer *stream, int32_t &v)
         return srs_error_new(ERROR_AVC_NALU_UEV, "empty stream");
     }
 
-    // ue(v) in 9.1 Parsing process for Exp-Golomb codes
-    // ISO_IEC_14496-10-AVC-2012.pdf, page 227.
-    // Syntax elements coded as ue(v), me(v), or se(v) are Exp-Golomb-coded.
-    //      leadingZeroBits = -1;
-    //      for( b = 0; !b; leadingZeroBits++ )
-    //          b = read_bits( 1 )
-    // The variable codeNum is then assigned as follows:
-    //      codeNum = (2<<leadingZeroBits) - 1 + read_bits( leadingZeroBits )
+    // ue(v) in 9.1 Parsing process for Exp-Golomb codes, ISO_IEC_14496-10-AVC-2012.pdf, page 227.
     int leadingZeroBits = -1;
     for (int8_t b = 0; !b && !stream->empty(); leadingZeroBits++) {
         b = stream->read_bit();
@@ -149,7 +142,6 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
 
 SrsAudioCodecId srs_audio_codec_str2id(const std::string &codec)
 {
-    // to uppercase
     std::string upper_codec = codec;
     std::transform(upper_codec.begin(), upper_codec.end(), upper_codec.begin(), ::toupper);
 
@@ -326,7 +318,6 @@ SrsFlvVideo::~SrsFlvVideo()
 
 bool SrsFlvVideo::keyframe(char *data, int size)
 {
-    // 2bytes required.
     if (size < 1) {
         return false;
     }
@@ -341,13 +332,11 @@ bool SrsFlvVideo::keyframe(char *data, int size)
 
 bool SrsFlvVideo::sh(char *data, int size)
 {
-    // Check sequence header only for H.264 or H.265
     bool codec_ok = h264(data, size);
     codec_ok = codec_ok ? true : hevc(data, size);
     if (!codec_ok)
         return false;
 
-    // 2bytes required.
     if (size < 2) {
         return false;
     }
@@ -365,13 +354,12 @@ bool SrsFlvVideo::sh(char *data, int size)
         frame_type = (frame_type >> 4) & 0x07;
     }
 
-    // Note that SrsVideoHEVCFrameTraitPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader
+    // SrsVideoHEVCFrameTraitPacketTypeSequenceStart is equal to SrsVideoAvcFrameTraitSequenceHeader.
     return frame_type == SrsVideoAvcFrameTypeKeyFrame && avc_packet_type == SrsVideoAvcFrameTraitSequenceHeader;
 }
 
 bool SrsFlvVideo::h264(char *data, int size)
 {
-    // 1bytes required.
     if (size < 1) {
         return false;
     }
@@ -384,7 +372,6 @@ bool SrsFlvVideo::h264(char *data, int size)
 
 bool SrsFlvVideo::hevc(char *data, int size)
 {
-    // 1bytes required.
     if (size < 1) {
         return false;
     }
@@ -401,7 +388,6 @@ bool SrsFlvVideo::hevc(char *data, int size)
             return false;
         }
 
-        // Video FourCC
         if (data[1] != 'h' || data[2] != 'v' || data[3] != 'c' || data[4] != '1') {
             return false;
         }
@@ -413,7 +399,6 @@ bool SrsFlvVideo::hevc(char *data, int size)
 
 bool SrsFlvVideo::acceptable(char *data, int size)
 {
-    // 1bytes required.
     if (size < 1) {
         return false;
     }
@@ -465,12 +450,10 @@ SrsFlvAudio::~SrsFlvAudio()
 
 bool SrsFlvAudio::sh(char *data, int size)
 {
-    // sequence header only for aac
     if (!aac(data, size)) {
         return false;
     }
 
-    // 2bytes required.
     if (size < 2) {
         return false;
     }
@@ -482,7 +465,6 @@ bool SrsFlvAudio::sh(char *data, int size)
 
 bool SrsFlvAudio::aac(char *data, int size)
 {
-    // 1bytes required.
     if (size < 1) {
         return false;
     }
@@ -493,17 +475,9 @@ bool SrsFlvAudio::aac(char *data, int size)
     return sound_format == SrsAudioCodecIdAAC;
 }
 
-/**
- * the public data, event HLS disable, others can use it.
- */
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
 int srs_flv_srates[] = {5512, 11025, 22050, 44100, 0};
 
-// the sample rates in the codec,
-// in the sequence header.
+// Indexed by the samplingFrequencyIndex of the AAC sequence header.
 int srs_aac_srates[] =
     {
         96000, 88200, 64000, 48000,
@@ -786,7 +760,7 @@ SrsAudioCodecConfig::SrsAudioCodecConfig()
     audio_data_rate_ = 0;
 
     aac_object_ = SrsAacObjectTypeForbidden;
-    aac_sample_rate_ = SrsAacSampleRateUnset; // sample rate ignored
+    aac_sample_rate_ = SrsAacSampleRateUnset;
     aac_channels_ = 0;
 }
 
@@ -862,12 +836,10 @@ bool srs_avc_startswith_annexb(SrsBuffer *stream, int *pnb_start_code)
             return false;
         }
 
-        // not match
         if (p[0] != (char)0x00 || p[1] != (char)0x00) {
             return false;
         }
 
-        // match N[00] 00 00 01, where N>=0
         if (p[2] == (char)0x01) {
             if (pnb_start_code) {
                 *pnb_start_code = (int)(p - bytes) + 3;

@@ -39,7 +39,6 @@ class ISrsContext;
 class SrsSrtStat;
 class ISrsSrtEventLoop;
 
-// The SRT connection interface.
 class ISrsSrtConnection : public ISrsProtocolReadWriter
 {
 public:
@@ -53,9 +52,6 @@ public:
     virtual srs_error_t get_stats(SrsSrtStat &stat) = 0;
 };
 
-// The basic connection of SRS, for SRT based protocols,
-// all srt connections accept from srt listener must extends from this base class,
-// srt server will add the connection to manager, and delete it when remove.
 class SrsSrtConnection : public ISrsSrtConnection
 {
 public:
@@ -65,14 +61,12 @@ public:
 public:
     virtual srs_error_t initialize();
 
-    // Interface ISrsSrtConnection
 public:
-    virtual void assemble(); // Construct object, to avoid call function in constructor.
+    virtual void assemble(); // Not in the constructor, to avoid calling functions there.
     virtual srs_srt_t srtfd();
     virtual srs_error_t get_streamid(std::string &streamid);
     virtual srs_error_t get_stats(SrsSrtStat &stat);
 
-    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
@@ -87,15 +81,11 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The underlayer srt fd handler.
     srs_srt_t srt_fd_;
-    // The underlayer srt socket.
     ISrsSrtSocket *srt_skt_;
-    // The SRT event loop, whose poller the socket attaches to.
     ISrsSrtEventLoop *srt_eventloop_;
 };
 
-// The recv thread for SRT connection.
 class ISrsSrtRecvThread : public ISrsCoroutineHandler
 {
 public:
@@ -105,14 +95,13 @@ public:
 public:
 };
 
-// The recv thread for SRT connection.
 class SrsSrtRecvThread : public ISrsSrtRecvThread
 {
 public:
     SrsSrtRecvThread(ISrsProtocolReadWriter *srt_conn);
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
     ~SrsSrtRecvThread();
-    // Interface ISrsCoroutineHandler
+
 public:
     virtual srs_error_t cycle();
 
@@ -136,8 +125,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t recv_err_;
 };
 
-// The SRT connection, for client to publish or play stream.
-class ISrsMpegtsSrtConnection : public ISrsConnection, // It's a resource.
+class ISrsMpegtsSrtConnection : public ISrsConnection,
                                 public ISrsStartable,
                                 public ISrsCoroutineHandler,
                                 public ISrsExpire
@@ -149,7 +137,6 @@ public:
 public:
 };
 
-// The SRT connection, for client to publish or play stream.
 class SrsMpegtsSrtConn : public ISrsMpegtsSrtConnection
 {
 // clang-format off
@@ -167,25 +154,25 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_srt_t srt_fd, std::string ip, int port);
     virtual ~SrsMpegtsSrtConn();
-    void assemble(); // Construct object, to avoid call function in constructor.
-    // Interface ISrsResource.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
+
 public:
     virtual std::string desc();
 
 public:
     ISrsKbpsDelta *delta();
-    // Interface ISrsExpire
+
 public:
     virtual void expire();
 
 public:
     virtual srs_error_t start();
     virtual void stop();
-    // Interface ISrsConnection.
+
 public:
     virtual std::string remote_ip();
     virtual const SrsContextId &get_id();
-    // Interface ISrsCoroutineHandler
+
 public:
     virtual srs_error_t cycle();
 

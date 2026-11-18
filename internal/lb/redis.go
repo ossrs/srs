@@ -17,24 +17,16 @@ import (
 	"srsx/internal/redisclient"
 )
 
-// redisLoadBalancer stores state in Redis.
 type redisLoadBalancer struct {
-	// The environment interface.
 	environment env.ProxyEnvironment
-	// The redis client.
-	rdb redisclient.RedisClient
-	// newClient is the factory used by Initialize to build the Redis client.
-	// A struct field (rather than a package global) so concurrent tests can
-	// each supply their own without racing on shared state.
-	newClient func(addr, password string, db int) redisclient.RedisClient
-	// keepaliveInterval is the period at which the default-backend keep-alive
-	// goroutine re-Updates its registration. Struct field for test injection.
+	rdb         redisclient.RedisClient
+	// newClient and keepaliveInterval are fields, not package globals, so
+	// concurrent tests can each set their own.
+	newClient         func(addr, password string, db int) redisclient.RedisClient
 	keepaliveInterval time.Duration
-	// originServerTTL is the Redis expiration applied to origin registrations.
-	originServerTTL time.Duration
+	originServerTTL   time.Duration
 }
 
-// NewRedisLoadBalancer creates a new Redis-based load balancer.
 func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &redisLoadBalancer{
 		environment:       environment,
@@ -77,7 +69,6 @@ func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 			return errors.Wrapf(err, "update default SRS %+v", server)
 		}
 
-		// Keep alive.
 		go func() {
 			for {
 				select {
@@ -106,7 +97,6 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 		return errors.Wrapf(err, "set key=%v server %+v", key, server)
 	}
 
-	// Query all servers from redis, in json string.
 	var serverKeys []string
 	if b, err := v.rdb.Get(ctx, v.redisKeyServers()).Bytes(); err == nil {
 		if err := json.Unmarshal(b, &serverKeys); err != nil {
@@ -114,14 +104,12 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 		}
 	}
 
-	// Check each server expiration, if not exists in redis, remove from servers.
 	for i := len(serverKeys) - 1; i >= 0; i-- {
 		if _, err := v.rdb.Get(ctx, serverKeys[i]).Bytes(); err != nil {
 			serverKeys = append(serverKeys[:i], serverKeys[i+1:]...)
 		}
 	}
 
-	// Add server to servers if not exists.
 	var found bool
 	for _, serverKey := range serverKeys {
 		if serverKey == key {
@@ -133,7 +121,6 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 		serverKeys = append(serverKeys, key)
 	}
 
-	// Update all servers to redis.
 	b, err = json.Marshal(serverKeys)
 	if err != nil {
 		return errors.Wrapf(err, "marshal servers %+v", serverKeys)
@@ -148,9 +135,7 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	key := v.redisKeyURL(streamURL)
 
-	// Always proxy to the same server for the same stream URL.
 	if serverKey, err := v.rdb.Get(ctx, key).Result(); err == nil {
-		// If server not exists, ignore and pick another server for the stream URL.
 		if b, err := v.rdb.Get(ctx, serverKey).Bytes(); err == nil && len(b) > 0 {
 			var server OriginServer
 			if err := json.Unmarshal(b, &server); err != nil {
@@ -162,7 +147,6 @@ func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origin
 		}
 	}
 
-	// Query all servers from redis, in json string.
 	var serverKeys []string
 	if b, err := v.rdb.Get(ctx, v.redisKeyServers()).Bytes(); err == nil {
 		if err := json.Unmarshal(b, &serverKeys); err != nil {
@@ -170,13 +154,12 @@ func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origin
 		}
 	}
 
-	// No server found, failed.
 	if len(serverKeys) == 0 {
 		return nil, fmt.Errorf("no server available for %v", streamURL)
 	}
 
-	// All server should be alive, if not, should have been removed by redis. So we only
-	// random pick one that is always available. Use global rand which is thread-safe since Go 1.20.
+	// Redis expires the key of a dead server, but the server list keeps it until
+	// the next Update.
 	var serverKey string
 	var server OriginServer
 	for i := 0; i < 3; i++ {
@@ -195,7 +178,6 @@ func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origin
 		return nil, errors.Errorf("no server available in %v for %v", serverKeys, streamURL)
 	}
 
-	// Update the picked server for the stream URL.
 	if err := v.rdb.Set(ctx, key, []byte(serverKey), 0).Err(); err != nil {
 		return nil, errors.Wrapf(err, "set key=%v server %v", key, serverKey)
 	}
@@ -211,15 +193,12 @@ func (v *redisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) 
 		return nil, errors.Wrapf(err, "get key=%v HLS", key)
 	}
 
-	// Store the raw JSON bytes that will be unmarshaled by the concrete type
-	// The caller will need to handle the deserialization
 	var actual map[string]interface{}
 	if err := json.Unmarshal(b, &actual); err != nil {
 		return nil, errors.Wrapf(err, "unmarshal key=%v HLS %v", key, string(b))
 	}
 
-	// Return nil for now - Redis LB needs the concrete type to properly deserialize
-	// This is a limitation of using Redis with interfaces
+	// JSON cannot rebuild the concrete type behind the interface.
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
@@ -234,13 +213,11 @@ func (v *redisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string
 		return nil, errors.Wrapf(err, "set key=%v HLS %v", key, value)
 	}
 
-	// Get SPBHID from value
 	key2 := v.redisKeySPBHID(value.GetSPBHID())
 	if err := v.rdb.Set(ctx, key2, b, HLSAliveDuration).Err(); err != nil {
 		return nil, errors.Wrapf(err, "set key=%v HLS %v", key2, value)
 	}
 
-	// Return the same value since we just stored it
 	return value, nil
 }
 
@@ -255,7 +232,6 @@ func (v *redisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, v
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key, value)
 	}
 
-	// Get Ufrag from value
 	key2 := v.redisKeyUfrag(value.GetUfrag())
 	if err := v.rdb.Set(ctx, key2, b, RTCAliveDuration).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key2, value)
@@ -272,13 +248,12 @@ func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 		return nil, errors.Wrapf(err, "get key=%v WebRTC", key)
 	}
 
-	// Return nil for now - Redis LB needs the concrete type to properly deserialize
-	// This is a limitation of using Redis with interfaces
 	var actual map[string]interface{}
 	if err := json.Unmarshal(b, &actual); err != nil {
 		return nil, errors.Wrapf(err, "unmarshal key=%v WebRTC %v", key, string(b))
 	}
 
+	// JSON cannot rebuild the concrete type behind the interface.
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 

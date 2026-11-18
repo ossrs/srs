@@ -82,20 +82,14 @@ srs_error_t SrsForwarder::initialize(ISrsRequest *r, string ep)
 {
     srs_error_t err = srs_success;
 
-    // it's ok to use the request object,
-    // SrsLiveSource already copy it and never delete it.
     req_ = r->copy();
 
-    // the ep(endpoint) to forward to
     ep_forward_ = ep;
 
-    // Check if the forward destination is RTMPS URL
-    // SRS forward only supports plain RTMP protocol, not RTMPS (RTMP over SSL/TLS)
     if (ep_forward_.find("rtmps://") != string::npos) {
         return srs_error_new(ERROR_NOT_SUPPORTED, "forward does not support RTMPS destination=%s", ep_forward_.c_str());
     }
 
-    // Remember the source context id.
     source_cid_ = _srs_context->get_id();
 
     return err;
@@ -191,7 +185,6 @@ srs_error_t SrsForwarder::on_video(SrsMediaPacket *shared_video)
         sh_video_ = msg->copy();
     }
 
-    // Drop video until the next keyframe; a sequence header always passes.
     if (wait_keyframe_ && msg->is_video() && !is_sh) {
         if (!SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
             srs_freep(msg);
@@ -216,7 +209,7 @@ srs_error_t SrsForwarder::enqueue(SrsMediaPacket *msg)
         return srs_error_wrap(err, "enqueue");
     }
 
-    // The shrink dropped the queued media, so the destination must restart at a keyframe.
+    // On overflow, the queue drops all but the sequence headers.
     if (is_overflow) {
         wait_keyframe_ = true;
     }
@@ -224,7 +217,6 @@ srs_error_t SrsForwarder::enqueue(SrsMediaPacket *msg)
     return err;
 }
 
-// when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsForwarder::cycle()
@@ -235,7 +227,6 @@ srs_error_t SrsForwarder::cycle()
               req_->get_stream_url().c_str(), source_cid_.c_str(), ep_forward_.c_str());
 
     while (true) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "forwarder");
@@ -246,10 +237,8 @@ srs_error_t SrsForwarder::cycle()
             srs_freep(err);
         }
 
-        // Wait to retry.
         stat_->on_forward_state(id_, SrsForwardStateRetrying);
 
-        // Never wait if thread error, fast quit.
         // @see https://github.com/ossrs/srs/pull/2284
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "forwarder");
@@ -278,8 +267,7 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "sdk connect url=%s, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
 
-    // For RTMP client, we pass the vhost in tcUrl when connecting,
-    // so we publish without vhost in stream.
+    // The vhost went in the tcUrl at connect, so the stream name goes without it.
     string stream;
     if ((err = sdk_->publish(config_->get_chunk_size(req_->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
@@ -289,8 +277,7 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "notify hub start");
     }
 
-    // Start fresh from live: drop the media queued before the publish, which forward() replaces
-    // by the cached metadata and sequence headers, and drop video until the next keyframe.
+    // Start from live, not from the media queued before the publish.
     queue_->clear();
     wait_keyframe_ = true;
 
@@ -310,10 +297,8 @@ std::string SrsForwarder::destination_url()
     std::string server;
     int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
 
-    // parse host:port from hostport.
     srs_net_split_hostport(ep_forward_, server, port);
 
-    // generate url
     return srs_net_url_encode_rtmp_url(server, port, req_->host_, req_->vhost_, req_->app_, req_->stream_, req_->param_);
 }
 
@@ -328,7 +313,6 @@ srs_error_t SrsForwarder::forward()
 
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
 
-    // Send the metadata and sequence headers first.
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
     if (metadata_) {
         if ((err = sdk_->send_and_free_message(metadata_->copy())) != srs_success) {
@@ -353,7 +337,6 @@ srs_error_t SrsForwarder::forward()
 
         pprint->elapse();
 
-        // read from client.
         if (true) {
             SrsRtmpCommonMessage *msg = NULL;
             err = sdk_->recv_message(&msg);
@@ -366,24 +349,20 @@ srs_error_t SrsForwarder::forward()
             srs_freep(msg);
         }
 
-        // forward all messages.
-        // each msg in msgs.msgs_ must be free, for the SrsMessageArray never free them.
+        // SrsMessageArray does not free its messages; send_and_free_messages() does.
         int count = 0;
         if ((err = queue_->dump_packets(msgs.max_, msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "dump packets");
         }
 
-        // pithy print
         if (pprint->can_print()) {
             sdk_->kbps_sample(SRS_CONSTS_LOG_FOWARDER, pprint->age(), count);
         }
 
-        // ignore when no messages.
         if (count <= 0) {
             continue;
         }
 
-        // sendout messages, all messages are freed by send_and_free_messages().
         if ((err = sdk_->send_and_free_messages(msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "send messages");
         }

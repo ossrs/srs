@@ -9,7 +9,6 @@ func VersionMajor() int {
 	return 8
 }
 
-// VersionMinor specifies the typical version of SRS we adapt to.
 func VersionMinor() int {
 	return 0
 }

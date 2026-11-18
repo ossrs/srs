@@ -17,7 +17,7 @@ class ISrsRequest;
 class SrsLiveSource;
 class ISrsAppConfig;
 
-// The origin cluster coworkers, which record the published streams and dump the origin of a stream.
+// The coworkers of an origin cluster.
 class ISrsCoWorkers
 {
 public:
@@ -30,7 +30,6 @@ public:
     virtual void on_unpublish(ISrsRequest *r) = 0;
 };
 
-// For origin cluster.
 class SrsCoWorkers : public ISrsCoWorkers
 {
 // clang-format off
@@ -62,7 +61,7 @@ public:
     virtual void on_unpublish(ISrsRequest *r);
 };
 
-// The global coworkers, the SrsCoWorkers::instance() singleton, set by srs_global_initialize().
+// Set by srs_global_initialize().
 extern SrsCoWorkers *_srs_coworkers;
 
 #endif

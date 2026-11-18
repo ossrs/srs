@@ -20,7 +20,6 @@
 
 using namespace std;
 
-// the max small bytes to group
 #define SRS_MR_SMALL_BYTES 4096
 
 ISrsMessageConsumer::ISrsMessageConsumer()
@@ -73,7 +72,7 @@ srs_error_t SrsRecvThread::start()
     srs_freep(trd_);
     trd_ = new SrsSTCoroutine("recv", this, parent_cid_);
 
-    // change stack size to 256K, fix crash when call some 3rd-part api.
+    // Some third-party APIs crash on a smaller stack.
     ((SrsSTCoroutine *)trd_)->set_stack_size(1 << 18);
 
     if ((err = trd_->start()) != srs_success) {
@@ -97,9 +96,7 @@ srs_error_t SrsRecvThread::cycle()
 {
     srs_error_t err = srs_success;
 
-    // the multiple messages writev improve performance large,
-    // but the timeout recv will cause 33% sys call performance,
-    // to use isolate thread to recv, can improve about 33% performance.
+    // A recv with a timeout costs about 33% of the performance in system calls.
     rtmp_->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
 
     pumper_->on_start();
@@ -108,7 +105,6 @@ srs_error_t SrsRecvThread::cycle()
         err = srs_error_wrap(err, "recv thread");
     }
 
-    // reset the timeout to pulse mode.
     rtmp_->set_recv_timeout(timeout_);
 
     pumper_->on_stop();
@@ -125,7 +121,6 @@ srs_error_t SrsRecvThread::do_cycle()
             return srs_error_wrap(err, "recv thread");
         }
 
-        // When the pumper is interrupted, wait then retry.
         if (pumper_->interrupted()) {
             srs_usleep(timeout_);
             continue;
@@ -133,16 +128,13 @@ srs_error_t SrsRecvThread::do_cycle()
 
         SrsRtmpCommonMessage *msg = NULL;
 
-        // Process the received message.
         if ((err = rtmp_->recv_message(&msg)) == srs_success) {
             err = pumper_->consume(msg);
         }
 
         if (err != srs_success) {
-            // Interrupt the receive thread for any error.
             trd_->interrupt();
 
-            // Notify the pumper to quit for error.
             pumper_->interrupt(err);
 
             return srs_error_wrap(err, "recv thread");
@@ -172,7 +164,6 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
 {
     stop();
 
-    // clear all messages.
     std::vector<SrsRtmpCommonMessage *>::iterator it;
     for (it = queue_.begin(); it != queue_.end(); ++it) {
         SrsRtmpCommonMessage *msg = *it;
@@ -228,13 +219,11 @@ srs_error_t SrsQueueRecvThread::error_code()
 
 srs_error_t SrsQueueRecvThread::consume(SrsRtmpCommonMessage *msg)
 {
-    // Ignore empty message, which is generated when io closing.
     if (!msg) {
         return srs_success;
     }
 
-    // put into queue, the send thread will get and process it,
-    // @see SrsRtmpConn::process_play_control_msg
+    // The play coroutine pumps and handles it, see SrsRtmpConn::process_play_control_msg.
     queue_.push_back(msg);
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (consumer_) {
@@ -246,10 +235,8 @@ srs_error_t SrsQueueRecvThread::consume(SrsRtmpCommonMessage *msg)
 
 bool SrsQueueRecvThread::interrupted()
 {
-    // we only recv one message and then process it,
-    // for the message may cause the thread to stop,
-    // when stop, the thread is freed, so the messages
-    // are dropped.
+    // Receive one message at a time: handling it may stop and free this thread, which drops the
+    // messages still queued.
     return !empty();
 }
 
@@ -267,15 +254,12 @@ void SrsQueueRecvThread::interrupt(srs_error_t err)
 
 void SrsQueueRecvThread::on_start()
 {
-    // disable the protocol auto response,
-    // for the isolate recv thread should never send any messages.
+    // The receive coroutine must never send messages.
     rtmp_->set_auto_response(false);
 }
 
 void SrsQueueRecvThread::on_stop()
 {
-    // enable the protocol auto response,
-    // for the isolate recv thread terminated.
     rtmp_->set_auto_response(true);
 }
 
@@ -337,7 +321,6 @@ srs_error_t SrsPublishRecvThread::wait(srs_utime_t tm)
         return srs_error_copy(recv_error_);
     }
 
-    // ignore any return of cond wait.
     srs_cond_timedwait(error_, tm);
 
     return srs_success;
@@ -364,14 +347,12 @@ srs_error_t SrsPublishRecvThread::report_frames()
 
     ISrsStatistic *stat = conn_->stat_;
 
-    // Update the stat for video fps.
     // @remark https://github.com/ossrs/srs/issues/851
     if ((err = stat->on_video_frames(req_, (int)(video_frames_ - reported_video_frames_))) != srs_success) {
         return srs_error_wrap(err, "stat video frames");
     }
     reported_video_frames_ = video_frames_;
 
-    // Update the stat for audio frames.
     if ((err = stat->on_audio_frames(req_, (int)(audio_frames_ - reported_audio_frames_))) != srs_success) {
         return srs_error_wrap(err, "stat audio frames");
     }
@@ -417,7 +398,6 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
 {
     srs_error_t err = srs_success;
 
-    // when cid changed, change it.
     if (ncid_.compare(cid_)) {
         _srs_context->set_id(ncid_);
         cid_ = ncid_;
@@ -431,23 +411,19 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
         audio_frames_++;
     }
 
-    // log to show the time of recv thread.
     srs_verbose("recv thread now=%" PRId64 "us, got msg time=%" PRId64 "ms, size=%d",
                 srs_time_now_realtime(), msg->header_.timestamp, msg->size);
 
-    // the rtmp connection will handle this message
     err = conn_->handle_publish_message(source_, msg);
 
-    // must always free it,
-    // the source will copy it if need to use.
+    // The source shares the payload it keeps.
     srs_freep(msg);
 
     if (err != srs_success) {
         return srs_error_wrap(err, "handle publish message");
     }
 
-    // Report the frames to the stream stats at the first message, then at most once a second, not
-    // only when the publishing loop's wait times out.
+    // The publishing loop reports only after its wait times out.
     srs_utime_t now = srs_time_now_cached();
     if (now - frames_report_time_ >= SRS_UTIME_SECONDS) {
         frames_report_time_ = now;
@@ -456,7 +432,6 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
         }
     }
 
-    // Yield to another coroutines.
     // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777463768
     if (++nn_msgs_for_yield_ >= 15) {
         nn_msgs_for_yield_ = 0;
@@ -468,7 +443,6 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
 
 bool SrsPublishRecvThread::interrupted()
 {
-    // Never interrupted, always can handle message.
     return false;
 }
 
@@ -477,21 +451,17 @@ void SrsPublishRecvThread::interrupt(srs_error_t err)
     srs_freep(recv_error_);
     recv_error_ = srs_error_copy(err);
 
-    // when recv thread error, signal the conn thread to process it.
     srs_cond_signal(error_);
 }
 
 void SrsPublishRecvThread::on_start()
 {
-    // we donot set the auto response to false,
-    // for the main thread never send message.
+    // Auto response stays on, since the main thread never sends messages.
 
 #ifdef SRS_PERF_MERGED_READ
     if (mr_) {
-        // set underlayer buffer size
         set_socket_buffer(mr_sleep_);
 
-        // disable the merge read
         rtmp_->set_merge_read(true, this);
     }
 #endif
@@ -499,15 +469,10 @@ void SrsPublishRecvThread::on_start()
 
 void SrsPublishRecvThread::on_stop()
 {
-    // we donot set the auto response to true,
-    // for we donot set to false yet.
-
-    // when thread stop, signal the conn thread which wait.
     srs_cond_signal(error_);
 
 #ifdef SRS_PERF_MERGED_READ
     if (mr_) {
-        // disable the merge read
         rtmp_->set_merge_read(false, NULL);
     }
 #endif
@@ -524,11 +489,7 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
         return;
     }
 
-    /**
-     * to improve read performance, merge some packets then read,
-     * when it on and read small bytes, we sleep to wait more data.,
-     * that is, we merge some data to read together.
-     */
+    // Sleep after a small read, so more packets arrive and are read together in fewer reads.
     if (nread < SRS_MR_SMALL_BYTES) {
         srs_usleep(mr_sleep_);
     }
@@ -537,16 +498,8 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 
 void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
 {
-    // the bytes:
-    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
-    //      128KB=131072, 256KB=262144, 512KB=524288
-    // the buffer should set to sleep*kbps/8,
-    // for example, your system delivery stream in 1000kbps,
-    // sleep 800ms for small bytes, the buffer should set to:
-    //      800*1000/8=100000B(about 128KB).
-    // other examples:
-    //      2000*3000/8=750000B(about 732KB).
-    //      2000*5000/8=1250000B(about 1220KB).
+    // The buffer holds what a stream sends during one sleep, sleep(ms)*kbps/8 bytes, such as
+    // 800*1000/8=100000B for a 1000kbps stream and an 800ms sleep.
     int kbps = 5000;
     int socket_buffer_size = srsu2msi(sleep_v) * kbps / 8;
 
@@ -555,7 +508,7 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     socklen_t sock_buf_size = sizeof(int);
     srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
 
-    // socket recv buffer, system will double it.
+    // The system doubles the SO_RCVBUF value it is given.
     int nb_rbuf = socket_buffer_size / 2;
     if (srs_setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
@@ -620,7 +573,6 @@ srs_error_t SrsHttpRecvThread::cycle()
     srs_error_t err = srs_success;
 
     while ((err = trd_->pull()) == srs_success) {
-        // Ignore any received messages.
         if ((err = conn_->pop_message(NULL)) != srs_success) {
             return srs_error_wrap(err, "pop message");
         }

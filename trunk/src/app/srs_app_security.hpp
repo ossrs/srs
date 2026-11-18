@@ -17,7 +17,6 @@
 class SrsConfDirective;
 class ISrsAppConfig;
 
-// The security interface.
 class ISrsSecurity
 {
 public:
@@ -28,7 +27,6 @@ public:
     virtual srs_error_t check(SrsRtmpConnType type, std::string ip, ISrsRequest *req) = 0;
 };
 
-// The security apply on vhost.
 class SrsSecurity : public ISrsSecurity
 {
 // clang-format off
@@ -40,10 +38,6 @@ public:
     virtual ~SrsSecurity();
 
 public:
-    // Security check the client apply by vhost security strategy
-    // @param type the client type, publish or play.
-    // @param ip the ip address of client.
-    // @param req the request object of client.
     virtual srs_error_t check(SrsRtmpConnType type, std::string ip, ISrsRequest *req);
 
 // clang-format off
@@ -53,7 +47,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t deny_check(SrsConfDirective *rules, SrsRtmpConnType type, std::string ip);
 };
 
-// The security of a client: the system security SRS always applies, then the vhost security.
 class SrsEnhancedSecurity : public ISrsSecurity
 {
 // clang-format off

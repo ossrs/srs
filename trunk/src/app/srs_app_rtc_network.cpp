@@ -24,8 +24,7 @@ using namespace std;
 #include <srs_protocol_rtc_stun.hpp>
 
 #if defined(SRS_OSX) || defined(_WIN32)
-// These functions are similar to the older byteorder(3) family of functions.
-// For example, be32toh() is identical to ntohl().
+// The be32toh() is identical to ntohl().
 // @see https://linux.die.net/man/3/be32toh
 #define be32toh ntohl
 #endif
@@ -204,11 +203,10 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
 
 SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
 {
-    // Free transport first, which depends on socket.
+    // Free the transport first, as it depends on the socket.
     srs_freep(transport_);
 
-    // Note that we should never delete the sendonly_skt,
-    // it's just point to the object in peer_addresses_.
+    // The sendonly_skt_ points to one of these, so it is not freed on its own.
     map<string, ISrsUdpMuxSocket *>::iterator it;
     for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
         ISrsUdpMuxSocket *addr = it->second;
@@ -244,7 +242,6 @@ srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool 
 
 srs_error_t SrsRtcUdpNetwork::on_dtls(char *data, int nb_data)
 {
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
@@ -259,7 +256,7 @@ srs_error_t SrsRtcUdpNetwork::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // If DTLS done packet received many times, such as ARQ, ignore.
+    // The DTLS ARQ may report the handshake done more than once.
     if (SrsRtcNetworkStateEstablished == state_) {
         return err;
     }
@@ -286,7 +283,6 @@ srs_error_t SrsRtcUdpNetwork::on_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     int nb_unprotected_buf = nb_data;
@@ -323,7 +319,6 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char *data, int nb_data)
     }
 #endif
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
@@ -386,12 +381,10 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
         prev_peer_id = sendonly_skt_->peer_id();
     }
 
-    // Ignore if same address.
     if (prev_peer_id == peer_id) {
         return;
     }
 
-    // Show address change log.
     if (prev_peer_id.empty()) {
         srs_trace("RTC: session address init %s", peer_id.c_str());
     } else {
@@ -402,7 +395,6 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
         }
     }
 
-    // Update the transport.
     sendonly_skt_ = cache_peer_address(skt);
 }
 
@@ -436,7 +428,6 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
 {
     srs_error_t err = srs_success;
 
-    // Write STUN messages to blackhole.
     blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
@@ -516,7 +507,6 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
 
 srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
-    // Update stat when we sending data.
     delta_->add_delta(0, size);
 
     if (nwrite)
@@ -585,7 +575,7 @@ srs_error_t SrsRtcTcpNetwork::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // If DTLS done packet received many times, such as ARQ, ignore.
+    // The DTLS ARQ may report the handshake done more than once.
     if (SrsRtcNetworkStateEstablished == state_) {
         return err;
     }
@@ -617,7 +607,6 @@ srs_error_t SrsRtcTcpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Write STUN messages to blackhole.
     blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
@@ -697,7 +686,6 @@ srs_error_t SrsRtcTcpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool 
 
 srs_error_t SrsRtcTcpNetwork::on_dtls(char *data, int nb_data)
 {
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
@@ -707,7 +695,6 @@ srs_error_t SrsRtcTcpNetwork::on_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     int nb_unprotected_buf = nb_data;
@@ -729,7 +716,6 @@ srs_error_t SrsRtcTcpNetwork::on_rtp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
@@ -951,13 +937,12 @@ srs_error_t SrsRtcTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Only stat the HTTP streaming clients, ignore all API clients.
     stat_->on_disconnect(get_id().c_str(), err);
     stat_->kbps_add_delta(get_id().c_str(), delta_);
 
     if (session_) {
         if (session_->tcp()->is_establelished()) {
-            // Only remove session when network is established, because client might use other UDP network.
+            // Only expire the session when this network is established, because the client might use UDP.
             session_->tcp()->set_state(SrsRtcNetworkStateClosed);
             session_->expire();
         } else {
@@ -972,27 +957,22 @@ srs_error_t SrsRtcTcpConn::cycle()
         }
     }
 
-    // For HTTP-API timeout, we think it's done successfully,
-    // because there may be no request or response for HTTP-API.
     if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
         srs_freep(err);
         return srs_success;
     }
 
-    // success.
     if (err == srs_success) {
         srs_trace("client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -1010,7 +990,6 @@ srs_error_t SrsRtcTcpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // Update all context id to cid of session.
     context_->set_id(cid_);
     owner_cid_->set_cid(cid_);
 
@@ -1061,7 +1040,6 @@ srs_error_t SrsRtcTcpConn::handshake()
                              is_stun, is_rtp_or_rtcp, srs_strings_dumps_hex(pkt_, npkt, 8).c_str());
     }
 
-    // Find session by ping(BindingRequest).
     SrsStunPacket ping;
     if ((err = ping.decode(pkt_, npkt)) != srs_success) {
         return srs_error_wrap(err, "decode stun packet failed");
@@ -1078,7 +1056,7 @@ srs_error_t SrsRtcTcpConn::handshake()
     srs_trace("recv stun packet from %s:%d, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
               ip_.c_str(), port_, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-    // Should support only one TCP candidate.
+    // Only one TCP candidate is supported.
     ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session->tcp());
     if (network->owner().get()) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
@@ -1086,13 +1064,11 @@ srs_error_t SrsRtcTcpConn::handshake()
     network->set_owner(*wrapper_);
     session_ = session;
 
-    // For each binding request, update the TCP socket.
     if (ping.is_binding_request()) {
         network->update_sendonly_socket(skt_);
         network->set_peer_id(ip_, port_);
     }
 
-    // Use the session network to handle packet.
     handling_ = true;
     err = network->on_stun(&ping, pkt_, npkt);
     handling_ = false;
@@ -1107,7 +1083,7 @@ srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)
 {
     srs_error_t err = srs_success;
 
-    // Read length in 2 bytes @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
+    // Each packet has a 2-byte length before it, @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
     ssize_t nread = 0;
     uint8_t b[2];
     if ((err = skt_->read_fully((char *)b, sizeof(b), &nread)) != srs_success) {
@@ -1119,7 +1095,6 @@ srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)
         return srs_error_new(ERROR_RTC_TCP_SIZE, "invalid size=%u exceed %d", npkt, *nb_pkt);
     }
 
-    // Read a RTC pkt such as STUN, DTLS or RTP/RTCP
     if ((err = skt_->read_fully(pkt, npkt, &nread)) != srs_success) {
         return srs_error_wrap(err, "rtc tcp conn read body");
     }
@@ -1133,7 +1108,7 @@ srs_error_t SrsRtcTcpConn::on_tcp_pkt(char *pkt, int nb_pkt)
 {
     srs_error_t err = srs_success;
 
-    // Session is destroyed, ignore TCP packet.
+    // The session is destroyed.
     if (!session_)
         return err;
 
@@ -1141,7 +1116,6 @@ srs_error_t SrsRtcTcpConn::on_tcp_pkt(char *pkt, int nb_pkt)
     bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t *)pkt, nb_pkt);
     bool is_rtcp = srs_is_rtcp((uint8_t *)pkt, nb_pkt);
 
-    // When got any packet, the session is alive now.
     session_->alive();
 
     if (is_stun) {

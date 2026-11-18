@@ -1387,42 +1387,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 
-/* json encode
- cout<< SRS_JOBJECT_START
-         << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
-         << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
-         << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
-             << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
-             << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
-             << SRS_JFIELD_STR("dash", "plan")
-         << SRS_JOBJECT_END << SRS_JFIELD_CONT
-         << SRS_JFIELD_STR("author", "srs team")
-     << SRS_JOBJECT_END
- it's:
- cont<< "{"
-         << "name:" << "srs" << ","
-         << "version:" << 100 << ","
-         << "features:" << "{"
-             << "rtmp:" << "released" << ","
-             << "hls:" << "released" << ","
-             << "dash:" << "plan"
-         << "}" << ","
-         << "author:" << "srs team"
-     << "}"
- that is:
- """
- {
-     "name": "srs",
-     "version": 100,
-     "features": {
-         "rtmp": "released",
-         "hls": "released",
-         "dash": "plan"
-     },
-     "author": "srs team"
- }
- """
- */
 #define SRS_JOBJECT_START "{"
 #define SRS_JFIELD_NAME(k) "\"" << k << "\":"
 #define SRS_JFIELD_OBJ(k) SRS_JFIELD_NAME(k) << SRS_JOBJECT_START
@@ -1436,7 +1400,6 @@ using namespace std;
 #define SRS_JARRAY_START "["
 #define SRS_JARRAY_END "]"
 
-// Json marker
 #define SRS_JSON_Boolean 0x01
 #define SRS_JSON_String 0x02
 #define SRS_JSON_Object 0x03
@@ -1670,7 +1633,7 @@ string SrsJsonAny::dumps()
         return srs_strconv_format_int(to_integer());
     }
     case SRS_JSON_Number: {
-        // len(max int64_t) is 20, plus one "+-."
+        // The longest int64_t is 20 characters, plus one for "+-.".
         char tmp[21 + 1];
         snprintf(tmp, sizeof(tmp), "%.2f", to_number());
         return tmp;
@@ -1711,11 +1674,9 @@ SrsAmf0Any *SrsJsonAny::to_amf0()
         return SrsAmf0Any::null();
     }
     case SRS_JSON_Object: {
-        // json object must override this method.
         srs_assert(false);
     }
     case SRS_JSON_Array: {
-        // json array must override this method.
         srs_assert(false);
     }
     default: {
@@ -2115,7 +2076,3 @@ SrsAmf0Any *SrsJsonArray::to_amf0()
 
     return arr;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////

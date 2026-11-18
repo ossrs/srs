@@ -41,7 +41,6 @@ class ISrsAppFactory;
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
 
-// The UDP stream caster listener interface.
 class ISrsUdpCasterListener : public ISrsListener
 {
 public:
@@ -49,12 +48,11 @@ public:
     virtual ~ISrsUdpCasterListener();
 
 public:
-    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
+    virtual void assemble() = 0;
     virtual srs_error_t initialize(SrsConfDirective *conf) = 0;
     virtual void close() = 0;
 };
 
-// A UDP listener, for udp stream caster server.
 class SrsUdpCasterListener : public ISrsUdpCasterListener
 {
 // clang-format off
@@ -71,13 +69,12 @@ public:
     virtual ~SrsUdpCasterListener();
 
 public:
-    virtual void assemble(); // Construct object, to avoid call function in constructor.
+    virtual void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual srs_error_t initialize(SrsConfDirective *conf);
     virtual srs_error_t listen();
     virtual void close();
 };
 
-// The interface for mpegts queue.
 class ISrsMpegtsQueue
 {
 public:
@@ -91,14 +88,12 @@ public:
     virtual void clear() = 0;
 };
 
-// The queue for mpegts over udp to send packets.
-// For the aac in mpegts contains many flv packets in a pes packet,
-// we must recalc the timestamp.
+// An AAC PES in MPEG-TS holds many FLV packets, whose timestamps are recalculated.
 class SrsMpegtsQueue : public ISrsMpegtsQueue
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The key: dts, value: msg.
+    // Keyed by the dts.
     std::map<int64_t, SrsMediaPacket *>
         msgs_;
     int nb_audios_;
@@ -114,7 +109,6 @@ public:
     virtual void clear();
 };
 
-// The interface for mpegts over udp.
 class ISrsMpegtsOverUdp : public ISrsTsHandler, public ISrsUdpHandler
 {
 public:
@@ -122,11 +116,10 @@ public:
     virtual ~ISrsMpegtsOverUdp();
 
 public:
-    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
+    virtual void assemble() = 0;
     virtual srs_error_t initialize(SrsConfDirective *c) = 0;
 };
 
-// The mpegts over udp stream caster.
 class SrsMpegtsOverUdp : public ISrsMpegtsOverUdp
 {
 // clang-format off
@@ -168,16 +161,16 @@ public:
     virtual ~SrsMpegtsOverUdp();
 
 public:
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     srs_error_t initialize(SrsConfDirective *c);
-    // Interface ISrsUdpHandler
+
 public:
     virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_udp_bytes(std::string host, int port, char *buf, int nb_buf);
-    // Interface ISrsTsHandler
+
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
 
@@ -195,11 +188,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Connect to RTMP server.
     virtual srs_error_t connect();
-    // Close the connection to RTMP server. The next connection is a new
-    // publish, so the caster drops what it queued for this one and sends
-    // each sequence header again.
     virtual void close();
 };
 

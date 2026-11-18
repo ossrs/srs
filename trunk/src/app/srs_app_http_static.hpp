@@ -20,7 +20,7 @@ class ISrsHttpHooks;
 class ISrsSharedTimer;
 class ISrsRand;
 
-// HLS virtual connection, build on query string ctx of hls stream.
+// An HLS viewer has no connection of its own, so the session named by the hls_ctx query stands for it.
 class SrsHlsVirtualConn : public ISrsExpire
 {
 public:
@@ -36,17 +36,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsHlsVirtualConn();
     virtual ~SrsHlsVirtualConn();
-    // Interface ISrsExpire.
+
 public:
     virtual void expire();
 };
 
-// Server HLS streaming.
 class SrsHlsStream : public ISrsFastTimerHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The period of validity of the ctx
     std::map<std::string, SrsHlsVirtualConn *>
         map_ctx_info_;
 
@@ -55,7 +53,7 @@ public:
     virtual ~SrsHlsStream();
 
 public:
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
 
 public:
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, ISrsFileReaderFactory *factory, std::string fullpath, ISrsRequest *req, bool *served);
@@ -70,7 +68,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t http_hooks_on_play(ISrsRequest *req);
     void http_hooks_on_stop(ISrsRequest *req);
     bool is_interrupt(std::string id);
-    // interface ISrsFastTimerHandler
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_timer(srs_utime_t interval);
@@ -85,7 +83,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRand *rand_;
 };
 
-// The Vod streaming, like FLV, MP4 or HLS streaming.
 class SrsVodStream : public SrsHttpFileServer
 {
 // clang-format off
@@ -101,24 +98,19 @@ public:
     virtual ~SrsVodStream();
 
 public:
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
-    // The flv vod stream supports flv?start=offset-bytes.
-    // For example, http://server/file.flv?start=10240
-    // server will write flv header and sequence header,
-    // then seek(10240) and response flv tag data.
+    // The start is a byte offset. For example, http://server/file.flv?start=10240 gets the FLV header and
+    // sequence header, then the tags from byte 10240.
     virtual srs_error_t serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath, int64_t offset);
-    // Support mp4 with start and offset in query string.
     virtual srs_error_t serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath, int64_t start, int64_t end);
-    // Support HLS streaming with pseudo session id.
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
-    // the ts file including: .ts .m4s init.mp4
+    // Also serves .m4s and init.mp4 files.
     virtual srs_error_t serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath);
 };
 
-// The http static server instance,
 class ISrsHttpStaticServer : public ISrsHttpHandler
 {
 public:
@@ -130,8 +122,6 @@ public:
     virtual ISrsHttpServeMux *mux() = 0;
 };
 
-// The http static server instance,
-// serve http static file and flv/mp4 vod stream.
 class SrsHttpStaticServer : public ISrsHttpStaticServer
 {
 // clang-format off
@@ -150,7 +140,6 @@ public:
     virtual srs_error_t initialize();
     virtual ISrsHttpServeMux *mux();
 
-    // Interface ISrsHttpHandler
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 

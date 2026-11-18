@@ -126,8 +126,6 @@ srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: use right way.
-    // While another message holds the time, adjust the ts, add 1ms. The map holds a finite number of messages, so a
-    // free time is found, and no message is replaced.
     while (msgs_.find(msg->timestamp_) != msgs_.end()) {
         msg->timestamp_ += 1;
     }
@@ -147,9 +145,8 @@ srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
 
 SrsMediaPacket *SrsMpegtsQueue::dequeue()
 {
-    // got 2+ videos and audios, ok to dequeue.
     bool av_ok = nb_videos_ >= 2 && nb_audios_ >= 2;
-    // 100 videos about 30s, while 300 audios about 30s
+    // 100 videos or 300 audios are about 30s.
     bool av_overflow = nb_videos_ > 100 || nb_audios_ > 300;
 
     if (av_ok || av_overflow) {
@@ -237,7 +234,6 @@ srs_error_t SrsMpegtsOverUdp::on_udp_packet(const sockaddr *from, const int from
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
 
-    // append to buffer.
     buffer_->append(buf, nb_buf);
 
     srs_error_t err = on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
@@ -251,7 +247,7 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char *buf, int
 {
     srs_error_t err = srs_success;
 
-    // collect nMB data to parse in a time.
+    // Collect some MB of data to parse at once.
     // TODO: FIXME: comment the following for release.
     // if (buffer->length() < 3 * 1024 * 1024) return ret;
     // TODO: FIXME: remove the debug to file.
@@ -280,7 +276,7 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char *buf, int
     buffer_->append(fbuf.get(), nb_fbuf);
 #endif
 
-    // find the sync byte of mpegts.
+    // 0x47 is the MPEG-TS sync byte.
     char *p = buffer_->bytes();
     for (int i = 0; i < buffer_->length(); i++) {
         if (p[i] != 0x47) {
@@ -293,19 +289,16 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char *buf, int
         break;
     }
 
-    // drop ts packet when size not modulus by 188
     if (buffer_->length() < SRS_TS_PACKET_SIZE) {
         srs_warn("udp: wait %s:%d packet %d/%d bytes", host.c_str(), port, nb_buf, buffer_->length());
         return err;
     }
 
-    // use stream to parse ts packet.
     int nb_packet = buffer_->length() / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char *p = buffer_->bytes() + (i * SRS_TS_PACKET_SIZE);
         SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
-        // process each ts packet
         if ((err = context_->decode(stream.get(), this)) != srs_success) {
             srs_info("parse ts packet err=%s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -313,7 +306,6 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char *buf, int
         }
     }
 
-    // erase consumed bytes
     if (nb_packet > 0) {
         buffer_->erase(nb_packet * SRS_TS_PACKET_SIZE);
     }
@@ -327,42 +319,16 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage *msg)
 
     pprint_->elapse();
 
-    // about the bytes of msg, specified by elementary stream which indicates by PES_packet_data_byte and stream_id
-    // for example, when SrsTsStream of SrsTsChannel indicates stream_type is SrsTsStreamVideoMpeg4 and SrsTsStreamAudioMpeg4,
-    // the elementary stream can be mux in "2.11 Carriage of ISO/IEC 14496 data" in hls-mpeg-ts-iso13818-1.pdf, page 103
-    // @remark, the most popular stream_id is 0xe0 for h.264 over mpegts, which indicates the stream_id is video and
-    //      stream_number is 0, where I guess the elementary is specified in annexb format(ISO_IEC_14496-10-AVC-2003.pdf, page 211).
-    //      because when audio stream_number is 0, the elementary is ADTS(ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS).
-
-    // about the bytes of PES_packet_data_byte, defined in hls-mpeg-ts-iso13818-1.pdf, page 58
-    // PES_packet_data_byte "C PES_packet_data_bytes shall be contiguous bytes of data from the elementary stream
-    // indicated by the packets stream_id or PID. When the elementary stream data conforms to ITU-T
-    // Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 13818-3, the PES_packet_data_bytes shall be byte aligned to the bytes of this
-    // Recommendation | International Standard. The byte-order of the elementary stream shall be preserved. The number of
-    // PES_packet_data_bytes, N, is specified by the PES_packet_length field. N shall be equal to the value indicated in the
-    // PES_packet_length minus the number of bytes between the last byte of the PES_packet_length field and the first
-    // PES_packet_data_byte.
+    // The payload is the elementary stream that the stream_id or PID names, carried as in "2.11 Carriage of ISO/IEC
+    // 14496 data", hls-mpeg-ts-iso13818-1.pdf, page 103. The most common stream_id for H.264 over MPEG-TS is 0xe0, a
+    // video with stream number 0, which seems to be AnnexB (ISO_IEC_14496-10-AVC-2003.pdf, page 211), since an audio
+    // with stream number 0 is ADTS (ISO_IEC_14496-3-AAC-2001.pdf, page 75, 1.A.2.2 ADTS).
     //
-    // In the case of a private_stream_1, private_stream_2, ECM_stream, or EMM_stream, the contents of the
-    // PES_packet_data_byte field are user definable and will not be specified by ITU-T | ISO/IEC in the future.
-
-    // about the bytes of stream_id, define in  hls-mpeg-ts-iso13818-1.pdf, page 49
-    // stream_id "C In Program Streams, the stream_id specifies the type and number of the elementary stream as defined by the
-    // stream_id Table 2-18. In Transport Streams, the stream_id may be set to any valid value which correctly describes the
-    // elementary stream type as defined in Table 2-18. In Transport Streams, the elementary stream type is specified in the
-    // Program Specific Information as specified in 2.4.4.
-
-    // about the stream_id table, define in Table 2-18 "C Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
+    // The payload of a private_stream_1, private_stream_2, ECM_stream or EMM_stream is user defined (page 58). In a
+    // TS, the PSI, not the stream_id, gives the elementary stream type (page 49, 2.4.4).
     //
-    // 110x xxxx
-    // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
-    // 14496-3 audio stream number x xxxx
-    // ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio
-    //
-    // 1110 xxxx
-    // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
-    // 14496-2 video stream number xxxx
-    // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
+    // Table 2-18, Stream_id assignments, page 52: 110x xxxx is an audio stream, with stream number x xxxx, and
+    // 1110 xxxx a video stream, with stream number xxxx.
 
     if (pprint_->can_print()) {
         srs_trace("<- " SRS_CONSTS_LOG_STREAM_CASTER " mpegts: got %s age=%d stream=%s, dts=%" PRId64 ", pts=%" PRId64 ", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
@@ -379,7 +345,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage *msg)
         msg->sid_ = SrsTsPESStreamIdAudioCommon;
     }
 
-    // when not audio/video, or not adts/annexb format, donot support.
     if (msg->stream_number() != 0) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_ES, "ts: unsupported stream format, sid=%#x(%s-%d)",
                              msg->sid_, msg->is_audio() ? "A" : msg->is_video() ? "V"
@@ -387,15 +352,12 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage *msg)
                              msg->stream_number());
     }
 
-    // check supported codec
     if (msg->channel_->stream_ != SrsTsStreamVideoH264 && msg->channel_->stream_ != SrsTsStreamAudioAAC) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "ts: unsupported stream codec=%d", msg->channel_->stream_);
     }
 
-    // parse the stream.
     SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
 
-    // publish audio or video.
     if (msg->channel_->stream_ == SrsTsStreamVideoH264) {
         if ((err = on_ts_video(msg, &avs)) != srs_success) {
             return srs_error_wrap(err, "ts: consume video");
@@ -415,21 +377,16 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
 
-    // ts tbn to flv tbn. A frame shown after its decode time, as with
-    // B-frames, keeps the difference as its composition time; a pts before
-    // the dts, which no valid stream has, gets none. The sequence header has
-    // no composition time.
+    // TS times are in 90 kHz and FLV times in ms. No valid stream has a pts before the dts.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
     uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
     uint32_t pts = dts + cts;
 
-    // A PES is one access unit: its NALUs, such as the SEI before an IDR and
-    // every slice of a frame, go as one message, a keyframe when it has an IDR.
+    // A PES is one access unit, with NALUs such as the SEI before an IDR and every slice of a frame.
     std::string ibps;
     bool keyframe = false;
 
@@ -445,24 +402,20 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // 5bits, 7.3.1 NAL unit syntax,
-        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+        // 7.3.1 NAL unit syntax, ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
 
-        // ignore the nalu type sps(7), pps(8), aud(9)
         if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
             continue;
         }
 
-        // for sps
         if (avc_->is_sps(frame, frame_size)) {
             std::string sps;
             if ((err = avc_->sps_demux(frame, frame_size, sps)) != srs_success) {
                 return srs_error_wrap(err, "demux sps");
             }
 
-            // A cut SPS has no profile or level to build a sequence header from, so keep the SPS we have.
+            // A cut SPS has no profile or level to build a sequence header from.
             if (sps.empty() || h264_sps_ == sps) {
                 continue;
             }
@@ -475,7 +428,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // for pps
         if (avc_->is_pps(frame, frame_size)) {
             std::string pps;
             if ((err = avc_->pps_demux(frame, frame_size, pps)) != srs_success) {
@@ -494,7 +446,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // ibp frame, joined to the other NALUs of the access unit.
         srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
         std::string ibp;
         if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
@@ -522,21 +473,18 @@ srs_error_t SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIMXE: there exists bug, see following comments.
-    // when sps or pps changed, update the sequence header,
-    // for the pps maybe not changed while sps changed.
-    // so, we must check when each video ts message frame parsed.
+    // TODO: FIXME: there exists bug, see following comments.
+    // The sequence header must be updated when the SPS or the PPS changes, for the PPS may stay the same while the SPS
+    // changes.
     if (!h264_sps_changed_ || !h264_pps_changed_) {
         return err;
     }
 
-    // h264 raw to h264 packet.
     std::string sh;
     if ((err = avc_->mux_sequence_header(h264_sps_, h264_pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
     }
 
-    // h264 packet to flv packet.
     int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
     int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char *flv = NULL;
@@ -545,13 +493,12 @@ srs_error_t SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "avc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The timestamp in the RTMP message header is the dts.
     uint32_t timestamp = dts;
     if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
         return srs_error_wrap(err, "write packet");
     }
 
-    // reset sps and pps.
     h264_sps_changed_ = false;
     h264_pps_changed_ = false;
     h264_sps_pps_sent_ = true;
@@ -563,12 +510,10 @@ srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(const std::string &ibps, bool
 {
     srs_error_t err = srs_success;
 
-    // when sps or pps not sent, ignore the packet.
     if (!h264_sps_pps_sent_) {
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop sps/pps");
     }
 
-    // An access unit with an IDR slice is a keyframe.
     SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
@@ -578,7 +523,7 @@ srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(const std::string &ibps, bool
         return srs_error_wrap(err, "mux avc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The timestamp in the RTMP message header is the dts.
     uint32_t timestamp = dts;
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
@@ -587,16 +532,13 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
 
-    // A PES may carry several AAC frames, and its time is the first frame's; each
-    // frame holds 1024 samples, so time each frame by the samples before it.
+    // A PES may carry several AAC frames, with the time of the first one, and each AAC frame holds 1024 samples.
     int frame_idx = 0;
 
-    // send each frame.
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
@@ -605,13 +547,10 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             return srs_error_wrap(err, "demux adts");
         }
 
-        // ignore invalid frame,
-        //  * atleast 1bytes for aac to decode the data.
         if (frame_size <= 0) {
             continue;
         }
 
-        // ts tbn to flv tbn, at the frame's sample rate, or 44.1kHz when the index is invalid.
         int sample_rate = 44100;
         if (codec.sampling_frequency_index_ < SrsAAcSampleRateNumbers && srs_aac_srates[codec.sampling_frequency_index_] > 0) {
             sample_rate = srs_aac_srates[codec.sampling_frequency_index_];
@@ -622,7 +561,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         frame_idx++;
         srs_info("mpegts: demux aac frame size=%d, dts=%d", frame_size, dts);
 
-        // generate sh.
         if (aac_specific_config_.empty()) {
             std::string sh;
             if ((err = aac_->mux_sequence_header(&codec, sh)) != srs_success) {
@@ -637,7 +575,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             }
         }
 
-        // audio raw data.
         codec.aac_packet_type_ = 1;
         if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
             return srs_error_wrap(err, "write audio raw frame");
@@ -678,12 +615,10 @@ srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, c
     cmsg->to_msg(msg);
     srs_freep(cmsg);
 
-    // push msg to queue.
     if ((err = queue_->push(msg)) != srs_success) {
         return srs_error_wrap(err, "push to queue");
     }
 
-    // for all ready msg, dequeue and send out.
     for (;;) {
         if ((msg = queue_->dequeue()) == NULL) {
             break;
@@ -696,7 +631,6 @@ srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, c
                       pprint_->age(), msg->timestamp_, msg->size());
         }
 
-        // send out encoded msg.
         if ((err = sdk_->send_and_free_message(msg)) != srs_success) {
             close();
             return srs_error_wrap(err, "send messages");
@@ -710,7 +644,6 @@ srs_error_t SrsMpegtsOverUdp::connect()
 {
     srs_error_t err = srs_success;
 
-    // Ignore when connected.
     if (sdk_) {
         return err;
     }
@@ -740,10 +673,9 @@ void SrsMpegtsOverUdp::close()
 {
     srs_freep(sdk_);
 
-    // The server has no sequence header of the next publish until the caster
-    // sends it again, from the next SPS, PPS and AAC frame of the TS. The
-    // queued messages, of the closed publish, would come in the next one at
-    // their old times.
+    // The next connection is a new publish, and the server has no sequence header of it until the caster sends one
+    // again, from the next SPS, PPS and AAC frame of the TS. The queued messages of the closed publish would come in
+    // the next one at their old times.
     h264_sps_ = h264_pps_ = "";
     h264_sps_changed_ = h264_pps_changed_ = false;
     h264_sps_pps_sent_ = false;

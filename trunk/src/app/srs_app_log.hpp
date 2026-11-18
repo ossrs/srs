@@ -17,8 +17,8 @@
 
 class ISrsAppConfig;
 
-// The output operations of the file logger, the log file and the console. A narrow seam over the system calls, so a
-// test can drive the logger and read back what it wrote without opening a file or writing to the terminal.
+// A seam over the system calls, so a test can read back what the logger wrote without opening a file or writing to the
+// terminal.
 class ISrsLogWriter
 {
 public:
@@ -26,23 +26,19 @@ public:
     virtual ~ISrsLogWriter();
 
 public:
-    // Open path for append, return the descriptor, or a negative value when it cannot be opened.
+    // Return a negative value when the file cannot be opened.
     virtual int open_file(const std::string &path) = 0;
-    // Close a descriptor returned by open_file().
     virtual void close_file(int fd) = 0;
-    // Write size bytes of str_log to fd.
     virtual void write_file(int fd, const char *str_log, int size) = 0;
-    // Write size bytes of str_log to the console, wrapped in the shell color code when color is not empty.
     virtual void write_console(const char *color, const char *str_log, int size) = 0;
 };
 
-// Write the log to the real log file and the real console.
 class SrsLogWriter : public ISrsLogWriter
 {
 public:
     SrsLogWriter();
     virtual ~SrsLogWriter();
-    // Interface ISrsLogWriter
+
 public:
     virtual int open_file(const std::string &path);
     virtual void close_file(int fd);
@@ -50,24 +46,17 @@ public:
     virtual void write_console(const char *color, const char *str_log, int size);
 };
 
-// Use memory/disk cache and donot flush when write log.
-// it's ok to use it without config, which will log to console, and default trace level.
-// when you want to use different level, override this classs, set the protected level_.
 class SrsFileLog : public ISrsLog, public ISrsReloadHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Defined in SrsLogLevel.
     SrsLogLevel level_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     char *log_data_;
-    // Log to file if specified srs_log_file
     int fd_;
-    // Whether log to file tank
     bool log_to_file_tank_;
-    // Whether use utc time.
     bool utc_;
 
 // clang-format off
@@ -78,7 +67,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsFileLog();
     virtual ~SrsFileLog();
-    // Interface ISrsLog
+
 public:
     virtual srs_error_t initialize();
     virtual void reopen();

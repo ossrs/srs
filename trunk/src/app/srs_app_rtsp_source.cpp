@@ -28,7 +28,6 @@ extern SrsPps *_srs_pps_aloss2;
 
 static const int kVideoSamplerate = 90000;
 
-// the time to cleanup source.
 #define SRS_RTSP_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
 
 SrsRtspConsumer::SrsRtspConsumer(SrsRtspSource *s)
@@ -94,15 +93,12 @@ void SrsRtspConsumer::wait(int nb_msgs)
 {
     mw_min_msgs_ = nb_msgs;
 
-    // when duration ok, signal to flush.
     if ((int)queue_.size() > mw_min_msgs_) {
         return;
     }
 
-    // the enqueue will notify this cond.
     mw_waiting_ = true;
 
-    // use cond block wait for high performance mode.
     srs_cond_wait(mw_wait_);
 }
 
@@ -170,7 +166,6 @@ srs_error_t SrsRtspSourceManager::notify(int event, srs_utime_t interval, srs_ut
     for (it = pool_.begin(); it != pool_.end();) {
         SrsSharedPtr<SrsRtspSource> &source = it->second;
 
-        // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713
         if (source->stream_is_dead()) {
             SrsContextId cid = source->source_id();
@@ -191,9 +186,8 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
     srs_error_t err = srs_success;
 
     bool created = false;
-    // Should never invoke any function during the locking.
     if (true) {
-        // Use lock to protect coroutine switch.
+        // The lock guards against a coroutine switch.
         // @bug https://github.com/ossrs/srs/issues/1230
         SrsLocker(&lock_);
 
@@ -214,14 +208,11 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
         }
     }
 
-    // Initialize source.
     if (created && (err = pps->initialize(r)) != srs_success) {
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
-    // we always update the request of resource,
-    // for origin auth is on, the token in request maybe invalid,
-    // and we only need to update the token of request, it's simple.
+    // With origin auth on, the token of the old request may be invalid.
     if (!created) {
         pps->update_auth(r);
     }
@@ -231,7 +222,7 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
 
 SrsSharedPtr<SrsRtspSource> SrsRtspSourceManager::fetch(ISrsRequest *r)
 {
-    // Use lock to protect coroutine switch.
+    // The lock guards against a coroutine switch.
     // @bug https://github.com/ossrs/srs/issues/1230
     SrsLocker(&lock_);
 
@@ -270,16 +261,14 @@ SrsRtspSource::SrsRtspSource()
 
 void SrsRtspSource::assemble()
 {
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
+    // Otherwise stream_is_dead() takes a new source as dead at once.
     // @see https://github.com/ossrs/srs/issues/4449
     stream_die_at_ = clk_->now();
 }
 
 SrsRtspSource::~SrsRtspSource()
 {
-    // never free the consumers,
-    // for all consumers are auto free.
+    // Never free the consumers; they are auto freed.
     consumers_.clear();
 
     srs_freep(req_);
@@ -296,18 +285,9 @@ SrsRtspSource::~SrsRtspSource()
     clk_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches
-// before completing the basic field setup.
-//
-// If context switches occur before all fields are properly initialized, other coroutines
-// accessing this source from the pool may encounter uninitialized state, leading to crashes
-// or undefined behavior.
-//
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (see PR 4449), which stops coroutines from creating
+// duplicate sources for one stream. So it MUST NOT switch coroutines before the fields are set up, or other
+// coroutines may get the source from the pool half set up, and crash.
 srs_error_t SrsRtspSource::initialize(ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -319,17 +299,14 @@ srs_error_t SrsRtspSource::initialize(ISrsRequest *r)
 
 bool SrsRtspSource::stream_is_dead()
 {
-    // still publishing?
     if (is_created_) {
         return false;
     }
 
-    // has any consumers?
     if (!consumers_.empty()) {
         return false;
     }
 
-    // Delay cleanup source.
     srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_RTSP_SOURCE_CLEANUP) {
         return false;
@@ -347,7 +324,6 @@ srs_error_t SrsRtspSource::on_source_changed()
 {
     srs_error_t err = srs_success;
 
-    // Update context id if changed.
     bool id_changed = false;
     const SrsContextId &id = _srs_context->get_id();
     if (source_id_.compare(id)) {
@@ -359,7 +335,6 @@ srs_error_t SrsRtspSource::on_source_changed()
         source_id_ = id;
     }
 
-    // Notify if context id changed.
     if (id_changed) {
         std::vector<SrsRtspConsumer *>::iterator it;
         for (it = consumers_.begin(); it != consumers_.end(); ++it) {
@@ -374,7 +349,6 @@ srs_error_t SrsRtspSource::on_source_changed()
 
 void SrsRtspSource::notify_stream_change()
 {
-    // Build stream description.
     SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
     if (audio_desc_) {
         stream_desc->audio_track_desc_ = audio_desc_->copy();
@@ -383,7 +357,6 @@ void SrsRtspSource::notify_stream_change()
         stream_desc->video_track_descs_.push_back(video_desc_->copy());
     }
 
-    // Notify all consumers about stream description.
     std::vector<SrsRtspConsumer *>::iterator it;
     for (it = consumers_.begin(); it != consumers_.end(); ++it) {
         (*it)->on_stream_change(stream_desc.get());
@@ -418,7 +391,6 @@ srs_error_t SrsRtspSource::consumer_dumps(SrsRtspConsumer *consumer, bool ds, bo
 {
     srs_error_t err = srs_success;
 
-    // print status.
     srs_trace("create rtsp consumer, no gop cache");
 
     return err;
@@ -434,7 +406,6 @@ void SrsRtspSource::on_consumer_destroy(SrsRtspConsumer *consumer)
 
     // TODO: When all consumers finished, notify publisher to handle it.
 
-    // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers_.empty()) {
         stream_die_at_ = clk_->now();
     }
@@ -457,15 +428,12 @@ srs_error_t SrsRtspSource::on_publish()
 {
     srs_error_t err = srs_success;
 
-    // update the request object.
     srs_assert(req_);
 
-    // For RTC, DTLS is done, and we are ready to deliver packets.
-    // @note For compatible with RTMP, we also set the is_created_, it MUST be created here.
+    // The RTMP bridge never calls set_stream_created(), so is_created_ MUST be set here.
     is_created_ = true;
     is_delivering_packets_ = true;
 
-    // Notify the consumers about stream change event.
     if ((err = on_source_changed()) != srs_success) {
         return srs_error_wrap(err, "source id change");
     }
@@ -477,7 +445,6 @@ srs_error_t SrsRtspSource::on_publish()
 
 void SrsRtspSource::on_unpublish()
 {
-    // ignore when already unpublished.
     if (!is_created_) {
         return;
     }
@@ -491,7 +458,6 @@ void SrsRtspSource::on_unpublish()
 
     stat_->on_stream_close(req_);
 
-    // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
         stream_die_at_ = clk_->now();
     }
@@ -505,7 +471,6 @@ srs_error_t SrsRtspSource::on_rtp(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
-    // If circuit-breaker is dying, drop packet.
     if (circuit_breaker_->hybrid_dying_water_level()) {
         _srs_pps_aloss2->sugar_ += (int64_t)consumers_.size();
         return err;
@@ -560,12 +525,10 @@ SrsRtspRtpBuilder::SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtsp
     video_builder_ = new SrsRtpVideoBuilder();
     audio_sequence_ = 0;
 
-    // Initialize with default values - will be set during lazy initialization
     audio_ssrc_ = 0;
     audio_payload_type_ = 0;
     audio_sample_rate_ = 0;
 
-    // Lazy initialization flags
     audio_initialized_ = false;
     video_initialized_ = false;
 
@@ -589,50 +552,40 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
 {
     srs_error_t err = srs_success;
 
-    // RTSP behavior: Build track description from real audio format, not default values
-    // This is different from RTC which uses default track descriptions
-
-    // Create audio track description from actual format data
+    // Unlike RTC, which uses default track descriptions, RTSP builds the track from the real audio format.
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
     audio_desc->type_ = "audio";
     audio_desc->id_ = "audio-" + rand_->gen_str(8);
     audio_desc->direction_ = "recvonly";
 
-    // Generate SSRC for this track
     audio_ssrc_ = ssrc_generator_->generate_ssrc();
     audio_desc->ssrc_ = audio_ssrc_;
 
     int sample_rate = srs_flv_srates[format_->acodec_->sound_rate_];
     audio_sample_rate_ = sample_rate;
 
-    // Build payload from actual audio format
     if (codec == SrsAudioCodecIdOpus) {
-        // For Opus, use actual format parameters if available
         int channels = (format_->acodec_->sound_type_ == SrsAudioChannelsStereo) ? 2 : 1;
         audio_payload_type_ = kAudioPayloadType;
         audio_desc->media_ = new SrsAudioPayload(audio_payload_type_, "opus", sample_rate, channels);
     } else if (codec == SrsAudioCodecIdAAC) {
-        // For AAC, extract parameters from format
         int channels = format_->acodec_->aac_channels_;
         audio_payload_type_ = kAudioPayloadType;
 
-        // Note: Use "MPEG4-GENERIC" instead of "AAC" for RTSP/SDP compliance
-        // RFC 3640 specifies that AAC should be advertised as "MPEG4-GENERIC" in SDP rtpmap
-        // "AAC" is non-standard and not widely supported by RTSP clients
+        // RFC 3640 names AAC "MPEG4-GENERIC" in the SDP rtpmap; RTSP clients seldom support the
+        // non-standard "AAC".
         SrsAudioPayload *aac_payload = new SrsAudioPayload(audio_payload_type_, "MPEG4-GENERIC", sample_rate, channels);
 
-        // AAC requires AudioSpecificConfig in SDP fmtp line
-        // Build the config string from AAC sequence header
+        // The SDP fmtp line carries the AudioSpecificConfig.
         const std::vector<char> &asc = format_->acodec_->aac_extra_data_;
         if (!asc.empty()) {
             int hex_len = asc.size() * 2;
             SrsUniquePtr<char> hex_buf(new char[hex_len + 1]);
             srs_hex_encode_to_string(hex_buf.get(), (const uint8_t *)asc.data(), asc.size());
 
-            hex_buf.get()[hex_len] = '\0'; // Null terminate
+            hex_buf.get()[hex_len] = '\0';
             std::string config_hex = std::string(hex_buf.get());
 
-            // Set the AAC configuration directly in the audio payload
             aac_payload->aac_config_hex_ = config_hex;
             srs_trace("RTSP: AAC config hex: %s", config_hex.c_str());
         }
@@ -642,11 +595,9 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "unsupported audio codec %d", codec);
     }
 
-    // Extract info for logging before setting to source
     int sample_rate_for_log = audio_desc->media_->sample_;
     int channels_for_log = (audio_desc->media_->type_ == "audio") ? ((SrsAudioPayload *)audio_desc->media_)->channel_ : 0;
 
-    // Set the audio description to source
     source_->set_audio_desc(audio_desc.get());
 
     srs_trace("RTSP: Initialize audio track from format - codec=%s, ssrc=%u, pt=%d, sample_rate=%d, channels=%d",
@@ -660,32 +611,25 @@ srs_error_t SrsRtspRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
 {
     srs_error_t err = srs_success;
 
-    // RTSP behavior: Build track description from real video format, not default values
-    // This is different from RTC which uses default track descriptions
-
+    // Unlike RTC, which uses default track descriptions, RTSP builds the track from the real video format.
     std::string codec_name = srs_video_codec_id2str(codec);
 
-    // Create video track description from actual format data
     SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
     video_desc->type_ = "video";
     video_desc->id_ = "video-" + codec_name + "-" + rand_->gen_str(8);
     video_desc->direction_ = "recvonly";
 
-    // Generate SSRC for this track
     uint32_t video_ssrc = ssrc_generator_->generate_ssrc();
     video_desc->ssrc_ = video_ssrc;
 
-    // Build payload from actual video format
     uint8_t video_payload_type = 0;
     if (codec == SrsVideoCodecIdAVC) {
-        // H.264 track with actual format parameters
         video_payload_type = kVideoPayloadType;
         SrsVideoPayload *h264_payload = new SrsVideoPayload(video_payload_type, "H264", kVideoSamplerate);
         h264_payload->set_h264_param_desc("level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f");
         video_desc->media_ = h264_payload;
 
     } else if (codec == SrsVideoCodecIdHEVC) {
-        // H.265 track with actual format parameters
         video_payload_type = KVideoPayloadTypeHevc;
         SrsVideoPayload *h265_payload = new SrsVideoPayload(video_payload_type, "H265", kVideoSamplerate);
         h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
@@ -700,7 +644,6 @@ srs_error_t SrsRtspRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
         return srs_error_wrap(err, "initialize video builder");
     }
 
-    // Set the video description to source
     source_->set_video_desc(video_desc.get());
 
     srs_trace("RTSP: Initialize video track from format - codec=%s, ssrc=%u, pt=%d, sample_rate=%d",
@@ -719,7 +662,6 @@ srs_error_t SrsRtspRtpBuilder::initialize(ISrsRequest *r)
         return srs_error_wrap(err, "format initialize");
     }
 
-    // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
     format_->avc_parse_sps_ = config_->get_parse_sps(r->vhost_);
     meta_->vsh_format()->avc_parse_sps_ = format_->avc_parse_sps_;
@@ -733,7 +675,7 @@ srs_error_t SrsRtspRtpBuilder::on_publish()
 {
     srs_error_t err = srs_success;
 
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // Reset the metadata cache, for VLC when the stream is disabled and enabled.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta_->clear();
 
@@ -742,7 +684,6 @@ srs_error_t SrsRtspRtpBuilder::on_publish()
 
 void SrsRtspRtpBuilder::on_unpublish()
 {
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta_->update_previous_vsh();
     meta_->update_previous_ash();
@@ -766,19 +707,17 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsMediaPacket *msg)
         return srs_error_wrap(err, "format consume audio");
     }
 
-    // Ignore if no format->acodec, it means the codec is not parsed, or unknown codec.
+    // No acodec_ when the codec is not parsed, or is unknown.
     // @issue https://github.com/ossrs/srs/issues/1506#issuecomment-562079474
     if (!format_->acodec_) {
         return err;
     }
 
-    // support audio codec: aac/opus
     SrsAudioCodecId acodec = format_->acodec_->id_;
     if (acodec != SrsAudioCodecIdAAC && acodec != SrsAudioCodecIdOpus) {
         return err;
     }
 
-    // Initialize audio track on first packet with actual codec
     if (!audio_initialized_) {
         if ((err = initialize_audio_track(acodec)) != srs_success) {
             return srs_error_wrap(err, "init audio track");
@@ -786,12 +725,10 @@ srs_error_t SrsRtspRtpBuilder::on_audio(SrsMediaPacket *msg)
         audio_initialized_ = true;
     }
 
-    // Skip empty audio frames
     if (format_->audio_->nb_samples_ == 0) {
         return err;
     }
 
-    // Convert to RTP packet.
     SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
     if (acodec == SrsAudioCodecIdAAC) {
@@ -815,8 +752,7 @@ srs_error_t SrsRtspRtpBuilder::package_aac(SrsParsedAudioPacket *audio, SrsRtpPa
 
     srs_assert(audio->nb_samples_);
 
-    // For RTSP, audio TBN is not fixed, but use the sample rate, so we
-    // need to convert FLV TBN(1000) to the sample rate TBN.
+    // The RTP audio clock is the sample rate, while FLV uses TBN 1000.
     int64_t dts = (int64_t)audio->dts_;
     dts *= (int64_t)audio_sample_rate_;
     dts /= 1000;
@@ -831,41 +767,32 @@ srs_error_t SrsRtspRtpBuilder::package_aac(SrsParsedAudioPacket *audio, SrsRtpPa
     SrsRtpRawPayload *raw = new SrsRtpRawPayload();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
-    // For AAC, we need to package according to RFC 3640 (MPEG-4 Audio)
-    // Use AAC-hbr mode with AU-headers
-    // Calculate total size for all AU samples
+    // RFC 3640 AAC-hbr mode: each AU-header is a 13-bit AU-size then a 3-bit AU-index, 16 bits in all.
     int total_au_size = 0;
     for (int i = 0; i < audio->nb_samples_; i++) {
         total_au_size += audio->samples_[i].size_;
     }
 
-    // AU-headers: 16 bits per AU (13 bits for size + 3 bits for index)
     int au_headers_length = audio->nb_samples_ * 16;         // bits
-    int au_headers_bytes = (au_headers_length + 7) / 8;      // convert to bytes
+    int au_headers_bytes = (au_headers_length + 7) / 8;
     int payload_size = 2 + au_headers_bytes + total_au_size; // AU-headers-length(2) + AU-headers + AU data
 
-    // Use SrsBuffer for proper byte marshaling
     SrsUniquePtr<char[]> payload(new char[payload_size]);
     SrsBuffer buffer(payload.get(), payload_size);
 
-    // AU-headers-length (16 bits) - this is the length in BITS, not bytes
+    // The AU-headers-length is in bits, not bytes.
     buffer.write_2bytes(au_headers_length);
 
-    // Write AU-headers for each sample
     for (int i = 0; i < audio->nb_samples_; i++) {
-        // AU-header: AU-size(13 bits) + AU-index(3 bits) = 16 bits
-        // According to RFC 3640, AU-size comes first (MSB), then AU-index (LSB)
-        uint16_t au_size = audio->samples_[i].size_ & 0x1FFF; // 13 bits mask
-        uint16_t au_index = i & 0x07;                         // 3 bits mask
+        uint16_t au_size = audio->samples_[i].size_ & 0x1FFF;
+        uint16_t au_index = i & 0x07;
         buffer.write_2bytes((au_size << 3) | au_index);
     }
 
-    // Copy all AAC AU data
     for (int i = 0; i < audio->nb_samples_; i++) {
         buffer.write_bytes(audio->samples_[i].bytes_, audio->samples_[i].size_);
     }
 
-    // Wrap the payload in the RTP packet
     raw->payload_ = pkt->wrap(payload.get(), payload_size);
     raw->nn_payload_ = payload_size;
 
@@ -887,7 +814,6 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
-    // cache the sequence header if h264
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload(), msg->size());
     if (is_sequence_header && (err = meta_->update_vsh(msg)) != srs_success) {
         return srs_error_wrap(err, "meta update video");
@@ -897,19 +823,16 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
         return srs_error_wrap(err, "format consume video");
     }
 
-    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
-    // such as H.263 codec
+    // No vcodec_ when the codec is not parsed, or is unsupported or unknown, such as H.263.
     if (!format_->vcodec_) {
         return err;
     }
 
-    // support video codec: h264/h265
     SrsVideoCodecId vcodec = format_->vcodec_->id_;
     if (vcodec != SrsVideoCodecIdAVC && vcodec != SrsVideoCodecIdHEVC) {
         return err;
     }
 
-    // Initialize video track on first packet with actual codec
     if (!video_initialized_) {
         if ((err = initialize_video_track(vcodec)) != srs_success) {
             return srs_error_wrap(err, "init video track");
@@ -924,7 +847,6 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
     }
     int nn_samples = (int)samples.size();
 
-    // Well, for each IDR, we append a SPS/PPS before it, which is packaged in STAP-A.
     if (has_idr) {
         SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
 
@@ -938,12 +860,9 @@ srs_error_t SrsRtspRtpBuilder::on_video(SrsMediaPacket *msg)
         }
     }
 
-    // If merge Nalus, we pcakges all NALUs(samples) as one NALU, in a RTP or FUA packet.
     vector<SrsRtpPacket *> pkts;
-    // auto free when exit
     SrsUniquePtr<vector<SrsRtpPacket *> > pkts_ptr(&pkts, free_packets);
 
-    // By default, we package each NALU(sample) to a RTP or FUA packet.
     for (int i = 0; i < nn_samples; i++) {
         SrsNaluSample *sample = samples[i];
 
@@ -969,12 +888,10 @@ srs_error_t SrsRtspRtpBuilder::filter(SrsMediaPacket *msg, SrsFormat *format, bo
 {
     srs_error_t err = srs_success;
 
-    // If IDR, we will insert SPS/PPS before IDR frame.
     if (format->video_ && format->video_->has_idr_) {
         has_idr = true;
     }
 
-    // Update samples to shared frame.
     for (int i = 0; i < format->video_->nb_samples_; ++i) {
         SrsNaluSample *sample = &format->video_->samples_[i];
         samples.push_back(sample);
@@ -1107,12 +1024,10 @@ srs_error_t SrsRtspAudioSendTrack::on_rtp(SrsRtpPacket *pkt)
 
     pkt->header_.set_ssrc(track_desc_->ssrc_);
 
-    // Should update PT, because subscriber may use different PT to publisher.
+    // The player may use a different PT from the publisher.
     if (track_desc_->media_ && pkt->header_.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
-        // If PT is media from publisher, change to PT of media for subscriber.
         pkt->header_.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header_.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
-        // If PT is RED from publisher, change to PT of RED for subscriber.
         pkt->header_.set_payload_type(track_desc_->red_->pt_);
     } else {
         // TODO: FIXME: Should update PT for RTX.
@@ -1147,12 +1062,10 @@ srs_error_t SrsRtspVideoSendTrack::on_rtp(SrsRtpPacket *pkt)
 
     pkt->header_.set_ssrc(track_desc_->ssrc_);
 
-    // Should update PT, because subscriber may use different PT to publisher.
+    // The player may use a different PT from the publisher.
     if (track_desc_->media_ && pkt->header_.get_payload_type() == track_desc_->media_->pt_of_publisher_) {
-        // If PT is media from publisher, change to PT of media for subscriber.
         pkt->header_.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header_.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
-        // If PT is RED from publisher, change to PT of RED for subscriber.
         pkt->header_.set_payload_type(track_desc_->red_->pt_);
     } else {
         // TODO: FIXME: Should update PT for RTX.

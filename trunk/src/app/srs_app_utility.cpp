@@ -26,7 +26,6 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_json.hpp>
 
-// the longest time to wait for a process to quit.
 #define SRS_PROCESS_QUIT_TIMEOUT_MS 1000
 
 SrsLogLevel srs_get_log_level(string level)
@@ -67,17 +66,13 @@ string srs_path_build_stream(string template_path, string vhost, string app, str
 {
     std::string path = template_path;
 
-    // variable [vhost]
     path = srs_strings_replace(path, "[vhost]", vhost);
-    // variable [app]
     path = srs_strings_replace(path, "[app]", app);
-    // variable [stream]
     path = srs_strings_replace(path, "[stream]", stream);
 
     return path;
 }
 
-// Match path from pos to template_path from tpos, and bind the [app] and [stream] that are empty.
 static bool srs_path_match_stream(const string &template_path, size_t tpos, const string &path, size_t pos, string &app, string &stream)
 {
     if (tpos == template_path.size()) {
@@ -94,7 +89,6 @@ static bool srs_path_match_stream(const string &template_path, size_t tpos, cons
         size = 8;
     }
 
-    // A literal char must be the same.
     if (!value) {
         if (pos < path.size() && template_path.at(tpos) == path.at(pos)) {
             return srs_path_match_stream(template_path, tpos + 1, path, pos + 1, app, stream);
@@ -102,7 +96,6 @@ static bool srs_path_match_stream(const string &template_path, size_t tpos, cons
         return false;
     }
 
-    // A variable already bound must have the same value again.
     if (!value->empty()) {
         if (path.compare(pos, value->size(), *value) == 0) {
             return srs_path_match_stream(template_path, tpos + size, path, pos + value->size(), app, stream);
@@ -158,18 +151,15 @@ string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
 {
     std::string path = template_path;
 
-    // date and time substitude
-    // clock time
     timeval tv;
     if (srs_gettimeofday(&tv, NULL) == -1) {
         return path;
     }
 
-    // to calendar time
     struct tm now;
     // The tv_sec of Winsock's timeval is a long.
     time_t sec = tv.tv_sec;
-    // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
+    // @see https://linux.die.net/man/3/localtime_r
     if (config->get_utc_time()) {
         if (srs_gmtime_r(&sec, &now) == NULL) {
             return path;
@@ -180,45 +170,36 @@ string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
         }
     }
 
-    // the buffer to format the date and time.
     char buf[64];
 
-    // [2006], replace with current year.
     if (true) {
         snprintf(buf, sizeof(buf), "%04d", 1900 + now.tm_year);
         path = srs_strings_replace(path, "[2006]", buf);
     }
-    // [01], replace this const to current month.
     if (true) {
         snprintf(buf, sizeof(buf), "%02d", 1 + now.tm_mon);
         path = srs_strings_replace(path, "[01]", buf);
     }
-    // [02], replace this const to current date.
     if (true) {
         snprintf(buf, sizeof(buf), "%02d", now.tm_mday);
         path = srs_strings_replace(path, "[02]", buf);
     }
-    // [15], replace this const to current hour.
     if (true) {
         snprintf(buf, sizeof(buf), "%02d", now.tm_hour);
         path = srs_strings_replace(path, "[15]", buf);
     }
-    // [04], repleace this const to current minute.
     if (true) {
         snprintf(buf, sizeof(buf), "%02d", now.tm_min);
         path = srs_strings_replace(path, "[04]", buf);
     }
-    // [05], repleace this const to current second.
     if (true) {
         snprintf(buf, sizeof(buf), "%02d", now.tm_sec);
         path = srs_strings_replace(path, "[05]", buf);
     }
-    // [999], repleace this const to current millisecond.
     if (true) {
         snprintf(buf, sizeof(buf), "%03d", (int)(tv.tv_usec / 1000));
         path = srs_strings_replace(path, "[999]", buf);
     }
-    // [timestamp],replace this const to current UNIX timestamp in ms.
     if (true) {
         int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
         path = srs_strings_replace(path, "[timestamp]", srs_strconv_format_int(now_us / 1000));
@@ -243,12 +224,10 @@ srs_error_t SrsAppUtility::kill(int &pid)
         return err;
     }
 
-    // first, try kill by SIGTERM.
     if (srs_kill(pid, SIGTERM) < 0) {
         return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
 
-    // wait to quit.
     srs_trace("send SIGTERM to pid=%d", pid);
     for (int i = 0; i < SRS_PROCESS_QUIT_TIMEOUT_MS / 10; i++) {
         int status = 0;
@@ -257,32 +236,26 @@ srs_error_t SrsAppUtility::kill(int &pid)
             return srs_error_new(ERROR_SYSTEM_KILL, "kill");
         }
 
-        // 0 is not quit yet.
+        // 0 means it has not quit yet.
         if (qpid == 0) {
             srs_usleep(10 * 1000);
             continue;
         }
 
-        // killed, set pid to -1.
         srs_trace("SIGTERM stop process pid=%d ok.", pid);
         pid = -1;
 
         return err;
     }
 
-    // then, try kill by SIGKILL.
     if (srs_kill(pid, SIGKILL) < 0) {
         return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
 
-    // wait for the process to quit.
-    // for example, ffmpeg will gracefully quit if signal is:
-    //         1) SIGHUP     2) SIGINT     3) SIGQUIT
-    // other signals, directly exit(123), for example:
-    //        9) SIGKILL    15) SIGTERM
+    // FFmpeg quits gracefully on 1) SIGHUP, 2) SIGINT and 3) SIGQUIT, and on other signals, such as
+    // 9) SIGKILL and 15) SIGTERM, it exits at once with exit(123).
     int status = 0;
-    // @remark when we use SIGKILL to kill process, it must be killed,
-    //      so we always wait it to quit by infinite loop.
+    // A process must quit on SIGKILL, so wait with no timeout.
     while (srs_waitpid(pid, &status, 0) < 0) {
         srs_usleep(10 * 1000);
         continue;
@@ -456,7 +429,7 @@ bool get_proc_system_stat(SrsProcSystemStat &r)
         }
 
         // @see: read_stat_cpu() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L88
-        // @remark, ignore the filed 10 cpu_guest_nice
+        // @remark The field 10, cpu_guest_nice, is ignored.
         sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
                &r.user_,
                &r.nice_,
@@ -551,7 +524,6 @@ void srs_update_proc_stat()
         srs_assert(user_hz > 0);
     }
 
-    // system cpu stat
     if (true) {
         SrsProcSystemStat r;
         if (!get_proc_system_stat(r)) {
@@ -560,7 +532,6 @@ void srs_update_proc_stat()
 
         r.sample_time_ = srsu2ms(srs_time_now_realtime());
 
-        // calc usage in percent
         SrsProcSystemStat &o = _srs_system_cpu_system_stat;
 
         // @see: http://blog.csdn.net/nineday/article/details/1928847
@@ -573,11 +544,9 @@ void srs_update_proc_stat()
             r.percent_ = (float)(1 - idle / (double)r.total_delta_);
         }
 
-        // upate cache.
         _srs_system_cpu_system_stat = r;
     }
 
-    // self cpu stat
     if (true) {
         SrsProcSelfStat r;
         if (!get_proc_self_stat(r)) {
@@ -586,7 +555,6 @@ void srs_update_proc_stat()
 
         r.sample_time_ = srsu2ms(srs_time_now_realtime());
 
-        // calc usage in percent
         SrsProcSelfStat &o = _srs_system_cpu_self_stat;
 
         // @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
@@ -596,7 +564,6 @@ void srs_update_proc_stat()
             r.percent_ = (float)(usage * 1000 / (double)total / user_hz);
         }
 
-        // upate cache.
         _srs_system_cpu_self_stat = r;
     }
 }
@@ -662,7 +629,6 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat &r)
     r.sample_time_ = srsu2ms(srs_time_now_realtime());
 
 #if !defined(SRS_OSX) && !defined(_WIN32)
-    // if disabled, ignore all devices.
     SrsConfDirective *conf = _srs_config->get_stats_disk_device();
     if (conf == NULL) {
         return true;
@@ -758,22 +724,18 @@ void srs_update_disk_stat()
         return;
     }
 
-    // vmstat
     if (true) {
         int64_t duration_ms = r.sample_time_ - o.sample_time_;
 
         if (o.pgpgin_ > 0 && r.pgpgin_ > o.pgpgin_ && duration_ms > 0) {
-            // KBps = KB * 1000 / ms = KB/s
             r.in_KBps_ = (int)((r.pgpgin_ - o.pgpgin_) * 1000 / duration_ms);
         }
 
         if (o.pgpgout_ > 0 && r.pgpgout_ > o.pgpgout_ && duration_ms > 0) {
-            // KBps = KB * 1000 / ms = KB/s
             r.out_KBps_ = (int)((r.pgpgout_ - o.pgpgout_) * 1000 / duration_ms);
         }
     }
 
-    // diskstats
     if (r.cpu_.ok_ && o.cpu_.ok_) {
         SrsCpuInfo *cpuinfo = srs_get_cpuinfo();
         r.cpu_.total_delta_ = r.cpu_.total() - o.cpu_.total();
@@ -784,7 +746,6 @@ void srs_update_disk_stat()
             double delta_ms = r.cpu_.total_delta_ * 10 / cpuinfo->nb_processors_;
             unsigned int ticks = r.ticks_ - o.ticks_;
 
-            // busy in [0, 1], where 0.1532 means 15.32%
             r.busy_ = (float)(ticks / delta_ms);
         }
     }
@@ -883,7 +844,6 @@ SrsCpuInfo *srs_get_cpuinfo()
         return cpu;
     }
 
-    // initialize cpu info.
     cpu = new SrsCpuInfo();
     cpu->ok_ = true;
     cpu->nb_processors_ = srs_cpu_count(false);
@@ -940,7 +900,7 @@ void srs_update_platform_info()
         }
 
         // @see: read_loadavg() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L402
-        // @remark, we use our algorithm, not sysstat.
+        // @remark We use our own algorithm, not the sysstat one.
         fscanf(f, "%lf %lf %lf\n",
                &r.load_one_minutes_,
                &r.load_five_minutes_,
@@ -1024,18 +984,16 @@ bool get_udp_snmp_statistic(SrsSnmpUdpStat &r)
             return false;
         }
 
-        // ignore title.
+        // Skip the title line.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
 
         while (fgets(buf, sizeof(buf), f)) {
-            // udp stat title
+            // The first Udp: line holds the names, and the next one the values.
             if (strncmp(buf, "Udp: ", 5) == 0) {
-                // read tcp stat data
                 if (!fgets(buf, sizeof(buf), f)) {
                     break;
                 }
-                // parse tcp stat data
                 if (strncmp(buf, "Udp: ", 5) == 0) {
                     sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu\n",
                            &r.in_datagrams_,
@@ -1130,7 +1088,7 @@ void srs_update_network_devices()
             return;
         }
 
-        // ignore title.
+        // Skip the two title lines.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
         fgets(buf, sizeof(buf), f);
@@ -1143,7 +1101,7 @@ void srs_update_network_devices()
             SrsNetworkDevices &r = _srs_system_network_devices[i];
 
             // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
-            // @remark, we use our algorithm, not sysstat.
+            // @remark We use our own algorithm, not the sysstat one.
             // A name shorter than 6 chars is padded to 6, a longer one is not, so read up to the colon.
             char fname[sizeof(r.name_)];
             sscanf(buf, "%15[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n",
@@ -1219,12 +1177,11 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
             return;
         }
 
-        // ignore title.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
 
         while (fgets(buf, sizeof(buf), f)) {
-            // @see: et_sockstat_line() from https://github.com/shemminger/iproute2/blob/master/misc/ss.c
+            // @see: get_sockstat_line() from https://github.com/shemminger/iproute2/blob/master/misc/ss.c
             if (strncmp(buf, "sockets: used ", 14) == 0) {
                 sscanf(buf + 14, "%d\n", &nb_socks);
             } else if (strncmp(buf, "TCP: ", 5) == 0) {
@@ -1242,7 +1199,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
         fclose(f);
     }
 #else
-    // TODO: FIXME: impelments it.
+    // TODO: FIXME: Implement it.
     nb_socks = 0;
     nb_tcp4_hashed = 0;
     nb_tcp_orphans = 0;
@@ -1267,20 +1224,18 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
             return;
         }
 
-        // ignore title.
+        // Skip the title line.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
 
         // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
         while (fgets(buf, sizeof(buf), f)) {
             // @see: get_snmp_int("Tcp:", "CurrEstab", &sn.tcp_estab)
-            // tcp stat title
+            // The first Tcp: line holds the names, and the next one the values.
             if (strncmp(buf, "Tcp: ", 5) == 0) {
-                // read tcp stat data
                 if (!fgets(buf, sizeof(buf), f)) {
                     break;
                 }
-                // parse tcp stat data
                 if (strncmp(buf, "Tcp: ", 5) == 0) {
                     sscanf(buf + 5, "%*d %*d %*d %*d %*d %*d %*d %*d %d\n", &nb_tcp_estab);
                 }
@@ -1321,7 +1276,6 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
 
 string srs_get_local_ip(int fd)
 {
-    // discovery client information
     sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -1341,7 +1295,6 @@ string srs_get_local_ip(int fd)
 
 int srs_get_local_port(int fd)
 {
-    // discovery client information
     sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getsockname(fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -1363,7 +1316,6 @@ int srs_get_local_port(int fd)
 
 string srs_get_peer_ip(int fd)
 {
-    // discovery client information
     sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getpeername(fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -1383,7 +1335,6 @@ string srs_get_peer_ip(int fd)
 
 int srs_get_peer_port(int fd)
 {
-    // discovery client information
     sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     if (getpeername(fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -1437,16 +1388,13 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     for (int i = 0; i < nb_n; i++) {
         SrsNetworkDevices &o = n[i];
 
-        // ignore the lo interface.
         std::string inter = o.name_;
         if (!o.ok_) {
             continue;
         }
 
-        // update the sample time.
         n_sample_time = o.sample_time_;
 
-        // stat the intranet bytes.
         SrsProtocolUtility utility;
         if (inter == "lo" || !utility.is_internet(inter)) {
             nri_bytes += o.rbytes_;
@@ -1458,7 +1406,6 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
         ns_bytes += o.sbytes_;
     }
 
-    // all data is ok?
     bool ok = (r->ok_ && u->ok_ && s->ok_ && c->ok_ && d->ok_ && m->ok_ && p->ok_ && nrs->ok_);
 
     SrsJsonObject *data = SrsJsonAny::object();
@@ -1467,7 +1414,6 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     data->set("ok", SrsJsonAny::boolean(ok));
     data->set("now_ms", SrsJsonAny::integer(now));
 
-    // self
     SrsJsonObject *self = SrsJsonAny::object();
     data->set("self", self);
 
@@ -1481,7 +1427,6 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     self->set("cpu_percent", SrsJsonAny::number(u->percent_));
     self->set("srs_uptime", SrsJsonAny::integer(srs_uptime));
 
-    // system
     SrsJsonObject *sys = SrsJsonAny::object();
     data->set("system", sys);
 
@@ -1500,15 +1445,13 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     sys->set("load_1m", SrsJsonAny::number(p->load_one_minutes_));
     sys->set("load_5m", SrsJsonAny::number(p->load_five_minutes_));
     sys->set("load_15m", SrsJsonAny::number(p->load_fifteen_minutes_));
-    // system network bytes stat.
     sys->set("net_sample_time", SrsJsonAny::integer(n_sample_time));
-    // internet public address network device bytes.
+    // The devices with an internet, public address.
     sys->set("net_recv_bytes", SrsJsonAny::integer(nr_bytes));
     sys->set("net_send_bytes", SrsJsonAny::integer(ns_bytes));
-    // intranet private address network device bytes.
+    // The devices with an intranet, private address.
     sys->set("net_recvi_bytes", SrsJsonAny::integer(nri_bytes));
     sys->set("net_sendi_bytes", SrsJsonAny::integer(nsi_bytes));
-    // srs network bytes stat.
     sys->set("srs_sample_time", SrsJsonAny::integer(nrs->sample_time_));
     sys->set("srs_recv_bytes", SrsJsonAny::integer(nrs->rbytes_));
     sys->set("srs_send_bytes", SrsJsonAny::integer(nrs->sbytes_));

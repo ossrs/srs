@@ -92,28 +92,20 @@ srs_error_t SrsTcpConnection::set_socket_buffer(srs_utime_t buffer_v)
     return err;
 #endif
 
-    // the bytes:
-    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
-    //      128KB=131072, 256KB=262144, 512KB=524288
-    // the buffer should set to sleep*kbps/8,
-    // for example, your system delivery stream in 1000kbps,
-    // sleep 800ms for small bytes, the buffer should set to:
-    //      800*1000/8=100000B(about 128KB).
-    // other examples:
-    //      2000*3000/8=750000B(about 732KB).
-    //      2000*5000/8=1250000B(about 1220KB).
+    // The buffer should be sleep*kbps/8 bytes. For example, a 1000kbps stream that sleeps 800ms needs
+    // 800*1000/8=100000B (about 128KB). Other examples:
+    //      2000*3000/8=750000B (about 732KB).
+    //      2000*5000/8=1250000B (about 1220KB).
     int kbps = 4000;
     int iv = srsu2ms(buffer_v) * kbps / 8;
 
-    // socket send buffer, system will double it.
+    // The system doubles the SO_SNDBUF value.
     iv = iv / 2;
 
-    // override the send buffer by macro.
 #ifdef SRS_PERF_SO_SNDBUF_SIZE
     iv = SRS_PERF_SO_SNDBUF_SIZE / 2;
 #endif
 
-    // set the socket send buffer when required larger buffer
     if (srs_setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, nb_v) < 0) {
         return srs_error_new(ERROR_SOCKET_SNDBUF, "setsockopt fd=%d, r0=%d", fd, r0);
     }
@@ -214,7 +206,7 @@ srs_error_t SrsBufferedReadWriter::reload_buffer()
         return err;
     }
 
-    // We use read_fully to always full fill the cache, to avoid peeking failed.
+    // Fill the whole cache, since a short read would fail the peek.
     ssize_t nread = 0;
     if ((err = io_->read_fully(cache_, sizeof(cache_), &nread)) != srs_success) {
         return srs_error_wrap(err, "read");
@@ -319,7 +311,7 @@ SrsSslConnection::SrsSslConnection(ISrsProtocolReadWriter *c)
 SrsSslConnection::~SrsSslConnection()
 {
     if (ssl_) {
-        // this function will free bio_in_ and bio_out_
+        // SSL_free also frees bio_in_ and bio_out_.
         SSL_free(ssl_);
         ssl_ = NULL;
     }
@@ -336,7 +328,6 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 {
     srs_error_t err = srs_success;
 
-    // For HTTPS, try to connect over security transport.
 #if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
     ssl_ctx_ = SSL_CTX_new(TLS_method());
 #else
@@ -361,14 +352,12 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     SSL_set_bio(ssl_, bio_in_, bio_out_);
 
-    // SSL setup active, as server role.
     SSL_set_accept_state(ssl_);
     SSL_set_mode(ssl_, SSL_MODE_ENABLE_PARTIAL_WRITE);
 
     uint8_t *data = NULL;
     int r0, r1, size;
 
-    // Setup the key and cert file for server.
     if ((r0 = SSL_use_certificate_chain_file(ssl_, crt_file.c_str())) != 1) {
         return srs_error_new(ERROR_TLS_KEY_CRT, "use cert %s", crt_file.c_str());
     }
@@ -383,7 +372,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
     }
     srs_info("ssl: use key %s and cert %s", key_file.c_str(), crt_file.c_str());
 
-    // Receive ClientHello
+    // Receive ClientHello.
     while (true) {
         char buf[1024];
         ssize_t nn = 0;
@@ -404,7 +393,6 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
         }
 
         if ((size = BIO_get_mem_data(bio_out_, &data)) > 0) {
-            // OK, reset it for the next write.
             if ((r0 = BIO_reset(bio_in_)) != 1) {
                 return srs_error_new(ERROR_TLS_HANDSHAKE, "BIO_reset r0=%d", r0);
             }
@@ -414,7 +402,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     srs_info("tls: ClientHello done");
 
-    // Send ServerHello, Certificate, Server Key Exchange, Server Hello Done
+    // Send ServerHello, Certificate, Server Key Exchange, Server Hello Done.
     size = BIO_get_mem_data(bio_out_, &data);
     if (!data || size <= 0) {
         return srs_error_new(ERROR_TLS_HANDSHAKE, "handshake data=%p, size=%d", data, size);
@@ -428,7 +416,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     srs_info("tls: ServerHello done");
 
-    // Receive Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message
+    // Receive Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message.
     while (true) {
         char buf[1024];
         ssize_t nn = 0;
@@ -453,7 +441,6 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
         }
 
         if ((size = BIO_get_mem_data(bio_out_, &data)) > 0) {
-            // OK, reset it for the next write.
             if ((r0 = BIO_reset(bio_in_)) != 1) {
                 return srs_error_new(ERROR_TLS_HANDSHAKE, "BIO_reset r0=%d", r0);
             }
@@ -463,7 +450,7 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
     srs_info("tls: Client done");
 
-    // Send New Session Ticket, Change Cipher Spec, Encrypted Handshake Message
+    // Send New Session Ticket, Change Cipher Spec, Encrypted Handshake Message.
     size = BIO_get_mem_data(bio_out_, &data);
     if (!data || size <= 0) {
         return srs_error_new(ERROR_TLS_HANDSHAKE, "handshake data=%p, size=%d", data, size);
@@ -532,13 +519,12 @@ srs_error_t SrsSslConnection::read(void *plaintext, size_t nn_plaintext, ssize_t
         int r2 = BIO_ctrl_pending(bio_in_);
         int r3 = SSL_is_init_finished(ssl_);
 
-        // Peer gracefully close.
+        // The peer closed the TLS connection gracefully.
         if (r0 == 0 && r1 == SSL_ERROR_ZERO_RETURN) {
             return srs_error_new(ERROR_SOCKET_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                                  r0, r1, r2, r3);
         }
 
-        // OK, got data.
         if (r0 > 0) {
             srs_assert(r0 <= (int)nn_plaintext);
             if (nread) {
@@ -547,13 +533,11 @@ srs_error_t SrsSslConnection::read(void *plaintext, size_t nn_plaintext, ssize_t
             return err;
         }
 
-        // Need to read more data to feed SSL.
         if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
             // TODO: Can we avoid copy?
             int nn_cipher = nn_plaintext;
             SrsUniquePtr<char[]> cipher(new char[nn_cipher]);
 
-            // Read the cipher from SSL.
             ssize_t nn = 0;
             if ((err = transport_->read(cipher.get(), nn_cipher, &nn)) != srs_success) {
                 return srs_error_wrap(err, "tls: read");
@@ -567,7 +551,6 @@ srs_error_t SrsSslConnection::read(void *plaintext, size_t nn_plaintext, ssize_t
             continue;
         }
 
-        // Fail for error.
         if (r0 <= 0) {
             return srs_error_new(ERROR_TLS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                                  r0, r1, r2, r3);
@@ -598,7 +581,6 @@ srs_error_t SrsSslConnection::write(void *plaintext, size_t nn_plaintext, ssize_
             return srs_error_new(ERROR_TLS_WRITE, "tls: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
         }
 
-        // Move p to the next writing position.
         p += r0;
         if (nwrite) {
             *nwrite += (ssize_t)r0;

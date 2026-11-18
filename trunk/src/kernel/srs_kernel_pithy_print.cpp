@@ -89,7 +89,6 @@ SrsStageInfo *SrsStageManager::fetch_or_create(int stage_id, bool *pnew)
 {
     std::map<int, SrsStageInfo *>::iterator it = stages_.find(stage_id);
 
-    // Create one if not exists.
     if (it == stages_.end()) {
         SrsStageInfo *stage = new SrsStageInfo(stage_id);
         stage->assemble();
@@ -102,7 +101,6 @@ SrsStageInfo *SrsStageManager::fetch_or_create(int stage_id, bool *pnew)
         return stage;
     }
 
-    // Exists, fetch it.
     SrsStageInfo *stage = it->second;
 
     if (pnew) {
@@ -135,7 +133,6 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t *pnn)
     bool new_stage = false;
     SrsStageInfo *stage = stages_.fetch_or_create(error_code, &new_stage);
 
-    // Increase the count.
     stage->nn_count_++;
     nn_count_++;
 
@@ -143,7 +140,6 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t *pnn)
         *pnn = stage->nn_count_;
     }
 
-    // Always and only one client.
     if (new_stage) {
         stage->nb_clients_ = 1;
         stage->interval_ratio_ = ratio_;
@@ -165,7 +161,6 @@ bool SrsErrorPithyPrint::can_print(int error_code, uint32_t *pnn)
 
 SrsAlonePithyPrint::SrsAlonePithyPrint() : info_(0)
 {
-    // stage work for one print
     info_.nb_clients_ = 1;
 
     previous_tick_ = 0;
@@ -199,7 +194,6 @@ bool SrsAlonePithyPrint::can_print()
     return info_.can_print();
 }
 
-// The global stage manager for pithy print, multiple stages.
 SrsStageManager *_srs_stages = NULL;
 
 ISrsPithyPrint::ISrsPithyPrint()
@@ -235,41 +229,21 @@ SrsPithyPrint *SrsPithyPrint::create(int stage_id)
     return pprint;
 }
 
-///////////////////////////////////////////////////////////
-// pithy-print consts values
-///////////////////////////////////////////////////////////
-// the pithy stage for all play clients.
 #define SRS_CONSTS_STAGE_PLAY_USER 1
-// the pithy stage for all publish clients.
 #define SRS_CONSTS_STAGE_PUBLISH_USER 2
-// the pithy stage for all forward clients.
 #define SRS_CONSTS_STAGE_FORWARDER 3
-// the pithy stage for all encoders.
 #define SRS_CONSTS_STAGE_ENCODER 4
-// the pithy stage for all hls.
 #define SRS_CONSTS_STAGE_HLS 5
-// the pithy stage for all ingesters.
 #define SRS_CONSTS_STAGE_INGESTER 6
-// the pithy stage for all edge.
 #define SRS_CONSTS_STAGE_EDGE 7
-// the pithy stage for all stream caster.
 #define SRS_CONSTS_STAGE_CASTER 8
-// the pithy stage for all http stream.
 #define SRS_CONSTS_STAGE_HTTP_STREAM 9
-// the pithy stage for all http stream cache.
 #define SRS_CONSTS_STAGE_HTTP_STREAM_CACHE 10
-// for the ng-exec stage.
 #define SRS_CONSTS_STAGE_EXEC 11
-// for the rtc play
 #define SRS_CONSTS_STAGE_RTC_PLAY 12
-// for the rtc send
 #define SRS_CONSTS_STAGE_RTC_SEND 13
-// for the rtc recv
 #define SRS_CONSTS_STAGE_RTC_RECV 14
-
-// the pithy stage for srt play clients.
 #define SRS_CONSTS_STAGE_SRT_PLAY 15
-// the pithy stage for srt publish clients.
 #define SRS_CONSTS_STAGE_SRT_PUBLISH 16
 
 SrsPithyPrint *SrsPithyPrint::create_rtmp_play()

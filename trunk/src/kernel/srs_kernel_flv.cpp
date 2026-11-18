@@ -6,7 +6,7 @@
 
 #include <srs_kernel_flv.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
+// For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -77,22 +77,17 @@ int srs_rtmp_write_chunk_header(SrsMediaPacket *msg, char *cache, int nb_cache, 
 
 int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_length, int8_t message_type, int32_t stream_id, char *cache, int nb_cache)
 {
-    // to directly set the field.
     char *pp = NULL;
-
-    // generate the header.
     char *p = cache;
 
-    // no header.
     if (nb_cache < SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE) {
         return 0;
     }
 
-    // write new chunk stream header, fmt is 0
+    // Basic header, fmt 0.
     *p++ = 0x00 | (prefer_cid & 0x3F);
 
-    // chunk message header, 11 bytes
-    // timestamp, 3bytes, big-endian
+    // Timestamp, 3 bytes, big-endian.
     if (timestamp < RTMP_EXTENDED_TIMESTAMP) {
         pp = (char *)&timestamp;
         *p++ = pp[2];
@@ -104,37 +99,24 @@ int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_leng
         *p++ = (char)0xFF;
     }
 
-    // message_length, 3bytes, big-endian
+    // Message length, 3 bytes, big-endian.
     pp = (char *)&payload_length;
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
 
-    // message_type, 1bytes
     *p++ = message_type;
 
-    // stream_id, 4bytes, little-endian
+    // Message stream ID, 4 bytes, little-endian.
     pp = (char *)&stream_id;
     *p++ = pp[0];
     *p++ = pp[1];
     *p++ = pp[2];
     *p++ = pp[3];
 
-    // for c0
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    //
-    // for c3:
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    // 6.1.3. Extended Timestamp
-    // This field is transmitted only when the normal time stamp in the
-    // chunk message header is set to 0x00ffffff. If normal time stamp is
-    // set to any value less than 0x00ffffff, this field MUST NOT be
-    // present. This field MUST NOT be present if the timestamp field is not
-    // present. Type 3 chunks MUST NOT have this field.
-    // adobe changed for Type3 chunk:
-    //        FMLE always sendout the extended-timestamp,
-    //        must send the extended-timestamp to FMS,
-    //        must send the extended-timestamp to flash-player.
+    // RTMP spec 6.1.3. Extended Timestamp: 4 bytes, big-endian, sent only when the timestamp
+    // field is 0xFFFFFF, and never in a Type 3 chunk. Adobe differs for Type 3 chunks: FMLE
+    // always sends it, and FMS and Flash Player need it.
     // @see: ngx_rtmp_prepare_message
     // @see: http://blog.csdn.net/win_lin/article/details/13363699
     // TODO: FIXME: extract to outer.
@@ -146,43 +128,25 @@ int srs_chunk_header_c0(int prefer_cid, uint32_t timestamp, int32_t payload_leng
         *p++ = pp[0];
     }
 
-    // always has header
     return (int)(p - cache);
 }
 
 int srs_chunk_header_c3(int prefer_cid, uint32_t timestamp, char *cache, int nb_cache)
 {
-    // to directly set the field.
     char *pp = NULL;
-
-    // generate the header.
     char *p = cache;
 
-    // no header.
     if (nb_cache < SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE) {
         return 0;
     }
 
-    // write no message header chunk stream, fmt is 3
-    // @remark, if prefer_cid > 0x3F, that is, use 2B/3B chunk header,
-    // SRS will rollback to 1B chunk header.
+    // Basic header, fmt 3. Only the 1-byte form is written, not the 2 or 3-byte form a chunk
+    // stream ID above 63 needs.
     *p++ = 0xC0 | (prefer_cid & 0x3F);
 
-    // for c0
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    //
-    // for c3:
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    // 6.1.3. Extended Timestamp
-    // This field is transmitted only when the normal time stamp in the
-    // chunk message header is set to 0x00ffffff. If normal time stamp is
-    // set to any value less than 0x00ffffff, this field MUST NOT be
-    // present. This field MUST NOT be present if the timestamp field is not
-    // present. Type 3 chunks MUST NOT have this field.
-    // adobe changed for Type3 chunk:
-    //        FMLE always sendout the extended-timestamp,
-    //        must send the extended-timestamp to FMS,
-    //        must send the extended-timestamp to flash-player.
+    // RTMP spec 6.1.3. Extended Timestamp: 4 bytes, big-endian, sent only when the timestamp
+    // field is 0xFFFFFF, and never in a Type 3 chunk. Adobe differs for Type 3 chunks: FMLE
+    // always sends it, and FMS and Flash Player need it.
     // @see: ngx_rtmp_prepare_message
     // @see: http://blog.csdn.net/win_lin/article/details/13363699
     // TODO: FIXME: extract to outer.
@@ -194,7 +158,6 @@ int srs_chunk_header_c3(int prefer_cid, uint32_t timestamp, char *cache, int nb_
         *p++ = pp[0];
     }
 
-    // always has header
     return (int)(p - cache);
 }
 
@@ -314,7 +277,6 @@ SrsRtmpCommonMessage::SrsRtmpCommonMessage()
 
 SrsRtmpCommonMessage::~SrsRtmpCommonMessage()
 {
-    // payload_ automatically cleaned up by SrsSharedPtr
 }
 
 void SrsRtmpCommonMessage::create_payload(int size)
@@ -332,7 +294,6 @@ srs_error_t SrsRtmpCommonMessage::create(SrsMessageHeader *pheader, char *body, 
         return srs_error_new(ERROR_RTMP_MESSAGE_CREATE, "create message size=%d", size);
     }
 
-    // Create new memory block and attach the body
     payload_ = SrsSharedPtr<SrsMemoryBlock>(new SrsMemoryBlock());
     payload_->attach(body, size);
 
@@ -410,19 +371,15 @@ srs_error_t SrsFlvTransmuxer::write_header(bool has_video, bool has_audio)
     av_flag += (has_audio ? 4 : 0);
     av_flag += (has_video ? 1 : 0);
 
-    // 9bytes header and 4bytes first previous-tag-size
     char flv_header[] = {
-        'F', 'L', 'V',                                 // Signatures "FLV"
+        'F', 'L', 'V',                                 // Signature "FLV"
         (char)0x01,                                    // File version (for example, 0x01 for FLV version 1)
         (char)av_flag,                                 // 4, audio; 1, video; 5 audio+video.
         (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
     };
 
-    // flv specification should set the audio and video flag,
-    // actually in practise, application generally ignore this flag,
-    // so we generally set the audio/video to 0.
+    // In practice, applications generally ignore the audio and video flags.
 
-    // write 9bytes header.
     if ((err = write_header(flv_header)) != srs_success) {
         return srs_error_wrap(err, "write header");
     }
@@ -434,12 +391,11 @@ srs_error_t SrsFlvTransmuxer::write_header(char flv_header[9])
 {
     srs_error_t err = srs_success;
 
-    // write data.
     if ((err = writer_->write(flv_header, 9, NULL)) != srs_success) {
         return srs_error_wrap(err, "write flv header failed");
     }
 
-    // previous tag size.
+    // PreviousTagSize0.
     char pts[] = {(char)0x00, (char)0x00, (char)0x00, (char)0x00};
     if ((err = writer_->write(pts, 4, NULL)) != srs_success) {
         return srs_error_wrap(err, "write pts");
@@ -509,7 +465,6 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsMediaPacket **msgs, int count)
 {
     srs_error_t err = srs_success;
 
-    // Do realloc the iovss if required.
     iovec *iovss = iovss_cache_;
     do {
         int nn_might_iovss = 3 * count;
@@ -521,7 +476,6 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsMediaPacket **msgs, int count)
         }
     } while (false);
 
-    // Do realloc the tag headers if required.
     char *cache = tag_headers_;
     if (nb_tag_headers_ < count) {
         srs_freepa(tag_headers_);
@@ -530,7 +484,6 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsMediaPacket **msgs, int count)
         cache = tag_headers_ = new char[SRS_FLV_TAG_HEADER_SIZE * count];
     }
 
-    // Do realloc the pts if required.
     char *pts = ppts_;
     if (nb_ppts_ < count) {
         srs_freepa(ppts_);
@@ -539,29 +492,25 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsMediaPacket **msgs, int count)
         pts = ppts_ = new char[SRS_FLV_PREVIOUS_TAG_SIZE * count];
     }
 
-    // Now all caches are ok, start to write all messages.
     iovec *iovs = iovss;
     int nn_real_iovss = 0;
     for (int i = 0; i < count; i++) {
         SrsMediaPacket *msg = msgs[i];
 
-        // Cache FLV packet header.
         if (msg->is_audio()) {
             if (drop_if_not_match_ && !has_audio_)
-                continue; // Ignore audio packets if no audio stream.
+                continue;
             cache_audio(msg->timestamp_, msg->payload(), msg->size(), cache);
         } else if (msg->is_video()) {
             if (drop_if_not_match_ && !has_video_)
-                continue; // Ignore video packets if no video stream.
+                continue;
             cache_video(msg->timestamp_, msg->payload(), msg->size(), cache);
         } else {
             cache_metadata(SrsFrameTypeScript, msg->payload(), msg->size(), cache);
         }
 
-        // Cache FLV pts.
         cache_pts(SRS_FLV_TAG_HEADER_SIZE + msg->size(), pts);
 
-        // Set cache to iovec.
         iovs[0].iov_base = cache;
         iovs[0].iov_len = SRS_FLV_TAG_HEADER_SIZE;
         iovs[1].iov_base = msg->payload();
@@ -569,14 +518,12 @@ srs_error_t SrsFlvTransmuxer::write_tags(SrsMediaPacket **msgs, int count)
         iovs[2].iov_base = pts;
         iovs[2].iov_len = SRS_FLV_PREVIOUS_TAG_SIZE;
 
-        // Move to next cache.
         cache += SRS_FLV_TAG_HEADER_SIZE;
         pts += SRS_FLV_PREVIOUS_TAG_SIZE;
         iovs += 3;
         nn_real_iovss += 3;
     }
 
-    // Send out all data carried by iovec.
     if ((err = writer_->writev(iovss, nn_real_iovss, NULL)) != srs_success) {
         return srs_error_wrap(err, "write flv tags failed");
     }
@@ -588,7 +535,6 @@ void SrsFlvTransmuxer::cache_metadata(char type, char *data, int size, char *cac
 {
     srs_assert(data);
 
-    // 11 bytes tag header
     /*char tag_header[] = {
      (char)type, // TagType UB [5], 18 = script data
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
@@ -599,7 +545,6 @@ void SrsFlvTransmuxer::cache_metadata(char type, char *data, int size, char *cac
 
     SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
 
-    // write data size.
     tag_stream->write_1bytes(type);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes(0x00);
@@ -613,7 +558,6 @@ void SrsFlvTransmuxer::cache_audio(int64_t timestamp, char *data, int size, char
 
     timestamp &= 0x7fffffff;
 
-    // 11bytes tag header
     /*char tag_header[] = {
      (char)SrsFrameTypeAudio, // TagType UB [5], 8 = audio
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
@@ -624,11 +568,9 @@ void SrsFlvTransmuxer::cache_audio(int64_t timestamp, char *data, int size, char
 
     SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
 
-    // write data size.
     tag_stream->write_1bytes(SrsFrameTypeAudio);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
-    // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     tag_stream->write_3bytes(0x00);
 }
@@ -639,7 +581,6 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char *data, int size, char
 
     timestamp &= 0x7fffffff;
 
-    // 11bytes tag header
     /*char tag_header[] = {
      (char)SrsFrameTypeVideo, // TagType UB [5], 9 = video
      (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
@@ -650,11 +591,9 @@ void SrsFlvTransmuxer::cache_video(int64_t timestamp, char *data, int size, char
 
     SrsUniquePtr<SrsBuffer> tag_stream(new SrsBuffer(cache, 11));
 
-    // write data size.
     tag_stream->write_1bytes(SrsFrameTypeVideo);
     tag_stream->write_3bytes(size);
     tag_stream->write_3bytes((int32_t)timestamp);
-    // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     tag_stream->write_3bytes(0x00);
 }
@@ -669,7 +608,7 @@ srs_error_t SrsFlvTransmuxer::write_tag(char *header, int header_size, char *tag
 {
     srs_error_t err = srs_success;
 
-    // PreviousTagSizeN UI32 Size of last tag, including its header, in bytes.
+    // PreviousTagSizeN UI32: the size of the last tag, including its header.
     char pre_size[SRS_FLV_PREVIOUS_TAG_SIZE];
     cache_pts(tag_size + header_size, pre_size);
 
@@ -739,17 +678,14 @@ srs_error_t SrsFlvDecoder::read_tag_header(char *ptype, int32_t *pdata_size, uin
     srs_assert(pdata_size);
     srs_assert(ptime);
 
-    char th[11]; // tag header
+    char th[11];
 
-    // read tag header
     // TODO: FIXME: Should use readfully.
     if ((err = reader_->read(th, 11, NULL)) != srs_success) {
         return srs_error_wrap(err, "read flv tag header failed");
     }
 
-    // Reserved UB [2]
-    // Filter UB [1]
-    // TagType UB [5]
+    // Reserved UB [2], Filter UB [1], TagType UB [5].
     *ptype = (th[0] & 0x1F);
 
     // DataSize UI24
@@ -791,7 +727,6 @@ srs_error_t SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 
     srs_assert(previous_tag_size);
 
-    // ignore 4bytes tag size.
     // TODO: FIXME: Should use readfully.
     if ((err = reader_->read(previous_tag_size, 4, NULL)) != srs_success) {
         return srs_error_wrap(err, "read flv previous tag size failed");
@@ -832,10 +767,9 @@ srs_error_t SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 
     srs_assert(header);
 
-    // @remark, always false, for sizeof(char[13]) equals to sizeof(char*)
+    // Always false: an array parameter is a pointer, so sizeof(header) is sizeof(char *).
     // srs_assert(13 == sizeof(header));
 
-    // 9bytes header and 4bytes first previous-tag-size
     int size = 13;
 
     if ((err = reader_->read(header, size, NULL)) != srs_success) {
@@ -852,10 +786,6 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t *pstart
     srs_assert(pstart);
     srs_assert(psize);
 
-    // simply, the first video/audio must be the sequence header.
-    // and must be a sequence video and audio.
-
-    // 11bytes tag header
     char tag_header[] = {
         (char)0x00,                         // TagType UB [5], 9 = video, 8 = audio, 18 = script data
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
@@ -864,11 +794,8 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t *pstart
         (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
     };
 
-    // discovery the sequence header video and audio.
-    // @remark, maybe no video or no audio.
     bool got_video = false;
     bool got_audio = false;
-    // audio/video sequence and data offset.
     int64_t av_sequence_offset_start = -1;
     int64_t av_sequence_offset_end = -1;
     for (;;) {
@@ -885,21 +812,19 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t *pstart
         bool is_audio = tag_type == 0x08;
         bool is_not_av = !is_video && !is_audio;
         if (is_not_av) {
-            // skip body and tag size.
             reader_->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
             continue;
         }
 
-        // if video duplicated, no audio
+        // A second video tag means the file has no audio.
         if (is_video && got_video) {
             break;
         }
-        // if audio duplicated, no video
+        // A second audio tag means the file has no video.
         if (is_audio && got_audio) {
             break;
         }
 
-        // video
         if (is_video) {
             srs_assert(!got_video);
             got_video = true;
@@ -911,7 +836,6 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t *pstart
             reader_->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
         }
 
-        // audio
         if (is_audio) {
             srs_assert(!got_audio);
             got_audio = true;
@@ -928,7 +852,6 @@ srs_error_t SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t *pstart
         }
     }
 
-    // seek to the sequence header start offset.
     if (av_sequence_offset_start > 0) {
         reader_->seek2(av_sequence_offset_start);
         *pstart = av_sequence_offset_start;

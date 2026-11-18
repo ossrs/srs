@@ -18,10 +18,8 @@
 #include <string>
 #include <vector>
 
-// Indicates whether to enable debugging for NACK. If enabled, the specified PT(109)
-// video packet will always be dropped. You can use this option to verify the NACK
-// logic. Note that you should restart SRS after each test, as a global variable
-// controls the debugging.
+// Drops one received video packet of PT 109, the third one, to verify the NACK logic. Restart SRS after each test,
+// since a static counter controls the drop.
 #ifdef SRS_DEBUG_NACK_DROP
 #define SRS_NACK_DEBUG_DROP_ENABLED
 #endif
@@ -37,23 +35,16 @@
 class SrsRtpPacket;
 class SrsMemoryBlock;
 
-// The RTP packet max size, should never exceed this size.
 const int kRtpPacketSize = 1500;
 
-// The RTP payload max size, reserved some paddings for SRTP as such:
-//      kRtpPacketSize = kRtpMaxPayloadSize + paddings
-// For example, if kRtpPacketSize is 1500, recommend to set kRtpMaxPayloadSize to 1400,
-// which reserves 100 bytes for SRTP or paddings.
-// otherwise, the kRtpPacketSize must less than MTU, in webrtc source code,
-// the rtp max size is assigned by kVideoMtu = 1200.
-// so we set kRtpMaxPayloadSize = 1200.
-// see @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
+// Leaves room for SRTP and padding, and stays below the MTU: WebRTC sets its RTP max size to kVideoMtu = 1200.
+// See @doc https://groups.google.com/g/discuss-webrtc/c/gH5ysR3SoZI
 const int kRtpMaxPayloadSize = kRtpPacketSize - 300;
 
 const int kRtpHeaderFixedSize = 12;
 const uint8_t kRtpMarker = 0x80;
 
-// H.264 nalu header type mask.
+// The H.264 NALU header type mask.
 const uint8_t kNalTypeMask = 0x1F;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.2
@@ -67,28 +58,23 @@ const uint8_t kStapHevc = 48;
 const uint8_t kFuHevc = 49;
 
 // @see: https://tools.ietf.org/html/rfc6184#section-5.8
-const uint8_t kStart = 0x80; // Fu-header start bit
-const uint8_t kEnd = 0x40;   // Fu-header end bit
+const uint8_t kStart = 0x80; // FU header start bit
+const uint8_t kEnd = 0x40;   // FU header end bit
 
 class SrsBuffer;
 class SrsRtpRawPayload;
 class SrsRtpFUAPayload2;
 class SrsRtpExtensionTypes;
 
-// Fast parse the SSRC from RTP packet. Return 0 if invalid.
+// Each returns 0 for a packet too short to hold the field.
 uint32_t srs_rtp_fast_parse_ssrc(char *buf, int size);
 uint16_t srs_rtp_fast_parse_seq(char *buf, int size);
 uint8_t srs_rtp_fast_parse_pt(char *buf, int size);
 srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16_t &twcc_sn);
 
-// The "distance" between two uint16 number, for example:
-//      distance(prev_value=3, value=5) is (int16_t)(uint16_t)((uint16_t)3-(uint16_t)5) is -2
-//      distance(prev_value=3, value=65534) is (int16_t)(uint16_t)((uint16_t)3-(uint16_t)65534) is 5
-//      distance(prev_value=65532, value=65534) is (int16_t)(uint16_t)((uint16_t)65532-(uint16_t)65534) is -2
-// For RTP sequence, it's only uint16 and may flip back, so 3 maybe 3+0xffff.
-// @remark Note that srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
-//      but for WebRTC jitter buffer it's FALSE and we follow it.
-// @remark For srs_rtp_seq_distance(32768, 0)>0, it's FALSE definitely.
+// The RTP sequence is a uint16 that wraps.
+// @remark srs_rtp_seq_distance(0, 32768)>0 is TRUE by https://mp.weixin.qq.com/s/JZTInmlB9FUWXBQw_7NYqg
+//      but FALSE in the WebRTC jitter buffer, which this follows.
 inline int16_t srs_rtp_seq_distance(const uint16_t &prev_value, const uint16_t &value)
 {
     return (int16_t)(value - prev_value);
@@ -98,7 +84,6 @@ inline int32_t srs_rtp_ts_distance(const uint32_t &prev_value, const uint32_t &v
     return (int32_t)(value - prev_value);
 }
 
-// For map to compare the sequence of RTP.
 struct SrsSeqCompareLess {
     bool operator()(const uint16_t &pre_value, const uint16_t &value) const
     {
@@ -152,7 +137,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     uint8_t ids_[kRtpExtensionNumberOfExtensions];
 };
 
-// Note that the extensions should never extends from any class, for performance.
+// The extensions extend no class, for performance.
 class SrsRtpExtensionTwcc // : public ISrsCodec
 {
     bool has_twcc_;
@@ -164,20 +149,19 @@ public:
     virtual ~SrsRtpExtensionTwcc();
 
 public:
-    inline bool exists() { return has_twcc_; } // SrsRtpExtensionTwcc::exists
+    inline bool exists() { return has_twcc_; }
     uint8_t get_id();
     void set_id(uint8_t id);
     uint16_t get_sn();
     void set_sn(uint16_t sn);
 
 public:
-    // ISrsCodec
     virtual srs_error_t decode(SrsBuffer *buf);
     virtual srs_error_t encode(SrsBuffer *buf);
     virtual uint64_t nb_bytes();
 };
 
-// Note that the extensions should never extends from any class, for performance.
+// The extensions extend no class, for performance.
 class SrsRtpExtensionOneByte // : public ISrsCodec
 {
     bool has_ext_;
@@ -189,32 +173,30 @@ public:
     virtual ~SrsRtpExtensionOneByte();
 
 public:
-    inline bool exists() { return has_ext_; } // SrsRtpExtensionOneByte::exists
+    inline bool exists() { return has_ext_; }
     int get_id() { return id_; }
     uint8_t get_value() { return value_; }
     void set_id(int id);
     void set_value(uint8_t value);
 
 public:
-    // ISrsCodec
     virtual srs_error_t decode(SrsBuffer *buf);
     virtual srs_error_t encode(SrsBuffer *buf);
     virtual uint64_t nb_bytes() { return 2; };
 };
 
-// Note that the extensions should never extends from any class, for performance.
+// The extensions extend no class, for performance.
 class SrsRtpExtensions // : public ISrsCodec
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     bool has_ext_;
-    // by default, twcc isnot decoded. Because it is decoded by fast function(srs_rtp_fast_parse_twcc)
+    // Off by default, since srs_rtp_fast_parse_twcc reads the TWCC sequence number.
     bool decode_twcc_extension_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The extension types is used to decode the packet, which is reference to
-    // the types in publish stream.
+    // Refers to the extension types of the publish stream.
     SrsRtpExtensionTypes *types_;
 
 // clang-format off
@@ -227,14 +209,14 @@ public:
     virtual ~SrsRtpExtensions();
 
 public:
-    void enable_twcc_decode() { decode_twcc_extension_ = true; } // SrsRtpExtensions::enable_twcc_decode
-    inline bool exists() { return has_ext_; }                    // SrsRtpExtensions::exists
+    void enable_twcc_decode() { decode_twcc_extension_ = true; }
+    inline bool exists() { return has_ext_; }
     void set_types_(SrsRtpExtensionTypes *types);
     srs_error_t get_twcc_sequence_number(uint16_t &twcc_sn);
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
     srs_error_t get_audio_level(uint8_t &level);
     srs_error_t set_audio_level(int id, uint8_t level);
-    // ISrsCodec
+
 public:
     virtual srs_error_t decode(SrsBuffer *buf);
 
@@ -247,7 +229,7 @@ public:
     virtual uint64_t nb_bytes();
 };
 
-// Note that the header should never extends from any class, for performance.
+// The header extends no class, for performance.
 class SrsRtpHeader // : public ISrsCodec
 {
 // clang-format off
@@ -279,7 +261,7 @@ public:
     virtual uint64_t nb_bytes();
 
 public:
-    void enable_twcc_decode() { extensions_.enable_twcc_decode(); } // SrsRtpHeader::enable_twcc_decode
+    void enable_twcc_decode() { extensions_.enable_twcc_decode(); }
     void set_marker(bool v);
     bool get_marker() const;
     void set_payload_type(uint8_t v);
@@ -289,7 +271,7 @@ public:
     void set_timestamp(uint32_t v);
     uint32_t get_timestamp() const;
     void set_ssrc(uint32_t v);
-    inline uint32_t get_ssrc() const { return ssrc_; } // SrsRtpHeader::get_ssrc
+    inline uint32_t get_ssrc() const { return ssrc_; }
     void set_padding(uint8_t v);
     uint8_t get_padding() const;
     void set_extensions(SrsRtpExtensionTypes *extmap);
@@ -298,7 +280,6 @@ public:
     srs_error_t set_twcc_sequence_number(uint8_t id, uint16_t sn);
 };
 
-// The common payload interface for RTP packet.
 class ISrsRtpPayloader : public ISrsCodec
 {
 public:
@@ -309,7 +290,7 @@ public:
     virtual ISrsRtpPayloader *copy() = 0;
 };
 
-// The payload type, for performance to avoid dynamic cast.
+// Avoids dynamic_cast on the payload, for performance.
 enum SrsRtpPacketPayloadType {
     SrsRtpPacketPayloadTypeRaw,
     SrsRtpPacketPayloadTypeFUA2,
@@ -329,14 +310,12 @@ public:
     virtual ~ISrsRtpPacketDecodeHandler();
 
 public:
-    // We don't know the actual payload, so we depends on external handler.
+    // The packet does not know its payload format, so the handler picks the payloader.
     virtual void on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt) = 0;
 };
 
-// The RTP packet with cached shared message.
 class SrsRtpPacket
 {
-    // RTP packet fields.
 public:
     SrsRtpHeader header_;
 
@@ -347,26 +326,21 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The original shared memory block, all RTP packets can refer to its data.
-    // Note that the size of shared memory block, is not the packet size, it's a larger aligned buffer.
-    // @remark Note that it may point to the whole RTP packet(for RTP parser, which decode RTP packet from buffer),
-    //      and it may point to the RTP payload(for RTMP to RTP, which build RTP header and payload).
+    // Copies of the packet share this block, which may be larger than the packet. It holds the whole RTP packet when
+    // parsed from a buffer, or only the payload when built from RTMP.
     SrsSharedPtr<SrsMemoryBlock>
         shared_buffer_;
-    // The size of RTP packet or RTP payload.
     int actual_buffer_size_;
-    // Helper fields.
+
 public:
-    // The first byte as nalu type, for video decoder only.
+    // The NALU type of the first payload byte, for video only.
     uint8_t nalu_type_;
-    // The frame type, for RTMP bridge or SFU source.
+    // For the RTMP bridge or SFU source.
     SrsFrameType frame_type_;
-    // Fast cache for performance.
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The cached payload size for packet.
     int cached_payload_size_;
-    // The helper handler for decoder, use RAW payload if NULL.
     ISrsRtpPacketDecodeHandler *decode_handler_;
 
 // clang-format off
@@ -378,36 +352,25 @@ public:
     virtual ~SrsRtpPacket();
 
 public:
-    // Wrap buffer to shared_message, which is managed by us.
     char *wrap(int size);
     char *wrap(char *data, int size);
-    // Wrap the shared memory block, we copy it.
     char *wrap(SrsSharedPtr<SrsMemoryBlock> block);
-    // Copy the RTP packet.
     virtual SrsRtpPacket *copy();
 
 public:
-    // Parse the TWCC extension, ignore by default.
-    void enable_twcc_decode() { header_.enable_twcc_decode(); } // SrsRtpPacket::enable_twcc_decode
-    // Get and set the payload of packet.
-    // @remark Note that return NULL if no payload.
+    void enable_twcc_decode() { header_.enable_twcc_decode(); }
     void set_payload(ISrsRtpPayloader *p, SrsRtpPacketPayloadType pt)
     {
         payload_ = p;
         payload_type_ = pt;
     }
     ISrsRtpPayloader *payload() { return payload_; }
-    // Set the padding of RTP packet.
     void set_padding(int size);
-    // Increase the padding of RTP packet.
     void add_padding(int size);
-    // Set the decode handler.
     void set_decode_handler(ISrsRtpPacketDecodeHandler *h);
-    // Whether the packet is Audio packet.
     bool is_audio();
-    // Set RTP header extensions for encoding or decoding header extension
     void set_extension_types(SrsRtpExtensionTypes *v);
-    // interface ISrsEncoder
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -415,28 +378,26 @@ public:
 
 public:
     bool is_keyframe(SrsVideoCodecId codec_id);
-    // Get and set the packet sync time in milliseconds.
+    // In milliseconds.
     void set_avsync_time(int64_t avsync_time) { avsync_time_ = avsync_time; }
     int64_t get_avsync_time() const { return avsync_time_; }
 };
 
-// Single payload data.
 class SrsRtpRawPayload : public ISrsRtpPayloader
 {
 public:
-    // The RAW payload, directly point to the shared memory.
-    // @remark We only refer to the memory, user must free its bytes.
+    // Points into the packet's shared buffer, which owns the bytes.
     char *payload_;
     int nn_payload_;
 
 public:
-    // Use the whole RAW RTP payload as a sample.
+    // The whole payload as one sample.
     SrsNaluSample *sample_;
 
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -456,7 +417,7 @@ public:
 public:
     SrsRtpRtxPayload();
     virtual ~SrsRtpRtxPayload();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -464,12 +425,11 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// Multiple NALUs, automatically insert 001 between NALUs.
 class SrsRtpRawNALUs : public ISrsRtpPayloader
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // We will manage the samples, but the sample itself point to the shared memory.
+    // Owns the samples, but not the bytes they point to.
     std::vector<SrsNaluSample *>
         nalus_;
     int nn_bytes_;
@@ -484,9 +444,9 @@ public:
 
 public:
     uint8_t skip_bytes(int count);
-    // We will manage the returned samples, if user want to manage it, please copy it.
+    // The caller owns the returned samples, but not the bytes they point to.
     srs_error_t read_samples(std::vector<SrsNaluSample *> &samples, int packet_size);
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -494,14 +454,12 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// STAP-A, for multiple NALUs.
+// STAP-A.
 class SrsRtpSTAPPayload : public ISrsRtpPayloader
 {
 public:
-    // The NRI in NALU type.
     SrsAvcNaluType nri_;
-    // The NALU samples, we will manage the samples.
-    // @remark We only refer to the memory, user must free its bytes.
+    // Owns the samples, but not the bytes they point to.
     std::vector<SrsNaluSample *> nalus_;
 
 public:
@@ -512,7 +470,7 @@ public:
     SrsNaluSample *get_sps();
     SrsNaluSample *get_pps();
     SrsNaluSample *get_idr();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -520,25 +478,22 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// FU-A, for one NALU with multiple fragments.
-// With more than one payload.
+// FU-A, a fragment of one NALU.
 class SrsRtpFUAPayload : public ISrsRtpPayloader
 {
 public:
-    // The NRI in NALU type.
     SrsAvcNaluType nri_;
-    // The FUA header.
+    // The FU header.
     bool start_;
     bool end_;
     SrsAvcNaluType nalu_type_;
-    // The NALU samples, we manage the samples.
-    // @remark We only refer to the memory, user must free its bytes.
+    // Owns the samples, but not the bytes they point to.
     std::vector<SrsNaluSample *> nalus_;
 
 public:
     SrsRtpFUAPayload();
     virtual ~SrsRtpFUAPayload();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -546,25 +501,22 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// FU-A, for one NALU with multiple fragments.
-// With only one payload.
+// FU-A, a fragment of one NALU.
 class SrsRtpFUAPayload2 : public ISrsRtpPayloader
 {
 public:
-    // The NRI in NALU type.
     SrsAvcNaluType nri_;
-    // The FUA header.
+    // The FU header.
     bool start_;
     bool end_;
     SrsAvcNaluType nalu_type_;
-    // The payload and size,
     char *payload_;
     int size_;
 
 public:
     SrsRtpFUAPayload2();
     virtual ~SrsRtpFUAPayload2();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -575,8 +527,7 @@ public:
 class SrsRtpSTAPPayloadHevc : public ISrsRtpPayloader
 {
 public:
-    // The NALU samples, we will manage the samples.
-    // @remark We only refer to the memory, user must free its bytes.
+    // Owns the samples, but not the bytes they point to.
     std::vector<SrsNaluSample *> nalus_;
 
 public:
@@ -588,7 +539,7 @@ public:
     SrsNaluSample *get_sps();
     SrsNaluSample *get_pps();
     SrsNaluSample *get_idr();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -596,23 +547,21 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// FU, for one NALU with multiple fragments.
-// With more than one payload for HEVC.
+// HEVC FU, a fragment of one NALU.
 class SrsRtpFUAPayloadHevc : public ISrsRtpPayloader
 {
 public:
-    // The FUA header.
+    // The FU header.
     bool start_;
     bool end_;
     SrsHevcNaluType nalu_type_;
-    // The NALU samples, we manage the samples.
-    // @remark We only refer to the memory, user must free its bytes.
+    // Owns the samples, but not the bytes they point to.
     std::vector<SrsNaluSample *> nalus_;
 
 public:
     SrsRtpFUAPayloadHevc();
     virtual ~SrsRtpFUAPayloadHevc();
-    // interface ISrsRtpPayloader
+
 public:
     virtual uint64_t nb_bytes();
     virtual srs_error_t encode(SrsBuffer *buf);
@@ -620,8 +569,7 @@ public:
     virtual ISrsRtpPayloader *copy();
 };
 
-// FU, for one NALU with multiple fragments.
-// With only one payload for HEVC.
+// HEVC FU, a fragment of one NALU.
 class SrsRtpFUAPayloadHevc2 : public ISrsRtpPayloader
 {
 public:

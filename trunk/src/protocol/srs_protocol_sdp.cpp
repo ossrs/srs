@@ -30,8 +30,7 @@ const std::string kCRLF = "\r\n";
         return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch with delim failed"); \
     }
 
-// Fetch the rest of the line. When the last word read to the end of the line, there is no rest
-// and tellg() is -1, so the line is refused.
+// When the last word read to the end of the line, tellg() is -1.
 #define FETCH_REST(is, word)                                             \
     if (is.tellg() < 0) {                                                \
         return srs_error_new(ERROR_RTC_SDP_DECODE, "fetch rest failed"); \
@@ -74,13 +73,7 @@ srs_error_t srs_parse_h264_fmtp(const std::string &fmtp, H264SpecificParam &h264
         if (kv[0] == "profile-level-id") {
             h264_param.profile_level_id_ = kv[1];
         } else if (kv[0] == "packetization-mode") {
-            // 6.3.  Non-Interleaved Mode
-            // This mode is in use when the value of the OPTIONAL packetization-mode
-            // media type parameter is equal to 1.  This mode SHOULD be supported.
-            // It is primarily intended for low-delay applications.  Only single NAL
-            // unit packets, STAP-As, and FU-As MAY be used in this mode.  STAP-Bs,
-            // MTAPs, and FU-Bs MUST NOT be used.  The transmission order of NAL
-            // units MUST comply with the NAL unit decoding order.
+            // The value 1 is the non-interleaved mode: single NAL unit packets, STAP-A and FU-A only.
             // @see https://tools.ietf.org/html/rfc6184#section-6.3
             h264_param.packetization_mode_ = kv[1];
         } else if (kv[0] == "level-asymmetry-allowed") {
@@ -94,8 +87,8 @@ srs_error_t srs_parse_h264_fmtp(const std::string &fmtp, H264SpecificParam &h264
     if (h264_param.packetization_mode_.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no h264 param: packetization-mode");
     }
-    // The level-asymmetry-allowed is optional and defaults to 0, so it stays empty when absent,
-    // for example, from GStreamer. See https://www.rfc-editor.org/rfc/rfc6184#section-8.1
+    // The level-asymmetry-allowed is optional and defaults to 0, and some clients, such as GStreamer,
+    // leave it out. See https://www.rfc-editor.org/rfc/rfc6184#section-8.1
 
     return err;
 }
@@ -181,7 +174,7 @@ srs_error_t SrsSessionInfo::encode(std::ostringstream &os)
         os << "a=ice-pwd:" << ice_pwd_ << kCRLF;
     }
 
-    // For ICE-lite, we never set the trickle.
+    // SRS is ICE-lite, so it never sets trickle.
     if (!ice_options_.empty()) {
         os << "a=ice-options:" << ice_options_ << kCRLF;
     }
@@ -245,12 +238,8 @@ srs_error_t SrsSSRCInfo::encode(std::ostringstream &os)
         return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid ssrc");
     }
 
-    // See AnnexF at page 101 of https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
-    // Encode the bellow format:
-    //      a=ssrc:0100008888 cname:0100008888
-    //      a=ssrc:0100008888 label:gb28181
-    // As GB28181 format:
-    //      y=0100008888
+    // GB28181 carries the SSRC as a y= line instead of the a=ssrc lines, see Annex F at page 101 of
+    // https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
     if (label_ == "gb28181") {
         os << "y=" << (cname_.empty() ? srs_fmt_sprintf("%u", ssrc_) : cname_) << kCRLF;
         return err;
@@ -335,7 +324,7 @@ srs_error_t SrsMediaPayloadType::encode(std::ostringstream &os)
 
     if (!format_specific_param_.empty()) {
         os << "a=fmtp:" << payload_type_ << " " << format_specific_param_
-           // TODO: FIXME: Remove the test code bellow.
+           // TODO: FIXME: Remove the test code below.
            // << ";x-google-max-bitrate=6000;x-google-min-bitrate=5100;x-google-start-bitrate=5000"
            << kCRLF;
     }
@@ -707,7 +696,7 @@ srs_error_t SrsMediaDesc::parse_attr_mid(const std::string &value)
     // @see: https://tools.ietf.org/html/rfc3388#section-3
     srs_error_t err = srs_success;
     std::istringstream is(value);
-    // mid_ means m-line id
+    // The mid identifies the m-line.
     FETCH(is, mid_);
     srs_verbose("mid=%s", mid_.c_str());
     return err;
@@ -719,7 +708,7 @@ srs_error_t SrsMediaDesc::parse_attr_msid(const std::string &value)
     // TODO: msid and msid_tracker
     srs_error_t err = srs_success;
     std::istringstream is(value);
-    // msid_ means media stream id
+    // The msid is the media stream id.
     FETCH(is, msid_);
     is >> msid_tracker_;
     return err;
@@ -834,22 +823,8 @@ srs_error_t SrsSdp::parse(const std::string &sdp_str)
 {
     srs_error_t err = srs_success;
 
-    // All webrtc SrsSdp annotated example
-    // @see: https://tools.ietf.org/html/draft-ietf-rtcweb-SrsSdp-11
-    // Sdp example
-    // session info
-    // v=
-    // o=
-    // s=
-    // t=
-    // media description
-    // m=
-    // a=
-    // ...
-    // media description
-    // m=
-    // a=
-    // ...
+    // The session lines (v=, o=, s=, t=) come first, then each m= line with its a= lines.
+    // Annotated WebRTC SDP examples, see https://tools.ietf.org/html/draft-ietf-rtcweb-SrsSdp-11
     std::istringstream is(sdp_str);
     std::string line;
     while (getline(is, line)) {
@@ -861,7 +836,7 @@ srs_error_t SrsSdp::parse(const std::string &sdp_str)
             line.erase(line.size() - 1, 1);
         }
 
-        // Strip the space of line, for pion WebRTC client.
+        // The pion WebRTC client ends lines with spaces.
         line = srs_strings_trim_end(line, " ");
 
         if ((err = parse_line(line)) != srs_success) {
@@ -869,7 +844,7 @@ srs_error_t SrsSdp::parse(const std::string &sdp_str)
         }
     }
 
-    // The msid/tracker/mslabel is optional for SSRC, so we copy it when it's empty.
+    // The msid, mslabel and label of an a=ssrc line are optional.
     for (std::vector<SrsMediaDesc>::iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         SrsMediaDesc &media_desc = *iter;
 
@@ -1017,12 +992,12 @@ void SrsSdp::add_candidate(const std::string &protocol, const std::string &ip, c
 
 std::string SrsSdp::get_ice_ufrag() const
 {
-    // For OBS WHIP, use the global ice-ufrag.
+    // OBS WHIP sends the ice-ufrag at the session level.
     if (!session_info_.ice_ufrag_.empty()) {
         return session_info_.ice_ufrag_;
     }
 
-    // Because we use BUNDLE, so we can choose the first element.
+    // With BUNDLE, every m-line shares one transport.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.ice_ufrag_;
@@ -1033,12 +1008,12 @@ std::string SrsSdp::get_ice_ufrag() const
 
 std::string SrsSdp::get_ice_pwd() const
 {
-    // For OBS WHIP, use the global ice pwd.
+    // OBS WHIP sends the ice-pwd at the session level.
     if (!session_info_.ice_pwd_.empty()) {
         return session_info_.ice_pwd_;
     }
 
-    // Because we use BUNDLE, so we can choose the first element.
+    // With BUNDLE, every m-line shares one transport.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.ice_pwd_;
@@ -1049,7 +1024,7 @@ std::string SrsSdp::get_ice_pwd() const
 
 std::string SrsSdp::get_dtls_role() const
 {
-    // Because we use BUNDLE, so we can choose the first element.
+    // With BUNDLE, every m-line shares one transport.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.setup_;
@@ -1064,7 +1039,7 @@ std::string SrsSdp::get_fingerprint_algo() const
         return session_info_.fingerprint_algo_;
     }
 
-    // Because we use BUNDLE, so we can choose the first element.
+    // With BUNDLE, every m-line shares one transport.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.fingerprint_algo_;
@@ -1079,7 +1054,7 @@ std::string SrsSdp::get_fingerprint() const
         return session_info_.fingerprint_;
     }
 
-    // Because we use BUNDLE, so we can choose the first element.
+    // With BUNDLE, every m-line shares one transport.
     for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
         const SrsMediaDesc *desc = &(*iter);
         return desc->session_info_.fingerprint_;
@@ -1225,12 +1200,8 @@ srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string &content)
 {
     srs_error_t err = srs_success;
 
-    // See AnnexF at page 101 of https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
-    // Convert SSRC of GB28181 from:
-    //      y=0100008888
-    // to standard format:
-    //      a=ssrc:0100008888 cname:0100008888
-    //      a=ssrc:0100008888 label:gb28181
+    // GB28181 carries the SSRC as a y= line instead of the a=ssrc lines, see Annex F at page 101 of
+    // https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=469659DC56B9B8187671FF08748CEC89
     if (media_descs_.empty()) {
         return srs_error_new(ERROR_RTC_SDP_DECODE, "no media for gb ssrc %s", content.c_str());
     }
@@ -1254,8 +1225,8 @@ srs_error_t SrsSdp::parse_attr_group(const std::string &value)
     srs_error_t err = srs_success;
     // @see: https://tools.ietf.org/html/rfc5888#section-5
 
-    // Overlook the OBS WHIP group LS, as it is utilized for synchronizing the playback of
-    // the relevant media streams, see https://datatracker.ietf.org/doc/html/rfc5888#section-7
+    // OBS WHIP sends an LS group, which only asks to sync the playback of the streams, see
+    // https://datatracker.ietf.org/doc/html/rfc5888#section-7
     if (srs_strings_starts_with(value, "LS")) {
         return err;
     }

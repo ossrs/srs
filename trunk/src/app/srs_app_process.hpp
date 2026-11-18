@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-// The process interface.
 class ISrsProcess
 {
 public:
@@ -20,47 +19,25 @@ public:
     virtual ~ISrsProcess();
 
 public:
-    // Get pid of process.
     virtual int get_pid() = 0;
-    // whether process is already started.
     virtual bool started() = 0;
-    // Initialize the process with binary and argv.
     virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv) = 0;
 
 public:
-    // Start the process, ignore when already started.
     virtual srs_error_t start() = 0;
-    // cycle check the process, update the state of process.
     virtual srs_error_t cycle() = 0;
-    // Send SIGTERM then SIGKILL to ensure the process stopped.
     virtual void stop() = 0;
 
 public:
-    // The fast stop is to send a SIGTERM.
     virtual void fast_stop() = 0;
-    // Directly kill process, never use it except server quiting.
     virtual void fast_kill() = 0;
 };
 
-// Start and stop a process. Call cycle to restart the process when terminated.
-// The usage:
-//      // the binary is the process to fork.
-//      binary = "./objs/ffmpeg/bin/ffmpeg";
-//      // where argv is a array contains each params.
-//      argv = ["./objs/ffmpeg/bin/ffmpeg", "-i", "in.flv", "1", ">", "/dev/null", "2", ">", "/dev/null"];
-//
-//      process = new SrsProcess();
-//      if ((ret = process->initialize(binary, argv)) != ERROR_SUCCESS) { return ret; }
-//      if ((ret = process->start()) != ERROR_SUCCESS) { return ret; }
-//      if ((ret = process->cycle()) != ERROR_SUCCESS) { return ret; }
-//      process->fast_stop();
-//      process->stop();
 class SrsProcess : public ISrsProcess
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     bool is_started_;
-    // Whether SIGTERM send but need to wait or SIGKILL.
     bool fast_stopped_;
     pid_t pid_;
 
@@ -70,7 +47,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string stdout_file_;
     std::string stderr_file_;
     std::vector<std::string> params_;
-    // The cli to fork process.
     std::string cli_;
     std::string actual_cli_;
 
@@ -79,39 +55,23 @@ public:
     virtual ~SrsProcess();
 
 public:
-    // Get pid of process.
     virtual int get_pid();
-    // whether process is already started.
     virtual bool started();
-    // Initialize the process with binary and argv.
-    // @param binary the binary path to exec.
-    // @param argv the argv for binary path, the argv[0] generally is the binary.
-    // @remark the argv[0] must be the binary.
+    // By execv() convention, argv[0] must be the binary.
     virtual srs_error_t initialize(std::string binary, std::vector<std::string> argv);
 
 public:
-    // Start the process, ignore when already started.
     virtual srs_error_t start();
-    // cycle check the process, update the state of process.
-    // @remark when process terminated(not started), user can restart it again by start().
     virtual srs_error_t cycle();
-    // Send SIGTERM then SIGKILL to ensure the process stopped.
-    // the stop will wait [0, SRS_PROCESS_QUIT_TIMEOUT_MS] depends on the
-    // process quit timeout.
-    // @remark use fast_stop before stop one by one, when got lots of process to quit.
+    // Waits up to SRS_PROCESS_QUIT_TIMEOUT_MS for the process to quit after SIGTERM.
     virtual void stop();
 
 public:
-    // The fast stop is to send a SIGTERM.
-    // for example, the ingesters owner lots of FFMPEG, it will take a long time
-    // to stop one by one, instead the ingesters can fast_stop all FFMPEG, then
-    // wait one by one to stop, it's more faster.
-    // @remark user must use stop() to ensure the ffmpeg to stopped.
-    // @remark we got N processes to stop, compare the time we spend,
-    //      when use stop without fast_stop, we spend maybe [0, SRS_PROCESS_QUIT_TIMEOUT_MS * N]
-    //      but use fast_stop then stop, the time is almost [0, SRS_PROCESS_QUIT_TIMEOUT_MS].
+    // To stop N processes, call fast_stop on all of them, then stop on each. They then quit
+    // at the same time, in about one SRS_PROCESS_QUIT_TIMEOUT_MS, while stop alone on each
+    // takes up to N times that. The caller must still call stop to make sure the process quits.
     virtual void fast_stop();
-    // Directly kill process, never use it except server quiting.
+    // Use it only when the server quits.
     virtual void fast_kill();
 };
 

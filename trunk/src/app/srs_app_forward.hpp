@@ -30,7 +30,6 @@ class ISrsAppFactory;
 class ISrsAppConfig;
 class ISrsStatistic;
 
-// The forward interface.
 class ISrsForwarder
 {
 public:
@@ -47,7 +46,6 @@ public:
     virtual srs_error_t on_video(SrsMediaPacket *shared_video) = 0;
 };
 
-// Forward the stream to other servers.
 class SrsForwarder : public ISrsCoroutineHandler, public ISrsForwarder
 {
 // clang-format off
@@ -58,18 +56,16 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The forward id, which identifies this forwarder in the statistic and the HTTP API.
+    // Identifies this forwarder in the HTTP API.
     std::string id_;
-    // The ep to forward, server[:port].
     std::string ep_forward_;
     ISrsRequest *req_;
-    // The request of the publishing stream this forwarder belongs to, for the statistic. It differs
-    // from req_ for a forward.backend url, which has its own app and stream.
+    // The publishing stream this forwarder belongs to. It differs from req_ for a forward.backend
+    // url, which has its own app and stream.
     ISrsRequest *stream_req_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The source or stream context id to bind to.
     SrsContextId source_cid_;
 
 // clang-format off
@@ -82,16 +78,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsBasicRtmpClient *sdk_;
     SrsRtmpJitter *jitter_;
     SrsMessageQueue *queue_;
-    // Cache the metadata and sequence headers, sent first after each publish to the destination.
     SrsMediaPacket *metadata_;
     SrsMediaPacket *sh_audio_;
     SrsMediaPacket *sh_video_;
-    // Whether to drop video until the next keyframe, after a publish or a queue overflow, so the
-    // destination never starts from the middle of a GOP. Audio and sequence headers pass.
+    // So the destination never starts from the middle of a GOP.
     bool wait_keyframe_;
 
 public:
-    // The req is the publishing stream this forwarder belongs to.
     SrsForwarder(ISrsOriginHub *h, ISrsRequest *req);
     virtual ~SrsForwarder();
 
@@ -102,29 +95,21 @@ public:
 public:
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    // Forward the audio packet.
-    // @param shared_metadata, directly ptr, copy it if need to save it.
     virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata);
-    // Forward the audio packet.
-    // @param shared_audio, directly ptr, copy it if need to save it.
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
-    // Forward the video packet.
-    // @param shared_video, directly ptr, copy it if need to save it.
     virtual srs_error_t on_video(SrsMediaPacket *shared_video);
-    // Interface ISrsReusableThread2Handler.
+
 public:
     virtual srs_error_t cycle();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
-    // The full destination url to publish to, with the stream key and query.
     virtual std::string destination_url();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t forward();
-    // Enqueue a packet, and wait for the next keyframe if the queue overflows and shrinks.
     virtual srs_error_t enqueue(SrsMediaPacket *msg);
 };
 

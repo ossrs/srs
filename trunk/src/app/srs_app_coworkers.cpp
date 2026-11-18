@@ -57,11 +57,10 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
 {
     ISrsRequest *r = find_stream_info(vhost, app, stream);
     if (!r) {
-        // TODO: FIXME: Find stream from our origin util return to the start point.
+        // TODO: FIXME: Find stream from our origin until return to the start point.
         return SrsJsonAny::null();
     }
 
-    // The service port parsing from listen port.
     string listen_host;
     int listen_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     vector<string> listen_hostports = config_->get_listens();
@@ -75,9 +74,8 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
         }
     }
 
-    // The ip of server, we use the request coworker-host as ip, if listen host is localhost or loopback.
-    // For example, the server may behind a NAT(192.x.x.x), while its ip is a docker ip(172.x.x.x),
-    // we should use the NAT(192.x.x.x) address as it's the exposed ip.
+    // The server may be behind a NAT (192.x.x.x) while its own ip is a docker ip (172.x.x.x), so the
+    // NAT address in the coworker host of the request is the exposed ip.
     // @see https://github.com/ossrs/srs/issues/1501
     string service_ip;
     if (listen_host != SRS_CONSTS_LOCALHOST && listen_host != SRS_CONSTS_LOOPBACK && listen_host != SRS_CONSTS_LOOPBACK6) {
@@ -97,13 +95,12 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
         service_ip = utility.public_internet_address();
     }
 
-    // The backend API endpoint.
     string backend = config_->get_http_api_listens().at(0);
     if (backend.find(":") == string::npos) {
         backend = service_ip + ":" + backend;
     }
 
-    // The routers to detect loop and identify path.
+    // For the callers to detect a loop and identify the path.
     SrsJsonArray *routers = SrsJsonAny::array()->append(SrsJsonAny::str(backend.c_str()));
 
     srs_trace("Redirect vhost=%s, path=%s/%s to ip=%s, port=%d, api=%s",
@@ -119,13 +116,11 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
 
 ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
 {
-    // First, we should parse the vhost, if not exists, try default vhost instead.
     SrsConfDirective *conf = config_->get_vhost(vhost, true);
     if (!conf) {
         return NULL;
     }
 
-    // Get stream information from local cache.
     string url = srs_net_url_encode_sid(conf->arg0(), app, stream);
     map<string, ISrsRequest *>::iterator it = streams_.find(url);
     if (it == streams_.end()) {
@@ -141,13 +136,11 @@ srs_error_t SrsCoWorkers::on_publish(ISrsRequest *r)
 
     string url = r->get_stream_url();
 
-    // Delete the previous stream informations.
     map<string, ISrsRequest *>::iterator it = streams_.find(url);
     if (it != streams_.end()) {
         srs_freep(it->second);
     }
 
-    // Always use the latest one.
     streams_[url] = r->copy();
 
     return err;

@@ -24,20 +24,7 @@ SrsPps *_srs_pps_objs_rfua = NULL;
 SrsPps *_srs_pps_objs_rbuf = NULL;
 SrsPps *_srs_pps_objs_rothers = NULL;
 
-/* @see https://tools.ietf.org/html/rfc1889#section-5.1
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |V=2|P|X|  CC   |M|     PT      |       sequence number         |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                           timestamp                           |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |           synchronization source (SSRC) identifier            |
- +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
- |            contributing source (CSRC) identifiers             |
- |                             ....                              |
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*/
+// @see https://tools.ietf.org/html/rfc1889#section-5.1
 uint32_t srs_rtp_fast_parse_ssrc(char *buf, int size)
 {
     if (size < 12) {
@@ -72,7 +59,7 @@ srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16
 {
     srs_error_t err = srs_success;
 
-    int need_size = 12 /*rtp head fix len*/ + 4 /* extension header len*/ + 3 /* twcc extension len*/;
+    int need_size = 12 /* fixed header */ + 4 /* extension header */ + 3 /* TWCC element */;
     if (size < (need_size)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
     }
@@ -85,7 +72,7 @@ srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16
         return srs_error_new(ERROR_RTC_RTP, "no extension in rtp");
     }
 
-    need_size += cc * 4; // csrc size
+    need_size += cc * 4;
     if (size < (need_size)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
     }
@@ -101,7 +88,7 @@ srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16
     uint16_t extension_length = ntohs(*((uint16_t *)buf));
     buf += 2;
     extension_length *= 4;
-    need_size += extension_length; // entension size
+    need_size += extension_length;
     if (size < (need_size)) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "required %d bytes, actual %d", need_size, size);
     }
@@ -142,7 +129,6 @@ srs_error_t srs_rtp_fast_parse_twcc(char *buf, int size, uint8_t twcc_id, uint16
     return err;
 }
 
-// If value is newer than pre_value，return true; otherwise false
 bool srs_seq_is_newer(uint16_t value, uint16_t pre_value)
 {
     return srs_rtp_seq_distance(pre_value, value) > 0;
@@ -156,7 +142,6 @@ bool srs_seq_is_rollback(uint16_t value, uint16_t pre_value)
     return false;
 }
 
-// If value is newer then pre_value, return positive, otherwise negative.
 int32_t srs_seq_distance(uint16_t value, uint16_t pre_value)
 {
     return srs_rtp_seq_distance(pre_value, value);
@@ -397,13 +382,12 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer *buf)
     srs_error_t err = srs_success;
 
     while (!buf->empty()) {
-        // The first byte maybe padding or id+len.
         if (!buf->require(1)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
         }
         uint8_t v = *((uint8_t *)buf->head());
 
-        // Padding, ignore
+        // A zero byte is padding.
         if (v == 0) {
             buf->skip(1);
             continue;
@@ -414,8 +398,7 @@ srs_error_t SrsRtpExtensions::decode_0xbede(SrsBuffer *buf)
         // +-+-+-+-+-+-+-+-+
         // |  ID   |  len  |
         // +-+-+-+-+-+-+-+-+
-        // Note that 'len' is the header extension element length, which is the
-        // number of bytes - 1.
+        // The 'len' is the number of data bytes of the element minus one.
         uint8_t id = (v & 0xF0) >> 4;
         uint8_t len = (v & 0x0F) + 1;
 
@@ -452,7 +435,6 @@ uint64_t SrsRtpExtensions::nb_bytes()
 {
     int size = 4 + (twcc_.exists() ? twcc_.nb_bytes() : 0);
     size += (audio_level_.exists() ? audio_level_.nb_bytes() : 0);
-    // add padding
     size += (size % 4 == 0) ? 0 : (4 - size % 4);
     return size;
 }
@@ -463,7 +445,6 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer *buf)
 
     buf->write_2bytes(0xBEDE);
 
-    // Write length.
     int len = 0;
 
     if (twcc_.exists()) {
@@ -483,7 +464,6 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer *buf)
 
     buf->write_2bytes(len / 4);
 
-    // Write extensions.
     if (twcc_.exists()) {
         if ((err = twcc_.encode(buf)) != srs_success) {
             return srs_error_wrap(err, "encode twcc extension");
@@ -496,7 +476,6 @@ srs_error_t SrsRtpExtensions::encode(SrsBuffer *buf)
         }
     }
 
-    // add padding
     if (padding_count) {
         memset(buf->head(), 0, padding_count);
         buf->skip(padding_count);
@@ -637,9 +616,8 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer *buf)
 {
     srs_error_t err = srs_success;
 
-    // Encode the RTP fix header, 12bytes.
     // @see https://tools.ietf.org/html/rfc1889#section-5.1
-    // The version, padding, extension and cc, total 1 byte.
+    // V=2, P, X and CC.
     uint8_t v = 0x80 | cc_;
     if (padding_length_ > 0) {
         v |= 0x20;
@@ -649,23 +627,18 @@ srs_error_t SrsRtpHeader::encode(SrsBuffer *buf)
     }
     buf->write_1bytes(v);
 
-    // The marker and payload type, total 1 byte.
     v = payload_type_;
     if (marker_) {
         v |= kRtpMarker;
     }
     buf->write_1bytes(v);
 
-    // The sequence number, 2 bytes.
     buf->write_2bytes(sequence_);
 
-    // The timestamp, 4 bytes.
     buf->write_4bytes(timestamp_);
 
-    // The SSRC, 4 bytes.
     buf->write_4bytes(ssrc_);
 
-    // The CSRC list: 0 to 15 items, each is 4 bytes.
     for (size_t i = 0; i < cc_; ++i) {
         buf->write_4bytes(csrc_[i]);
     }
@@ -798,24 +771,18 @@ SrsRtpPacket::SrsRtpPacket()
 SrsRtpPacket::~SrsRtpPacket()
 {
     srs_freep(payload_);
-    // shared_buffer_ automatically cleaned up by SrsSharedPtr
 }
 
 char *SrsRtpPacket::wrap(int size)
 {
-    // The buffer size is larger or equals to the size of packet.
     actual_buffer_size_ = size;
 
-    // If the buffer is large enough, reuse it.
     if (shared_buffer_.get() && shared_buffer_->size() >= size) {
         return shared_buffer_->payload();
     }
 
-    // Create a large enough memory block, with under-layer buffer.
     shared_buffer_ = SrsSharedPtr<SrsMemoryBlock>(new SrsMemoryBlock());
 
-    // Create under-layer buffer for new memory block
-    // For RTC, we use larger under-layer buffer for each packet.
     int nb_buffer = srs_max(size, kRtpPacketSize);
     char *buf = new char[nb_buffer];
     shared_buffer_->attach(buf, nb_buffer);
@@ -834,9 +801,7 @@ char *SrsRtpPacket::wrap(char *data, int size)
 
 char *SrsRtpPacket::wrap(SrsSharedPtr<SrsMemoryBlock> block)
 {
-    // Copy the shared memory block.
     shared_buffer_ = block;
-    // If we wrap a memory block, the size of packet equals to the block size.
     actual_buffer_size_ = shared_buffer_.get() ? shared_buffer_->size() : 0;
 
     return shared_buffer_.get() ? shared_buffer_->payload() : NULL;
@@ -851,12 +816,11 @@ SrsRtpPacket *SrsRtpPacket::copy()
     cp->payload_type_ = payload_type_;
 
     cp->nalu_type_ = nalu_type_;
-    cp->shared_buffer_ = shared_buffer_; // Copy shared pointer
+    cp->shared_buffer_ = shared_buffer_;
     cp->actual_buffer_size_ = actual_buffer_size_;
     cp->frame_type_ = frame_type_;
 
     cp->cached_payload_size_ = cached_payload_size_;
-    // For performance issue, do not copy the unused field.
     cp->decode_handler_ = decode_handler_;
 
     cp->avsync_time_ = avsync_time_;
@@ -936,7 +900,6 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer *buf)
         return srs_error_wrap(err, "rtp header");
     }
 
-    // We must skip the padding bytes before parsing payload.
     uint8_t padding = header_.get_padding();
     if (!buf->require(padding)) {
         return srs_error_wrap(err, "requires padding %d bytes", padding);
@@ -944,12 +907,10 @@ srs_error_t SrsRtpPacket::decode(SrsBuffer *buf)
     buf->set_size(buf->size() - padding);
 
     // TODO: FIXME: We should keep payload to NULL and return if buffer is empty.
-    // If user set the decode handler, call it to set the payload.
     if (decode_handler_) {
         decode_handler_->on_before_decode_payload(this, buf, &payload_, &payload_type_);
     }
 
-    // By default, we always use the RAW payload.
     if (!payload_) {
         payload_ = new SrsRtpRawPayload();
         payload_type_ = SrsRtpPacketPayloadTypeRaw;
@@ -1006,17 +967,14 @@ bool srs_rtp_packet_h265_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader *payloa
 
 bool SrsRtpPacket::is_keyframe(SrsVideoCodecId codec_id)
 {
-    // False if audio packet
     if (SrsFrameTypeAudio == frame_type_) {
         return false;
     }
 
-    // For H264 video rtp packet
     if (codec_id == SrsVideoCodecIdAVC) {
         return srs_rtp_packet_h264_is_keyframe(nalu_type_, payload_);
     }
 
-    // For H265 video rtp packet
     if (codec_id == SrsVideoCodecIdHEVC) {
         return srs_rtp_packet_h265_is_keyframe(nalu_type_, payload_);
     }
@@ -1080,7 +1038,6 @@ ISrsRtpPayloader *SrsRtpRawPayload::copy()
     cp->payload_ = payload_;
     cp->nn_payload_ = nn_payload_;
 
-    // free sample to prevent memory leak.
     srs_freep(cp->sample_);
     cp->sample_ = sample_->copy();
 
@@ -1205,13 +1162,11 @@ srs_error_t SrsRtpRawNALUs::read_samples(vector<SrsNaluSample *> &samples, int p
     for (int i = 0; left > 0 && i < nn_nalus; i++) {
         SrsNaluSample *p = nalus_[i];
 
-        // Ignore previous consumed samples.
         if (pos && pos - p->size_ >= 0) {
             pos -= p->size_;
             continue;
         }
 
-        // Now, we are working at the sample.
         int nn = srs_min(left, p->size_ - pos);
         srs_assert(nn > 0);
 
@@ -1378,13 +1333,11 @@ srs_error_t SrsRtpSTAPPayload::encode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
     }
 
-    // STAP header, RTP payload format for aggregation packets
     // @see https://tools.ietf.org/html/rfc6184#section-5.7
     uint8_t v = kStapA;
     v |= (nri_ & (~kNalTypeMask));
     buf->write_1bytes(v);
 
-    // NALUs.
     int nn_nalus = (int)nalus_.size();
     for (int i = 0; i < nn_nalus; i++) {
         SrsNaluSample *p = nalus_[i];
@@ -1406,11 +1359,9 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
     }
 
-    // STAP header, RTP payload format for aggregation packets
     // @see https://tools.ietf.org/html/rfc6184#section-5.7
     uint8_t v = buf->read_1bytes();
 
-    // forbidden_zero_bit shoul be zero.
     // @see https://tools.ietf.org/html/rfc6184#section-5.3
     uint8_t f = (v & 0x80);
     if (f == 0x80) {
@@ -1419,7 +1370,6 @@ srs_error_t SrsRtpSTAPPayload::decode(SrsBuffer *buf)
 
     nri_ = SrsAvcNaluType(v & (~kNalTypeMask));
 
-    // NALUs.
     while (!buf->empty()) {
         if (!buf->require(2)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
@@ -1596,7 +1546,6 @@ srs_error_t SrsRtpFUAPayload2::encode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 1);
     }
 
-    // Fast encoding.
     char *p = buf->head();
 
     // FU indicator, @see https://tools.ietf.org/html/rfc6184#section-5.8
@@ -1617,7 +1566,6 @@ srs_error_t SrsRtpFUAPayload2::encode(SrsBuffer *buf)
     // FU payload, @see https://tools.ietf.org/html/rfc6184#section-5.8
     memcpy(p, payload_, size_);
 
-    // Consume bytes.
     buf->skip(2 + size_);
 
     return srs_success;
@@ -1769,12 +1717,10 @@ srs_error_t SrsRtpSTAPPayloadHevc::encode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
     }
 
-    // STAP header, RTP payload format for aggregation packets
     // @see https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
     buf->write_1bytes(kStapHevc << 1);
     buf->write_1bytes(1);
 
-    // NALUs.
     int nn_nalus = (int)nalus_.size();
     for (int i = 0; i < nn_nalus; i++) {
         SrsNaluSample *p = nalus_[i];
@@ -1796,19 +1742,16 @@ srs_error_t SrsRtpSTAPPayloadHevc::decode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
     }
 
-    // STAP header, RTP payload format for aggregation packets
     // @see https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
     uint8_t v = buf->read_1bytes();
     buf->skip(1);
 
-    // forbidden_zero_bit shoul be zero.
     // @see https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.2
     uint8_t f = (v & 0x80);
     if (f == 0x80) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "forbidden_zero_bit should be zero");
     }
 
-    // NALUs.
     while (!buf->empty()) {
         if (!buf->require(2)) {
             return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 2);
@@ -1908,7 +1851,7 @@ srs_error_t SrsRtpFUAPayloadHevc::decode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3);
     }
 
-    // skip PayloadHdr, 2 bytes
+    // The 2-byte PayloadHdr.
     buf->skip(2);
 
     uint8_t fu_header = buf->read_1bytes();
@@ -1973,13 +1916,10 @@ srs_error_t SrsRtpFUAPayloadHevc2::encode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires %d bytes", 3 + size_);
     }
 
-    // Fast encoding.
     char *p = buf->head();
 
     // PayloadHdr, @see: https://datatracker.ietf.org/doc/html/rfc7798#section-4.4.3
     /*
-     * create the HEVC payload header and transmit the buffer as fragmentation units (FU)
-     *
      *    0                   1
      *    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
      *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -2001,7 +1941,6 @@ srs_error_t SrsRtpFUAPayloadHevc2::encode(SrsBuffer *buf)
 
     memcpy(p, payload_, size_);
 
-    // Consume bytes.
     buf->skip(3 + size_);
 
     return srs_success;
@@ -2013,7 +1952,7 @@ srs_error_t SrsRtpFUAPayloadHevc2::decode(SrsBuffer *buf)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "requires 3 bytes");
     }
 
-    // skip PayloadHdr, 2 bytes
+    // The 2-byte PayloadHdr.
     buf->skip(2);
 
     uint8_t fu_header = buf->read_1bytes();

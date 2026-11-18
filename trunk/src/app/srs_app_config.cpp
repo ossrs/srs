@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// file operations.
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,23 +40,17 @@ using namespace std;
 
 using namespace srs_internal;
 
-// @global the version to identify the core.
 const char *_srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 
-// when user config an invalid value, macros to prefer true or false.
 #define SRS_CONF_PREFER_FALSE(conf_arg) conf_arg == "on"
 #define SRS_CONF_PREFER_TRUE(conf_arg) conf_arg != "off"
 
-// default config file.
 #define SRS_CONF_DEFAULT_COFNIG_FILE SRS_DEFAULT_CONFIG
 
-// '\n'
 #define SRS_LF (char)SRS_CONSTS_LF
 
-// '\r'
 #define SRS_CR (char)SRS_CONSTS_CR
 
-// Overwrite the config by env.
 #define SRS_OVERWRITE_BY_ENV_STRING(key) \
     if (!srs_getenv(key).empty())        \
     return srs_getenv(key)
@@ -101,16 +94,8 @@ const char *_srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
             return dir;                                                        \
     }
 
-/**
- * dumps the ingest/transcode-engine in @param dir to amf0 object @param engine.
- * @param dir the transcode or ingest config directive.
- * @param engine the amf0 object to dumps to.
- */
 srs_error_t srs_config_dumps_engine(SrsConfDirective *dir, SrsJsonObject *engine);
 
-/**
- * whether the ch is common space.
- */
 bool is_common_space(char ch)
 {
     return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
@@ -118,7 +103,7 @@ bool is_common_space(char ch)
 
 extern bool _srs_in_docker;
 
-// Detect docker by https://stackoverflow.com/a/41559867
+// @see https://stackoverflow.com/a/41559867
 srs_error_t srs_detect_docker(string cgroup_file)
 {
     srs_error_t err = srs_success;
@@ -169,23 +154,18 @@ srs_error_t SrsConfigBuffer::fullfill(const char *filename)
 
     SrsFileReader reader;
 
-    // open file reader.
     if ((err = reader.open(filename)) != srs_success) {
         return srs_error_wrap(err, "open file=%s", filename);
     }
 
-    // read all.
     int filesize = (int)reader.filesize();
-    // Ignore if empty file.
     if (filesize <= 0)
         return err;
 
-    // create buffer
     srs_freepa(start_);
     pos_ = last_ = start_ = new char[filesize];
     end_ = start_ + filesize;
 
-    // read total content from file.
     ssize_t nread = 0;
     if ((err = reader.read(start_, filesize, &nread)) != srs_success) {
         return srs_error_wrap(err, "read %d only %d bytes", filesize, (int)nread);
@@ -202,7 +182,6 @@ bool SrsConfigBuffer::empty()
 
 bool srs_directive_equals_self(SrsConfDirective *a, SrsConfDirective *b)
 {
-    // both NULL, equal.
     if (!a && !b) {
         return true;
     }
@@ -234,7 +213,6 @@ bool srs_directive_equals_self(SrsConfDirective *a, SrsConfDirective *b)
 
 bool srs_directive_equals(SrsConfDirective *a, SrsConfDirective *b)
 {
-    // both NULL, equal.
     if (!a && !b) {
         return true;
     }
@@ -257,7 +235,6 @@ bool srs_directive_equals(SrsConfDirective *a, SrsConfDirective *b)
 
 bool srs_directive_equals(SrsConfDirective *a, SrsConfDirective *b, string except)
 {
-    // both NULL, equal.
     if (!a && !b) {
         return true;
     }
@@ -270,7 +247,6 @@ bool srs_directive_equals(SrsConfDirective *a, SrsConfDirective *b, string excep
         SrsConfDirective *a0 = a->at(i);
         SrsConfDirective *b0 = b->at(i);
 
-        // donot compare the except child directive.
         if (a0->name_ == except && b0->name_ == except) {
             continue;
         }
@@ -361,7 +337,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
 {
     srs_error_t err = srs_success;
 
-    // SRS7.0, move global RTMP configs to rtmp section for better organization.
+    // SRS7.0 moved the global RTMP directives into the rtmp section.
     //  SRS6:
     //      listen 1935; chunk_size 60000;
     //  SRS7+:
@@ -385,7 +361,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
     for (int i = 0; i < (int)root->directives_.size(); i++) {
         SrsConfDirective *dir = root->directives_.at(i);
 
-        // SRS2.0, rename global http_stream to http_server.
+        // SRS2.0 renamed the global http_stream to http_server.
         //  SRS1:
         //      http_stream {}
         //  SRS2+:
@@ -395,7 +371,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             continue;
         }
 
-        // SRS4.0, removed the support of configs:
+        // SRS4.0 removed these directives:
         //      rtc_server { perf_stat; queue_length; }
         if (dir->name_ == "rtc_server") {
             std::vector<SrsConfDirective *>::iterator it;
@@ -412,7 +388,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
         }
 
-        // SRS4.0, rename the config:
+        // SRS5 renamed tlpkdrop to tlpktdrop.
         //  SRS4:
         //      srt_server { tlpkdrop; }
         //  SRS5:
@@ -426,7 +402,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
         }
 
-        // SRS5.0, GB28181 allows unused config.
+        // SRS5.0 GB28181 no longer uses these directives, but still accepts them:
         //      stream_caster {
         //          caster gb28181; tcp_enable; rtp_port_min; rtp_port_max; wait_keyframe; rtp_idle_timeout;
         //          audio_enable; auto_create_channel;
@@ -461,7 +437,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
         }
 
-        // SRS 5.0, GB28181 moves config from:
+        // SRS5.0 GB28181 moved the host from:
         //      stream_caster { caster gb28181; host * }
         // to:
         //      stream_caster { caster gb28181; sip { candidate *; } }
@@ -475,18 +451,16 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
         }
 
-        // The bellow is vhost scope configurations.
         if (!dir->is_vhost()) {
             continue;
         }
 
-        // for each directive of vhost.
         std::vector<SrsConfDirective *>::iterator it;
         for (it = dir->directives_.begin(); it != dir->directives_.end();) {
             SrsConfDirective *conf = *it;
             string n = conf->name_;
 
-            // SRS2.0, rename vhost http to http_static
+            // SRS2.0 renamed the vhost http to http_static.
             //  SRS1:
             //      vhost { http {} }
             //  SRS2+:
@@ -498,8 +472,8 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, ignore hstrs, always on.
-            // SRS1/2:
+            // SRS3.0 dropped hstrs, as it is always on.
+            //  SRS1/2:
             //      vhost { http_remux { hstrs; } }
             if (n == "http_remux") {
                 SrsConfDirective *hstrs = conf->get("hstrs");
@@ -507,7 +481,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 srs_freep(hstrs);
             }
 
-            // SRS3.0, change the mr style
+            // SRS3.0 moved mr into publish.
             //  SRS2:
             //      vhost { mr { enabled; latency; } }
             //  SRS3+:
@@ -535,7 +509,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the publish_1stpkt_timeout
+            // SRS3.0 moved publish_1stpkt_timeout into publish.
             //  SRS2:
             //      vhost { publish_1stpkt_timeout; }
             //  SRS3+:
@@ -553,7 +527,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the publish_normal_timeout
+            // SRS3.0 moved publish_normal_timeout into publish.
             //  SRS2:
             //      vhost { publish_normal_timeout; }
             //  SRS3+:
@@ -571,8 +545,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the bellow like a shadow:
-            //      time_jitter, mix_correct, atc, mw_latency, gop_cache, queue_length
+            // SRS3.0 moved these directives into play.
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
@@ -589,7 +562,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the forward.
+            // SRS3.0 moved the forward target into forward.destination.
             //  SRS1/2:
             //      vhost { forward target; }
             //  SRS3+:
@@ -606,8 +579,7 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the bellow like a shadow:
-            //      mode, origin, vhost, debug_srs_upnode
+            // SRS3.0 moved these directives into cluster.
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
@@ -624,9 +596,9 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS4.0, move nack/twcc to rtc:
+            // SRS4.0 moved nack and twcc into rtc, from:
             //      vhost { nack {enabled; no_copy;} twcc {enabled} }
-            // as:
+            // to:
             //      vhost { rtc { nack on; nack_no_copy on; twcc on; } }
             if (n == "nack" || n == "twcc") {
                 it = dir->directives_.erase(it);
@@ -651,11 +623,10 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 continue;
             }
 
-            // SRS3.0, change the forward.
-            //  SRS1/2:
-            //      vhost { rtc { aac; } }
-            //  SRS3+:
-            //      vhost { rtc { rtmp_to_rtc; } }
+            // Older versions wrote:
+            //      vhost { rtc { aac; bframe; } }
+            // now:
+            //      vhost { rtc { rtmp_to_rtc; keep_bframe; } }
             if (n == "rtc") {
                 SrsConfDirective *aac = conf->get("aac");
                 if (aac) {
@@ -943,7 +914,6 @@ SrsConfDirective *SrsConfDirective::set_arg0(string a0)
         return this;
     }
 
-    // update a0.
     if (!args_.empty()) {
         args_.erase(args_.begin());
     }
@@ -987,16 +957,13 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
     static char RB = SRS_CONSTS_RB;
     static const char *INDENT = "    ";
 
-    // for level0 directive, only contains sub directives.
     if (level > 0) {
-        // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
             if ((err = writer->write((char *)INDENT, 4, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write indent");
             }
         }
 
-        // directive name.
         if ((err = writer->write((char *)name_.c_str(), (int)name_.length(), NULL)) != srs_success) {
             return srs_error_wrap(err, "write name");
         }
@@ -1004,7 +971,6 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
             return srs_error_wrap(err, "write name space");
         }
 
-        // directive args.
         for (int i = 0; i < (int)args_.size(); i++) {
             std::string &arg = args_.at(i);
             if ((err = writer->write((char *)arg.c_str(), (int)arg.length(), NULL)) != srs_success) {
@@ -1015,7 +981,6 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
             }
         }
 
-        // native directive, without sub directives.
         if (directives_.empty()) {
             if ((err = writer->write((char *)&SEMICOLON, 1, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write arg semicolon");
@@ -1023,7 +988,6 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
         }
     }
 
-    // persistence all sub directives.
     if (level > 0) {
         if (!directives_.empty()) {
             if ((err = writer->write((char *)&SPACE, 1, NULL)) != srs_success) {
@@ -1047,7 +1011,6 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
     }
 
     if (level > 0 && !directives_.empty()) {
-        // indent by (level - 1) * 4 space.
         for (int i = 0; i < level - 1; i++) {
             if ((err = writer->write((char *)INDENT, 4, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write sub-dir indent");
@@ -1101,7 +1064,6 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer *buffer, SrsDirectiveCo
 {
     srs_error_t err = srs_success;
 
-    // Ignore empty config file.
     if (ctx == SrsDirectiveContextFile && buffer->empty())
         return err;
 
@@ -1123,7 +1085,6 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer *buffer, SrsDirectiveCo
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: empty directive", conf_line_);
         }
 
-        // Build normal directive which is not "include".
         if (args.at(0) != "include") {
             SrsConfDirective *directive = new SrsConfDirective();
 
@@ -1142,7 +1103,6 @@ srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer *buffer, SrsDirectiveCo
             continue;
         }
 
-        // Parse including, allow multiple files.
         vector<string> files(args.begin() + 1, args.end());
         if (files.empty()) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: include is empty directive", buffer->line_);
@@ -1233,7 +1193,6 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer *buffer, vector<string>
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "line %d: unexpected '%c'", buffer->line_, ch);
         }
 
-        // last charecter is space.
         if (last_space) {
             if (is_common_space(ch)) {
                 continue;
@@ -1276,7 +1235,6 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer *buffer, vector<string>
                 continue;
             }
         } else {
-            // last charecter is not space
             if (line_start == 0) {
                 line_start = buffer->line_;
             }
@@ -1452,7 +1410,6 @@ srs_error_t SrsConfig::reload(SrsReloadState *pstate)
     }
     srs_info("config reloader parse file success.");
 
-    // transform config to compatible with previous style of config.
     *pstate = SrsReloadStateTransforming;
     if ((err = srs_config_transform_vhost(conf.root_)) != srs_success) {
         return srs_error_wrap(err, "transform config");
@@ -1479,10 +1436,8 @@ srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
     root_ = conf->root_;
     conf->root_ = NULL;
 
-    // merge config.
     std::vector<ISrsReloadHandler *>::iterator it;
 
-    // collect all vhost names
     std::vector<std::string> vhosts;
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
         SrsConfDirective *vhost = root_->at(i);
@@ -1502,7 +1457,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
         vhosts.push_back(vhost->arg0());
     }
 
-    // process each vhost
     for (int i = 0; i < (int)vhosts.size(); i++) {
         std::string vhost = vhosts.at(i);
         srs_trace("reload vhost %s", vhost.c_str());
@@ -1510,13 +1464,11 @@ srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
         SrsConfDirective *old_vhost = old_root->get("vhost", vhost);
         SrsConfDirective *new_vhost = root_->get("vhost", vhost);
 
-        // Only compare config when both old and new vhost exist.
         // @see https://github.com/ossrs/srs/issues/4529
         if (!old_vhost || !new_vhost) {
             continue;
         }
 
-        // chunk_size, only one per vhost.
         if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
             for (it = subscribes_.begin(); it != subscribes_.end(); ++it) {
                 ISrsReloadHandler *subscribe = *it;
@@ -1536,7 +1488,6 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
 {
     srs_error_t err = srs_success;
 
-    // argv
     for (int i = 0; i < argc; i++) {
         argv_.append(argv[i]);
 
@@ -1545,7 +1496,6 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         }
     }
 
-    // Show help if it has no argv
     show_help_ = argc == 1;
     for (int i = 1; i < argc; i++) {
         if ((err = parse_argv(i, argv)) != srs_success) {
@@ -1567,32 +1517,25 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         exit(0);
     }
 
-    // The first hello message.
     srs_trace(_srs_version);
 
-    // Config the env_only_ by env.
     if (getenv("SRS_ENV_ONLY"))
         env_only_ = true;
 
-    // Overwrite the config by env SRS_CONFIG_FILE.
     if (!env_only_ && !srs_getenv("srs.config.file").empty()) { // SRS_CONFIG_FILE
         string ov = config_file_;
         config_file_ = srs_getenv("srs.config.file");
         srs_trace("ENV: Overwrite config %s to %s", ov.c_str(), config_file_.c_str());
     }
 
-    // Make sure config file exists.
     SrsPath path;
     if (!env_only_ && !path.exists(config_file_)) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", config_file_.c_str());
     }
 
-    // Parse the matched config file, or the default vhost of env only.
     err = parse_config();
 
     if (test_conf_) {
-        // the parse_file never check the config,
-        // we check it when user requires check config file.
         if (err == srs_success) {
             if ((err = check_config()) == srs_success) {
                 srs_trace("the config file %s syntax is ok", config_file_.c_str());
@@ -1610,12 +1553,10 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         return srs_error_wrap(err, "invalid config");
     }
 
-    // Ignore any error while detecting docker.
     if ((err = srs_detect_docker("/proc/1/cgroup")) != srs_success) {
         srs_freep(err);
     }
 
-    // Try to load the config if docker detect failed.
     if (!_srs_in_docker) {
         _srs_in_docker = get_in_docker();
         if (_srs_in_docker) {
@@ -1623,9 +1564,6 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check log name and level
-    ////////////////////////////////////////////////////////////////////////
     if (true) {
         std::string log_filename = this->get_log_file();
         if (get_log_tank_file() && log_filename.empty()) {
@@ -1650,13 +1588,11 @@ srs_error_t SrsConfig::parse_config()
         return err;
     }
 
-    // If use env only, there is no config file, so create the default vhost, whose settings come
-    // from env. Create it before the config test, so the test checks the vhost settings too.
+    // Create the default vhost before the config test, so the test checks its settings from env too.
     if (env_only_ && root_->directives_.empty()) {
         root_->get_or_create("vhost", "__defaultVhost__");
     }
 
-    // transform config to compatible with previous style of config.
     if ((err = srs_config_transform_vhost(root_)) != srs_success) {
         return srs_error_wrap(err, "transform");
     }
@@ -1666,7 +1602,6 @@ srs_error_t SrsConfig::parse_config()
 
 srs_error_t SrsConfig::initialize_cwd()
 {
-    // cwd
     char cwd[256];
     getcwd(cwd, sizeof(cwd));
     cwd_ = cwd;
@@ -1678,16 +1613,13 @@ srs_error_t SrsConfig::persistence()
 {
     srs_error_t err = srs_success;
 
-    // write to a tmp file, then mv to the config.
     std::string path = config_file_ + ".tmp";
 
-    // open the tmp file for persistence
     SrsFileWriter fw;
     if ((err = fw.open(path)) != srs_success) {
         return srs_error_wrap(err, "open file");
     }
 
-    // do persistence to writer.
     err = do_persistence(&fw);
 
     // Windows can neither rename nor unlink a file that is still open.
@@ -1699,7 +1631,6 @@ srs_error_t SrsConfig::persistence()
         return srs_error_wrap(err, "persistence");
     }
 
-    // rename the config file.
     if (srs_rename(path.c_str(), config_file_.c_str()) < 0) {
         SrsPath p;
         p.unlink(path);
@@ -1713,7 +1644,6 @@ srs_error_t SrsConfig::do_persistence(SrsFileWriter *fw)
 {
     srs_error_t err = srs_success;
 
-    // persistence root directive to writer.
     if ((err = root_->persistence(fw, 0)) != srs_success) {
         return srs_error_wrap(err, "root persistence");
     }
@@ -2165,7 +2095,6 @@ srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer **pbuffer)
     return err;
 }
 
-// Parse the value as a finite number, such as 10, 0.5 or 1e3; false for nan, inf or a value with no number.
 static bool srs_config_parse_finite(const string &value, double *v)
 {
     const char *s = value.c_str();
@@ -2174,16 +2103,14 @@ static bool srs_config_parse_finite(const string &value, double *v)
     return end != s && std::isfinite(*v);
 }
 
-// Whether a time directive's value, in seconds or milliseconds, is a finite number that is not negative,
-// such as 10, 0.5 or 1e3. The getters read it with atof and cast it to srs_utime_t, which is undefined for
-// nan or inf, and a negative time or a value with no number has no meaning for any of them.
+// The getters read a time, in seconds or milliseconds, with atof and cast it to srs_utime_t, which is undefined
+// for nan or inf, and a negative time or a value with no number has no meaning for any of them.
 static bool srs_config_time_valid(const string &value)
 {
     double v;
     return srs_config_parse_finite(value, &v) && v >= 0;
 }
 
-// The time directives of a vhost the getters read with atof, by section, name and env var.
 static const char *srs_config_vhost_times[][3] = {
     {"rtc", "stun_timeout", "SRS_VHOST_RTC_STUN_TIMEOUT"},
     {"rtc", "pli_for_rtmp", "SRS_VHOST_RTC_PLI_FOR_RTMP"},
@@ -2201,7 +2128,6 @@ static const char *srs_config_vhost_times[][3] = {
     {"http_remux", "fast_cache", "SRS_VHOST_HTTP_REMUX_FAST_CACHE"},
 };
 
-// Check the time directive name of the section, which is fine when the section or the value is not there.
 static srs_error_t srs_config_check_time(SrsConfDirective *section, const string &name, const string &where)
 {
     SrsConfDirective *conf = section ? section->get(name) : NULL;
@@ -2217,33 +2143,29 @@ static srs_error_t srs_config_check_time(SrsConfDirective *section, const string
     return srs_success;
 }
 
-// Whether an HLS ratio's value is a finite number above zero, such as 1.5 or 2. The muxer multiplies the
-// fragment by it into a srs_utime_t, which is undefined for nan or inf, and a ratio of zero or below has no
-// meaning for the target duration or the pure audio segment.
+// The HLS muxer multiplies the fragment by a ratio into a srs_utime_t, which is undefined for nan or inf, and a
+// ratio of zero or below has no meaning for the target duration or the pure audio segment.
 static bool srs_config_ratio_valid(const string &value)
 {
     double v;
     return srs_config_parse_finite(value, &v) && v > 0;
 }
 
-// The HLS ratios the getters read with atof, by name and env var.
 static const char *srs_config_hls_ratios[][2] = {
     {"hls_td_ratio", "SRS_VHOST_HLS_HLS_TD_RATIO"},
     {"hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
 };
 
-// The integer directives of a vhost with a lowest value, by section, name, env var and the lowest value. The MPD
-// lists the last dash_window_size segments, so it needs at least 1, and hls_nb_notify is the size to read of the
-// notify response, so it can not be negative. The getters read them with atoi.
+// The MPD lists the last dash_window_size segments, so it needs at least 1, and hls_nb_notify is the size to read
+// of the notify response, so it can not be negative.
 static const char *srs_config_vhost_mins[][3] = {
     {"dash", "dash_window_size", "SRS_VHOST_DASH_DASH_WINDOW_SIZE"},
     {"hls", "hls_nb_notify", "SRS_VHOST_HLS_HLS_NB_NOTIFY"},
 };
 static const int srs_config_vhost_min_values[] = {1, 0};
 
-// Whether the value is a decimal integer in the range of an int and not below the lowest value. The getter reads it
-// with atoi, which gives another number for a value out of that range, such as 0 for 4294967296, or one it stops
-// reading early, such as 0 for 0x10, so only a value atoi reads whole is checked.
+// The getter reads the value with atoi, which gives another number for a value out of the int range, such as 0 for
+// 4294967296, or for one it stops reading early, such as 0 for 0x10.
 static bool srs_config_min_valid(const string &value, int min)
 {
     const char *s = value.c_str();
@@ -2256,8 +2178,7 @@ static bool srs_config_min_valid(const string &value, int min)
     return v >= min && v <= INT_MAX;
 }
 
-// Whether a dash_fragment, in seconds, is above zero once the getter casts it to srs_utime_t, as the MPD writer
-// names the segments of a fragment and a fragment of zero has no segment.
+// The MPD writer names the segments of a fragment, and a fragment of zero has no segment.
 static bool srs_config_dash_fragment_valid(const string &value)
 {
     double v;
@@ -2276,7 +2197,6 @@ srs_error_t SrsConfig::check_config()
         return srs_error_wrap(err, "check connections");
     }
 
-    // If use the full.conf, fail.
     if (is_full_config()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
                              "never use full.conf(%s)", config_file_.c_str());
@@ -2291,9 +2211,6 @@ srs_error_t SrsConfig::check_normal_config()
 
     srs_trace("srs checking config...");
 
-    ////////////////////////////////////////////////////////////////////////
-    // check root directives.
-    ////////////////////////////////////////////////////////////////////////
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
         SrsConfDirective *conf = root_->at(i);
         std::string n = conf->name_;
@@ -2508,9 +2425,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check listen for rtmp.
-    ////////////////////////////////////////////////////////////////////////
     if (true) {
         vector<string> listens = get_listens();
         for (int i = 0; i < (int)listens.size(); i++) {
@@ -2520,9 +2434,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check listen for rtmps and exporter.
-    ////////////////////////////////////////////////////////////////////////
     if (get_rtmps_enabled()) {
         vector<string> listens = get_rtmps_listen();
         for (int i = 0; i < (int)listens.size(); i++) {
@@ -2538,9 +2449,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check time directives, from the file and the env, before any getter reads them.
-    ////////////////////////////////////////////////////////////////////////
+    // Check the times, from the file and the env, before any getter reads them.
     if (true) {
         vector<string> envs;
         envs.push_back("SRS_HEARTBEAT_INTERVAL");
@@ -2583,9 +2492,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check the HLS ratios, from the file and the env, before any getter reads them.
-    ////////////////////////////////////////////////////////////////////////
+    // Check the HLS ratios, from the file and the env, before any getter reads them.
     if (true) {
         for (int i = 0; i < (int)(sizeof(srs_config_hls_ratios) / sizeof(srs_config_hls_ratios[0])); i++) {
             string env = srs_config_hls_ratios[i][1];
@@ -2611,10 +2518,8 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check the integers with a lowest value and the DASH fragment, from the file and the env, before any getter
+    // Check the integers with a lowest value and the DASH fragment, from the file and the env, before any getter
     // reads them.
-    ////////////////////////////////////////////////////////////////////////
     if (true) {
         for (int i = 0; i < (int)(sizeof(srs_config_vhost_mins) / sizeof(srs_config_vhost_mins[0])); i++) {
             string env = srs_config_vhost_mins[i][2];
@@ -2655,11 +2560,8 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check the tcmalloc release rate, from the file and the env, before the getter reads it. It must be a
-    // finite number: the getter reads it with atof and clamps it to 0 to 10 with srs_min and srs_max, which
-    // pass nan through to tcmalloc, and a value with no number has no rate.
-    ////////////////////////////////////////////////////////////////////////
+    // The getter clamps the tcmalloc release rate with srs_min and srs_max, which pass nan through to tcmalloc, and a
+    // value with no number has no rate.
     if (true) {
         double rate;
         string value = srs_getenv("SRS_TCMALLOC_RELEASE_RATE");
@@ -2675,17 +2577,11 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check heartbeat
-    ////////////////////////////////////////////////////////////////////////
     if (get_heartbeat_interval() <= 0) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid heartbeat.interval=%" PRId64,
                              get_heartbeat_interval());
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check stats
-    ////////////////////////////////////////////////////////////////////////
     if (get_stats_network() < 0) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid stats.network=%d", get_stats_network());
     }
@@ -2715,9 +2611,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Check HTTP API and server.
-    ////////////////////////////////////////////////////////////////////////
     if (true) {
         vector<string> apis = get_http_api_listens();
         if (apis.empty()) {
@@ -2761,7 +2654,6 @@ srs_error_t SrsConfig::check_normal_config()
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "https stream depends on http");
         }
 
-        // Validate HTTPS stream listen addresses
         if (get_https_stream_enabled()) {
             vector<string> https_listens = get_https_stream_listens();
             for (int i = 0; i < (int)https_listens.size(); i++) {
@@ -2772,11 +2664,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Check RTSP server.
-    ////////////////////////////////////////////////////////////////////////
     if (get_rtsp_server_enabled()) {
-        // Validate RTSP server listen addresses
         vector<string> rtsp_listens = get_rtsp_server_listens();
         for (int i = 0; i < (int)rtsp_listens.size(); i++) {
             if (!srs_net_is_valid_endpoint(rtsp_listens[i])) {
@@ -2785,11 +2673,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Check RTC server.
-    ////////////////////////////////////////////////////////////////////////
     if (get_rtc_server_enabled()) {
-        // Validate RTC server listen addresses
         vector<string> rtc_listens = get_rtc_server_listens();
         for (int i = 0; i < (int)rtc_listens.size(); i++) {
             if (!srs_net_is_valid_endpoint(rtc_listens[i])) {
@@ -2797,7 +2681,6 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
 
-        // Validate RTC server TCP listen addresses
         if (get_rtc_server_tcp_enabled()) {
             vector<string> rtc_tcp_listens = get_rtc_server_tcp_listens();
             for (int i = 0; i < (int)rtc_tcp_listens.size(); i++) {
@@ -2808,11 +2691,7 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Check SRT server.
-    ////////////////////////////////////////////////////////////////////////
     if (get_srt_enabled()) {
-        // Validate SRT server listen addresses
         vector<string> srt_listens = get_srt_listens();
         for (int i = 0; i < (int)srt_listens.size(); i++) {
             if (!srs_net_is_valid_endpoint(srt_listens[i])) {
@@ -2821,9 +2700,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check log name and level
-    ////////////////////////////////////////////////////////////////////////
     if (true) {
         std::string log_filename = this->get_log_file();
         if (get_log_tank_file() && log_filename.empty()) {
@@ -2837,9 +2713,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check features
-    ////////////////////////////////////////////////////////////////////////
     vector<SrsConfDirective *> stream_casters = get_stream_casters();
     for (int n = 0; n < (int)stream_casters.size(); n++) {
         SrsConfDirective *stream_caster = stream_casters[n];
@@ -2865,9 +2738,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check vhosts.
-    ////////////////////////////////////////////////////////////////////////
     vector<SrsConfDirective *> vhosts;
     get_vhosts(vhosts);
     for (int n = 0; n < (int)vhosts.size(); n++) {
@@ -2899,7 +2769,6 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "forward" && n != "transcode" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
-            // for each sub directives of vhost.
             if (n == "dvr") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
@@ -3046,9 +2915,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check HLS with HTTP-TS
-    ////////////////////////////////////////////////////////////////////////
     for (int n = 0; n < (int)vhosts.size(); n++) {
         SrsConfDirective *vhost = vhosts[n];
 
@@ -3064,12 +2930,10 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
 
-                    // http_remux enabled
                     if (m == "enabled" && conf->at(j)->arg0() == "on") {
                         http_remux_enabled = true;
                     }
 
-                    // check mount suffix '.ts'
                     if (http_remux_enabled && m == "mount" && srs_strings_ends_with(conf->at(j)->arg0(), ".ts")) {
                         http_remux_ts = true;
                     }
@@ -3079,7 +2943,6 @@ srs_error_t SrsConfig::check_normal_config()
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
 
-                    // hls enabled
                     if (m == "enabled" && conf->at(j)->arg0() == "on") {
                         hls_enabled = true;
                     }
@@ -3087,18 +2950,15 @@ srs_error_t SrsConfig::check_normal_config()
             }
         }
 
-        // check valid http-remux count
         if (http_remux_cnt > 1) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.http_remux only one but count=%d of %s", http_remux_cnt, vhost->arg0().c_str());
         }
 
-        // check hls conflict with http-ts
         if (hls_enabled && http_remux_ts) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hls conflict with vhost.http-ts of %s", vhost->arg0().c_str());
         }
     }
 
-    // Check forward dnd kickoff for publsher idle.
     for (int n = 0; n < (int)vhosts.size(); n++) {
         SrsConfDirective *vhost = vhosts[n];
         if (get_forward_enabled(vhost) && get_publish_kickoff_for_idle(vhost)) {
@@ -3106,7 +2966,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    // check ingest id unique.
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective *vhost = vhosts[i];
         std::vector<std::string> ids;
@@ -3128,9 +2987,6 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // check chunk size
-    ////////////////////////////////////////////////////////////////////////
     if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
         srs_warn("chunk_size=%d should be in [%d, %d]", get_global_chunk_size(),
                  SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
@@ -3150,16 +3006,12 @@ srs_error_t SrsConfig::check_number_connections()
 {
     srs_error_t err = srs_success;
 
-    ////////////////////////////////////////////////////////////////////////
-    // check max connections
-    ////////////////////////////////////////////////////////////////////////
     int nb_connections = get_max_connections();
     if (nb_connections <= 0) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "max_connections=%d is invalid", nb_connections);
     }
 
-    // check max connections of system limits
-    int nb_total = nb_connections + 128; // Simple reserved some fds.
+    int nb_total = nb_connections + 128; // Reserve some fds.
     int max_open_files = srs_fd_limit();
     if (nb_total >= max_open_files) {
         srs_error("max_connections=%d, system limit to %d, please run: ulimit -HSn %d", nb_connections, max_open_files, srs_max(10000, nb_connections * 10));
@@ -3173,11 +3025,10 @@ srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer *buffer)
 {
     srs_error_t err = srs_success;
 
-    // We use a new root to parse buffer, to allow parse multiple times.
+    // A new root, so a config can be parsed more than once.
     srs_freep(root_);
     root_ = new SrsConfDirective();
 
-    // Parse root tree from buffer.
     if ((err = root_->parse(buffer, this)) != srs_success) {
         return srs_error_wrap(err, "root parse");
     }
@@ -3291,20 +3142,16 @@ void srs_try_write_file(string path, string content)
 
 string SrsConfig::get_server_id()
 {
-    // The server id file is kept next to the pid file, so there is none without a pid file.
     string pid_file = get_pid_file();
 
-    // Try to read the default from server id file.
     if (default_server_id_.empty() && !pid_file.empty()) {
         default_server_id_ = srs_try_read_file(srs_server_id_path(pid_file));
     }
 
-    // Generate a random one if empty.
     if (default_server_id_.empty()) {
         default_server_id_ = srs_generate_stat_vid(rand_);
     }
 
-    // Get the server id from env, config or the default.
     string server_id;
 
     if (!srs_getenv("srs.server_id").empty()) { // SRS_SERVER_ID
@@ -3320,7 +3167,6 @@ string SrsConfig::get_server_id()
         server_id = default_server_id_;
     }
 
-    // Write server id to tmp file.
     if (!pid_file.empty()) {
         srs_try_write_file(srs_server_id_path(pid_file), server_id);
     }
@@ -3924,7 +3770,6 @@ vector<string> SrsConfig::get_rtsp_server_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -4026,7 +3871,6 @@ vector<string> SrsConfig::get_rtc_server_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back("8000");
     }
@@ -4061,7 +3905,6 @@ std::string SrsConfig::get_rtc_server_candidates()
         return eip;
     }
 
-    // If configed as ENV, but no ENV set, use default value.
     if (srs_strings_starts_with(conf->arg0(), "$")) {
         return DEFAULT;
     }
@@ -4201,7 +4044,6 @@ vector<string> SrsConfig::get_rtc_server_tcp_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -4849,12 +4691,10 @@ bool SrsConfig::get_vhost_enabled(SrsConfDirective *conf)
 {
     static bool DEFAULT = true;
 
-    // false for NULL vhost.
     if (!conf) {
         return false;
     }
 
-    // prefer true for exists one.
     conf = conf->get("enabled");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
@@ -5077,15 +4917,11 @@ int SrsConfig::get_chunk_size(string vhost)
 
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
-        // vhost does not specify the chunk size,
-        // use the global instead.
         return get_global_chunk_size();
     }
 
     conf = conf->get("chunk_size");
     if (!conf || conf->arg0().empty()) {
-        // vhost does not specify the chunk size,
-        // use the global instead.
         return get_global_chunk_size();
     }
 
@@ -5374,7 +5210,7 @@ srs_utime_t SrsConfig::get_publish_1stpkt_timeout(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.firstpkt_timeout"); // SRS_VHOST_PUBLISH_FIRSTPKT_TIMEOUT
 
-    // when no msg recevied for publisher, use larger timeout.
+    // Larger, as the publisher has sent no message yet.
     static srs_utime_t DEFAULT = 20 * SRS_UTIME_SECONDS;
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5399,9 +5235,7 @@ srs_utime_t SrsConfig::get_publish_normal_timeout(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_MILLISECONDS("srs.vhost.publish.normal_timeout"); // SRS_VHOST_PUBLISH_NORMAL_TIMEOUT
 
-    // the timeout for publish recv.
-    // we must use more smaller timeout, for the recv never know the status
-    // of underlayer socket.
+    // Smaller, as the receiver never knows the state of the underlying socket.
     static srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -7134,7 +6968,7 @@ string SrsConfig::get_hls_on_error(string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_on_error"); // SRS_VHOST_HLS_HLS_ON_ERROR
 
-    // try to ignore the error.
+    // Try to ignore the error.
     static string DEFAULT = "continue";
 
     SrsConfDirective *conf = get_hls(vhost);
@@ -7344,7 +7178,6 @@ string SrsConfig::get_hls_key_file_path(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_file_path"); // SRS_VHOST_HLS_HLS_KEY_FILE_PATH
 
-    // put the key in the vhost's hls_path defaultly.
     string DEFAULT = get_hls_path(vhost);
 
     SrsConfDirective *conf = get_hls(vhost);
@@ -7644,7 +7477,6 @@ vector<string> SrsConfig::get_http_api_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -7721,13 +7553,13 @@ bool SrsConfig::get_raw_api_allow_reload()
 
 bool SrsConfig::get_raw_api_allow_query()
 {
-    // Disable RAW API query, @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
+    // @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
     return false;
 }
 
 bool SrsConfig::get_raw_api_allow_update()
 {
-    // Disable RAW API update, @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
+    // @see https://github.com/ossrs/srs/issues/2653#issuecomment-939389178
     return false;
 }
 
@@ -7912,8 +7744,6 @@ vector<string> SrsConfig::get_https_api_listens()
         return srs_strings_split(srs_getenv("srs.http_api.https.listen"), " ");
     }
 
-    // If HTTP API uses the same port to HTTP server, then HTTPS API should
-    // always default to the same port to HTTPS server.
     if (true) {
         vector<string> apis = get_http_api_listens();
         vector<string> servers = get_http_stream_listens();
@@ -7940,7 +7770,6 @@ vector<string> SrsConfig::get_https_api_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -8031,7 +7860,6 @@ vector<string> SrsConfig::get_srt_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -8441,7 +8269,6 @@ vector<string> SrsConfig::get_http_stream_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }
@@ -8542,7 +8369,6 @@ vector<string> SrsConfig::get_https_stream_listens()
         listens.push_back(conf->args_.at(i));
     }
 
-    // If no arguments, use default
     if (listens.empty()) {
         listens.push_back(DEFAULT);
     }

@@ -60,7 +60,6 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 {
     srs_error_t err = srs_success;
 
-    // dumps the config of vhost.
     bool hls_enabled = config_->get_hls_enabled(vhost_);
     bool enabled = config_->get_vhost_enabled(vhost_);
 
@@ -206,7 +205,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
         audio->set("sample_rate", SrsJsonAny::integer(srs_audio_sample_rate2number(asample_rate_)));
         audio->set("channel", SrsJsonAny::integer(asound_type_ + 1));
 
-        // G.711 codecs don't have profiles, similar to VP9/AV1
+        // G.711 codecs have no profiles, like VP9 and AV1.
         if (acodec_ == SrsAudioCodecIdPCMA || acodec_ == SrsAudioCodecIdPCMU) {
             audio->set("profile", SrsJsonAny::null());
         } else {
@@ -219,7 +218,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
 
 void SrsStatisticStream::publish(std::string id)
 {
-    // To prevent duplicated publish event by bridge.
+    // The bridge may send the publish event again.
     if (active_) {
         return;
     }
@@ -232,7 +231,6 @@ void SrsStatisticStream::publish(std::string id)
 
 void SrsStatisticStream::close()
 {
-    // To prevent duplicated close event.
     if (!active_) {
         return;
     }
@@ -554,7 +552,6 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
     SrsStatisticVhost *vhost = create_vhost(req);
     SrsStatisticStream *stream = create_stream(vhost, req);
 
-    // create client if not exists
     SrsStatisticClient *client = NULL;
     if (clients_.find(id) == clients_.end()) {
         client = new SrsStatisticClient();
@@ -568,9 +565,8 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
         nb_clients_++;
     } else {
         client = clients_[id];
-        // A client added again to its stream counts once, such as a WebRTC player, which is added
-        // before its on_play hook, then again when its session makes its player. A client added
-        // to another stream moves to it, so its disconnect leaves the stream it is on.
+        // A WebRTC player is added before its on_play hook, then again when its session makes its
+        // player.
         SrsStatisticStream *old = client->stream_;
         if (old != stream) {
             old->nb_clients_--;
@@ -584,11 +580,10 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
         }
     }
 
-    // got client.
     client->conn_ = conn;
     client->type_ = type;
 
-    // The req might be freed, in such as SrsLiveStream::update, so we must copy it.
+    // The req may be freed, such as in SrsLiveStream::update, so keep a copy.
     // @see https://github.com/ossrs/srs/issues/2311
     srs_freep(client->req_);
     client->req_ = req->copy();
@@ -665,7 +660,7 @@ void SrsStatistic::on_forward_stop(std::string id)
     srs_freep(forward);
     forwards_.erase(it);
 
-    // Cleanup the stream when the last forward of it stops, in case only the forwards created it.
+    // The forwards alone may have created the stream, so clean it up after the last one stops.
     for (it = forwards_.begin(); it != forwards_.end(); ++it) {
         if (it->second->stream_id_ == stream_id) {
             return;
@@ -695,18 +690,15 @@ void SrsStatistic::remove_forwards_of(SrsStatisticStream *stream)
 
 void SrsStatistic::cleanup_stream(SrsStatisticStream *stream)
 {
-    // If stream has publisher(not active) or player(clients), never cleanup it.
     if (stream->active_ || stream->nb_clients_ > 0) {
         return;
     }
 
-    // There should not be any clients referring to the stream.
     for (std::map<std::string, SrsStatisticClient *>::iterator it = clients_.begin(); it != clients_.end(); ++it) {
         SrsStatisticClient *client = it->second;
         srs_assert(client->stream_ != stream);
     }
 
-    // Do cleanup streams.
     if (true) {
         std::map<std::string, SrsStatisticStream *>::iterator it;
         if ((it = streams_.find(stream->id_)) != streams_.end()) {
@@ -721,7 +713,6 @@ void SrsStatistic::cleanup_stream(SrsStatisticStream *stream)
         }
     }
 
-    // It's safe to delete the stream now.
     srs_freep(stream);
 }
 
@@ -736,12 +727,9 @@ void SrsStatistic::kbps_add_delta(std::string id, ISrsKbpsDelta *delta)
 
     SrsStatisticClient *client = it->second;
 
-    // resample the kbps to collect the delta.
     int64_t in, out;
     delta->remark(&in, &out);
 
-    // add delta of connection to kbps.
-    // for next sample() of server kbps can get the stat.
     kbps_->add_delta(in, out);
     client->kbps_->add_delta(in, out);
     client->stream_->kbps_->add_delta(in, out);
@@ -775,7 +763,6 @@ void SrsStatistic::kbps_sample()
         }
     }
 
-    // Update server level data.
     srs_update_rtmp_server((int)clients_.size(), kbps_);
 }
 
@@ -874,7 +861,6 @@ srs_error_t SrsStatistic::dumps_forwards(SrsJsonArray *arr, std::string stream_i
 {
     srs_error_t err = srs_success;
 
-    // The start and count apply after the stream filter.
     int i = 0;
     std::map<std::string, SrsStatisticForward *>::iterator it;
     for (it = forwards_.begin(); i < start + count && it != forwards_.end(); it++) {
@@ -929,7 +915,6 @@ void SrsStatistic::dumps_hints_kv(std::stringstream &ss)
         ss << "&send=" << kbps_->get_send_kbps_30s();
     }
 
-    // For HEVC, we should check active stream which is HEVC codec.
     for (std::map<std::string, SrsStatisticStream *>::iterator it = streams_.begin(); it != streams_.end(); it++) {
         SrsStatisticStream *stream = it->second;
         if (stream->vcodec_ == SrsVideoCodecIdHEVC) {
@@ -943,7 +928,6 @@ SrsStatisticVhost *SrsStatistic::create_vhost(ISrsRequest *req)
 {
     SrsStatisticVhost *vhost = NULL;
 
-    // create vhost if not exists.
     if (rvhosts_.find(req->vhost_) == rvhosts_.end()) {
         vhost = new SrsStatisticVhost();
         vhost->assemble();
@@ -960,16 +944,14 @@ SrsStatisticVhost *SrsStatistic::create_vhost(ISrsRequest *req)
 
 SrsStatisticStream *SrsStatistic::create_stream(SrsStatisticVhost *vhost, ISrsRequest *req)
 {
-    // To identify a stream, use url without extension, for example, the bellow are the same stream:
+    // The url has no schema, extension or default vhost, so these are the same stream:
     //      ossrs.io/live/livestream
     //      ossrs.io/live/livestream.flv
     //      ossrs.io/live/livestream.m3u8
-    // Note that we also don't use schema, and vhost is optional.
     string url = req->get_stream_url();
 
     SrsStatisticStream *stream = NULL;
 
-    // create stream if not exists.
     if (rstreams_.find(url) == rstreams_.end()) {
         stream = new SrsStatisticStream();
         stream->assemble();

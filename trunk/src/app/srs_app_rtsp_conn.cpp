@@ -89,7 +89,6 @@ SrsRtspPlayStream::~SrsRtspPlayStream()
         }
     }
 
-    // update the statistic when client coveried.
     // TODO: FIXME: Should finger out the err.
     stat_->on_disconnect(cid_.c_str(), srs_success);
 
@@ -142,7 +141,6 @@ void SrsRtspPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
     cache_track0_ = cache_track1_ = cache_track2_ = NULL;
 
-    // Refresh the relation for audio.
     // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         if (!audio_tracks_.empty()) {
@@ -163,8 +161,7 @@ void SrsRtspPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
         }
     }
 
-    // Refresh the relation for video.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->video_track_descs_.size() == 1) {
         if (!video_tracks_.empty()) {
             SrsRtcTrackDescription *vdesc = desc->video_track_descs_.at(0);
@@ -195,9 +192,6 @@ srs_error_t SrsRtspPlayStream::start()
 {
     srs_error_t err = srs_success;
 
-    // If player coroutine allocated, we think the player is started.
-    // To prevent play multiple times for this play stream.
-    // @remark Allow start multiple times, for DTLS may retransmit the final packet.
     if (is_started) {
         return err;
     }
@@ -258,7 +252,6 @@ srs_error_t SrsRtspPlayStream::cycle()
             return srs_error_wrap(err, "RTSP sender thread");
         }
 
-        // Wait for amount of packets.
         SrsRtpPacket *pkt = NULL;
         consumer->dump_packet(&pkt);
         if (!pkt) {
@@ -267,8 +260,6 @@ srs_error_t SrsRtspPlayStream::cycle()
             continue;
         }
 
-        // Send-out the RTP packet and do cleanup
-        // @remark Note that the pkt might be set to NULL.
         if ((err = send_packet(pkt)) != srs_success) {
             uint32_t nn = 0;
             if (epp->can_print(err, &nn)) {
@@ -277,8 +268,6 @@ srs_error_t SrsRtspPlayStream::cycle()
             srs_freep(err);
         }
 
-        // Free the packet.
-        // @remark Note that the pkt might be set to NULL.
         srs_freep(pkt);
     }
 }
@@ -289,7 +278,6 @@ srs_error_t SrsRtspPlayStream::send_packet(SrsRtpPacket *&pkt)
 
     uint32_t ssrc = pkt->header_.get_ssrc();
 
-    // Try to find track from cache.
     ISrsRtspSendTrack *track = NULL;
     if (cache_ssrc0_ == ssrc) {
         track = cache_track0_;
@@ -299,7 +287,6 @@ srs_error_t SrsRtspPlayStream::send_packet(SrsRtpPacket *&pkt)
         track = cache_track2_;
     }
 
-    // Find by original tracks and build fast cache.
     if (!track) {
         if (pkt->is_audio()) {
             map<uint32_t, ISrsRtspSendTrack *>::iterator it = audio_tracks_.find(ssrc);
@@ -327,13 +314,11 @@ srs_error_t SrsRtspPlayStream::send_packet(SrsRtpPacket *&pkt)
         }
     }
 
-    // Ignore if no track found.
     if (!track) {
         srs_warn("RTSP: Drop for ssrc %u not found", ssrc);
         return err;
     }
 
-    // Consume packet by track.
     if ((err = track->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header_.get_sequence());
     }
@@ -345,7 +330,6 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
 {
     std::ostringstream merged_log;
 
-    // set video track status
     if (true) {
         std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
@@ -356,7 +340,6 @@ void SrsRtspPlayStream::set_all_tracks_status(bool status)
         }
     }
 
-    // set audio track status
     if (true) {
         std::map<uint32_t, ISrsRtspSendTrack *>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
@@ -382,7 +365,6 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
 {
     manager_ = cm;
 
-    // Initialize timeout management fields from SrsRtspConnection2
     last_stun_time = 0;
     session_timeout = 0;
     disposing_ = false;
@@ -395,7 +377,6 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     trd_ = NULL;
     rand_ = new SrsRand();
 
-    // Initialize merged SrsRtspSession members
     skt_ = skt;
     source_ = NULL;
     player_ = NULL;
@@ -420,7 +401,6 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
 
 void SrsRtspConnection::assemble()
 {
-    // Create a identify for this session.
     cid_ = context_->generate_id();
     context_->set_id(cid_);
 
@@ -440,7 +420,6 @@ SrsRtspConnection::~SrsRtspConnection()
     srs_freep(trd_);
     srs_freep(rand_);
 
-    // Cleanup merged SrsRtspSession members
     for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
         srs_freep(it->second);
     }
@@ -491,7 +470,6 @@ srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
     iovec *iov = cache_iov_;
     cache_buffer_->skip(-1 * cache_buffer_->pos());
 
-    // Marshal packet to bytes in iovec.
     if (true) {
         if ((err = pkt->encode(cache_buffer_)) != srs_success) {
             return srs_error_wrap(err, "encode packet");
@@ -549,32 +527,25 @@ srs_error_t SrsRtspConnection::cycle()
 {
     srs_error_t err = srs_success;
 
-    // Serve the client.
     err = do_cycle();
 
-    // Update statistic when done.
     stat_->kbps_add_delta(get_id().c_str(), delta());
 
     do_teardown();
 
-    // Notify manager to remove it.
-    // Note that we create this object, so we use manager to remove it.
     manager_->remove(this);
 
-    // success.
     if (err == srs_success) {
         srs_trace("RTSP: client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("RTSP: client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("RTSP: client disconnect peer. ret=%d", srs_error_code(err));
@@ -593,7 +564,6 @@ srs_error_t SrsRtspConnection::do_cycle()
     srs_error_t err = srs_success;
     srs_trace("RTSP: client ip=%s, port=%d", ip_.c_str(), port_);
 
-    // consume all rtsp messages.
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtsp cycle");
@@ -625,7 +595,6 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return srs_error_wrap(err, "response option");
         }
     } else if (req->is_describe()) {
-        // create session.
         if (session_id_.empty()) {
             session_id_ = rand_->gen_str(8);
         }
@@ -666,7 +635,6 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return srs_error_wrap(err, "response describe");
         }
 
-        // Filter the \r\n to \\r\\n for JSON.
         std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
         srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
     } else if (req->is_setup()) {
@@ -684,10 +652,8 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return err;
         }
 
-        // SETUP carries its parameters in the Transport header, which the parser leaves NULL when the
-        // client omits it, while is_setup() only looks at the method. Refuse such a request here: the
-        // response and do_setup() below both dereference the transport, and asserting on it would end
-        // the process, and every other session with it, on input any client can send.
+        // The parser leaves the transport NULL when a client sends no Transport header. An assert
+        // would end the server, and every session with it, on input any client can send.
         if (!req->transport_) {
             SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
             res->status_ = SRS_CONSTS_RTSP_BadRequest;
@@ -849,7 +815,6 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
                             request_->app_, request_->stream_, request_->port_, request_->param_);
 
-    // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(request_->vhost_);
     if (parsed_vhost) {
         request_->vhost_ = parsed_vhost->arg0();
@@ -859,8 +824,8 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         return srs_error_wrap(err, "RTSP: security check");
     }
 
-    // We must do stat the client before hooks, because hooks depends on it. The client stays until
-    // it leaves, at TEARDOWN or the end of the connection; the player PLAY makes is this client.
+    // The hooks depend on the stat of the client. The client stays until it leaves, at TEARDOWN or
+    // the end of the connection; the player PLAY makes is this client.
     if ((err = stat_->on_client(cid_.c_str(), request_, this, SrsRtspConnPlay)) != srs_success) {
         return srs_error_wrap(err, "RTSP: stat client");
     }
@@ -888,7 +853,7 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     local_sdp.unicast_address_ = "0.0.0.0";
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri_;
-    local_sdp.ice_lite_ = ""; // Disable this line.
+    local_sdp.ice_lite_ = ""; // No a=ice-lite line.
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription *audio_desc = source_->audio_desc();
@@ -909,12 +874,10 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         ps_audio.encoding_name_ = audio_track_desc->media_->name_;
         ps_audio.clock_rate_ = audio_track_desc->media_->sample_;
 
-        // if the payload is opus, and the encoding_param_ is channel
         SrsAudioPayload *ap = dynamic_cast<SrsAudioPayload *>(audio_track_desc->media_);
         if (ap) {
             ps_audio.encoding_param_ = srs_strconv_format_int(ap->channel_);
 
-            // Append the AAC config hex to the fmtp line.
             if (ap->name_ == "MPEG4-GENERIC" && !ap->aac_config_hex_.empty()) {
                 // streamtype=5 - Mandatory (indicates audio stream)
                 // mode=AAC-hbr - Mandatory (AAC High Bit Rate mode)
@@ -989,8 +952,7 @@ srs_error_t SrsRtspConnection::do_setup(SrsRtspRequest *req, uint32_t *pssrc)
         return srs_error_wrap(err, "get ssrc by stream_id");
     }
 
-    // Only support TCP transport, reject UDP
-    // This ensures better firewall/NAT compatibility and eliminates port allocation complexity
+    // TCP only: it passes firewalls and NAT, and needs no UDP port allocation.
     if (req->transport_->lower_transport_ != "TCP") {
         return srs_error_new(ERROR_RTSP_TRANSPORT_NOT_SUPPORTED,
                              "UDP transport not supported, only TCP/interleaved mode is supported");
@@ -1069,8 +1031,7 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     std::vector<std::string> hooks;
 
@@ -1161,15 +1122,13 @@ srs_error_t SrsRtspTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 
     srs_assert(size <= 65535);
 
-    // Encode and send 4 bytes size, in network order.
     const int kRtpTcpPacketHeaderSize = 4;
     char header[kRtpTcpPacketHeaderSize];
 
-    // Use SrsBuffer to handle endianness properly
     SrsBuffer hb(header, kRtpTcpPacketHeaderSize);
-    hb.write_1bytes(0x24);              // Magic byte '$'
-    hb.write_1bytes(uint8_t(channel_)); // Channel number
-    hb.write_2bytes(uint16_t(size));    // Packet size in network order
+    hb.write_1bytes(0x24); // Magic byte '$'
+    hb.write_1bytes(uint8_t(channel_));
+    hb.write_2bytes(uint16_t(size));
 
     if ((err = skt_->write(header, kRtpTcpPacketHeaderSize, NULL)) != srs_success) {
         return srs_error_wrap(err, "RTSP tcp write len(%d)", size);
@@ -1179,7 +1138,6 @@ srs_error_t SrsRtspTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
         return srs_error_wrap(err, "RTSP send rtp packet");
     }
 
-    // Add the size of the header to the write count.
     *nwrite += kRtpTcpPacketHeaderSize;
 
     return err;

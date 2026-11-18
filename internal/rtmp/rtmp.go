@@ -17,7 +17,6 @@ import (
 	"srsx/internal/errors"
 )
 
-// Handshake implements the RTMP handshake protocol.
 type Handshake interface {
 	C1S1() []byte
 	WriteC0S0(w io.Writer) error
@@ -29,7 +28,6 @@ type Handshake interface {
 }
 
 type handshake struct {
-	// The c1s1 cache.
 	c1s1 []byte
 }
 
@@ -64,7 +62,6 @@ func (v *handshake) ReadC0S0(r io.Reader) (c0 []byte, err error) {
 func (v *handshake) WriteC1S1(w io.Writer) (err error) {
 	p := make([]byte, 1536)
 
-	// Use crypto/rand for thread-safe random generation
 	if _, err = rand.Read(p[8:]); err != nil {
 		return errors.Wrap(err, "generate random bytes")
 	}
@@ -109,21 +106,13 @@ func (v *handshake) ReadC2S2(r io.Reader) (c2 []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 16, @section 6.1. Chunk Format
-// Extended timestamp: 0 or 4 bytes
-// This field MUST be sent when the normal timsestamp is set to
-// 0xffffff, it MUST NOT be sent if the normal timestamp is set to
-// anything else. So for values less than 0xffffff the normal
-// timestamp field SHOULD be used in which case the extended timestamp
-// MUST NOT be present. For values greater than or equal to 0xffffff
-// the normal timestamp field MUST NOT be used and MUST be set to
-// 0xffffff and the extended timestamp MUST be sent.
+// See rtmp_specification_1.0.pdf, page 16, section 6.1 Chunk Format. The 4-byte extended
+// timestamp is sent only when the timestamp field is 0xffffff, which marks a timestamp of
+// 0xffffff or more.
 const extendedTimestamp = uint64(0xffffff)
 
-// The default chunk size of RTMP is 128 bytes.
 const defaultChunkSize = 128
 
-// The intput or output settings for RTMP protocol.
 type settings struct {
 	chunkSize uint32
 }
@@ -134,7 +123,6 @@ func newSettings() *settings {
 	}
 }
 
-// The chunk stream which transport a message once.
 type chunkStream struct {
 	format  formatType
 	cid     chunkID
@@ -142,14 +130,12 @@ type chunkStream struct {
 	message *message
 	count   uint64
 
-	// Whether the chunk carries an extended timestamp, set when the (delta) timestamp in
-	// the message header equals 0xffffff. Type-3 continuation chunks inherit this from the
-	// preceding Type-0/1/2 chunk.
+	// Type 3 chunks have no timestamp field and take this from the preceding Type 0, 1 or 2
+	// chunk.
 	hasExtendedTimestamp bool
-	// The raw value last read from the extended timestamp field. Kept separately from
-	// header.Timestamp (the accumulated message timestamp) so we can both detect Type-3
-	// chunks that omit the extended timestamp and use it as a delta for fmt=1/2 chunks.
-	// See readMessageHeader.
+	// Kept apart from header.Timestamp, the accumulated message timestamp, because a Type 1
+	// or 2 chunk carries a delta here, and a Type 3 chunk that omits the field is found by
+	// comparing with it.
 	extendedTimestamp uint32
 }
 
@@ -157,7 +143,6 @@ func newChunkStream() *chunkStream {
 	return &chunkStream{}
 }
 
-// Protocol implements the RTMP command and chunk stack.
 type Protocol interface {
 	// Deprecated: Go does not support generic methods. Please use rtmp.ExpectPacket instead.
 	ExpectPacket(ctx context.Context, ppkt any) (Message, error)
@@ -198,10 +183,6 @@ func NewProtocol(rw io.ReadWriter) Protocol {
 	return v
 }
 
-// ExpectPacket reads and decodes RTMP messages until it finds a packet of type T.
-//
-// Messages with other packet types are consumed and ignored. On success, ppkt is
-// set to the decoded packet and the Message carrying that packet is returned.
 func ExpectPacket[T Packet](ctx context.Context, v Protocol, ppkt *T) (m Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
@@ -373,14 +354,12 @@ func (v *protocol) ReadMessage(ctx context.Context) (m Message, err error) {
 }
 
 func (v *protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (m Message, err error) {
-	// Empty payload message.
 	if chunk.message.payloadLength == 0 {
 		m = chunk.message
 		chunk.message = nil
 		return
 	}
 
-	// Calculate the chunk payload size.
 	chunkedPayloadSize := int(chunk.message.payloadLength) - len(chunk.message.payload)
 	if chunkedPayloadSize > int(v.input.opt.chunkSize) {
 		chunkedPayloadSize = int(v.input.opt.chunkSize)
@@ -392,7 +371,6 @@ func (v *protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (
 	}
 	chunk.message.payload = append(chunk.message.payload, b...)
 
-	// Got entire RTMP message?
 	if int(chunk.message.payloadLength) == len(chunk.message.payload) {
 		m = chunk.message
 		chunk.message = nil
@@ -401,52 +379,31 @@ func (v *protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 18, @section 6.1.2. Chunk Message Header
-// There are four different formats for the chunk message header,
-// selected by the "fmt" field in the chunk basic header.
+// See rtmp_specification_1.0.pdf, page 18, section 6.1.2 Chunk Message Header, selected by
+// the fmt field in the chunk basic header.
 type formatType uint8
 
 const (
-	// 6.1.2.1. Type 0
-	// Chunks of Type 0 are 11 bytes long. This type MUST be used at the
-	// start of a chunk stream, and whenever the stream timestamp goes
-	// backward (e.g., because of a backward seek).
+	// 6.1.2.1. Type 0, 11 bytes. It MUST start a chunk stream, and is used whenever the
+	// stream timestamp goes backward, such as after a backward seek.
 	formatType0 formatType = iota
-	// 6.1.2.2. Type 1
-	// Chunks of Type 1 are 7 bytes long. The message stream ID is not
-	// included; this chunk takes the same stream ID as the preceding chunk.
-	// Streams with variable-sized messages (for example, many video
-	// formats) SHOULD use this format for the first chunk of each new
-	// message after the first.
+	// 6.1.2.2. Type 1, 7 bytes, with the stream ID of the preceding chunk. For the first
+	// chunk of each message after the first, for variable-sized messages such as video.
 	formatType1
-	// 6.1.2.3. Type 2
-	// Chunks of Type 2 are 3 bytes long. Neither the stream ID nor the
-	// message length is included; this chunk has the same stream ID and
-	// message length as the preceding chunk. Streams with constant-sized
-	// messages (for example, some audio and data formats) SHOULD use this
-	// format for the first chunk of each message after the first.
+	// 6.1.2.3. Type 2, 3 bytes, with the stream ID and message length of the preceding
+	// chunk. For the first chunk of each message after the first, for constant-sized
+	// messages such as audio.
 	formatType2
-	// 6.1.2.4. Type 3
-	// Chunks of Type 3 have no header. Stream ID, message length and
-	// timestamp delta are not present; chunks of this type take values from
-	// the preceding chunk. When a single message is split into chunks, all
-	// chunks of a message except the first one, SHOULD use this type. Refer
-	// to example 2 in section 6.2.2. Stream consisting of messages of
-	// exactly the same size, stream ID and spacing in time SHOULD use this
-	// type for all chunks after chunk of Type 2. Refer to example 1 in
-	// section 6.2.1. If the delta between the first message and the second
-	// message is same as the time stamp of first message, then chunk of
-	// type 3 would immediately follow the chunk of type 0 as there is no
-	// need for a chunk of type 2 to register the delta. If Type 3 chunk
-	// follows a Type 0 chunk, then timestamp delta for this Type 3 chunk is
-	// the same as the timestamp of Type 0 chunk.
+	// 6.1.2.4. Type 3, no header; all values come from the preceding chunk. For every chunk
+	// of a message but the first, and for messages of the same size, stream ID and time
+	// spacing. After a Type 0 chunk, its timestamp delta is the timestamp of the Type 0
+	// chunk.
 	formatType3
 )
 
-// The message header size, index is format.
 var messageHeaderSizes = []int{11, 7, 3, 0}
 
-// Parse the chunk message header.
+// The chunk message header:
 //
 //	3bytes: timestamp delta,    fmt=0,1,2
 //	3bytes: payload length,     fmt=0,1
@@ -460,38 +417,19 @@ var messageHeaderSizes = []int{11, 7, 3, 0}
 //	fmt=2, 0x8X
 //	fmt=3, 0xCX
 func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, format formatType) (err error) {
-	// We should not assert anything about fmt, for the first packet.
-	// (when first packet, the chunk.message is nil).
-	// the fmt maybe 0/1/2/3, the FMLE will send a 0xC4 for some audio packet.
-	// the previous packet is:
-	//     04                // fmt=0, cid=4
-	//     00 00 1a          // timestamp=26
-	//     00 00 9d          // payload_length=157
-	//     08                // message_type=8(audio)
-	//     01 00 00 00       // stream_id=1
-	// the current packet maybe:
-	//     c4             // fmt=3, cid=4
-	// it's ok, for the packet is audio, and timestamp delta is 26.
-	// the current packet must be parsed as:
-	//     fmt=0, cid=4
-	//     timestamp=26+26=52
-	//     payload_length=157
-	//     message_type=8(audio)
-	//     stream_id=1
-	// so we must update the timestamp even fmt=3 for first packet.
-	//
-	// The fresh packet used to update the timestamp even fmt=3 for first packet.
-	// fresh packet always means the chunk is the first one of message.
+	// Any fmt may start a message, not only 0. FMLE sends a fmt=3 chunk, such as 0xc4, to
+	// start an audio message after a fmt=0 one (04, timestamp 26, length 157, audio, stream
+	// 1). It is a new message with the same header and the timestamp 26+26=52, so the first
+	// chunk of a message updates the timestamp even for fmt=3.
 	var isFirstChunkOfMsg bool
 	if chunk.message == nil {
 		isFirstChunkOfMsg = true
 	}
 
-	// But, we can ensure that when a chunk stream is fresh,
-	// the fmt must be 0, a new stream.
+	// A fresh chunk stream must start with fmt=0.
 	if chunk.count == 0 && format != formatType0 {
-		// For librtmp, if ping, it will send a fresh stream with fmt=1,
-		// 0x42             where: fmt=1, cid=2, protocol contorl user-control message
+		// But librtmp sends a ping on a fresh chunk stream with fmt=1:
+		// 0x42             where: fmt=1, cid=2, protocol control user-control message
 		// 0x00 0x00 0x00   where: timestamp=0
 		// 0x00 0x00 0x06   where: payload_length=6
 		// 0x04             where: message_type=4(protocol control user-control message)
@@ -499,66 +437,36 @@ func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		// 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
 		// @see: https://github.com/ossrs/srs/issues/98
 		if chunk.cid == chunkIDProtocolControl && format == formatType1 {
-			// We accept cid=2, fmt=1 to make librtmp happy.
 		} else {
 			return errors.Errorf("For fresh chunk, fmt %v != %v(required), cid is %v", format, formatType0, chunk.cid)
 		}
 	}
 
-	// When exists cache msg, means got an partial message,
-	// the fmt must not be type0 which means new message.
 	if chunk.message != nil && format == formatType0 {
 		return errors.Errorf("For exists chunk, fmt is %v, cid is %v", format, chunk.cid)
 	}
 
-	// Create msg when new chunk stream start
 	if chunk.message == nil {
 		chunk.message = newMessage()
 	}
 
-	// Read the message header.
 	p := make([]byte, messageHeaderSizes[format])
 	if _, err = io.ReadFull(v.r, p); err != nil {
 		return errors.Wrapf(err, "read %vB message header", len(p))
 	}
 
-	// Prse the message header.
-	//   3bytes: timestamp delta,    fmt=0,1,2
-	//   3bytes: payload length,     fmt=0,1
-	//   1bytes: message type,       fmt=0,1
-	//   4bytes: stream id,          fmt=0
-	// where:
-	//   fmt=0, 0x0X
-	//   fmt=1, 0x4X
-	//   fmt=2, 0x8X
-	//   fmt=3, 0xCX
 	if format <= formatType2 {
 		chunk.header.timestampDelta = uint32(p[0])<<16 | uint32(p[1])<<8 | uint32(p[2])
 		p = p[3:]
 
-		// fmt: 0
-		// timestamp: 3 bytes
-		// If the timestamp is greater than or equal to 16777215
-		// (hexadecimal 0x00ffffff), this value MUST be 16777215, and the
-		// 'extended timestamp header' MUST be present. Otherwise, this value
-		// SHOULD be the entire timestamp.
-		//
-		// fmt: 1 or 2
-		// timestamp delta: 3 bytes
-		// If the delta is greater than or equal to 16777215 (hexadecimal
-		// 0x00ffffff), this value MUST be 16777215, and the 'extended
-		// timestamp header' MUST be present. Otherwise, this value SHOULD be
-		// the entire delta.
 		chunk.hasExtendedTimestamp = uint64(chunk.header.timestampDelta) >= extendedTimestamp
 
 		if format <= formatType1 {
 			payloadLength := uint32(p[0])<<16 | uint32(p[1])<<8 | uint32(p[2])
 			p = p[3:]
 
-			// For a message, if msg exists in cache, the size must not changed.
-			// always use the actual msg size to compare, for the cache payload length can changed,
-			// for the fmt type1(stream_id not changed), user can change the payload
-			// length(it's not allowed in the continue chunks).
+			// A fmt=1 chunk may change the payload length for a new message, but not within a
+			// message.
 			if !isFirstChunkOfMsg && chunk.header.payloadLength != payloadLength {
 				return errors.Errorf("Chunk message size %v != %v(required)", payloadLength, chunk.header.payloadLength)
 			}
@@ -574,33 +482,28 @@ func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		}
 	}
 
-	// Read extended-timestamp, present when the (delta) timestamp in the message header is
-	// 0xffffff. Type-3 chunks inherit hasExtendedTimestamp from the preceding chunk.
 	if chunk.hasExtendedTimestamp {
-		// Peek instead of read, so the 4 bytes can be left in place when a sender omits the
-		// extended timestamp on a Type-3 chunk (see the detection below).
+		// A peek, so the 4 bytes stay in the reader when a Type 3 chunk omits the field.
 		var b []byte
 		if b, err = v.r.Peek(4); err != nil {
 			return errors.Wrapf(err, "read ext-ts, pkt-ts=%v", chunk.header.Timestamp)
 		}
 
-		// We always use 31bits timestamp, for some server may use 32bits extended timestamp.
+		// Some servers use a 32-bit extended timestamp, so always use 31 bits.
 		// @see https://github.com/ossrs/srs/issues/111
 		timestamp := binary.BigEndian.Uint32(b) & 0x7fffffff
 
-		// For the RTMP v1 2009 version (6.1.3. Extended Timestamp), Type 3 chunks MUST NOT
-		// have this field. For the RTMP v1 2012 version (5.3.1.3. Extended Timestamp), it is
-		// present in Type 3 chunks when the most recent Type 0/1/2 chunk indicated one.
+		// The RTMP v1 2009 version, 6.1.3. Extended Timestamp: Type 3 chunks MUST NOT have
+		// this field. The RTMP v1 2012 version, 5.3.1.3. Extended Timestamp: it is present in
+		// Type 3 chunks when the most recent Type 0, 1 or 2 chunk indicated one.
 		//
-		// FMLE/FMS/Flash Player follow the 2012 version and always send the extended
-		// timestamp in Type 3 chunks; librtmp/ffmpeg may not. So detect it: if this is not
-		// the first chunk of the message and the peeked value differs from the previously
-		// stored extended timestamp, the sender omitted it and these 4 bytes are payload, so
-		// leave them in the reader. Otherwise consume and store them.
+		// FMLE, FMS and Flash Player follow the 2012 version and send it in Type 3 chunks;
+		// librtmp and FFmpeg may not. In the 2012 version it equals the previous one of the
+		// message, so a different value means the field is not present and the 4 bytes are
+		// payload.
 		// @see http://blog.csdn.net/win_lin/article/details/13363699
 		// @see https://github.com/veovera/enhanced-rtmp/issues/42
 		if !isFirstChunkOfMsg && chunk.extendedTimestamp > 0 && chunk.extendedTimestamp != timestamp {
-			// No extended timestamp on this Type-3 chunk; the 4 bytes belong to the payload.
 		} else {
 			if _, err = v.r.Discard(4); err != nil {
 				return errors.Wrapf(err, "discard ext-ts, pkt-ts=%v", chunk.header.Timestamp)
@@ -609,66 +512,36 @@ func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		}
 	}
 
-	// Compute the message timestamp. The source is the extended timestamp when present,
-	// otherwise the 3-byte (delta) timestamp from the message header.
-	//
-	// fmt=0: the value is the absolute timestamp of the message.
-	// fmt=1/2 (and a fmt=3 first chunk continuing them): the value is a delta and is
-	// accumulated onto the previous timestamp. This is required when the delta is >= 0xffffff
-	// and is therefore carried in the extended timestamp.
 	timestamp := chunk.header.timestampDelta
 	if chunk.hasExtendedTimestamp {
 		timestamp = chunk.extendedTimestamp
 	}
 	if format == formatType0 {
+		// 6.1.2.1. Type 0 sends the absolute timestamp.
 		chunk.header.Timestamp = uint64(timestamp)
 	} else if isFirstChunkOfMsg {
+		// 6.1.2.2. Type 1 and 6.1.2.3. Type 2 send the delta from the previous chunk.
 		chunk.header.Timestamp += uint64(timestamp)
 	}
 
-	// The extended-timestamp must be unsigned-int,
-	//         24bits timestamp: 0xffffff = 16777215ms = 16777.215s = 4.66h
-	//         32bits timestamp: 0xffffffff = 4294967295ms = 4294967.295s = 1193.046h = 49.71d
-	// because the rtmp protocol says the 32bits timestamp is about "50 days":
-	//         3. Byte Order, Alignment, and Time Format
-	//                Because timestamps are generally only 32 bits long, they will roll
-	//                over after fewer than 50 days.
-	//
-	// but, its sample says the timestamp is 31bits:
-	//         An application could assume, for example, that all
-	//        adjacent timestamps are within 2^31 milliseconds of each other, so
-	//        10000 comes after 4000000000, while 3000000000 comes before
-	//        4000000000.
-	// and flv specification says timestamp is 31bits:
-	//        Extension of the Timestamp field to form a SI32 value. This
-	//        field represents the upper 8 bits, while the previous
-	//        Timestamp field represents the lower 24 bits of the time in
-	//        milliseconds.
-	// in a word, 31bits timestamp is ok.
-	// convert extended timestamp to 31bits.
+	// A 31-bit timestamp is enough. The RTMP spec, 3. Byte Order, Alignment, and Time Format,
+	// says 32-bit timestamps roll over after fewer than 50 days, but its sample assumes
+	// adjacent timestamps are within 2^31 milliseconds, and the FLV spec makes the timestamp
+	// an SI32 (signed). A 24-bit timestamp is 4.66h, 32-bit is 49.71d.
 	chunk.header.Timestamp &= 0x7fffffff
 
-	// Copy header to msg
 	chunk.message.messageHeader = chunk.header
 
-	// Increase the msg count, the chunk stream can accept fmt=1/2/3 message now.
+	// The chunk stream now accepts fmt=1/2/3.
 	chunk.count++
 
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 17, @section 6.1.1. Chunk Basic Header
-// The Chunk Basic Header encodes the chunk stream ID and the chunk
-// type(represented by fmt field in the figure below). Chunk type
-// determines the format of the encoded message header. Chunk Basic
-// Header field may be 1, 2, or 3 bytes, depending on the chunk stream
-// ID.
+// See rtmp_specification_1.0.pdf, page 17, section 6.1.1 Chunk Basic Header, 1, 2 or 3
+// bytes, by the chunk stream ID.
 //
-// The bits 0-5 (least significant) in the chunk basic header represent
-// the chunk stream ID.
-//
-// Chunk stream IDs 2-63 can be encoded in the 1-byte version of this
-// field.
+// Chunk stream IDs 2-63:
 //
 //	 0 1 2 3 4 5 6 7
 //	+-+-+-+-+-+-+-+-+
@@ -676,8 +549,7 @@ func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 //	+-+-+-+-+-+-+-+-+
 //	Figure 6 Chunk basic header 1
 //
-// Chunk stream IDs 64-319 can be encoded in the 2-byte version of this
-// field. ID is computed as (the second byte + 64).
+// Chunk stream IDs 64-319:
 //
 //	0                   1
 //	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
@@ -686,23 +558,14 @@ func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 //	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //	Figure 7 Chunk basic header 2
 //
-// Chunk stream IDs 64-65599 can be encoded in the 3-byte version of
-// this field. ID is computed as ((the third byte)*256 + the second byte
-//   - 64).
-//     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
-//     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//     |fmt|     1     |         cs id - 64            |
-//     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//     Figure 8 Chunk basic header 3
+// Chunk stream IDs 64-65599, with the cs id - 64 in little-endian:
 //
-// cs id: 6 bits
-// fmt: 2 bits
-// cs id - 64: 8 or 16 bits
-//
-// Chunk stream IDs with values 64-319 could be represented by both 2-
-// byte version and 3-byte version of this field.
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|fmt|     1     |         cs id - 64            |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	Figure 8 Chunk basic header 3
 func (v *protocol) readBasicHeader(ctx context.Context) (format formatType, cid chunkID, err error) {
-	// 2-63, 1B chunk header
 	var t uint8
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 		return format, cid, errors.Wrap(err, "read basic header")
@@ -714,18 +577,14 @@ func (v *protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 		return
 	}
 
-	// Here cid is 0 or 1: a marker selecting the 2B or 3B form, not the real cid. Keep it,
-	// because cid is overwritten below and the marker decides whether a third byte (the
-	// high-order part of the cid) follows. Do not test the overwritten cid for this.
+	// cid is overwritten below, so keep the 0 or 1 that selects the 2-byte or 3-byte form.
 	marker := cid
 
-	// 64-319, 2B chunk header
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 		return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
 	}
 	cid = chunkID(64 + uint32(t))
 
-	// 64-65599, 3B chunk header
 	if marker == 1 {
 		if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 			return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
@@ -858,97 +717,52 @@ func (v *protocol) WriteMessage(ctx context.Context, m Message) (err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 30, @section 4.1. Message Header
-// 1byte. One byte field to represent the message type. A range of type IDs
-// (1-7) are reserved for protocol control messages.
+// See rtmp_specification_1.0.pdf, page 30, section 4.1 Message Header.
 type MessageType uint8
 
 const (
-	// Please read @doc rtmp_specification_1.0.pdf, @page 30, @section 5. Protocol Control Messages
-	// RTMP reserves message type IDs 1-7 for protocol control messages.
-	// These messages contain information needed by the RTM Chunk Stream
-	// protocol or RTMP itself. Protocol messages with IDs 1 & 2 are
-	// reserved for usage with RTM Chunk Stream protocol. Protocol messages
-	// with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
-	// 7 is used between edge server and origin server.
+	// See rtmp_specification_1.0.pdf, page 30, section 5 Protocol Control Messages: IDs 1
+	// and 2 are for the chunk stream protocol, 3 to 6 for RTMP, and 7 between an edge server
+	// and an origin server.
 	MessageTypeSetChunkSize               MessageType = 0x01
-	MessageTypeAbort                      MessageType = 0x02 // 0x02
-	MessageTypeAcknowledgement            MessageType = 0x03 // 0x03
-	MessageTypeUserControl                MessageType = 0x04 // 0x04
-	MessageTypeWindowAcknowledgementSize  MessageType = 0x05 // 0x05
-	MessageTypeSetPeerBandwidth           MessageType = 0x06 // 0x06
-	MessageTypeEdgeAndOriginServerCommand MessageType = 0x07 // 0x07
-	// Please read @doc rtmp_specification_1.0.pdf, @page 38, @section 3. Types of messages
-	// The server and the client send messages over the network to
-	// communicate with each other. The messages can be of any type which
-	// includes audio messages, video messages, command messages, shared
-	// object messages, data messages, and user control messages.
-	//
-	// Please read @doc rtmp_specification_1.0.pdf, @page 41, @section 3.4. Audio message
-	// The client or the server sends this message to send audio data to the
-	// peer. The message type value of 8 is reserved for audio messages.
+	MessageTypeAbort                      MessageType = 0x02
+	MessageTypeAcknowledgement            MessageType = 0x03
+	MessageTypeUserControl                MessageType = 0x04
+	MessageTypeWindowAcknowledgementSize  MessageType = 0x05
+	MessageTypeSetPeerBandwidth           MessageType = 0x06
+	MessageTypeEdgeAndOriginServerCommand MessageType = 0x07
+	// See rtmp_specification_1.0.pdf, page 38, section 3 Types of messages, and page 41,
+	// section 3.4 Audio message.
 	MessageTypeAudio MessageType = 0x08
-	// Please read @doc rtmp_specification_1.0.pdf, @page 41, @section 3.5. Video message
-	// The client or the server sends this message to send video data to the
-	// peer. The message type value of 9 is reserved for video messages.
-	// These messages are large and can delay the sending of other type of
-	// messages. To avoid such a situation, the video message is assigned
-	// the lowest priority.
-	MessageTypeVideo MessageType = 0x09 // 0x09
-	// Please read @doc rtmp_specification_1.0.pdf, @page 38, @section 3.1. Command message
-	// Command messages carry the AMF-encoded commands between the client
-	// and the server. These messages have been assigned message type value
-	// of 20 for AMF0 encoding and message type value of 17 for AMF3
-	// encoding. These messages are sent to perform some operations like
-	// connect, createStream, publish, play, pause on the peer. Command
-	// messages like onstatus, result etc. are used to inform the sender
-	// about the status of the requested commands. A command message
-	// consists of command name, transaction ID, and command object that
-	// contains related parameters. A client or a server can request Remote
-	// Procedure Calls (RPC) over streams that are communicated using the
-	// command messages to the peer.
-	MessageTypeAMF3Command MessageType = 17 // 0x11
-	MessageTypeAMF0Command MessageType = 20 // 0x14
-	// Please read @doc rtmp_specification_1.0.pdf, @page 38, @section 3.2. Data message
-	// The client or the server sends this message to send Metadata or any
-	// user data to the peer. Metadata includes details about the
-	// data(audio, video etc.) like creation time, duration, theme and so
-	// on. These messages have been assigned message type value of 18 for
-	// AMF0 and message type value of 15 for AMF3.
-	MessageTypeAMF0Data MessageType = 18 // 0x12
-	MessageTypeAMF3Data MessageType = 15 // 0x0f
+	// See rtmp_specification_1.0.pdf, page 41, section 3.5 Video message. Video messages
+	// are large and can delay other messages, so the spec gives them the lowest priority.
+	MessageTypeVideo MessageType = 0x09
+	// See rtmp_specification_1.0.pdf, page 38, section 3.1 Command message.
+	MessageTypeAMF3Command MessageType = 17
+	MessageTypeAMF0Command MessageType = 20
+	// See rtmp_specification_1.0.pdf, page 38, section 3.2 Data message.
+	MessageTypeAMF0Data MessageType = 18
+	MessageTypeAMF3Data MessageType = 15
 )
 
-// The header of message.
 type messageHeader struct {
-	// 3bytes.
-	// Three-byte field that contains a timestamp delta of the message.
-	// @remark, only used for decoding message from chunk stream.
+	// 3 bytes, only used to decode a message from the chunk stream.
 	timestampDelta uint32
-	// 3bytes.
-	// Three-byte field that represents the size of the payload in bytes.
-	// It is set in big-endian format.
+	// 3 bytes, big-endian.
 	payloadLength uint32
-	// 1byte.
-	// One byte field to represent the message type. A range of type IDs
-	// (1-7) are reserved for protocol control messages.
+	// 1 byte.
 	MessageType MessageType
-	// 4bytes.
-	// Four-byte field that identifies the stream of the message. These
-	// bytes are set in little-endian format.
+	// 4 bytes, little-endian.
 	streamID uint32
 
-	// The chunk stream id over which transport.
 	betterCid chunkID
 
-	// Four-byte field that contains a timestamp of the message.
-	// The 4 bytes are packed in the big-endian order.
-	// @remark, we use 64bits for large time for jitter detect and for large tbn like HLS.
+	// 4 bytes, big-endian. A uint64 for jitter detection and for a large timebase, such as
+	// HLS.
 	Timestamp uint64
 }
 
-// Message is an RTMP message transported over a chunk stream.
-// Please read the cs id of @doc rtmp_specification_1.0.pdf, @page 30, @section 4.1. Message Header
+// See rtmp_specification_1.0.pdf, page 30, section 4.1 Message Header.
 type Message interface {
 	MessageType() MessageType
 	Timestamp() uint64
@@ -959,7 +773,6 @@ type Message interface {
 type message struct {
 	messageHeader
 
-	// The payload which carries the RTMP packet.
 	payload []byte
 }
 
@@ -1006,9 +819,8 @@ func (v *message) generateC3Header() ([]byte, error) {
 	p[0] = 0xc0 | byte(v.betterCid&0x3f)
 	p = p[1:]
 
-	// In RTMP protocol, there must not any timestamp in C3 header,
-	// but actually all products from adobe, such as FMS/AMS and Flash player and FMLE,
-	// always carry a extended timestamp in C3 header.
+	// The RTMP spec puts no timestamp in the C3 header, but Adobe products, such as FMS, AMS,
+	// Flash Player and FMLE, always send the extended timestamp in it.
 	// @see: http://blog.csdn.net/win_lin/article/details/13363699
 	if v.messageHeader.Timestamp >= extendedTimestamp {
 		p[0] = byte(v.messageHeader.Timestamp >> 24)
@@ -1067,7 +879,7 @@ func (v *message) generateC0Header() ([]byte, error) {
 	return c0h, nil
 }
 
-// Please read the cs id of @doc rtmp_specification_1.0.pdf, @page 17, @section 6.1.1. Chunk Basic Header
+// The cs id of rtmp_specification_1.0.pdf, page 17, section 6.1.1 Chunk Basic Header.
 type chunkID uint32
 
 const (
@@ -1080,7 +892,6 @@ const (
 	chunkIDAudio           chunkID = 0x08
 )
 
-// The Command Name of message.
 const (
 	commandConnect          amf0String = amf0String("connect")
 	commandCreateStream     amf0String = amf0String("createStream")
@@ -1098,19 +909,15 @@ const (
 	commandRtmpSampleAccess amf0String = amf0String("|RtmpSampleAccess")
 )
 
-// The RTMP packet, transport as payload of RTMP message.
 type Packet interface {
-	// Marshaler and unmarshaler
 	Size() int
 	encoding.BinaryUnmarshaler
 	encoding.BinaryMarshaler
 
-	// RTMP protocol fields for each packet.
 	BetterCid() chunkID
 	Type() MessageType
 }
 
-// A Call packet, both object and args are AMF0 objects.
 type objectCallPacket struct {
 	CommandName   amf0String
 	TransactionID amf0Number
@@ -1191,9 +998,7 @@ func (v *objectCallPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 45, @section 4.1.1. connect
-// The client sends the connect command to the server to request
-// connection to a server application instance.
+// See rtmp_specification_1.0.pdf, page 45, section 4.1.1 connect.
 type ConnectAppPacket struct {
 	objectCallPacket
 }
@@ -1231,7 +1036,6 @@ func (v *ConnectAppPacket) TcUrl() string {
 	return ""
 }
 
-// The response for ConnectAppPacket.
 type ConnectAppResPacket struct {
 	objectCallPacket
 }
@@ -1268,7 +1072,6 @@ func (v *ConnectAppResPacket) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// A Call object, command object is variant.
 type variantCallPacket struct {
 	CommandName   amf0String
 	TransactionID amf0Number
@@ -1306,11 +1109,9 @@ func (v *variantCallPacket) UnmarshalBinary(data []byte) (err error) {
 	}
 	p = p[v.TransactionID.Size():]
 
-	// Reset the optional command object before deciding whether it is present.
-	// A New*Packet constructor may have pre-set it to a default (e.g. Null), but
-	// when the wire data is exhausted here the object is absent. Leaving the stale
-	// default would make Size() count bytes that were never parsed, overflowing the
-	// caller's p = p[Size():] advance on truncated, untrusted input.
+	// A constructor may preset a default, such as null. When the object is absent from the
+	// wire, a stale default makes Size count bytes that were never parsed, and the caller's
+	// p[Size():] overruns on truncated input.
 	v.CommandObject = nil
 	if len(p) > 0 {
 		if v.CommandObject, err = Amf0Discovery(p); err != nil {
@@ -1347,11 +1148,7 @@ func (v *variantCallPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 51, @section 4.1.2. Call
-// The call method of the NetConnection object runs remote procedure
-// calls (RPC) at the receiving end. The called RPC name is passed as a
-// parameter to the call command.
-// @remark onStatus packet is a call packet.
+// See rtmp_specification_1.0.pdf, page 51, section 4.1.2 Call. onStatus is a call packet too.
 type CallPacket struct {
 	variantCallPacket
 	Args Amf0Any // optional or object or null
@@ -1382,11 +1179,8 @@ func (v *CallPacket) Size() int {
 	return size
 }
 
-// advanceBytes returns p[n:] after verifying n lies within p. Packet
-// UnmarshalBinary advances its cursor by each embedded field's decoded Size();
-// on untrusted wire input a malformed length can make Size() exceed the bytes
-// actually present, so this guard turns a slice-out-of-range panic into a clean
-// error. See the RTMP test plan, P8 (adversarial resource-safety).
+// On malformed input, the decoded Size of a field can exceed the bytes present, so this
+// turns a slice out-of-range panic into an error.
 func advanceBytes(p []byte, n int) ([]byte, error) {
 	if n < 0 || n > len(p) {
 		return nil, errors.Errorf("advance %v exceeds remaining %v bytes", n, len(p))
@@ -1404,9 +1198,7 @@ func (v *CallPacket) UnmarshalBinary(data []byte) (err error) {
 		return errors.WithMessage(err, "advance call")
 	}
 
-	// Reset the optional args before deciding whether they are present, for the
-	// same reason as variantCallPacket.CommandObject: a stale constructor default
-	// would be counted by Size() and overflow a later advance.
+	// Reset, for the same reason as variantCallPacket.CommandObject.
 	v.Args = nil
 	if len(p) > 0 {
 		if v.Args, err = Amf0Discovery(p); err != nil {
@@ -1437,11 +1229,7 @@ func (v *CallPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 52, @section 4.1.3. createStream
-// The client sends this command to the server to create a logical
-// channel for message communication The publishing of audio, video, and
-// metadata is carried out over stream channel created using the
-// createStream command.
+// See rtmp_specification_1.0.pdf, page 52, section 4.1.3 createStream.
 type CreateStreamPacket struct {
 	variantCallPacket
 }
@@ -1454,7 +1242,6 @@ func NewCreateStreamPacket() *CreateStreamPacket {
 	return v
 }
 
-// The response for create stream
 type CreateStreamResPacket struct {
 	variantCallPacket
 	StreamID amf0Number
@@ -1509,7 +1296,7 @@ func (v *CreateStreamResPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 64, @section 4.2.6. Publish
+// See rtmp_specification_1.0.pdf, page 64, section 4.2.6 Publish.
 type PublishPacket struct {
 	variantCallPacket
 	StreamName Amf0String
@@ -1573,7 +1360,7 @@ func (v *PublishPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 54, @section 4.2.1. play
+// See rtmp_specification_1.0.pdf, page 54, section 4.2.1 play.
 type PlayPacket struct {
 	variantCallPacket
 	StreamName Amf0String
@@ -1625,9 +1412,7 @@ func (v *PlayPacket) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 31, @section 5.1. Set Chunk Size
-// Protocol control message 1, Set Chunk Size, is used to notify the
-// peer about the new maximum chunk size.
+// See rtmp_specification_1.0.pdf, page 31, section 5.1 Set Chunk Size.
 type SetChunkSize struct {
 	ChunkSize uint32
 }
@@ -1666,9 +1451,7 @@ func (v *SetChunkSize) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 33, @section 5.5. Window Acknowledgement Size (5)
-// The client or the server sends this message to inform the peer which
-// window size to use when sending acknowledgment.
+// See rtmp_specification_1.0.pdf, page 33, section 5.5 Window Acknowledgement Size (5).
 type WindowAcknowledgementSize struct {
 	AckSize uint32
 }
@@ -1705,9 +1488,7 @@ func (v *WindowAcknowledgementSize) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 33, @section 5.6. Set Peer Bandwidth (6)
-// The sender can mark this message hard (0), soft (1), or dynamic (2)
-// using the Limit type field.
+// The Limit type of rtmp_specification_1.0.pdf, page 33, section 5.6 Set Peer Bandwidth (6).
 type LimitType uint8
 
 const (
@@ -1716,9 +1497,7 @@ const (
 	LimitTypeDynamic
 )
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 33, @section 5.6. Set Peer Bandwidth (6)
-// The client or the server sends this message to update the output
-// bandwidth of the peer.
+// See rtmp_specification_1.0.pdf, page 33, section 5.6 Set Peer Bandwidth (6).
 type SetPeerBandwidth struct {
 	Bandwidth uint32
 	LimitType LimitType
@@ -1760,84 +1539,39 @@ func (v *SetPeerBandwidth) MarshalBinary() (data []byte, err error) {
 
 type EventType uint16
 
+// The event data is a 4-byte stream ID, unless noted.
 const (
-	// Generally, 4bytes event-data
-
-	// The server sends this event to notify the client
-	// that a stream has become functional and can be
-	// used for communication. By default, this event
-	// is sent on ID 0 after the application connect
-	// command is successfully received from the
-	// client. The event data is 4-byte and represents
-	// The stream ID of the stream that became
-	// Functional.
+	// Sent by the server on stream 0 after the connect command by default.
 	EventTypeStreamBegin = 0x00
 
-	// The server sends this event to notify the client
-	// that the playback of data is over as requested
-	// on this stream. No more data is sent without
-	// issuing additional commands. The client discards
-	// The messages received for the stream. The
-	// 4 bytes of event data represent the ID of the
-	// stream on which playback has ended.
+	// The playback is over; the client discards the messages it receives for the stream.
 	EventTypeStreamEOF = 0x01
 
-	// The server sends this event to notify the client
-	// that there is no more data on the stream. If the
-	// server does not detect any message for a time
-	// period, it can notify the subscribed clients
-	// that the stream is dry. The 4 bytes of event
-	// data represent the stream ID of the dry stream.
+	// No message on the stream for a while.
 	EventTypeStreamDry = 0x02
 
-	// The client sends this event to inform the server
-	// of the buffer size (in milliseconds) that is
-	// used to buffer any data coming over a stream.
-	// This event is sent before the server starts
-	// processing the stream. The first 4 bytes of the
-	// event data represent the stream ID and the next
-	// 4 bytes represent the buffer length, in
-	// milliseconds.
-	EventTypeSetBufferLength = 0x03 // 8bytes event-data
+	// Sent by the client before the server processes the stream. The event data is the
+	// 4-byte stream ID, then the 4-byte buffer length in ms.
+	EventTypeSetBufferLength = 0x03
 
-	// The server sends this event to notify the client
-	// that the stream is a recorded stream. The
-	// 4 bytes event data represent the stream ID of
-	// The recorded stream.
 	EventTypeStreamIsRecorded = 0x04
 
-	// The server sends this event to test whether the
-	// client is reachable. Event data is a 4-byte
-	// timestamp, representing the local server time
-	// When the server dispatched the command. The
-	// client responds with kMsgPingResponse on
-	// receiving kMsgPingRequest.
+	// The event data is a 4-byte timestamp, the server time when sent. The client answers
+	// with EventTypePingResponse, which echoes the timestamp.
 	EventTypePingRequest = 0x06
 
-	// The client sends this event to the server in
-	// Response  to the ping request. The event data is
-	// a 4-byte timestamp, which was received with the
-	// kMsgPingRequest request.
 	EventTypePingResponse = 0x07
 
-	// For PCUC size=3, for example the payload is "00 1A 01",
-	// it's a FMS control event, where the event type is 0x001a and event data is 0x01,
-	// please notice that the event data is only 1 byte for this event.
+	// A FMS control event with a 3-byte payload, such as "00 1A 01": the event data is only
+	// 1 byte.
 	EventTypeFmsEvent0 = 0x1a
 )
 
-// Please read @doc rtmp_specification_1.0.pdf, @page 32, @5.4. User Control Message (4)
-// The client or the server sends this message to notify the peer about the user control events.
-// This message carries Event type and Event data.
+// See rtmp_specification_1.0.pdf, page 32, section 5.4 User Control Message (4).
 type UserControl struct {
-	// Event type is followed by Event data.
-	// @see: SrcPCUCEventType
 	EventType EventType
-	// The event data generally in 4bytes.
-	// @remark for event type is 0x001a, only 1bytes.
-	// @see SrsPCUCFmsEvent0
 	EventData int32
-	// 4bytes if event_type is SetBufferLength; otherwise 0.
+	// The buffer length for EventTypeSetBufferLength, else 0.
 	ExtraData int32
 }
 

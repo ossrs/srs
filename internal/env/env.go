@@ -14,8 +14,7 @@ import (
 	"srsx/internal/logger"
 )
 
-// Indirections over os and filesystem primitives so tests can swap them
-// without touching real process env or the filesystem.
+// Tests swap these so they do not touch the real process env or the filesystem.
 var (
 	getEnv    = os.Getenv
 	setEnv    = os.Setenv
@@ -25,67 +24,47 @@ var (
 	}
 )
 
-// ProxyEnvironment provides access to proxy environment variables.
 type ProxyEnvironment interface {
-	// Go pprof profiling
 	GoPprof() string
-	// Graceful quit timeout
 	GraceQuitTimeout() string
-	// Force quit timeout
 	ForceQuitTimeout() string
-	// HTTP API server port
 	HttpAPI() string
-	// HTTP web server port
 	HttpServer() string
-	// RTMP media server port
 	RtmpServer() string
-	// WebRTC media server port (UDP)
+	// UDP port.
 	WebRTCServer() string
-	// SRT media server port (UDP)
+	// UDP port.
 	SRTServer() string
-	// System API server port
+	// The API server of the proxy itself.
 	SystemAPI() string
-	// Whether proxy registration API authentication is enabled
+	// Authentication of the proxy registration API.
 	HttpAPIAuthEnabled() string
-	// Proxy registration API authentication type
 	HttpAPIAuthType() string
-	// Proxy registration API Bearer token
 	HttpAPIAuthToken() string
-	// Static files directory
 	StaticFiles() string
-	// Load balancer type (memory or redis)
+	// memory or redis.
 	LoadBalancerType() string
-	// Redis host
 	RedisHost() string
-	// Redis port
 	RedisPort() string
-	// Redis password
 	RedisPassword() string
-	// Redis database
 	RedisDB() string
-	// Optional Redis key prefix
 	RedisKeyPrefix() string
-	// Origin server registration lifetime
+	// Lifetime of an origin server registration.
 	OriginServerTTL() string
-	// Default backend enabled
+	// The default backend server is for debugging.
 	DefaultBackendEnabled() string
-	// Default backend IP
 	DefaultBackendIP() string
-	// Default backend RTMP port
 	DefaultBackendRTMP() string
-	// Default backend HTTP port
 	DefaultBackendHttp() string
-	// Default backend API port
 	DefaultBackendAPI() string
-	// Default backend RTC port (UDP)
+	// UDP port.
 	DefaultBackendRTC() string
-	// Default backend SRT port (UDP)
+	// UDP port.
 	DefaultBackendSRT() string
 }
 
 type proxyEnvironment struct{}
 
-// NewProxyEnvironment creates a new ProxyEnvironment instance, loading and building default environment variables.
 func NewProxyEnvironment(ctx context.Context) (ProxyEnvironment, error) {
 	if err := loadEnvFile(ctx); err != nil {
 		return nil, err
@@ -206,7 +185,6 @@ func (e *proxyEnvironment) DefaultBackendSRT() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_SRT")
 }
 
-// loadEnvFile loads the environment variables from .env file.
 func loadEnvFile(ctx context.Context) error {
 	envMap, err := parseEnvFile(".env")
 	if err != nil {
@@ -217,7 +195,6 @@ func loadEnvFile(ctx context.Context) error {
 		return errors.Wrapf(err, "load .env file")
 	}
 
-	// Skip keys already set in the environment so we don't overwrite them.
 	for key, value := range envMap {
 		if _, ok := lookupEnv(key); !ok {
 			setEnv(key, value)
@@ -228,7 +205,6 @@ func loadEnvFile(ctx context.Context) error {
 	return nil
 }
 
-// parseEnvFile opens filename and parses its contents as .env-formatted lines.
 func parseEnvFile(filename string) (map[string]string, error) {
 	file, err := openFile(filename)
 	if err != nil {
@@ -238,26 +214,21 @@ func parseEnvFile(filename string) (map[string]string, error) {
 	return parseEnvReader(file)
 }
 
-// parseEnvReader parses .env-formatted content from r. It performs no I/O
-// beyond reading r, so it is trivially testable with strings.NewReader.
 func parseEnvReader(r io.Reader) (map[string]string, error) {
 	envMap := make(map[string]string)
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// Skip empty lines and comments.
 		if line == "" || line[0] == '#' {
 			continue
 		}
 
-		// Strip optional "export " prefix.
 		if strings.HasPrefix(line, "export ") {
 			line = strings.TrimPrefix(line, "export ")
 			line = strings.TrimSpace(line)
 		}
 
-		// Split on first '=' to get key and value.
 		key, value, found := strings.Cut(line, "=")
 		if !found {
 			continue
@@ -266,26 +237,21 @@ func parseEnvReader(r io.Reader) (map[string]string, error) {
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
 
-		// Handle quoted values.
 		if len(value) >= 2 {
 			if value[0] == '\'' && value[len(value)-1] == '\'' {
-				// Single-quoted: raw literal, no escaping.
 				value = value[1 : len(value)-1]
 			} else if value[0] == '"' && value[len(value)-1] == '"' {
-				// Double-quoted: process escape sequences.
 				value = value[1 : len(value)-1]
 				value = strings.ReplaceAll(value, `\n`, "\n")
 				value = strings.ReplaceAll(value, `\r`, "\r")
 				value = strings.ReplaceAll(value, `\"`, `"`)
 				value = strings.ReplaceAll(value, `\\`, `\`)
 			} else {
-				// Unquoted: strip inline comments.
 				if idx := strings.Index(value, " #"); idx != -1 {
 					value = strings.TrimSpace(value[:idx])
 				}
 			}
 		} else {
-			// Unquoted short value: strip inline comments.
 			if idx := strings.Index(value, " #"); idx != -1 {
 				value = strings.TrimSpace(value[:idx])
 			}
@@ -301,60 +267,35 @@ func parseEnvReader(r io.Reader) (map[string]string, error) {
 	return envMap, nil
 }
 
-// buildDefaultEnvironmentVariables setups the default environment variables.
 func buildDefaultEnvironmentVariables(ctx context.Context) {
-	// Whether enable the Go pprof.
 	setEnvDefault("GO_PPROF", "")
-	// Force shutdown timeout.
 	setEnvDefault("PROXY_FORCE_QUIT_TIMEOUT", "30s")
-	// Graceful quit timeout.
 	setEnvDefault("PROXY_GRACE_QUIT_TIMEOUT", "20s")
 
-	// The HTTP API server.
 	setEnvDefault("PROXY_HTTP_API", "11985")
-	// The HTTP web server.
 	setEnvDefault("PROXY_HTTP_SERVER", "18080")
-	// The RTMP media server.
 	setEnvDefault("PROXY_RTMP_SERVER", "11935")
-	// The WebRTC media server, via UDP protocol.
 	setEnvDefault("PROXY_WEBRTC_SERVER", "18000")
-	// The SRT media server, via UDP protocol.
 	setEnvDefault("PROXY_SRT_SERVER", "20080")
-	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
-	// HTTP API authentication is disabled by default.
 	setEnvDefault("PROXY_HTTP_API_AUTH_ENABLED", "off")
 	setEnvDefault("PROXY_HTTP_API_AUTH_TYPE", "")
 	setEnvDefault("PROXY_HTTP_API_AUTH_TOKEN", "")
-	// The static directory for web server, optional.
 	setEnvDefault("PROXY_STATIC_FILES", "./trunk/research")
 
-	// The load balancer, use redis or memory.
 	setEnvDefault("PROXY_LOAD_BALANCER_TYPE", "memory")
-	// The redis server host.
 	setEnvDefault("PROXY_REDIS_HOST", "127.0.0.1")
-	// The redis server port.
 	setEnvDefault("PROXY_REDIS_PORT", "6379")
-	// The redis server password.
 	setEnvDefault("PROXY_REDIS_PASSWORD", "")
-	// The redis server db.
 	setEnvDefault("PROXY_REDIS_DB", "0")
-	// Optional prefix for all Redis keys.
 	setEnvDefault("PROXY_REDIS_KEY_PREFIX", "")
-	// Origin server registration and health-check lifetime.
 	setEnvDefault("PROXY_ORIGIN_SERVER_TTL", "300s")
 
-	// Whether enable the default backend server, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_ENABLED", "off")
-	// Default backend server IP, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_IP", "127.0.0.1")
-	// Default backend server port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_RTMP", "1935")
-	// Default backend api port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_API", "1985")
-	// Default backend udp rtc port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_RTC", "8000")
-	// Default backend udp srt port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_SRT", "10080")
 
 	logger.Debug(ctx, "load .env as GO_PPROF=%v, "+
@@ -382,7 +323,6 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	)
 }
 
-// validate ensures the proxy environment is internally consistent before it is exposed to callers.
 func (e *proxyEnvironment) validate() error {
 	if e.HttpAPIAuthEnabled() != "on" {
 		return nil
@@ -401,7 +341,6 @@ func (e *proxyEnvironment) validate() error {
 	return nil
 }
 
-// setEnvDefault set env key=value if not set.
 func setEnvDefault(key, value string) {
 	if getEnv(key) == "" {
 		setEnv(key, value)

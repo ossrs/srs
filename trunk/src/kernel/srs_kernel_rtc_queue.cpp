@@ -86,7 +86,6 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
         return true;
     }
 
-    // Normal sequence, seq follows high_.
     if (srs_rtp_seq_distance(end_, seq) >= 0) {
         // TODO: FIXME: if diff_upper > limit_max_size clear?
         //  int16_t diff_upper = srs_rtp_seq_distance(end_, seq)
@@ -94,8 +93,6 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
         nack_first = end_;
         nack_last = seq;
 
-        // When distance(seq,highest)>0 and seq<highest, seq must flip back,
-        // for example, highest=65535, seq=0, distance(65535,0)>0 and 0<65535.
         // Compare with the highest seq, not end_, which is already 0 after seq 65535.
         uint16_t highest = end_ - 1;
         if (seq < highest) {
@@ -108,7 +105,6 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
         return true;
     }
 
-    // Out-of-order sequence, seq before low_.
     if (srs_rtp_seq_distance(seq, begin_) > 0) {
         // The seq itself has arrived, so NACK only the packets after it.
         nack_first = seq + 1;
@@ -117,10 +113,8 @@ bool SrsRtpRingBuffer::update(uint16_t seq, uint16_t &nack_first, uint16_t &nack
 
         // TODO: FIXME: Maybe should support startup drop.
         return true;
-        // When startup, we may receive packets in chaos order.
-        // Because we don't know the ISN(initiazlie sequence number), the first packet
-        // we received maybe no the first packet client sent.
-        // @remark We only log a warning, because it seems ok for publisher.
+        // At startup, packets may come in any order: without the ISN (initial sequence
+        // number), the first packet received may not be the first one the client sent.
         // return false;
     }
 

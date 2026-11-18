@@ -30,13 +30,10 @@ SrsPps *_srs_pps_fast_addrs = NULL;
 
 SrsPps *_srs_pps_spkts = NULL;
 
-// set the max packet size.
 #define SRS_UDP_MAX_PACKET_SIZE 65535
 
-// sleep in srs_utime_t for udp recv packet.
 #define SrsUdpPacketRecvCycleInterval 0
 
-// The wait in srs_utime_t after a failed TCP accept.
 #define SRS_TCP_ACCEPT_ERROR_WAIT (100 * SRS_UTIME_MILLISECONDS)
 
 ISrsUdpHandler::ISrsUdpHandler()
@@ -130,7 +127,7 @@ void SrsUdpListener::set_socket_buffer()
 {
     int default_sndbuf = 0;
     // TODO: FIXME: Config it.
-    int expect_sndbuf = 1024 * 1024 * 10; // 10M
+    int expect_sndbuf = 1024 * 1024 * 10;
     int actual_sndbuf = expect_sndbuf;
     int r0_sndbuf = 0;
     if (true) {
@@ -149,7 +146,7 @@ void SrsUdpListener::set_socket_buffer()
 
     int default_rcvbuf = 0;
     // TODO: FIXME: Config it.
-    int expect_rcvbuf = 1024 * 1024 * 10; // 10M
+    int expect_rcvbuf = 1024 * 1024 * 10;
     int actual_rcvbuf = expect_rcvbuf;
     int r0_rcvbuf = 0;
     if (true) {
@@ -174,7 +171,6 @@ srs_error_t SrsUdpListener::listen()
 {
     srs_error_t err = srs_success;
 
-    // Ignore if not configured.
     if (ip_.empty() || !port_)
         return err;
 
@@ -232,8 +228,7 @@ srs_error_t SrsUdpListener::do_cycle()
         return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
     }
 
-    // Drop UDP health check packet of Aliyun SLB.
-    //      Healthcheck udp check
+    // The UDP health check of Aliyun SLB, whose payload is "Healthcheck udp check".
     // @see https://help.aliyun.com/document_detail/27595.html
     if (nread == 21 && buf_[0] == 0x48 && buf_[1] == 0x65 && buf_[2] == 0x61 && buf_[3] == 0x6c && buf_[19] == 0x63 && buf_[20] == 0x6b) {
         return err;
@@ -295,7 +290,6 @@ srs_error_t SrsTcpListener::listen()
 {
     srs_error_t err = srs_success;
 
-    // Ignore if not configured.
     if (ip_.empty() || !port_)
         return err;
 
@@ -496,27 +490,22 @@ int SrsUdpMuxSocket::recvfrom(srs_utime_t timeout)
         return nread_;
     }
 
-    // Reset the fast cache buffer size.
     cache_buffer_->set_size(nread_);
     cache_buffer_->skip(-1 * cache_buffer_->pos());
 
-    // Drop UDP health check packet of Aliyun SLB.
-    //      Healthcheck udp check
+    // The UDP health check of Aliyun SLB, whose payload is "Healthcheck udp check".
     // @see https://help.aliyun.com/document_detail/27595.html
     if (nread_ == 21 && buf_[0] == 0x48 && buf_[1] == 0x65 && buf_[2] == 0x61 && buf_[3] == 0x6c && buf_[19] == 0x63 && buf_[20] == 0x6b) {
         return 0;
     }
 
-    // Parse address from cache.
     if (from_.ss_family == AF_INET) {
         sockaddr_in *addr = (sockaddr_in *)&from_;
         fast_id_ = uint64_t(addr->sin_port) << 48 | uint64_t(addr->sin_addr.s_addr);
     }
 
-    // We will regenerate the peer_ip, peer_port and peer_id.
     address_changed_ = true;
 
-    // Update the stat.
     ++_srs_pps_rpkts->sugar_;
 
     return nread_;
@@ -538,7 +527,6 @@ srs_error_t SrsUdpMuxSocket::sendto(void *data, int size, srs_utime_t timeout)
         return srs_error_new(ERROR_SOCKET_WRITE, "sendto");
     }
 
-    // Yield to another coroutines.
     // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777542162
     if (++nn_msgs_for_yield_ > 20) {
         nn_msgs_for_yield_ = 0;
@@ -588,12 +576,10 @@ std::string SrsUdpMuxSocket::peer_id()
     if (address_changed_) {
         address_changed_ = false;
 
-        // Parse address from cache.
         bool parsed = false;
         if (from_.ss_family == AF_INET) {
             sockaddr_in *addr = (sockaddr_in *)&from_;
 
-            // Load from fast cache, previous ip.
             std::map<uint32_t, string>::iterator it = cache_.find(addr->sin_addr.s_addr);
             if (it == cache_.end()) {
                 peer_ip_ = inet_ntoa(addr->sin_addr);
@@ -607,7 +593,7 @@ std::string SrsUdpMuxSocket::peer_id()
         }
 
         if (!parsed) {
-            // TODO: FIXME: Maybe we should not covert to string for each packet.
+            // TODO: FIXME: Maybe we should not convert to string for each packet.
             char address_string[64];
             char port_string[16];
             if (getnameinfo((sockaddr *)&from_, fromlen_,
@@ -621,7 +607,6 @@ std::string SrsUdpMuxSocket::peer_id()
             peer_port_ = atoi(port_string);
         }
 
-        // Build the peer id, reserve 1 byte for the trailing '\0'.
         static char id_buf[128 + 1];
         int len = snprintf(id_buf, sizeof(id_buf), "%s:%d", peer_ip_.c_str(), peer_port_);
         if (len <= 0 || len >= (int)sizeof(id_buf)) {
@@ -629,7 +614,6 @@ std::string SrsUdpMuxSocket::peer_id()
         }
         peer_id_ = string(id_buf, len);
 
-        // Update the stat.
         ++_srs_pps_addrs->sugar_;
     }
 
@@ -651,7 +635,6 @@ ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 {
     SrsUdpMuxSocket *sendonly = new SrsUdpMuxSocket(lfd_);
 
-    // Don't copy buffer
     srs_freepa(sendonly->buf_);
     sendonly->nb_buf_ = 0;
     sendonly->nread_ = 0;
@@ -661,7 +644,6 @@ ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
     sendonly->peer_ip_ = peer_ip_;
     sendonly->peer_port_ = peer_port_;
 
-    // Copy the fast id.
     sendonly->peer_id_ = peer_id_;
     sendonly->fast_id_ = fast_id_;
     sendonly->address_changed_ = address_changed_;
@@ -730,7 +712,7 @@ srs_error_t SrsUdpMuxListener::listen()
     srs_freep(trd_);
     trd_ = factory_->create_coroutine("udp", this, cid_);
 
-    // change stack size to 256K, fix crash when call some 3rd-part api.
+    // Some third-party APIs crash on a smaller stack.
     ((SrsSTCoroutine *)trd_)->set_stack_size(1 << 18);
 
     if ((err = trd_->start()) != srs_success) {
@@ -744,7 +726,7 @@ void SrsUdpMuxListener::set_socket_buffer()
 {
     int default_sndbuf = 0;
     // TODO: FIXME: Config it.
-    int expect_sndbuf = 1024 * 1024 * 10; // 10M
+    int expect_sndbuf = 1024 * 1024 * 10;
     int actual_sndbuf = expect_sndbuf;
     int r0_sndbuf = 0;
     if (true) {
@@ -761,7 +743,7 @@ void SrsUdpMuxListener::set_socket_buffer()
 
     int default_rcvbuf = 0;
     // TODO: FIXME: Config it.
-    int expect_rcvbuf = 1024 * 1024 * 10; // 10M
+    int expect_rcvbuf = 1024 * 1024 * 10;
     int actual_rcvbuf = expect_rcvbuf;
     int r0_rcvbuf = 0;
     if (true) {
@@ -796,13 +778,11 @@ srs_error_t SrsUdpMuxListener::cycle()
 
     set_socket_buffer();
 
-    // Because we have to decrypt the cipher of received packet payload,
-    // and the size is not determined, so we think there is at least one copy,
-    // and we can reuse the plaintext h264/opus with players when got plaintext.
+    // The payload must be decrypted, to a size not known before, so it is copied at least once anyway, and the
+    // plaintext H.264 and Opus is what the players reuse.
     SrsUniquePtr<SrsUdpMuxSocket> skt_ptr(new SrsUdpMuxSocket(lfd_));
     ISrsUdpMuxSocket *skt = skt_ptr.get();
 
-    // How many messages to run a yield.
     uint32_t nn_msgs_for_yield = 0;
 
     while (true) {
@@ -817,24 +797,20 @@ srs_error_t SrsUdpMuxListener::cycle()
             if (nread < 0) {
                 srs_warn("udp recv error nn=%d", nread);
             }
-            // remux udp never return
             continue;
         }
 
         nn_msgs++;
         nn_msgs_stage++;
 
-        // Handle the UDP packet.
         err = handler_->on_udp_packet(skt);
 
-        // Use pithy print to show more smart information.
         if (err != srs_success) {
             uint32_t nn = 0;
             if (pp_pkt_handler_err->can_print(err, &nn)) {
-                // For performance, only restore context when output log.
+                // For performance, restore the context only when logging.
                 context_->set_id(cid_);
 
-                // Append more information.
                 err = srs_error_wrap(err, "size=%u, data=[%s]", skt->size(), srs_strings_dumps_hex(skt->data(), skt->size(), 8).c_str());
                 srs_warn("handle udp pkt, count=%u/%u, err: %s", pp_pkt_handler_err->nn_count_, nn, srs_error_desc(err).c_str());
             }
@@ -844,7 +820,7 @@ srs_error_t SrsUdpMuxListener::cycle()
         pprint->elapse();
         if (pprint->can_print()) {
 
-            // For performance, only restore context when output log.
+            // For performance, restore the context only when logging.
             context_->set_id(cid_);
 
             int pps_average = 0;
@@ -882,7 +858,6 @@ srs_error_t SrsUdpMuxListener::cycle()
             srs_usleep(SrsUdpPacketRecvCycleInterval);
         }
 
-        // Yield to another coroutines.
         // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777485531
         if (++nn_msgs_for_yield > 10) {
             nn_msgs_for_yield = 0;

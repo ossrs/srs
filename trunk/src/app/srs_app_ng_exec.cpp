@@ -58,12 +58,10 @@ srs_error_t SrsNgExec::on_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    // when publish, parse the exec_publish.
     if ((err = parse_exec_publish(req)) != srs_success) {
         return srs_error_wrap(err, "exec publish");
     }
 
-    // start thread to run all processes.
     srs_freep(trd_);
     trd_ = new SrsSTCoroutine("encoder", this, _srs_context->get_id());
     if ((err = trd_->start()) != srs_success) {
@@ -79,7 +77,6 @@ void SrsNgExec::on_unpublish()
     clear_exec_publish();
 }
 
-// when error, ng-exec sleep for a while and retry.
 #define SRS_RTMP_EXEC_CIMS (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsNgExec::cycle()
 {
@@ -88,7 +85,6 @@ srs_error_t SrsNgExec::cycle()
     SrsUniquePtr<ISrsTime> time(app_factory_->create_time());
 
     while (true) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             err = srs_error_wrap(err, "ng exec cycle");
@@ -116,7 +112,6 @@ srs_error_t SrsNgExec::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // ignore when no exec.
     if (exec_publishs_.empty()) {
         return err;
     }
@@ -125,18 +120,15 @@ srs_error_t SrsNgExec::do_cycle()
     for (it = exec_publishs_.begin(); it != exec_publishs_.end(); ++it) {
         ISrsProcess *process = *it;
 
-        // start all processes.
         if ((err = process->start()) != srs_success) {
             return srs_error_wrap(err, "process start");
         }
 
-        // check process status.
         if ((err = process->cycle()) != srs_success) {
             return srs_error_wrap(err, "process cycle");
         }
     }
 
-    // pithy print
     show_exec_log_message();
 
     return err;
@@ -151,7 +143,6 @@ srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
         return err;
     }
 
-    // stream name: vhost/app/stream for print
     input_stream_name_ = req->vhost_;
     input_stream_name_ += "/";
     input_stream_name_ += req->app_;
@@ -207,7 +198,6 @@ void SrsNgExec::show_exec_log_message()
 {
     pprint_->elapse();
 
-    // reportable
     if (pprint_->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> " SRS_CONSTS_LOG_EXEC " time=%" PRId64 ", publish=%d, input=%s",

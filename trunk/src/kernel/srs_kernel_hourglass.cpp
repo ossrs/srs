@@ -215,7 +215,7 @@ void SrsFastTimer::unsubscribe(ISrsFastTimerHandler *timer)
         handlers_.erase(it);
     }
 
-    // Also take it out of the round in progress, so it is not notified after it left.
+    // A handler may be destroyed after it leaves, so the round in progress must not notify it.
     deque<ISrsFastTimerHandler *>::iterator p = std::find(pending_.begin(), pending_.end(), timer);
     if (p != pending_.end()) {
         pending_.erase(p);
@@ -243,7 +243,7 @@ srs_error_t SrsFastTimer::cycle()
             pending_.pop_front();
 
             if ((err = timer->on_timer(interval_)) != srs_success) {
-                srs_freep(err); // Ignore any error for shared timer.
+                srs_freep(err);
             }
         }
 
@@ -343,7 +343,6 @@ srs_error_t SrsSharedTimer::initialize()
 {
     srs_error_t err = srs_success;
 
-    // Initialize global shared timers
     timer20ms_ = factory_->create_fast_timer("shared", 20 * SRS_UTIME_MILLISECONDS);
     timer100ms_ = factory_->create_fast_timer("shared", 100 * SRS_UTIME_MILLISECONDS);
     timer1s_ = factory_->create_fast_timer("shared", 1 * SRS_UTIME_SECONDS);
@@ -352,7 +351,6 @@ srs_error_t SrsSharedTimer::initialize()
     clock_monitor->assemble();
     clock_monitor_ = clock_monitor;
 
-    // Start all timers
     if ((err = timer20ms_->start()) != srs_success) {
         return srs_error_wrap(err, "start timer20ms");
     }
@@ -369,7 +367,6 @@ srs_error_t SrsSharedTimer::initialize()
         return srs_error_wrap(err, "start timer5s");
     }
 
-    // Register clock monitor to 20ms timer
     timer20ms_->subscribe(clock_monitor_);
 
     return err;

@@ -11,35 +11,23 @@
 
 class SrsMediaPacket;
 
-// The class to auto free the shared ptr message array.
-// When need to get some messages, for instance, from Consumer queue,
-// create a message array, whose msgs can used to accept the msgs,
-// then send each message and set to NULL.
-//
-// @remark: user must free all msgs in array, for the SRS2.0 protocol stack
-//       provides an api to send messages, @see send_and_free_messages
+// The array never frees its messages; the user frees them, such as by
+// send_and_free_messages().
 class SrsMessageArray
 {
 public:
-    // When user already send all msgs, please set to NULL,
-    // for instance, msg= msgs.msgs_[i], msgs.msgs_[i]=NULL, send(msg),
-    // where send(msg) will always send and free it.
     SrsMediaPacket **msgs_;
     int max_;
 
 public:
-    // Create msg array, initialize array to NULL ptrs.
     SrsMessageArray(int max_msgs);
-    // Free the msgs not sent out(not NULL).
     virtual ~SrsMessageArray();
 
 public:
-    // Free specified count of messages.
     virtual void free(int count);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Zero initialize the message array.
     virtual void zero(int count);
 };
 

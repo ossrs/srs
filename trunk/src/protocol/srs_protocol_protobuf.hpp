@@ -42,7 +42,7 @@ public:
     static srs_error_t encode(SrsBuffer *b, const std::string &v);
 };
 
-// For embeded messages and packed repeated fields, see usage of SrsProtobufKey.
+// For embedded messages and packed repeated fields.
 class SrsProtobufObject
 {
 public:
@@ -68,48 +68,13 @@ enum SrsProtobufField {
 
 // See https://developers.google.com/protocol-buffers/docs/encoding#structure
 // See https://cloud.tencent.com/document/api/614/16873
-//
-////////////////////////////////////////////////////////////////////////////////
-// If key is string, for example:
-//      message Content {
-//          required string value = 2;
-//      }
-// We can get the size of value:
-//      SrsProtobufKey::sizeof_key() + SrsProtobufString::sizeof_string(value_)
-// And marshal as:
-//      SrsProtobufKey::encode(b, 2, SrsProtobufFieldString)
-//      SrsProtobufString::encode(b, value_)
-//
-////////////////////////////////////////////////////////////////////////////////
-// If key is varints, for example:
-//      message Log {
-//          required int64   time     = 1;
-//      }
-// We can get the size of logs:
-//      SrsProtobufKey::sizeof_key() + SrsProtobufVarints::sizeof_varint(time_)
-// And marshal as:
-//      SrsProtobufKey::encode(b, 1, SrsProtobufFieldVarint)
-//      SrsProtobufVarints::encode(b, time_)
-//
-////////////////////////////////////////////////////////////////////////////////
-// If key is object(or embeded message, or packed repeated fields), for example:
-//      message LogGroupList {
-//          repeated LogGroup logGroupList = 1;
-//      }
-// We can get the size of logs:
-//      for group in vector<LogGroup*>:
-//          size += SrsProtobufKey::sizeof_key() + SrsProtobufObject::sizeof_object(group)
-// And marshal as:
-//      for group in vector<LogGroup*>:
-//          SrsProtobufKey::encode(b, 1, SrsProtobufFieldLengthDelimited)
-//          SrsProtobufObject::encode(b, group)
-// Note that there is always a key and length for each repeat object.
+// A field is its key followed by its value, and a repeated message has a key and
+// a length for each element.
 class SrsProtobufKey
 {
 public:
     static int sizeof_key();
-    // Each key in the streamed message is a varint with the value (field_number << 3) | wire_type – in other words,
-    // the last three bits of the number store the wire type.
+    // Each key is a varint of (field_number << 3) | wire_type.
     static srs_error_t encode(SrsBuffer *b, uint8_t fieldId, SrsProtobufField fieldType);
 };
 

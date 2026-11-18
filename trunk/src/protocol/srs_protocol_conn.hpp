@@ -22,7 +22,6 @@
 
 class SrsBuffer;
 
-// The connection interface for all HTTP/RTMP/RTSP object.
 class ISrsConnection : public ISrsResource
 {
 public:
@@ -30,11 +29,10 @@ public:
     virtual ~ISrsConnection();
 
 public:
-    // Get remote ip address.
     virtual std::string remote_ip() = 0;
 };
 
-// If a connection is able be expired, user can use HTTP-API to kick-off it.
+// The HTTP API uses it to kick off a client.
 class ISrsExpire
 {
 public:
@@ -42,20 +40,14 @@ public:
     virtual ~ISrsExpire();
 
 public:
-    // Set connection to expired to kick-off it.
     virtual void expire() = 0;
 };
 
-// The basic connection of SRS, for TCP based protocols,
-// all connections accept from listener must extends from this base class,
-// server will add the connection to manager, and delete it when remove.
 class SrsTcpConnection : public ISrsProtocolReadWriter
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The underlayer st fd handler.
     srs_netfd_t stfd_;
-    // The underlayer socket.
     ISrsProtocolReadWriter *skt_;
 
 public:
@@ -63,11 +55,8 @@ public:
     virtual ~SrsTcpConnection();
 
 public:
-    // Set socket option TCP_NODELAY.
     virtual srs_error_t set_tcp_nodelay(bool v);
-    // Set socket option SO_SNDBUF in srs_utime_t.
     virtual srs_error_t set_socket_buffer(srs_utime_t buffer_v);
-    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();
@@ -81,18 +70,15 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
-// With a small fast read buffer, to support peek for protocol detecting. Note that directly write to io without any
-// cache or buffer.
+// Buffers the first bytes, so the protocol can be detected by a peek.
 class SrsBufferedReadWriter : public ISrsProtocolReadWriter
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The under-layer transport, owned and freed with this object.
+    // Owned and freed with this object.
     ISrsProtocolReadWriter *io_;
-    // Fixed, small and fast buffer. Note that it must be very small piece of cache, make sure matches all protocols,
-    // because we will full fill it when peeking.
+    // Keep it small enough for every protocol, since a peek fills it fully.
     char cache_[16];
-    // Current reading position.
     SrsBuffer *buf_;
 
 public:
@@ -100,13 +86,11 @@ public:
     virtual ~SrsBufferedReadWriter();
 
 public:
-    // Peek the head of cache to buf in size of bytes.
     srs_error_t peek(char *buf, int *size);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t reload_buffer();
-    // Interface ISrsProtocolReadWriter
 public:
     virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
     virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
@@ -120,7 +104,6 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
-// The interface for SSL connection.
 class ISrsSslConnection : public ISrsProtocolReadWriter
 {
 public:
@@ -131,12 +114,11 @@ public:
     virtual srs_error_t handshake(std::string key_file, std::string crt_file) = 0;
 };
 
-// The SSL connection over TCP transport, in server mode.
+// TLS in server mode.
 class SrsSslConnection : public ISrsSslConnection
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The under-layer plaintext transport.
     ISrsProtocolReadWriter *transport_;
 
 // clang-format off
@@ -152,7 +134,6 @@ public:
 
 public:
     virtual srs_error_t handshake(std::string key_file, std::string crt_file);
-    // Interface ISrsProtocolReadWriter
 public:
     virtual void set_recv_timeout(srs_utime_t tm);
     virtual srs_utime_t get_recv_timeout();

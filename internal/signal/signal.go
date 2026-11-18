@@ -15,16 +15,13 @@ import (
 	"srsx/internal/logger"
 )
 
-// Handler installs OS signal handlers and the force-quit timer. The notify
-// and exit indirections are struct fields (not package globals) so concurrent
-// tests can each construct a handler with their own fakes without racing on
-// shared state.
+// notify and exit are fields, not package globals, so concurrent tests can
+// each use their own fakes without a race.
 type Handler struct {
 	notify func(c chan<- os.Signal, sig ...os.Signal)
 	exit   func(code int)
 }
 
-// NewHandler returns a Handler wired to the real OS implementations.
 func NewHandler() *Handler {
 	return &Handler{
 		notify: signal.Notify,

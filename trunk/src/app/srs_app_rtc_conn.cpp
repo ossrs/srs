@@ -445,8 +445,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -552,7 +551,6 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
         }
     }
 
-    // update the statistic when client coveried.
     // TODO: FIXME: Should finger out the err.
     if (stat_) {
         stat_->on_disconnect(cid_.c_str(), srs_success);
@@ -573,7 +571,7 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
 
     req_ = req->copy();
 
-    // We must do stat the client before hooks, because hooks depends on it.
+    // Stat the client before the hooks, which depend on it.
     if ((err = stat_->on_client(cid_.c_str(), req_, expire_, SrsRtcConnPlay)) != srs_success) {
         return srs_error_wrap(err, "rtc: stat client");
     }
@@ -605,7 +603,6 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
     bool keep_original_ssrc = config_->get_rtc_keep_original_ssrc(req->vhost_);
     srs_trace("RTC player nack=%d, nnc=%d, keep_original_ssrc=%d", nack_enabled_, nack_no_copy_, keep_original_ssrc);
 
-    // Setup tracks.
     for (map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
         SrsRtcAudioSendTrack *track = it->second;
         track->set_nack_no_copy(nack_no_copy_);
@@ -618,7 +615,6 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
         track->set_keep_original_ssrc(keep_original_ssrc);
     }
 
-    // Send the Sender Report of each track every second, once the player started.
     if (shared_timer_) {
         shared_timer_->timer1s()->subscribe(this);
     }
@@ -636,7 +632,6 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
     cache_track0_ = cache_track1_ = cache_track2_ = NULL;
 
-    // Refresh the relation for audio.
     // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {
         if (!audio_tracks_.empty()) {
@@ -657,8 +652,7 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
         }
     }
 
-    // Refresh the relation for video.
-    // TODO: FIMXE: Match by label?
+    // TODO: FIXME: Match by label?
     if (desc && desc->video_track_descs_.size() == 1) {
         if (!video_tracks_.empty()) {
             SrsRtcTrackDescription *vdesc = desc->video_track_descs_.at(0);
@@ -679,7 +673,6 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
         }
     }
 
-    // Request keyframe(PLI) when stream changed.
     if (desc->audio_track_desc_) {
         pli_worker_->request_keyframe(desc->audio_track_desc_->ssrc_, cid_);
     }
@@ -719,9 +712,7 @@ srs_error_t SrsRtcPlayStream::start()
 {
     srs_error_t err = srs_success;
 
-    // If player coroutine allocated, we think the player is started.
-    // To prevent play multiple times for this play stream.
-    // @remark Allow start multiple times, for DTLS may retransmit the final packet.
+    // DTLS may retransmit its final packet, which starts the player again.
     if (is_started_) {
         return err;
     }
@@ -795,7 +786,6 @@ srs_error_t SrsRtcPlayStream::cycle()
             return srs_error_wrap(err, "rtc sender thread");
         }
 
-        // Wait for amount of packets.
         SrsRtpPacket *pkt = NULL;
         consumer->dump_packet(&pkt);
         if (!pkt) {
@@ -804,8 +794,7 @@ srs_error_t SrsRtcPlayStream::cycle()
             continue;
         }
 
-        // Send-out the RTP packet and do cleanup
-        // @remark Note that the pkt might be set to NULL.
+        // The NACK queue may take the packet and set pkt to NULL.
         if ((err = send_packet(pkt)) != srs_success) {
             uint32_t nn = 0;
             if (epp->can_print(err, &nn)) {
@@ -814,8 +803,6 @@ srs_error_t SrsRtcPlayStream::cycle()
             srs_freep(err);
         }
 
-        // Free the packet.
-        // @remark Note that the pkt might be set to NULL.
         srs_freep(pkt);
     }
 }
@@ -826,22 +813,17 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket *&pkt)
 
     uint32_t ssrc = pkt->header_.get_ssrc();
 
-    // Find the track, generally from the fast cache built by the first packet of the ssrc.
     SrsRtcSendTrack *track = find_track(ssrc, pkt->is_audio());
 
-    // Ignore if no track found.
     if (!track) {
         srs_warn("RTC: Drop for ssrc %u not found", ssrc);
         return err;
     }
 
-    // Consume packet by track.
     if ((err = track->on_rtp(pkt)) != srs_success) {
         return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header_.get_sequence());
     }
 
-    // For NACK to handle packet.
-    // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_) {
         if ((err = track->on_nack(&pkt)) != srs_success) {
             return srs_error_wrap(err, "on nack");
@@ -853,8 +835,7 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket *&pkt)
 
 SrsRtcSendTrack *SrsRtcPlayStream::find_track(uint32_t ssrc, bool is_audio)
 {
-    // Try to find track from cache. Note that an unfilled slot keeps the ssrc 0, so we must
-    // check the track, not the slot, before using it.
+    // An unfilled slot keeps the ssrc 0, so check the track, not the slot, before using it.
     SrsRtcSendTrack *track = NULL;
     if (cache_ssrc0_ == ssrc) {
         track = cache_track0_;
@@ -867,7 +848,6 @@ SrsRtcSendTrack *SrsRtcPlayStream::find_track(uint32_t ssrc, bool is_audio)
         return track;
     }
 
-    // Find by original tracks and build fast cache.
     if (is_audio) {
         map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.find(ssrc);
         if (it != audio_tracks_.end()) {
@@ -900,7 +880,6 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
 {
     std::ostringstream merged_log;
 
-    // set video track status
     if (true) {
         std::map<uint32_t, SrsRtcVideoSendTrack *>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
@@ -911,7 +890,6 @@ void SrsRtcPlayStream::set_all_tracks_status(bool status)
         }
     }
 
-    // set audio track status
     if (true) {
         std::map<uint32_t, SrsRtcAudioSendTrack *>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
@@ -931,8 +909,8 @@ srs_error_t SrsRtcPlayStream::on_rtcp(SrsRtcpCommon *rtcp)
         SrsRtcpRR *rr = dynamic_cast<SrsRtcpRR *>(rtcp);
         return on_rtcp_rr(rr);
     } else if (SrsRtcpType_rtpfb == rtcp->type()) {
-        // currently rtpfb of nack will be handle by player. TWCC will be handled by SrsRtcConnection
-        // Other formats, such as TMMBR, are decoded as SrsRtcpFbCommon, not SrsRtcpNack.
+        // Only FMT 1, the generic NACK, is decoded as SrsRtcpNack. TWCC goes to SrsRtcConnection, and other
+        // formats, such as TMMBR, are decoded as SrsRtcpFbCommon.
         if (1 != rtcp->get_rc()) {
             return srs_success;
         }
@@ -978,7 +956,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
 
     uint32_t ssrc = rtcp->get_media_ssrc();
 
-    // If NACK disabled, print a log.
     if (!nack_enabled_) {
         vector<uint16_t> sns = rtcp->get_lost_sns();
         srs_trace("RTC: NACK ssrc=%u, seq=%s, ignored", ssrc, srs_strings_join(sns, ",").c_str());
@@ -986,7 +963,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
     }
 
     SrsRtcSendTrack *target = NULL;
-    // Try audio track first.
     for (map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
         SrsRtcAudioSendTrack *track = it->second;
         if (!track->get_track_status() || !track->has_ssrc(ssrc)) {
@@ -996,7 +972,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
         target = track;
         break;
     }
-    // If not found, try video track.
     for (map<uint32_t, SrsRtcVideoSendTrack *>::iterator it = video_tracks_.begin(); !target && it != video_tracks_.end(); ++it) {
         SrsRtcVideoSendTrack *track = it->second;
         if (!track->get_track_status() || !track->has_ssrc(ssrc)) {
@@ -1006,7 +981,6 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
         target = track;
         break;
     }
-    // Error if no track.
     if (!target) {
         return srs_error_new(ERROR_RTC_NO_TRACK, "no track for %u ssrc", ssrc);
     }
@@ -1167,10 +1141,7 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    // This is a very heavy function, and it may potentially cause a coroutine switch.
-    // Therefore, during this function, the 'this' pointer might become invalid because
-    // the object could be freed by another thread. As a result, we must lock the object
-    // to prevent it from being freed.
+    // Sending may yield, so lock the timer to keep it from being freed meanwhile.
     SrsLocker(&lock_);
 
     ++_srs_pps_pub->sugar_;
@@ -1179,10 +1150,8 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
-    // The frames counted in the last second, for the stream stats.
     sender_->report_frame_stats();
 
-    // For RR and RRTR.
     ++_srs_pps_rr->sugar_;
 
     if ((err = sender_->send_rtcp_rr()) != srs_success) {
@@ -1237,10 +1206,7 @@ srs_error_t SrsRtcPublishTwccTimer::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    // This is a very heavy function, and it may potentially cause a coroutine switch.
-    // Therefore, during this function, the 'this' pointer might become invalid because
-    // the object could be freed by another thread. As a result, we must lock the object
-    // to prevent it from being freed.
+    // Sending may yield, so lock the timer to keep it from being freed meanwhile.
     SrsLocker(&lock_);
 
     ++_srs_pps_pub->sugar_;
@@ -1249,21 +1215,17 @@ srs_error_t SrsRtcPublishTwccTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
-    // For TWCC feedback.
     if (!sender_->is_sender_twcc_enabled()) {
         return err;
     }
 
     ++_srs_pps_twcc->sugar_;
 
-    // If circuit-breaker is dropping packet, disable TWCC.
     if (circuit_breaker_->hybrid_critical_water_level()) {
         ++_srs_pps_snack4->sugar_;
         return err;
     }
 
-    // We should not depends on the received packet,
-    // instead we should send feedback every Nms.
     if ((err = sender_->send_periodic_twcc()) != srs_success) {
         srs_warn("TWCC err %s", srs_error_desc(err).c_str());
         srs_freep(err);
@@ -1298,8 +1260,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -1417,13 +1378,11 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(format_);
     srs_freep(req_);
 
-    // update the statistic when client coveried.
     // TODO: FIXME: Should finger out the err.
     if (stat_) {
         stat_->on_disconnect(cid_.c_str(), srs_success);
     }
 
-    // Optional but just to make it clear.
     stat_ = NULL;
     config_ = NULL;
     rtc_sources_ = NULL;
@@ -1451,12 +1410,12 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         return srs_error_wrap(err, "initialize timer twcc");
     }
 
-    // We must do stat the client before hooks, because hooks depends on it.
+    // Stat the client before the hooks, which depend on it.
     if ((err = stat_->on_client(cid_.c_str(), req_, expire_, SrsRtcConnPublish)) != srs_success) {
         return srs_error_wrap(err, "rtc: stat client");
     }
 
-    // Use SDP sample rate to initialize track rate for A/V sync.
+    // The SDP sample rate sets the track rate, for A/V sync.
     bool init_rate_from_sdp = config_->get_rtc_init_rate_from_sdp(req_->vhost_);
 
     if (stream_desc->audio_track_desc_) {
@@ -1470,11 +1429,8 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
 
     int twcc_id = -1;
     uint32_t media_ssrc = 0;
-    // TWCC is transport-wide, so audio and video share the same extension ID.
-    // We fetch the TWCC ID from video track, which is sufficient because:
-    //   1. Standard WebRTC clients use the same TWCC ID for both audio and video.
-    //   2. The ID is used to parse TWCC extension from all RTP packets (audio+video).
-    //   3. TWCC feedback will include both audio and video packets.
+    // TWCC is transport-wide, and WebRTC clients use one extension ID for audio and video, so the ID of
+    // the video track parses TWCC from all RTP packets, and the feedback covers both.
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription *desc = stream_desc->video_track_descs_.at(i);
         twcc_id = desc->get_rtp_extension_id(kTWCCExt);
@@ -1492,14 +1448,12 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     pt_to_drop_ = (uint16_t)config_->get_rtc_drop_for_pt(req_->vhost_);
     twcc_enabled_ = config_->get_rtc_twcc_enabled(req_->vhost_);
 
-    // No TWCC when negotiate, disable it.
     if (twcc_id <= 0) {
         twcc_enabled_ = false;
     }
 
     srs_trace("RTC publisher nack=%d, nnc=%d, pt-drop=%u, twcc=%u/%d", nack_enabled_, nack_no_copy_, pt_to_drop_, twcc_enabled_, twcc_id);
 
-    // Setup tracks.
     for (int i = 0; i < (int)audio_tracks_.size(); i++) {
         SrsRtcAudioRecvTrack *track = audio_tracks_.at(i);
         track->set_nack_no_copy(nack_no_copy_);
@@ -1510,13 +1464,13 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         track->set_nack_no_copy(nack_no_copy_);
     }
 
-    // Setup the publish stream in source to enable PLI as such.
+    // The source asks the publish stream for PLI.
     if ((err = rtc_sources_->fetch_or_create(req_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
     }
     source_->set_publish_stream(this);
 
-    // TODO: FIMXE: Check it in SrsRtcConnection::add_publisher?
+    // TODO: FIXME: Check it in SrsRtcConnection::add_publisher?
     SrsSharedPtr<SrsLiveSource> live_source;
     if ((err = live_sources_->fetch_or_create(r, live_source)) != srs_success) {
         return srs_error_wrap(err, "create live source");
@@ -1525,7 +1479,6 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "rtmp stream %s busy", r->get_stream_url().c_str());
     }
 
-    // Check whether SRT stream is busy.
     bool srt_server_enabled = config_->get_srt_enabled();
     bool srt_enabled = config_->get_srt_enabled(r->vhost_);
     if (srt_server_enabled && srt_enabled) {
@@ -1539,10 +1492,8 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         }
     }
 
-    // Create the bridge for RTC.
     SrsRtcBridge *bridge = new SrsRtcBridge(app_factory_);
 
-    // Bridge to RTMP.
     // TODO: Support bridge to RTSP.
     bool rtc_to_rtmp = config_->get_rtc_to_rtmp(req_->vhost_);
     bool edge = config_->get_vhost_is_edge(req_->vhost_);
@@ -1553,11 +1504,9 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     }
 
     if (rtc_to_rtmp) {
-        // Disable GOP cache for RTC2RTMP bridge, to keep the streams in sync,
-        // especially for stream merging.
+        // No GOP cache for RTC to RTMP, to keep the streams in sync, especially for stream merging.
         live_source->set_cache(false);
 
-        // Convert RTC to RTMP.
         bridge->enable_rtc2rtmp(live_source);
     }
 
@@ -1603,7 +1552,6 @@ void SrsRtcPublishStream::set_all_tracks_status(bool status)
 {
     std::ostringstream merged_log;
 
-    // set video track status
     if (true) {
         std::vector<SrsRtcVideoRecvTrack *>::iterator it;
         for (it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
@@ -1614,7 +1562,6 @@ void SrsRtcPublishStream::set_all_tracks_status(bool status)
         }
     }
 
-    // set audio track status
     if (true) {
         std::vector<SrsRtcAudioRecvTrack *>::iterator it;
         for (it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
@@ -1689,8 +1636,8 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn)
 {
     srs_error_t err = srs_success;
 
-    // To get more accurate timestamp, and avoid deviation caused by coroutine scheduler,
-    // we use realtime for TWCC.
+    // The real time, not the cached one, gives TWCC a more accurate timestamp, free of the drift of
+    // the coroutine scheduler.
     srs_utime_t now = srs_time_now_realtime();
 
     err = rtcp_twcc_->recv_packet(sn, now);
@@ -1702,28 +1649,24 @@ srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data, bool *dr
 {
     srs_error_t err = srs_success;
 
-    // The out-parameter is always written, true only when this hook drops the packet, so no caller needs to seed it.
     *dropped = false;
 
-    // For NACK simulator, drop packet. The network layer stops here, so the packet is neither decrypted nor delivered, and
-    // the retransmission SRTP later sees is not a replay of it.
+    // Dropped before SRTP decrypts it, so the retransmission SRTP sees later is not a replay of it.
     if (nn_simulate_nack_drop_publisher_) {
         SrsBuffer b(data, nb_data);
         SrsRtpHeader h;
         h.ignore_padding(true);
         err = h.decode(&b);
-        srs_freep(err); // Ignore any error for simluate drop.
+        srs_freep(err);
         simulate_drop_packet(&h, nb_data);
         *dropped = true;
         return err;
     }
 
-    // Decode the header first.
     if (twcc_id_) {
-        // We must parse the TWCC from RTP header before SRTP unprotect, because:
-        //      1. Client may send some padding packets with invalid SequenceNumber, which causes the SRTP fail.
-        //      2. Server may send multiple duplicated NACK to client, and got more than one ARQ packet, which also fail SRTP.
-        // so, we must parse the header before SRTP unprotect(which may fail and drop packet).
+        // Parse TWCC before SRTP unprotect, which may fail and drop the packet: a client may send padding packets
+        // with an invalid sequence number, and duplicated NACKs may bring more than one retransmission, and both
+        // fail SRTP.
         uint16_t twcc_sn = 0;
         if ((err = srs_rtp_fast_parse_twcc(data, nb_data, twcc_id_, twcc_sn)) == srs_success) {
             if ((err = on_twcc(twcc_sn)) != srs_success) {
@@ -1734,7 +1677,6 @@ srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data, bool *dr
         }
     }
 
-    // If payload type is configed to drop, ignore this packet.
     if (pt_to_drop_) {
         uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
         if (pt_to_drop_ == pt) {
@@ -1750,20 +1692,15 @@ srs_error_t SrsRtcPublishStream::on_rtp_plaintext(char *plaintext, int nb_plaint
 {
     srs_error_t err = srs_success;
 
-    // Allocate packet form cache.
     SrsRtpPacket *pkt = new SrsRtpPacket();
 
-    // Copy the packet body.
     char *p = pkt->wrap(plaintext, nb_plaintext);
 
-    // Handle the packet.
     SrsBuffer buf(p, nb_plaintext);
 
-    // @remark Note that the pkt might be set to NULL.
+    // The NACK queue may take the packet and set pkt to NULL.
     err = do_on_rtp_plaintext(pkt, &buf);
 
-    // Free the packet.
-    // @remark Note that the pkt might be set to NULL.
     srs_freep(pkt);
 
     return err;
@@ -1781,18 +1718,14 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return srs_error_wrap(err, "decode rtp packet");
     }
 
-    // For source to consume packet.
     uint32_t ssrc = pkt->header_.get_ssrc();
-    
-    // Find the track, generally from the fast cache built when decoding the payload.
+
     bool is_audio = true;
     bool is_rtx = false;
     SrsRtcRecvTrack *track = find_track(ssrc, is_audio, is_rtx);
 
-    // Set the frame type.
     pkt->frame_type_ = is_audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
 
-    // Ignore if no track found.
     if (!track) {
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
     }
@@ -1809,26 +1742,21 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return err;
     }
 
-    // Report codec information to statistics on first RTP packet, and the picture size of each new SPS.
     if ((err = format_->on_rtp_packet(track, pkt, is_audio)) != srs_success) {
         srs_warn("RTC: format packet err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
 
-    // Update media-frame statistics. The receive track owns the decision because
-    // it knows which SSRC is primary and how its media marks a frame boundary.
+    // The receive track decides, since it knows which SSRC is primary and how its media marks a
+    // frame boundary.
     if (track->is_media_frame(pkt)) {
         update_rtp_frame_stats(is_audio);
     }
 
-    // Consume packet by track.
     if ((err = track->on_rtp(source_, pkt)) != srs_success) {
         return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header_.get_sequence());
     }
 
-    // For NACK to handle packet, which also records it in the receive queue. When the circuit-breaker is at its
-    // high or critical level, the track records the packet but asks for no loss.
-    // @remark Note that the pkt might be set to NULL.
     if (nack_enabled_ && (err = track->on_nack(&pkt)) != srs_success) {
         return srs_error_wrap(err, "on nack");
     }
@@ -1838,8 +1766,6 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
 
 void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
 {
-    // Count media-frame observations accepted by the receive track; the RTCP
-    // timer reports them each second, so the packet path only counts.
     if (is_audio) {
         ++nn_audio_frames_;
     } else {
@@ -1895,18 +1821,14 @@ srs_error_t SrsRtcPublishStream::check_send_nacks()
 
 void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt)
 {
-    // No payload, ignore.
     if (buf->empty()) {
         return;
     }
 
-    // Find the track and build the fast cache, which is also used by do_on_rtp_plaintext after
-    // the packet is decoded. So we only scan the tracks once for each ssrc.
     bool is_audio = true;
     bool is_rtx = false;
     SrsRtcRecvTrack *track = find_track(pkt->header_.get_ssrc(), is_audio, is_rtx);
 
-    // Ignore if no track found.
     if (!track) {
         return;
     }
@@ -1943,8 +1865,6 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
 #endif
     }
 
-    // The handler is defined by the audio and video tracks, not by SrsRtcRecvTrack, so we must
-    // cast to the actual type, which is identified by is_audio.
     if (is_audio) {
         static_cast<SrsRtcAudioRecvTrack *>(track)->on_before_decode_payload(pkt, buf, ppayload, ppt);
     } else {
@@ -1955,9 +1875,8 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
 SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio, bool &is_rtx)
 {
     is_rtx = false;
-    
-    // Try to find track from cache. Note that an unfilled slot keeps the ssrc 0, so we must
-    // check the track, not the slot, before using it.
+
+    // An unfilled slot keeps the ssrc 0, so check the track, not the slot, before using it.
     SrsRtcRecvTrack *track = NULL;
 
     if (cache_ssrc0_ == ssrc) {
@@ -1987,7 +1906,6 @@ SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio, 
         return track;
     }
 
-    // Find by original tracks and build fast cache.
     track = get_audio_track(ssrc);
     if (track) {
         is_audio = true;
@@ -2050,7 +1968,7 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return err;
     }
 
-    // limit the max count=1024 to avoid dead loop.
+    // At most 1024 feedbacks, to avoid an endless loop.
     for (int i = 0; i < 1024 && rtcp_twcc_->need_feedback(); ++i) {
         // The feedback fills up to kMaxUDPDataSize, and the SRTCP trailer is written in place after it.
         char pkt[kMaxUDPDataSize + SRTP_MAX_TRAILER_LEN];
@@ -2080,7 +1998,6 @@ srs_error_t SrsRtcPublishStream::on_rtcp(SrsRtcpCommon *rtcp)
         SrsRtcpXr *xr = dynamic_cast<SrsRtcpXr *>(rtcp);
         return on_rtcp_xr(xr);
     } else if (SrsRtcpType_sdes == rtcp->type()) {
-        // ignore RTCP SDES
         return srs_success;
     } else if (SrsRtcpType_bye == rtcp->type()) {
         // TODO: FIXME: process rtcp bye.
@@ -2171,7 +2088,6 @@ void SrsRtcPublishStream::request_keyframe(uint32_t ssrc, SrsContextId cid)
 
     uint32_t nn = 0;
     if (pli_epp_->can_print(ssrc, &nn)) {
-        // The player(subscriber) cid, which requires PLI.
         srs_trace("RTC: Need PLI ssrc=%u, play=[%s], publish=[%s], count=%u/%u", ssrc, cid.c_str(),
                   cid_.c_str(), nn, pli_epp_->nn_count_);
     }
@@ -2311,10 +2227,7 @@ srs_error_t SrsRtcConnectionNackTimer::initialize()
 
 srs_error_t SrsRtcConnectionNackTimer::on_timer(srs_utime_t interval)
 {
-    // This is a very heavy function, and it may potentially cause a coroutine switch.
-    // Therefore, during this function, the 'this' pointer might become invalid because
-    // the object could be freed by another thread. As a result, we must lock the object
-    // to prevent it from being freed.
+    // Sending may yield, so lock the timer to keep it from being freed meanwhile.
     SrsLocker(&lock_);
 
     return handler_->do_check_send_nacks();
@@ -2376,7 +2289,6 @@ SrsRtcConnection::~SrsRtcConnection()
 
     srs_freep(timer_nack_);
 
-    // Cleanup publishers.
     for (map<string, ISrsRtcPublishStream *>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {
         ISrsRtcPublishStream *publisher = it->second;
         srs_freep(publisher);
@@ -2384,7 +2296,6 @@ SrsRtcConnection::~SrsRtcConnection()
     publishers_.clear();
     publishers_ssrc_map_.clear();
 
-    // Cleanup players.
     for (map<string, ISrsRtcPlayStream *>::iterator it = players_.begin(); it != players_.end(); ++it) {
         ISrsRtcPlayStream *player = it->second;
         srs_freep(player);
@@ -2392,7 +2303,6 @@ SrsRtcConnection::~SrsRtcConnection()
     players_.clear();
     players_ssrc_map_.clear();
 
-    // Free network over UDP or TCP.
     srs_freep(networks_);
     srs_freep(publisher_negotiator_);
     srs_freep(player_negotiator_);
@@ -2408,7 +2318,6 @@ SrsRtcConnection::~SrsRtcConnection()
     srs_freep(pli_epp_);
     srs_freep(rand_);
 
-    // Optional to release the publisher token.
     publish_token_ = NULL;
     circuit_breaker_ = NULL;
     conn_manager_ = NULL;
@@ -2551,17 +2460,15 @@ srs_error_t SrsRtcConnection::add_publisher(SrsRtcUserConfig *ruc, SrsSdp &local
         return srs_error_wrap(err, "create source");
     }
 
-    // When SDP is done, we set the stream to create state, to prevent multiple publisher.
-    // @note Here, we check the stream again.
+    // Checked again and marked created once the SDP is done, to prevent multiple publishers.
     if (!source->can_publish()) {
         return srs_error_new(ERROR_RTC_SOURCE_BUSY, "stream %s busy", req->get_stream_url().c_str());
     }
     source->set_stream_created();
 
-    // Apply the SDP to source.
     source->set_stream_desc(stream_desc.get());
 
-    // TODO: FIXME: What happends when error?
+    // TODO: FIXME: What happens on error?
     if ((err = create_publisher(req, stream_desc.get())) != srs_success) {
         return srs_error_wrap(err, "create publish");
     }
@@ -2643,7 +2550,6 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
             break;
         }
 
-        // Username conflict, regenerate a new one.
         local_ufrag = rand_->gen_str(8);
     }
 
@@ -2652,7 +2558,6 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
     local_sdp.set_fingerprint_algo("sha-256");
     local_sdp.set_fingerprint(dtls_certificate_->get_fingerprint());
 
-    // We allows to mock the eip of server.
     if (true) {
         // TODO: Support multiple listen ports.
         int udp_port = 0;
@@ -2695,10 +2600,8 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
                   srs_strings_join(v, ", ").c_str(), protocol.c_str(), tcp_port, udp_port);
     }
 
-    // Setup the negotiate DTLS by config.
     local_sdp.session_negotiate_ = local_sdp.session_config_;
 
-    // Setup the negotiate DTLS role.
     if (ruc->remote_sdp_.get_dtls_role() == "active") {
         local_sdp.session_negotiate_.dtls_role_ = "passive";
     } else if (ruc->remote_sdp_.get_dtls_role() == "passive") {
@@ -2781,12 +2684,12 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon *rtcp)
 {
     srs_error_t err = srs_success;
 
-    // For TWCC packet.
+    // RTPFB FMT 15 is TWCC.
     if (SrsRtcpType_rtpfb == rtcp->type() && 15 == rtcp->get_rc()) {
         return on_rtcp_feedback_twcc(rtcp->data(), rtcp->size());
     }
 
-    // For REMB packet.
+    // PSFB FMT 15 is REMB.
     if (SrsRtcpType_psfb == rtcp->type()) {
         SrsRtcpFbCommon *psfb = dynamic_cast<SrsRtcpFbCommon *>(rtcp);
         if (15 == psfb->get_rc()) {
@@ -2794,16 +2697,13 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon *rtcp)
         }
     }
 
-    // Ignore special packet.
     if (SrsRtcpType_rr == rtcp->type()) {
         SrsRtcpRR *rr = dynamic_cast<SrsRtcpRR *>(rtcp);
-        if (rr->get_rb_ssrc() == 0) { // for native client
+        if (rr->get_rb_ssrc() == 0) { // Sent by native clients.
             return err;
         }
     }
 
-    // The feedback packet for specified SSRC.
-    // For example, if got SR packet, we required a publisher to handle it.
     uint32_t required_publisher_ssrc = 0, required_player_ssrc = 0;
     if (SrsRtcpType_sr == rtcp->type()) {
         required_publisher_ssrc = rtcp->get_ssrc();
@@ -2820,7 +2720,6 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon *rtcp)
         required_player_ssrc = psfb->get_media_ssrc();
     }
 
-    // Find the publisher or player by SSRC, always try to got one.
     ISrsRtcPlayStream *player = NULL;
     ISrsRtcPublishStream *publisher = NULL;
     if (true) {
@@ -2839,7 +2738,6 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon *rtcp)
         }
     }
 
-    // Ignore if packet is required by publisher or player.
     if (required_publisher_ssrc && !publisher) {
         srs_warn("no ssrc %u in publishers. rtcp type:%u", required_publisher_ssrc, rtcp->type());
         return err;
@@ -2849,7 +2747,6 @@ srs_error_t SrsRtcConnection::dispatch_rtcp(SrsRtcpCommon *rtcp)
         return err;
     }
 
-    // Handle packet by publisher or player.
     if (publisher && srs_success != (err = publisher->on_rtcp(rtcp))) {
         return srs_error_wrap(err, "handle rtcp");
     }
@@ -2867,7 +2764,6 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_twcc(char *data, int nb_data)
 
 srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp)
 {
-    // ignore REMB
     return srs_success;
 }
 
@@ -2924,7 +2820,6 @@ srs_error_t SrsRtcConnection::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // Ignore if disposing.
     if (disposing_) {
         return err;
     }
@@ -2953,7 +2848,6 @@ srs_error_t SrsRtcConnection::start_streams()
 {
     srs_error_t err = srs_success;
 
-    // start all publisher
     for (map<string, ISrsRtcPublishStream *>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {
         string url = it->first;
         ISrsRtcPublishStream *publisher = it->second;
@@ -2965,7 +2859,6 @@ srs_error_t SrsRtcConnection::start_streams()
         }
     }
 
-    // start all player
     for (map<string, ISrsRtcPlayStream *>::iterator it = players_.begin(); it != players_.end(); ++it) {
         string url = it->first;
         ISrsRtcPlayStream *player = it->second;
@@ -2984,8 +2877,8 @@ srs_error_t SrsRtcConnection::on_dtls_alert(std::string type, std::string desc)
 {
     srs_error_t err = srs_success;
 
-    // CN(Close Notify) is sent when client close the PeerConnection.
-    // fatal, IP(Illegal Parameter) is sent when DTLS failed.
+    // A client sends the warning CN (Close Notify) when it closes the PeerConnection, and a fatal
+    // alert, such as IP (Illegal Parameter), when DTLS fails.
     if (type == "fatal" || (type == "warning" && desc == "CN")) {
         SrsContextRestore(_srs_context->get_id());
         switch_to_context();
@@ -3050,7 +2943,6 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
 
     SrsRtcpNack rtcpNack(ssrc);
 
-    // If circuit-breaker is enabled, disable nack.
     if (circuit_breaker_->hybrid_high_water_level()) {
         ++_srs_pps_snack4->sugar_;
     } else {
@@ -3199,7 +3091,6 @@ srs_error_t SrsRtcConnection::do_check_send_nacks()
 
     ++_srs_pps_conn->sugar_;
 
-    // If circuit-breaker is enabled, disable nack.
     if (circuit_breaker_->hybrid_critical_water_level()) {
         ++_srs_pps_snack4->sugar_;
         return err;
@@ -3241,12 +3132,10 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
 
-    // For this message, select the first iovec.
     iovec *iov = cache_iov_;
     iov->iov_len = kRtpPacketSize;
     cache_buffer_->skip(-1 * cache_buffer_->pos());
 
-    // Marshal packet to bytes in iovec.
     if (true) {
         if ((err = pkt->encode(cache_buffer_)) != srs_success) {
             return srs_error_wrap(err, "encode packet");
@@ -3254,7 +3143,6 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
         iov->iov_len = cache_buffer_->pos();
     }
 
-    // Cipher RTP to SRTP packet.
     if (true) {
         int nn_encrypt = (int)iov->iov_len;
         if ((err = networks_->available()->protect_rtp(iov->iov_base, &nn_encrypt)) != srs_success) {
@@ -3263,7 +3151,6 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
         iov->iov_len = (size_t)nn_encrypt;
     }
 
-    // For NACK simulator, drop packet.
     if (nn_simulate_nack_drop_player_) {
         simulate_player_drop_packet(&pkt->header_, (int)iov->iov_len);
         iov->iov_len = 0;
@@ -3278,7 +3165,6 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
         return err;
     }
 
-    // Detail log, should disable it in release version.
     srs_info("RTC: SEND PT=%u, SSRC=%#x, SEQ=%u, Time=%u, %u/%u bytes", pkt->header_.get_payload_type(), pkt->header_.get_ssrc(),
              pkt->header_.get_sequence(), pkt->header_.get_timestamp(), pkt->nb_bytes(), iov->iov_len);
 
@@ -3287,7 +3173,6 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
 
 void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_publish, bool status)
 {
-    // For publishers.
     if (is_publish) {
         map<string, ISrsRtcPublishStream *>::iterator it = publishers_.find(stream_uri);
         if (publishers_.end() == it) {
@@ -3299,7 +3184,6 @@ void SrsRtcConnection::set_all_tracks_status(std::string stream_uri, bool is_pub
         return;
     }
 
-    // For players.
     map<string, ISrsRtcPlayStream *>::iterator it = players_.find(stream_uri);
     if (players_.end() == it) {
         return;
@@ -3322,7 +3206,7 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket *r, string &ice_p
         return srs_error_new(ERROR_RTC_STUN, "Peer must not in ice-controlled role in ice-lite mode.");
     }
 
-    // If success, return the ice password to verify the STUN response.
+    // The caller signs the binding response with the ICE password.
     ice_pwd = local_sdp_.get_ice_pwd();
 
     // Only the peer that got the answer knows the ICE password, so a request not signed with it may be from anyone who
@@ -3338,7 +3222,6 @@ srs_error_t SrsRtcConnection::create_player(ISrsRequest *req, std::map<uint32_t,
 {
     srs_error_t err = srs_success;
 
-    // Ignore if exists.
     if (players_.end() != players_.find(req->get_stream_url())) {
         return err;
     }
@@ -3350,7 +3233,6 @@ srs_error_t SrsRtcConnection::create_player(ISrsRequest *req, std::map<uint32_t,
     }
     players_.insert(make_pair(req->get_stream_url(), player));
 
-    // make map between ssrc and player for fastly searching
     for (map<uint32_t, SrsRtcTrackDescription *>::iterator it = sub_relations.begin(); it != sub_relations.end(); ++it) {
         SrsRtcTrackDescription *track_desc = it->second;
         map<uint32_t, ISrsRtcPlayStream *>::iterator it_player = players_ssrc_map_.find(track_desc->ssrc_);
@@ -3378,8 +3260,6 @@ srs_error_t SrsRtcConnection::create_player(ISrsRequest *req, std::map<uint32_t,
     }
 
     // TODO: FIXME: Support reload.
-    // The TWCC ID is the ext-map ID in local SDP, and we set to enable GCC.
-    // Whatever the ext-map, we will disable GCC when config disable it.
     int twcc_id = 0;
     if (true) {
         std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = sub_relations.begin();
@@ -3394,8 +3274,7 @@ srs_error_t SrsRtcConnection::create_player(ISrsRequest *req, std::map<uint32_t,
     srs_trace("RTC connection player gcc=%d", twcc_id);
 
     // TODO: Start player when DTLS done. Removed it because we don't support single PC now.
-    // If DTLS done, start the player. Because maybe create some players after DTLS done.
-    // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
+    // With a single PC, a player may be created after DTLS is done, so it would start here.
 
     return err;
 }
@@ -3406,7 +3285,6 @@ srs_error_t SrsRtcConnection::create_publisher(ISrsRequest *req, SrsRtcSourceDes
 
     srs_assert(stream_desc);
 
-    // Ignore if exists.
     if (publishers_.end() != publishers_.find(req->get_stream_url())) {
         return err;
     }
@@ -3467,9 +3345,8 @@ srs_error_t SrsRtcConnection::create_publisher(ISrsRequest *req, SrsRtcSourceDes
         }
     }
 
-    // TODO: Start player when DTLS done. Removed it because we don't support single PC now.
-    // If DTLS done, start the publisher. Because maybe create some publishers after DTLS done.
-    // For example, for single PC, we maybe start publisher when create it, because DTLS is done.
+    // TODO: Start publisher when DTLS done. Removed it because we don't support single PC now.
+    // With a single PC, a publisher may be created after DTLS is done, so it would start here.
 
     return err;
 }
@@ -3637,10 +3514,9 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
     bool nack_enabled = config_->get_rtc_nack_enabled(req->vhost_);
     bool twcc_enabled = config_->get_rtc_twcc_enabled(req->vhost_);
     bool nack_prefer_rtx = config_->get_rtc_nack_prefer_rtx(req->vhost_);
-    // TODO: FIME: Should check packetization-mode=1 also.
+    // TODO: FIXME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
-    // How many video descriptions we have parsed.
     int nn_any_video_parsed = 0;
 
     for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
@@ -3653,7 +3529,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
 
         track_desc->set_direction("recvonly");
         track_desc->set_mid(remote_media_desc.mid_);
-        // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
         if (true) {
             map<int, string> extmaps = remote_media_desc.get_extmaps();
@@ -3670,28 +3545,22 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
         }
 
         if (remote_media_desc.is_audio()) {
-            // Update the ruc, which is about user specified configuration.
             ruc->audio_before_video_ = !nn_any_video_parsed;
 
-            // Try to find audio codec based on user preference or default order
             std::vector<SrsMediaPayloadType> payloads;
 
-            // If user specified audio codec, try that first
             if (!ruc->acodec_.empty()) {
                 payloads = remote_media_desc.find_media_with_encoding_name(ruc->acodec_);
                 if (payloads.empty()) {
                     return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found %s audio payload type", ruc->acodec_.c_str());
                 }
             } else {
-                // Default order: Opus, PCMU (G.711 μ-law), PCMA (G.711 A-law)
-                // Prioritize PCMU over PCMA as per Chrome SDP order
+                // PCMU before PCMA, as Chrome orders them in its SDP.
                 payloads = remote_media_desc.find_media_with_encoding_name("opus");
                 if (payloads.empty()) {
-                    // Then try PCMU (G.711 μ-law)
                     payloads = remote_media_desc.find_media_with_encoding_name("PCMU");
                 }
                 if (payloads.empty()) {
-                    // Finally try PCMA (G.711 A-law)
                     payloads = remote_media_desc.find_media_with_encoding_name("PCMA");
                 }
             }
@@ -3702,7 +3571,7 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             for (int j = 0; j < (int)payloads.size(); j++) {
                 const SrsMediaPayloadType &payload = payloads.at(j);
 
-                // if the payload is opus, and the encoding_param_ is channel
+                // For opus, the encoding parameter is the channel count.
                 SrsAudioPayload *audio_payload = new SrsAudioPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
 
                 // The fmtp is optional, such as for PCMU or PCMA, so ignore a bad one and keep the defaults.
@@ -3728,7 +3597,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
 
                 track_desc->type_ = "audio";
                 track_desc->set_codec_payload((SrsCodecPayload *)audio_payload);
-                // Only choose one match audio codec.
                 break;
             }
         } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->vcodec_) == SrsVideoCodecIdAV1) {
@@ -3745,7 +3613,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             for (int j = 0; j < (int)payloads.size(); j++) {
                 const SrsMediaPayloadType &payload = payloads.at(j);
 
-                // Generate video payload for av1.
                 SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
 
                 // TODO: FIXME: Only support some transport algorithms.
@@ -3777,7 +3644,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             for (int j = 0; j < (int)payloads.size(); j++) {
                 const SrsMediaPayloadType &payload = payloads.at(j);
 
-                // Generate video payload for vp9.
                 SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
 
                 // TODO: FIXME: Only support some transport algorithms.
@@ -3811,7 +3677,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             for (int j = 0; j < (int)payloads.size(); j++) {
                 const SrsMediaPayloadType &payload = payloads.at(j);
 
-                // Generate video payload for hevc.
                 SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
 
                 // TODO: FIXME: Only support some transport algorithms.
@@ -3854,16 +3719,13 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
                     continue;
                 }
 
-                // If not exists 42e01f, we pick up any profile such as 42001f.
                 bool profile_matched = (!has_42e01f || h264_param.profile_level_id_ == "42e01f");
 
-                // Try to pick the "best match" H.264 payload type.
                 if (profile_matched && h264_param.packetization_mode_ == "1" && h264_param.level_asymmetry_allow_ == "1") {
-                    // if the playload is opus, and the encoding_param_ is channel
                     SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
                     video_payload->set_h264_param_desc(payload.format_specific_param_);
 
-                    // Set the codec parameter for H.264, to make Unity happy.
+                    // Unity needs the H.264 codec parameter.
                     video_payload->h264_param_ = h264_param;
 
                     // TODO: FIXME: Only support some transport algorithms.
@@ -3888,18 +3750,15 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
                     if (!has_42e01f) {
                         srs_warn("not ideal H.264 pt=%d %s", payload.payload_type_, payload.format_specific_param_.c_str());
                     }
-                    // Only choose first match H.264 payload type.
                     break;
                 }
 
                 backup_payloads.push_back(payload);
             }
 
-            // Try my best to pick at least one media payload type.
             if (!track_desc->media_ && !backup_payloads.empty()) {
                 const SrsMediaPayloadType &payload = backup_payloads.front();
 
-                // if the playload is opus, and the encoding_param_ is channel
                 SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
 
                 // TODO: FIXME: Only support some transport algorithms.
@@ -3928,7 +3787,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             // local_media_desc.payload_types_.back().rtcp_fb_.push_back("rrtr");
         }
 
-        // Error if track desc is invalid, that is failed to match SDP, for example, we require H264 but no H264 found.
         if (track_desc->type_.empty() || !track_desc->media_) {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no match for track=%s, mid=%s, tracker=%s", remote_media_desc.type_.c_str(), remote_media_desc.mid_.c_str(), remote_media_desc.msid_tracker_.c_str());
         }
@@ -3956,20 +3814,19 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
         for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
             const SrsSSRCInfo &ssrc_info = remote_media_desc.ssrc_infos_.at(j);
 
-            // Generate msid because it's optional in sdp.
+            // The msid is optional in the SDP.
             string msid_tracker = ssrc_info.msid_tracker_;
             if (msid_tracker.empty()) {
                 msid_tracker = srs_fmt_sprintf("track-%s-%s-%d",
                                                track_desc->type_.c_str(), ssrc_info.cname_.c_str(), ssrc_info.ssrc_);
             }
 
-            // Generate msid because it's optional in sdp.
             string msid = ssrc_info.msid_;
             if (msid.empty()) {
                 msid = req->app_ + "/" + req->stream_;
             }
 
-            // ssrc have same track id, will be description in the same track description.
+            // The SSRCs of one track id are one track.
             if (track_id != msid_tracker) {
                 SrsRtcTrackDescription *track_desc_copy = track_desc->copy();
                 track_desc_copy->ssrc_ = ssrc_info.ssrc_;
@@ -3987,13 +3844,12 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             track_id = msid_tracker;
         }
 
-        // Handle case where no SSRC info is present in the offer (e.g., libdatachannel audio-only).
-        // We still need to create track description to generate proper SDP answer.
+        // An offer may have no SSRC info, such as an audio-only one from libdatachannel, and the answer
+        // still needs the track.
         // See https://github.com/paullouisageneau/libdatachannel which may not include SSRC.
         // See https://github.com/ossrs/srs/issues/4570#issuecomment-3604598513
         if (remote_media_desc.ssrc_infos_.empty()) {
             SrsRtcTrackDescription *track_desc_copy = track_desc->copy();
-            // Generate synthetic values since no SSRC info provided.
             track_desc_copy->ssrc_ = 0;
             track_desc_copy->id_ = srs_fmt_sprintf("track-%s-%s", track_desc->type_.c_str(), remote_media_desc.mid_.c_str());
             track_desc_copy->msid_ = req->app_ + "/" + req->stream_;
@@ -4007,7 +3863,6 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             }
         }
 
-        // set track fec_ssrc and rtx_ssrc
         for (int j = 0; j < (int)remote_media_desc.ssrc_groups_.size(); ++j) {
             const SrsSSRCGroup &ssrc_group = remote_media_desc.ssrc_groups_.at(j);
 
@@ -4090,7 +3945,6 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp_for_audio(SrsS
 {
     srs_error_t err = srs_success;
 
-    // generate audio media desc
     if (stream_desc->audio_track_desc_) {
         SrsRtcTrackDescription *audio_track = stream_desc->audio_track_desc_;
 
@@ -4105,7 +3959,7 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp_for_audio(SrsS
         local_media_desc.mid_ = audio_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // The answer needs no stream id or track id.
         // local_media_desc.msid_ = stream_id;
         // local_media_desc.msid_tracker_ = audio_track->id_;
         local_media_desc.extmaps_ = audio_track->extmaps_;
@@ -4145,7 +3999,7 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp_for_video(SrsS
         local_media_desc.mid_ = video_track->mid_;
         local_sdp.groups_.push_back(local_media_desc.mid_);
 
-        // anwer not need set stream_id and track_id;
+        // The answer needs no stream id or track id.
         // local_media_desc.msid_ = stream_id;
         // local_media_desc.msid_tracker_ = video_track->id_;
         local_media_desc.extmaps_ = video_track->extmaps_;
@@ -4173,7 +4027,7 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp_for_video(SrsS
         }
 
         if (!unified_plan) {
-            // For PlanB, only need media desc info, not ssrc info;
+            // A Plan B answer needs only the media desc, not the SSRC info.
             break;
         }
     }
@@ -4198,7 +4052,6 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
         return srs_error_wrap(err, "fetch rtc source");
     }
 
-    // How many video descriptions we have parsed.
     int nn_any_video_parsed = 0;
 
     for (int i = 0; i < (int)remote_sdp.media_descs_.size(); ++i) {
@@ -4207,7 +4060,6 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
         if (remote_media_desc.is_video())
             nn_any_video_parsed++;
 
-        // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;
         if (true) {
             map<int, string> extmaps = remote_media_desc.get_extmaps();
@@ -4222,11 +4074,8 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
         std::vector<SrsRtcTrackDescription *> track_descs;
         SrsMediaPayloadType remote_payload(0);
         if (remote_media_desc.is_audio()) {
-            // Update the ruc, which is about user specified configuration.
             ruc->audio_before_video_ = !nn_any_video_parsed;
 
-            // Try to find audio tracks in source with different codec names
-            // Try Opus first (most common), then PCMU, then PCMA
             std::vector<SrsRtcTrackDescription *> source_audio_tracks = source->get_track_desc("audio", "opus");
             std::string source_audio_codec = "opus";
 
@@ -4242,7 +4091,6 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no audio track in source (tried opus/PCMU/PCMA)");
             }
 
-            // Try to find matching codec in remote SDP
             vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name(source_audio_codec);
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found %s payload type", source_audio_codec.c_str());
@@ -4317,8 +4165,7 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                 for (int j = 0; j < (int)payloads.size(); j++) {
                     const SrsMediaPayloadType &payload = payloads.at(j);
 
-                    // For H.265, we only check if profile-id=1 (Main Profile)
-                    // Format example: level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST
+                    // The profile-id=1 is the Main profile, as in level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST.
                     if (!has_main_profile || srs_sdp_has_h265_profile(payload, "1")) {
                         remote_payload = payload;
                         break;
@@ -4332,15 +4179,14 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                     return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found h264 payload type");
                 }
 
-                // TODO: FIME: Should check packetization-mode=1 also.
+                // TODO: FIXME: Should check packetization-mode=1 also.
                 bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
                 remote_payload = payloads.at(0);
                 for (int j = 0; j < (int)payloads.size(); j++) {
                     const SrsMediaPayloadType &payload = payloads.at(j);
 
-                    // If exists 42e01f profile, choose it; otherwise, use the first payload.
-                    // TODO: FIME: Should check packetization-mode=1 also.
+                    // TODO: FIXME: Should check packetization-mode=1 also.
                     if (!has_42e01f || srs_sdp_has_h264_profile(payload, "42e01f")) {
                         remote_payload = payload;
                         break;
@@ -4370,15 +4216,12 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
 
             SrsRtcTrackDescription *track = source_track->copy();
 
-            // We should clear the extmaps of source(publisher).
             // @see https://github.com/ossrs/srs/issues/2370
             track->extmaps_.clear();
 
-            // We should clear the rtcp_fbs of source(publisher).
             // @see https://github.com/ossrs/srs/issues/2371
             track->media_->rtcp_fbs_.clear();
 
-            // Use remote/source/offer PayloadType.
             track->media_->pt_of_publisher_ = track->media_->pt_;
             track->media_->pt_ = remote_payload.payload_type_;
 
@@ -4409,8 +4252,6 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                 }
             }
 
-            // When keep_original_ssrc is enabled, preserve the original SSRC from publisher.
-            // Otherwise, generate a new SSRC for each player.
             // @see https://github.com/ossrs/srs/issues/3850
             if (!keep_original_ssrc) {
                 track->ssrc_ = ssrc_generator_->generate_ssrc();
@@ -4418,7 +4259,7 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
 
             // RFC 4588 RTX is a preference, never a requirement: answer with rtx only when NACK is on, the server
             // prefers RTX, and the offer carries an rtx payload whose apt is the negotiated video payload type.
-            // Otherwise the player gets plain retransmission on the media SSRC, as before.
+            // Otherwise the player gets plain retransmission on the media SSRC.
             srs_freep(track->rtx_);
             track->rtx_ssrc_ = 0;
             if (nack_enabled && nack_prefer_rtx && remote_media_desc.is_video()) {
@@ -4456,7 +4297,6 @@ void video_track_generate_play_offer(SrsRtcTrackDescription *track, string mid, 
 
     local_media_desc.extmaps_ = track->extmaps_;
 
-    // If mid not duplicated, use mid_ of track. Otherwise, use transformed mid.
     if (true) {
         bool mid_duplicated = false;
         for (int i = 0; i < (int)local_sdp.groups_.size(); ++i) {
@@ -4552,7 +4392,6 @@ srs_error_t SrsRtcPlayerNegotiator::generate_play_local_sdp_for_audio(SrsSdp &lo
 {
     srs_error_t err = srs_success;
 
-    // generate audio media desc
     if (stream_desc->audio_track_desc_) {
         SrsRtcTrackDescription *audio_track = stream_desc->audio_track_desc_;
 
@@ -4622,12 +4461,11 @@ srs_error_t SrsRtcPlayerNegotiator::generate_play_local_sdp_for_video(SrsSdp &lo
         SrsRtcTrackDescription *track = stream_desc->video_track_descs_[i];
 
         if (!unified_plan) {
-            // for plan b, we only add one m= for video track.
+            // Plan B puts every video track in one m= line.
             if (i == 0) {
                 video_track_generate_play_offer(track, "video-" + srs_strconv_format_int(i), local_sdp);
             }
         } else {
-            // unified plan SDP, generate a m= for each video track.
             video_track_generate_play_offer(track, "video-" + srs_strconv_format_int(i), local_sdp);
         }
 

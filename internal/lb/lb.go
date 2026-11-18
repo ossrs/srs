@@ -10,13 +10,10 @@ import (
 	"time"
 )
 
-// If HLS streaming update in this duration, it's alive.
 const HLSAliveDuration = 120 * time.Second
 
-// If WebRTC streaming update in this duration, it's alive.
 const RTCAliveDuration = 120 * time.Second
 
-// parseOriginServerTTL parses PROXY_ORIGIN_SERVER_TTL, defaulting to 300 seconds when unset.
 func parseOriginServerTTL(value string) (time.Duration, error) {
 	const serverAliveDuration = 300 * time.Second
 
@@ -34,29 +31,21 @@ func parseOriginServerTTL(value string) (time.Duration, error) {
 	return ttl, nil
 }
 
-// OriginServer represents a backend origin server.
 type OriginServer struct {
-	// The server IP.
 	IP string `json:"ip,omitempty"`
-	// The server device ID, configured by user.
+	// Configured by the user in SRS.
 	DeviceID string `json:"device_id,omitempty"`
-	// The server id of SRS, store in file, may not change, mandatory.
+	// SRS stores it in a file, so it may stay the same after a restart.
 	ServerID string `json:"server_id,omitempty"`
-	// The service id of SRS, always change when restarted, mandatory.
-	ServiceID string `json:"service_id,omitempty"`
-	// The process id of SRS, always change when restarted, mandatory.
-	PID string `json:"pid,omitempty"`
-	// The RTMP listen endpoints.
-	RTMP []string `json:"rtmp,omitempty"`
-	// The HTTP Stream listen endpoints.
-	HTTP []string `json:"http,omitempty"`
-	// The HTTP API listen endpoints.
-	API []string `json:"api,omitempty"`
-	// The SRT server listen endpoints.
-	SRT []string `json:"srt,omitempty"`
-	// The RTC server listen endpoints.
-	RTC []string `json:"rtc,omitempty"`
-	// Last update time.
+	// SRS makes a new one on each restart.
+	ServiceID string   `json:"service_id,omitempty"`
+	PID       string   `json:"pid,omitempty"`
+	RTMP      []string `json:"rtmp,omitempty"`
+	// The HTTP stream endpoints, not the HTTP API.
+	HTTP      []string  `json:"http,omitempty"`
+	API       []string  `json:"api,omitempty"`
+	SRT       []string  `json:"srt,omitempty"`
+	RTC       []string  `json:"rtc,omitempty"`
 	UpdatedAt time.Time `json:"update_at,omitempty"`
 }
 
@@ -110,49 +99,36 @@ func NewOriginServer(opts ...func(*OriginServer)) *OriginServer {
 	return v
 }
 
-// HLSPlayStream is the interface for HLS streaming sessions.
 type HLSPlayStream interface {
-	// GetSPBHID returns the SRS Proxy Backend HLS ID.
+	// The SRS Proxy Backend HLS ID.
 	GetSPBHID() string
-	// Initialize initializes the HLS play stream with context.
 	Initialize(ctx context.Context) HLSPlayStream
 }
 
-// RTCConnection is the interface for WebRTC streaming connections.
 type RTCConnection interface {
-	// GetUfrag returns the ICE username fragment.
 	GetUfrag() string
 }
 
-// OriginService is the interface for origin-server registry and stream routing.
 type OriginService interface {
-	// Update records the latest registration or heartbeat for an origin server.
+	// Called for each registration or heartbeat of an origin server.
 	Update(ctx context.Context, server *OriginServer) error
-	// Pick a backend server for the specified stream URL.
 	Pick(ctx context.Context, streamURL string) (*OriginServer, error)
 }
 
-// HLSService is the interface for HLS session state, indexed by stream URL and SPBHID.
+// Players fetch the M3U8 by stream URL and the TS files by SPBHID.
 type HLSService interface {
-	// Load or store the HLS streaming for the specified stream URL.
 	LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error)
-	// Load the HLS streaming by SPBHID, the SRS Proxy Backend HLS ID.
 	LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error)
 }
 
-// RTCService is the interface for WebRTC session state, indexed by stream URL and ICE ufrag.
 type RTCService interface {
-	// Store the WebRTC streaming for the specified stream URL.
 	StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error
-	// Load the WebRTC streaming by ufrag, the ICE username.
 	LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error)
 }
 
-// OriginLoadBalancer is the interface to load balance the SRS servers.
 type OriginLoadBalancer interface {
 	OriginService
 	HLSService
 	RTCService
-	// Initialize the load balancer.
 	Initialize(ctx context.Context) error
 }

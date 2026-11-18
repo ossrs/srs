@@ -20,12 +20,11 @@
 #include <srs_protocol_utility.hpp>
 using namespace std;
 
-// To limit the ICE ufrag/username to avoid unknown issue.
+// The ufrag limits and the pwd maximum only guard against unknown issues.
 #define SRS_ICE_UFRAG_MIN 4
 #define SRS_ICE_UFRAG_MAX 32
-// STUN/ICE pwd should not be too short, browser will fail with error.
+// The browser fails with a shorter STUN/ICE pwd.
 #define SRS_ICE_PWD_MIN 22
-// To limit user to use too long password, to cause unknown issue.
 #define SRS_ICE_PWD_MAX 32
 
 SrsGoApiRtcPlay::SrsGoApiRtcPlay(ISrsRtcApiServer *server)
@@ -55,15 +54,13 @@ SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
 //      POST /rtc/v1/play/
 //      {
 //          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
-//          "api":'http...", "clientip":"..."
+//          "api":"http...", "clientip":"..."
 //      }
 // Response:
-//      {"sdp":"answer...", "sid":"..."}
+//      {"sdp":"answer...", "sessionid":"..."}
 // @see https://github.com/rtcdn/rtcdn-draft
-// @deprecated The JSON play API. Use the standard WHEP API served by SrsGoApiRtcWhip instead.
-// Note that every failure here answers HTTP 200 with a fixed {"code":400} body, which is why the
-// specific reason for a rejection cannot reach the player; the WHEP path maps errors to real HTTP
-// status codes. Do not extend this API.
+// @deprecated Use WHEP instead. Every failure answers HTTP 200 with a fixed {"code":400} body, so
+// the reason for a rejection cannot reach the player. Do not extend this API.
 srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
@@ -83,11 +80,9 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 {
     srs_error_t err = srs_success;
 
-    // For each RTC session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
-    // Parse req, the request json object, from body.
     SrsJsonObject *req_raw = NULL;
     if (true) {
         string req_json;
@@ -105,7 +100,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
     SrsUniquePtr<SrsJsonObject> req(req_raw);
 
-    // Fetch params from req object.
     SrsJsonAny *prop = NULL;
     if ((prop = req->ensure_property_string("sdp")) == NULL) {
         return srs_error_wrap(err, "not sdp");
@@ -123,7 +117,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
     if (clientip.empty()) {
         clientip = dynamic_cast<SrsHttpMessage *>(r)->connection()->remote_ip();
-        // Overwrite by ip from proxy.
         string oip = srs_get_original_ip(r);
         if (!oip.empty()) {
             clientip = oip;
@@ -140,7 +133,6 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
         tid = prop->to_str();
     }
 
-    // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip_ = clientip;
     ruc.api_ = api;
@@ -150,24 +142,21 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     srs_net_url_parse_tcurl(ruc.req_->tcUrl_, ruc.req_->schema_, ruc.req_->host_, ruc.req_->vhost_,
                             ruc.req_->app_, ruc.req_->stream_, ruc.req_->port_, ruc.req_->param_);
 
-    // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
         ruc.req_->vhost_ = parsed_vhost->arg0();
     }
 
-    // For client to specifies the candidate(EIP) of server.
+    // The client may give the server's candidate (EIP).
     string eip = r->query_get("eip");
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    // Support vcodec/codec (alias for vcodec) and acodec parameters
     string vcodec = r->query_get("vcodec");
     if (vcodec.empty()) {
         vcodec = r->query_get("codec");
     }
     string acodec = r->query_get("acodec");
-    // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
@@ -221,11 +210,9 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     SrsSdp local_sdp;
 
-    // Config for SDP and session.
     local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
     local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
 
-    // Whether enabled.
     bool server_enabled = config_->get_rtc_server_enabled();
     bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
     bool edge = config_->get_vhost_is_edge(ruc->req_->vhost_);
@@ -243,14 +230,13 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
                              server_enabled, rtc_enabled, ruc->req_->vhost_.c_str());
     }
 
-    // Whether RTC stream is active.
     bool is_rtc_stream_active = false;
     if (true) {
         SrsSharedPtr<SrsRtcSource> source = rtc_sources_->fetch(ruc->req_);
         is_rtc_stream_active = (source.get() && !source->can_publish());
     }
 
-    // For RTMP to RTC, fail if disabled and RTMP is active, see https://github.com/ossrs/srs/issues/2728
+    // See https://github.com/ossrs/srs/issues/2728
     bool rtmp_to_rtc = config_->get_rtc_from_rtmp(ruc->req_->vhost_);
     if (rtmp_to_rtc && edge) {
         rtmp_to_rtc = false;
@@ -264,9 +250,9 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         }
     }
 
-    // We must do stat the client before hooks, because hooks depends on it. The session below takes
-    // this coroutine's id, so its player is this client, counted once. A player that gets no
-    // session leaves the stats now, for nothing else removes it.
+    // The hooks depend on the stats, so stat the client first. The session below takes this
+    // coroutine's id, so its player is this client, counted once. A player that gets no session
+    // must leave the stats here, for nothing else removes it.
     std::string cid = _srs_context->get_id().c_str();
     if ((err = stat_->on_client(cid, ruc->req_, NULL, SrsRtcConnPlay)) != srs_success) {
         return srs_error_wrap(err, "RTC: stat client");
@@ -284,7 +270,6 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     }
 
     string local_sdp_str = os.str();
-    // Filter the \r\n to \\r\\n for JSON.
     string local_sdp_escaped = srs_strings_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     ruc->local_sdp_str_ = local_sdp_str;
@@ -303,9 +288,8 @@ srs_error_t SrsGoApiRtcPlay::create_session(SrsRtcUserConfig *ruc, SrsSdp &local
 {
     srs_error_t err = srs_success;
 
-    // Transform the security and hook refusals to ERROR_SYSTEM_AUTH, so that WHEP answers 401
-    // instead of 500, see SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault.
-    // This is the same treatment the publish path gives to a refused publisher.
+    // WHEP answers 401 for ERROR_SYSTEM_AUTH and 500 for most other errors, see
+    // SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault.
     if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip_, ruc->req_)) != srs_success) {
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
     }
@@ -359,8 +343,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -407,14 +390,13 @@ SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
 //      POST /rtc/v1/publish/
 //      {
 //          "sdp":"offer...", "streamurl":"webrtc://r.ossrs.net/live/livestream",
-//          "api":'http...", "clientip":"..."
+//          "api":"http...", "clientip":"..."
 //      }
 // Response:
-//      {"sdp":"answer...", "sid":"..."}
+//      {"sdp":"answer...", "sessionid":"..."}
 // @see https://github.com/rtcdn/rtcdn-draft
-// @deprecated The JSON publish API. Use the standard WHIP API served by SrsGoApiRtcWhip instead.
-// Like the JSON play API, every failure answers HTTP 200 with a fixed {"code":400} body. Do not
-// extend this API.
+// @deprecated Use WHIP instead. Like the JSON play API, every failure answers HTTP 200 with a fixed
+// {"code":400} body. Do not extend this API.
 srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
@@ -434,10 +416,8 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
 {
     srs_error_t err = srs_success;
 
-    // For each RTC session, we use short-term HTTP connection.
     w->header()->set("Connection", "Close");
 
-    // Parse req, the request json object, from body.
     SrsJsonObject *req_raw = NULL;
     if (true) {
         string req_json;
@@ -455,7 +435,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     }
     SrsUniquePtr<SrsJsonObject> req(req_raw);
 
-    // Fetch params from req object.
     SrsJsonAny *prop = NULL;
     if ((prop = req->ensure_property_string("sdp")) == NULL) {
         return srs_error_wrap(err, "not sdp");
@@ -473,7 +452,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     }
     if (clientip.empty()) {
         clientip = dynamic_cast<SrsHttpMessage *>(r)->connection()->remote_ip();
-        // Overwrite by ip from proxy.
         string oip = srs_get_original_ip(r);
         if (!oip.empty()) {
             clientip = oip;
@@ -490,7 +468,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
         tid = prop->to_str();
     }
 
-    // The RTC user config object.
     SrsRtcUserConfig ruc;
     ruc.req_->ip_ = clientip;
     ruc.api_ = api;
@@ -499,27 +476,24 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     srs_net_url_parse_tcurl(ruc.req_->tcUrl_, ruc.req_->schema_, ruc.req_->host_, ruc.req_->vhost_,
                             ruc.req_->app_, ruc.req_->stream_, ruc.req_->port_, ruc.req_->param_);
 
-    // Identify WebRTC publisher by param upstream=rtc
+    // The param upstream=rtc identifies a WebRTC publisher.
     ruc.req_->param_ = srs_strings_trim_start(ruc.req_->param_ + "&upstream=rtc", "&");
 
-    // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(ruc.req_->vhost_);
     if (parsed_vhost) {
         ruc.req_->vhost_ = parsed_vhost->arg0();
     }
 
-    // For client to specifies the candidate(EIP) of server.
+    // The client may give the server's candidate (EIP).
     string eip = r->query_get("eip");
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    // Support vcodec/codec (alias for vcodec) and acodec parameters
     string vcodec = r->query_get("vcodec");
     if (vcodec.empty()) {
         vcodec = r->query_get("codec");
     }
     string acodec = r->query_get("acodec");
-    // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
@@ -532,7 +506,6 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     ruc.acodec_ = acodec;
     ruc.publish_ = true;
 
-    // For client to specifies whether encrypt by SRTP.
     ruc.dtls_ = (dtls != "false");
     if (srtp.empty()) {
         ruc.srtp_ = config_->get_rtc_server_encrypt();
@@ -573,11 +546,9 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     SrsSdp local_sdp;
 
     // TODO: FIXME: move to create_session.
-    // Config for SDP and session.
     local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
     local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
 
-    // Whether enabled.
     bool server_enabled = config_->get_rtc_server_enabled();
     bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
     bool edge = config_->get_vhost_is_edge(ruc->req_->vhost_);
@@ -601,7 +572,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
-    // We must do stat the client before hooks, because hooks depends on it.
+    // Creating the session stats the client, which the hooks depend on.
     ISrsRtcConnection *session = NULL;
     if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
         return srs_error_wrap(err, "create session");
@@ -611,7 +582,6 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     string username = session->username();
     string token = session->token();
 
-    // We must do hook after stat, because depends on it.
     err = http_hooks_on_publish(ruc->req_);
 
     // The session may be gone after the hook, by the STUN timeout or an API DELETE of the client.
@@ -637,7 +607,6 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     string local_sdp_str = os.str();
-    // Filter the \r\n to \\r\\n for JSON.
     string local_sdp_escaped = srs_strings_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     ruc->local_sdp_str_ = local_sdp_str;
@@ -689,8 +658,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -771,10 +739,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http_with(ISrsHttpResponseWriter *w, ISrsHttp
 {
     srs_error_t err = srs_success;
 
-    // For each RTC session, we use short-term HTTP connection.
     w->header()->set("Connection", "Close");
 
-    // Client stop publish.
     // TODO: FIXME: Stop and cleanup the RTC session.
     if (r->method() == SRS_CONSTS_HTTP_DELETE) {
         string username = r->query_get("session");
@@ -802,22 +768,19 @@ srs_error_t SrsGoApiRtcWhip::serve_http_with(ISrsHttpResponseWriter *w, ISrsHttp
         return srs_error_wrap(err, "serve");
     }
 
-    // The SDP to response.
     if (ruc.local_sdp_str_.empty()) {
         return srs_error_new(ERROR_RTC_INVALID_SDP, "empty local sdp");
     }
     string sdp = ruc.local_sdp_str_;
 
-    // Setup the content type to SDP.
     w->header()->set("Content-Type", "application/sdp");
-    // The location for DELETE resource, not required by SRS, but required by WHIP.
+    // WHIP requires the Location of the resource to DELETE; SRS does not.
     w->header()->set("Location", srs_fmt_sprintf("/rtc/v1/whip/?action=delete&token=%s&app=%s&stream=%s&session=%s",
                                                  ruc.token_.c_str(), ruc.req_->app_.c_str(), ruc.req_->stream_.c_str(), ruc.session_id_.c_str()));
     w->header()->set_content_length((int64_t)sdp.length());
     // Must be 201, see https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     w->write_header(201);
 
-    // Response the SDP content.
     return w->write((char *)sdp.data(), (int)sdp.length());
 }
 
@@ -833,19 +796,17 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     string clientip;
     if (clientip.empty()) {
         clientip = dynamic_cast<SrsHttpMessage *>(r)->connection()->remote_ip();
-        // Overwrite by ip from proxy.
         string oip = srs_get_original_ip(r);
         if (!oip.empty()) {
             clientip = oip;
         }
     }
 
-    // For client to specifies the candidate(EIP) of server.
+    // The client may give the server's candidate (EIP).
     string eip = r->query_get("eip");
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    // Support vcodec/codec (alias for vcodec) and acodec parameters
     string vcodec = r->query_get("vcodec");
     if (vcodec.empty()) {
         vcodec = r->query_get("codec");
@@ -857,12 +818,11 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     if (action.empty()) {
         action = "publish";
     }
-    // For whip-play or whep, parsed to https://datatracker.ietf.org/doc/draft-murillo-whep/
+    // See https://datatracker.ietf.org/doc/draft-murillo-whep/
     if (srs_strings_ends_with(r->path(), "/whip-play/") || srs_strings_ends_with(r->path(), "/whep/")) {
         action = "play";
     }
 
-    // The RTC user config object.
     ruc->req_->ip_ = clientip;
     ruc->req_->host_ = r->host();
     ruc->req_->vhost_ = ruc->req_->host_;
@@ -877,7 +837,7 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
         ruc->req_->stream_ = ruc->req_->stream_.substr(pos + 1);
     }
     ruc->req_->param_ = r->query();
-    // The webrtc:// URL of the app, as a client of the legacy API has, which the hooks and the API report.
+    // A client of the JSON API sends this webrtc:// URL, and the hooks and the HTTP API report it.
     ruc->req_->tcUrl_ = "webrtc://" + ruc->req_->host_ + "/" + ruc->req_->app_;
 
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
@@ -889,13 +849,11 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
         return srs_error_new(ERROR_RTC_INVALID_ICE, "Invalid ice-pwd %s", ruc->req_->ice_pwd_.c_str());
     }
 
-    // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(ruc->req_->vhost_);
     if (parsed_vhost) {
         ruc->req_->vhost_ = parsed_vhost->arg0();
     }
 
-    // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
@@ -909,7 +867,6 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     ruc->acodec_ = acodec;
     ruc->publish_ = (action == "publish");
 
-    // For client to specifies whether encrypt by SRTP.
     ruc->dtls_ = (dtls != "false");
     if (srtp.empty()) {
         ruc->srtp_ = config_->get_rtc_server_encrypt();

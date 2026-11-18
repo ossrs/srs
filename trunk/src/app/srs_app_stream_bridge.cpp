@@ -186,8 +186,7 @@ void SrsRtmpBridge::on_unpublish()
     }
 #endif
 
-    // Note that RTMP live source free this rtmp bridge, after on_unpublish() is called.
-    // So there is no need to free its components here.
+    // The RTMP live source frees this bridge right after on_unpublish(), so the components are not freed here.
 }
 
 srs_error_t SrsRtmpBridge::on_frame(SrsMediaPacket *frame)
@@ -330,8 +329,7 @@ void SrsSrtBridge::on_unpublish()
         rtc_target_->on_unpublish();
     }
 
-    // Note that SRT source free this srt bridge, after on_unpublish() is called.
-    // So there is no need to free its components here.
+    // The SRT source frees this bridge right after on_unpublish(), so the components are not freed here.
 }
 
 srs_error_t SrsSrtBridge::on_srt_packet(SrsSrtPacket *pkt)
@@ -349,12 +347,10 @@ srs_error_t SrsSrtBridge::on_frame(SrsMediaPacket *frame)
 {
     srs_error_t err = srs_success;
 
-    // Deliver frame to RTMP target
     if (rtmp_target_.get() && (err = rtmp_target_->on_frame(frame)) != srs_success) {
         return srs_error_wrap(err, "rtmp target on frame");
     }
 
-    // Deliver frame to RTP builder, which delivers to RTC target
 #ifdef SRS_FFMPEG_FIT
     if (rtp_builder_ && (err = rtp_builder_->on_frame(frame)) != srs_success) {
         return srs_error_wrap(err, "rtp builder on frame");
@@ -463,8 +459,7 @@ void SrsRtcBridge::on_unpublish()
     srs_assert(rtmp_target_.get());
     rtmp_target_->on_unpublish();
 
-    // Note that RTC source free this rtc bridge, after on_unpublish() is called.
-    // So there is no need to free its components here.
+    // The RTC source frees this bridge right after on_unpublish(), so the components are not freed here.
 }
 
 srs_error_t SrsRtcBridge::on_rtp(SrsRtpPacket *pkt)

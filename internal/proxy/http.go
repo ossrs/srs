@@ -23,30 +23,21 @@ import (
 	"srsx/internal/version"
 )
 
-// HTTPStreamProxyServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
-// HLS, etc. The proxy server will figure out which SRS origin server to proxy to, then proxy
-// the request to the origin server.
 type HTTPStreamProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 }
 
-// httpServer is the minimal contract of an HTTP server that httpStreamProxyServer drives.
-// *http.Server satisfies it. Tests may supply a fake that does not bind a real port.
 type httpServer interface {
 	ListenAndServe() error
 	Shutdown(ctx context.Context) error
 }
 
-// buildBackendHTTPURL composes the backend HTTP URL for a request path, targeting
-// the given backend IP and port. Callers append query strings separately when needed.
 func buildBackendHTTPURL(ip string, port int, path string) string {
 	return fmt.Sprintf("http://%v:%v%s", ip, port, path)
 }
 
-// copyBackendResponseHeaders copies end-to-end response headers while dropping
-// fields that apply only to the backend connection. Connection can nominate
-// additional hop-by-hop fields, so collect those names before copying.
+// The Connection header can name more hop-by-hop fields.
 func copyBackendResponseHeaders(dst, src http.Header) {
 	hopByHop := map[string]bool{
 		"Connection":          true,
@@ -80,8 +71,7 @@ func copyBackendResponseHeaders(dst, src http.Header) {
 	}
 }
 
-// repairRewrittenResponseHeaders removes backend representation metadata that
-// no longer describes a rewritten response body, then publishes its new size.
+// These headers describe the backend's body, not the rewritten one.
 func repairRewrittenResponseHeaders(header http.Header, contentLength int) {
 	for _, name := range []string{
 		"Accept-Ranges",
@@ -99,32 +89,15 @@ func repairRewrittenResponseHeaders(header http.Header, contentLength int) {
 }
 
 type httpStreamProxyServer struct {
-	// The environment interface.
-	environment env.ProxyEnvironment
-	// The load balancer for origin servers.
-	loadBalancer lb.OriginLoadBalancer
-	// The underlayer HTTP server.
-	server httpServer
-	// The gracefully quit timeout, wait server to quit.
+	environment         env.ProxyEnvironment
+	loadBalancer        lb.OriginLoadBalancer
+	server              httpServer
 	gracefulQuitTimeout time.Duration
-	// The wait group for all goroutines.
-	wg stdSync.WaitGroup
-	// shutdown gracefully shuts down the underlying HTTP server. Defaults to
-	// v.server.Shutdown; tests may override via a functional option to verify
-	// the shutdown contract without binding a real socket.
-	shutdown func(ctx context.Context) error
-	// newServer constructs the underlying HTTP server bound to addr and the
-	// ServeMux that handlers are registered on. Defaults to a real http.Server
-	// and ServeMux; tests may override via a functional option to supply a fake
-	// server that does not bind a real port.
-	newServer func(addr string) (httpServer, *http.ServeMux)
-	// newHLSStream constructs a per-stream HLS playback object for the given
-	// stream URL pair. Defaults to newHLSPlayStream pre-wired with this server's
-	// load balancer and a fresh SPBHID; tests may override via a functional option.
+	wg                  stdSync.WaitGroup
+	// Tests replace these funcs; a fake newServer binds no real port.
+	shutdown     func(ctx context.Context) error
+	newServer    func(addr string) (httpServer, *http.ServeMux)
 	newHLSStream func(streamURL, fullURL string) *hlsPlayStream
-	// newFlvTsConn constructs a per-request HTTP-FLV/TS connection bound to ctx.
-	// Defaults to newHTTPFlvTsConnection pre-wired with this server's load
-	// balancer; tests may override via a functional option.
 	newFlvTsConn func(ctx context.Context) *httpFlvTsConnection
 }
 
@@ -135,19 +108,14 @@ func NewHTTPStreamProxyServer(environment env.ProxyEnvironment, loadBalancer lb.
 		gracefulQuitTimeout: gracefulQuitTimeout,
 	}
 
-	// Default shutdown: delegate to the underlying http.Server. The closure
-	// captures v rather than v.server so the dereference happens at call time,
-	// after Run() has assigned v.server.
+	// Reads v.server at call time, since Run sets it later.
 	v.shutdown = func(ctx context.Context) error {
 		return v.server.Shutdown(ctx)
 	}
-	// Default newServer: a real http.Server and ServeMux pair.
 	v.newServer = func(addr string) (httpServer, *http.ServeMux) {
 		mux := http.NewServeMux()
 		return &http.Server{Addr: addr, Handler: mux}, mux
 	}
-	// Default newHLSStream: a real hlsPlayStream wired with the server's load
-	// balancer and a fresh SPBHID for this stream.
 	v.newHLSStream = func(streamURL, fullURL string) *hlsPlayStream {
 		return newHLSPlayStream(func(s *hlsPlayStream) {
 			s.loadBalancer = v.loadBalancer
@@ -155,8 +123,6 @@ func NewHTTPStreamProxyServer(environment env.ProxyEnvironment, loadBalancer lb.
 			s.StreamURL, s.FullURL = streamURL, fullURL
 		})
 	}
-	// Default newFlvTsConn: a real httpFlvTsConnection wired with the server's
-	// load balancer and the given ctx.
 	v.newFlvTsConn = func(ctx context.Context) *httpFlvTsConnection {
 		return newHTTPFlvTsConnection(func(c *httpFlvTsConnection) {
 			c.ctx = ctx
@@ -180,18 +146,15 @@ func (v *httpStreamProxyServer) Close() error {
 }
 
 func (v *httpStreamProxyServer) Run(ctx context.Context) error {
-	// Parse address to listen.
 	addr := v.environment.HttpServer()
 	if !strings.Contains(addr, ":") {
 		addr = ":" + addr
 	}
 
-	// Create server and handler.
 	server, mux := v.newServer(addr)
 	v.server = server
 	logger.Debug(ctx, "HTTP Stream server listen at %v", addr)
 
-	// Shutdown the server gracefully when quiting.
 	go func() {
 		ctxParent := ctx
 		<-ctxParent.Done()
@@ -202,7 +165,7 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 		v.shutdown(ctx)
 	}()
 
-	// The basic version handler, also can be used as health check API.
+	// Also used as a health check.
 	logger.Debug(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
 		type Response struct {
@@ -225,7 +188,6 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 		utils.ApiResponse(ctx, w, r, &res)
 	})
 
-	// The static web server, for the web pages.
 	var staticServer http.Handler
 	if staticFiles := v.environment.StaticFiles(); staticFiles != "" {
 		if _, err := os.Stat(staticFiles); err != nil {
@@ -236,10 +198,8 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 		logger.Debug(ctx, "Handle static files at %v", staticFiles)
 	}
 
-	// The default handler, for both static web server and streaming server.
 	logger.Debug(ctx, "Handle / by %v", addr)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// For HLS streaming, we will proxy the request to the streaming server.
 		if strings.HasSuffix(r.URL.Path, ".m3u8") {
 			unifiedURL, fullURL := utils.ConvertURLToStreamURL(r)
 			streamURL, err := utils.BuildStreamURL(unifiedURL)
@@ -258,10 +218,9 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 			return
 		}
 
-		// For HTTP streaming, we will proxy the request to the streaming server.
 		if strings.HasSuffix(r.URL.Path, ".flv") ||
 			strings.HasSuffix(r.URL.Path, ".ts") {
-			// If SPBHID is specified, it must be a HLS stream client.
+			// Only the playlists the proxy rewrites give ts URLs a spbhid.
 			if srsProxyBackendID := r.URL.Query().Get("spbhid"); srsProxyBackendID != "" {
 				if stream, err := v.loadBalancer.LoadHLSBySPBHID(ctx, srsProxyBackendID); err != nil {
 					http.Error(w, fmt.Sprintf("load stream by spbhid %v", srsProxyBackendID), http.StatusBadRequest)
@@ -271,12 +230,10 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 				return
 			}
 
-			// Use HTTP pseudo streaming to proxy the request.
 			v.newFlvTsConn(ctx).ServeHTTP(w, r)
 			return
 		}
 
-		// Serve by static server.
 		if staticServer != nil {
 			staticServer.ServeHTTP(w, r)
 			return
@@ -285,7 +242,6 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 		http.NotFound(w, r)
 	})
 
-	// Run HTTP server.
 	v.wg.Add(1)
 	go func() {
 		defer v.wg.Done()
@@ -306,19 +262,11 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 	return nil
 }
 
-// httpFlvTsConnection is an HTTP pseudo streaming connection, such as an HTTP-FLV or HTTP-TS
-// connection. There is no state need to be sync between proxy servers.
-//
-// When we got an HTTP FLV or TS request, we will parse the stream URL from the HTTP request,
-// then proxy to the corresponding backend server. All state is in the HTTP request, so this
-// connection is stateless.
+// The request holds all the state, so unlike HLS, nothing is shared between proxy servers.
 type httpFlvTsConnection struct {
-	// The context for HTTP streaming.
-	ctx context.Context
-	// The load balancer for origin servers.
+	ctx          context.Context
 	loadBalancer lb.OriginLoadBalancer
-	// buildBackendURL composes the backend HTTP URL for a request path. Defaults
-	// to buildBackendHTTPURL; tests may override via a functional option.
+	// Tests replace it.
 	buildBackendURL func(ip string, port int, path string) string
 }
 
@@ -344,12 +292,10 @@ func (v *httpFlvTsConnection) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	// Always allow CORS for all requests.
 	if ok := utils.ApiCORS(ctx, w, r); ok {
 		return nil
 	}
 
-	// Build the stream URL in vhost/app/stream schema.
 	unifiedURL, fullURL := utils.ConvertURLToStreamURL(r)
 	logger.Debug(ctx, "Got HTTP client from %v for %v", r.RemoteAddr, fullURL)
 
@@ -358,7 +304,6 @@ func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 		return errors.Wrapf(err, "build stream url %v", unifiedURL)
 	}
 
-	// Pick a backend SRS server to proxy the RTMP stream.
 	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
@@ -372,7 +317,6 @@ func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer) error {
-	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no http stream server")
 	}
@@ -384,7 +328,6 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 		httpPort = int(iv)
 	}
 
-	// Connect to backend SRS server via HTTP client.
 	backendURL := v.buildBackendURL(backend.IP, httpPort, r.URL.Path)
 	req, err := http.NewRequestWithContext(ctx, r.Method, backendURL, nil)
 	if err != nil {
@@ -397,20 +340,18 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 	}
 	defer resp.Body.Close()
 
-	// An origin's error answer, such as a 404 for a stream that is not
-	// published, is relayed with its status below like a stream.
+	// An origin error, such as a 404 for a stream that is not published, is
+	// relayed with its status, like a stream.
 	if resp.StatusCode != http.StatusOK {
 		logger.Warn(ctx, "proxy stream to %v answered status=%v", backendURL, resp.Status)
 	}
 
-	// Copy end-to-end headers before committing the response. Headers changed
-	// after WriteHeader are not sent by net/http.
+	// net/http does not send headers changed after WriteHeader.
 	copyBackendResponseHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
 
 	logger.Debug(ctx, "HTTP start streaming")
 
-	// Proxy the stream from backend to client.
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		return errors.Wrapf(err, "copy stream to client, backend=%v", backendURL)
 	}
@@ -418,27 +359,16 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 	return nil
 }
 
-// hlsPlayStream is an HLS stream proxy, which represents the stream level object. This means multiple HLS
-// clients will share this object, and they do not use the same ctx among proxy servers.
-//
-// Unlike the HTTP FLV or TS connection, HLS client may request the m3u8 or ts via different HTTP connections.
-// Especially for requesting ts, we need to identify the stream URl or backend server for it. So we create
-// the spbhid which can be seen as the hash of stream URL or backend server. The spbhid enable us to convert
-// to the stream URL and then query the backend server to serve it.
+// One per stream, shared by all its HLS clients. A player fetches the m3u8 and the ts files over
+// separate HTTP connections, so the ts URLs carry the spbhid to find the stream again.
 type hlsPlayStream struct {
-	// The context for HLS streaming.
-	ctx context.Context
-	// The load balancer for origin servers.
+	ctx          context.Context
 	loadBalancer lb.OriginLoadBalancer
 
-	// The spbhid, used to identify the backend server.
 	SRSProxyBackendHLSID string `json:"spbhid"`
-	// The stream URL in vhost/app/stream schema.
-	StreamURL string `json:"stream_url"`
-	// The full request URL for HLS streaming
-	FullURL string `json:"full_url"`
-	// buildBackendURL composes the backend HTTP URL for a request path. Defaults
-	// to buildBackendHTTPURL; tests may override via a functional option.
+	StreamURL            string `json:"stream_url"`
+	FullURL              string `json:"full_url"`
+	// Tests replace it.
 	buildBackendURL func(ip string, port int, path string) string `json:"-"`
 }
 
@@ -477,12 +407,10 @@ func (v *hlsPlayStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (v *hlsPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	ctx, streamURL, fullURL := v.ctx, v.StreamURL, v.FullURL
 
-	// Always allow CORS for all requests.
 	if ok := utils.ApiCORS(ctx, w, r); ok {
 		return nil
 	}
 
-	// Pick a backend SRS server to proxy the RTMP stream.
 	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
@@ -496,7 +424,6 @@ func (v *hlsPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer) error {
-	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no http server")
 	}
@@ -508,7 +435,6 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 		httpPort = int(iv)
 	}
 
-	// Connect to backend SRS server via HTTP client.
 	backendURL := v.buildBackendURL(backend.IP, httpPort, r.URL.Path)
 	if r.URL.RawQuery != "" {
 		backendURL += "?" + r.URL.RawQuery
@@ -525,14 +451,13 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 	}
 	defer resp.Body.Close()
 
-	// An origin's error answer, such as a 404 for a playlist SRS has not
-	// written yet, is relayed as it is, with its status, so a player can tell
-	// a stream that is not ready from a broken proxy.
+	// An origin error, such as a 404 for a playlist SRS has not written yet, is
+	// relayed with its status, so a player can tell a stream that is not ready
+	// from a broken proxy.
 	if resp.StatusCode != http.StatusOK {
 		logger.Warn(ctx, "proxy stream to %v answered status=%v", backendURL, resp.Status)
 	}
 
-	// For TS file or an error answer, directly copy it.
 	if resp.StatusCode != http.StatusOK || !strings.HasSuffix(r.URL.Path, ".m3u8") {
 		copyBackendResponseHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
@@ -544,8 +469,6 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 		return nil
 	}
 
-	// Read all content of m3u8, append the stream ID to ts URL. Note that we only append stream ID to ts
-	// URL, to identify the stream to specified backend server. The spbhid is the SRS Proxy Backend HLS ID.
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Wrapf(err, "read stream from %v", backendURL)

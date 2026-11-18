@@ -23,7 +23,6 @@ class ISrsFFMPEG;
 class ISrsAppConfig;
 class ISrsAppFactory;
 
-// The encoder interface.
 class ISrsMediaEncoder
 {
 public:
@@ -34,13 +33,11 @@ public:
     virtual void assemble() = 0;
     virtual srs_error_t on_publish(ISrsRequest *req) = 0;
     virtual void on_unpublish() = 0;
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle() = 0;
 };
 
-// The encoder for a stream, may use multiple
-// ffmpegs to transcode the specified stream.
 class SrsEncoder : public ISrsCoroutineHandler, public ISrsMediaEncoder
 {
 // clang-format off
@@ -63,13 +60,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsEncoder();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsEncoder();
 
 public:
     virtual srs_error_t on_publish(ISrsRequest *req);
     virtual void on_unpublish();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 

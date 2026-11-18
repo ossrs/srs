@@ -6,7 +6,7 @@
 
 #include <srs_kernel_aac.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
+// For srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -64,12 +64,11 @@ srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char *data, int siz
 
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(data, size));
 
-    // audio decode
     if (!stream->require(1)) {
         return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac decode audio sound_format failed");
     }
 
-    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
+    // @see E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();
 
     // int8_t sound_type = sound_format & 0x01;
@@ -87,13 +86,9 @@ srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char *data, int siz
 
     SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
     if (aac_packet_type == SrsAudioAacFrameTraitSequenceHeader) {
-        // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in ISO_IEC_14496-3-AAC-2001.pdf, page 33.
-        //
-        // only need to decode the first 2bytes:
-        // audioObjectType, 5bits.
-        // samplingFrequencyIndex, aac_sample_rate, 4bits.
-        // channelConfiguration, aac_channels, 4bits
+        // Its first 2 bytes hold audioObjectType (5 bits), samplingFrequencyIndex (4 bits)
+        // and channelConfiguration (4 bits).
         if (!stream->require(2)) {
             return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac decode sequence header failed");
         }
@@ -116,72 +111,44 @@ srs_error_t SrsAacTransmuxer::write_audio(int64_t timestamp, char *data, int siz
         return srs_error_new(ERROR_AAC_DECODE_ERROR, "aac no sequence header");
     }
 
-    // the left is the aac raw frame data.
     int16_t aac_raw_length = stream->size() - stream->pos();
 
-    // write the ADTS header.
-    // @see ISO_IEC_14496-3-AAC-2001.pdf, page 75,
-    //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
-    // byte_alignment()
-
-    // adts_fixed_header:
-    //      12bits syncword,
-    //      16bits left.
-    // adts_variable_header:
-    //      28bits
-    //      12+16+28=56bits
-    // adts_error_check:
-    //      16bits if protection_absent
-    //      56+16=72bits
-    // if protection_absent:
-    //      require(7bytes)=56bits
-    // else
-    //      require(9bytes)=72bits
+    // 1.A.2.2 Audio_Data_Transport_Stream frame, ADTS, in ISO_IEC_14496-3-AAC-2001.pdf, page 75.
+    // The header is 7 bytes when protection_absent is set, else 9 bytes with the 16-bit
+    // adts_error_check.
     char aac_fixed_header[7];
     if (true) {
         char *pp = aac_fixed_header;
+        // aac_frame_length counts the header and error_check bytes too.
         int16_t aac_frame_length = aac_raw_length + 7;
 
-        // Syncword 12 bslbf
+        // syncword 12
         *pp++ = 0xff;
-        // 4bits left.
-        // adts_fixed_header(), 1.A.2.2.1 Fixed Header of ADTS
-        // ID 1 bslbf
-        // Layer 2 uimsbf
-        // protection_absent 1 bslbf
+        // 1.A.2.2.1 Fixed Header of ADTS: the last 4 bits of syncword, ID 1, layer 2,
+        // protection_absent 1.
         *pp++ = 0xf1;
 
-        // profile 2 uimsbf
-        // sampling_frequency_index 4 uimsbf
-        // private_bit 1 bslbf
-        // channel_configuration 3 uimsbf
-        // original/copy 1 bslbf
-        // home 1 bslbf
+        // profile 2, sampling_frequency_index 4, private_bit 1, then the first bit of
+        // channel_configuration 3.
         SrsAacProfile aac_profile = srs_aac_rtmp2ts(aac_object_);
         *pp++ = ((aac_profile << 6) & 0xc0) | ((aac_sample_rate_ << 2) & 0x3c) | ((aac_channels_ >> 2) & 0x01);
-        // 4bits left.
-        // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
-        // copyright_identification_bit 1 bslbf
-        // copyright_identification_start 1 bslbf
+        // The last 2 bits of channel_configuration, original/copy 1, home 1, then
+        // 1.A.2.2.2 Variable Header of ADTS: copyright_identification_bit 1,
+        // copyright_identification_start 1, and the first 2 bits of aac_frame_length 13.
         *pp++ = ((aac_channels_ << 6) & 0xc0) | ((aac_frame_length >> 11) & 0x03);
 
-        // aac_frame_length 13 bslbf: Length of the frame including headers and error_check in bytes.
-        // use the left 2bits as the 13 and 12 bit,
-        // the aac_frame_length is 13bits, so we move 13-2=11.
         *pp++ = aac_frame_length >> 3;
-        // adts_buffer_fullness 11 bslbf
+        // adts_buffer_fullness 11
         *pp++ = (aac_frame_length << 5) & 0xe0;
 
-        // no_raw_data_blocks_in_frame 2 uimsbf
+        // no_raw_data_blocks_in_frame 2
         *pp++ = 0xfc;
     }
 
-    // write 7bytes fixed header.
     if ((err = writer_->write(aac_fixed_header, 7, NULL)) != srs_success) {
         return srs_error_wrap(err, "write aac header");
     }
 
-    // write aac frame body.
     if ((err = writer_->write(data + stream->pos(), aac_raw_length, NULL)) != srs_success) {
         return srs_error_wrap(err, "write aac frame");
     }

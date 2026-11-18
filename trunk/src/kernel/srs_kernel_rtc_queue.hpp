@@ -20,33 +20,19 @@ class SrsRtpPacket;
 class SrsRtpQueue;
 class SrsRtpRingBuffer;
 
-// For UDP, the packets sequence may present as bellow:
-//      [seq1(done)|seq2|seq3 ... seq10|seq11(lost)|seq12|seq13]
-//                   \___(head_sequence_)   \               \___(highest_sequence_)
-//                                           \___(no received, in nack list)
-//      * seq1: The packet is done, we have already got and processed it.
-//      * seq2,seq3,...,seq10,seq12,seq13: Theses packets are in queue and wait to be processed.
-//      * seq11: This packet is lost or not received, we will put it in the nack list.
-// We store the received packets in ring buffer.
+// Over UDP, RTP packets may be lost or come out of order.
 class SrsRtpRingBuffer
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Capacity of the ring-buffer.
     uint16_t capacity_;
-    // Ring bufer.
     SrsRtpPacket **queue_;
-    // Increase one when uint16 flip back, for get_extended_highest_sequence.
     uint64_t nn_seq_flip_backs_;
-    // Whether initialized, because we use uint16 so we can't use -1.
+    // A flag, since a uint16 sequence has no free value such as -1.
     bool initialized_;
 
 public:
-    // The begin iterator for ring buffer.
-    // For example, when got 1 elems, the begin is 0.
     uint16_t begin_;
-    // The end iterator for ring buffer.
-    // For example, when got 1 elems, the end is 1.
     uint16_t end_;
 
 public:
@@ -54,21 +40,14 @@ public:
     virtual ~SrsRtpRingBuffer();
 
 public:
-    // Whether the ring buffer is empty.
     bool empty();
-    // Get the count of elems in ring buffer.
     int size();
-    // Move the low position of buffer to seq.
     void advance_to(uint16_t seq);
-    // Free the packet at position.
     void set(uint16_t at, SrsRtpPacket *pkt);
     void remove(uint16_t at);
-    // The highest sequence number, calculate the flip back base.
     uint32_t get_extended_highest_sequence();
-    // Update the sequence, got the nack range by [first, last).
-    // @return If false, the seq is too old.
+    // Outputs the lost range [nack_first, nack_last).
     bool update(uint16_t seq, uint16_t &nack_first, uint16_t &nack_last);
-    // Get the packet by seq.
     SrsRtpPacket *at(uint16_t seq);
 
 public:
@@ -95,11 +74,8 @@ struct SrsNackOption {
 };
 
 struct SrsRtpNackInfo {
-    // Use to control the time of first nack req and the life of seq.
     srs_utime_t generate_time_;
-    // Use to control nack interval.
     srs_utime_t pre_req_nack_time_;
-    // Use to control nack times.
     int req_nack_count_;
 
     SrsRtpNackInfo();
@@ -109,10 +85,8 @@ class SrsRtpNackForReceiver
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Nack queue, seq order, oldest to newest.
     std::map<uint16_t, SrsRtpNackInfo, SrsSeqCompareLess>
         queue_;
-    // Max nack count.
     size_t max_queue_size_;
     SrsRtpRingBuffer *rtp_;
     SrsNackOption opts_;

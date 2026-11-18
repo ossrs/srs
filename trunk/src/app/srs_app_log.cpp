@@ -17,12 +17,9 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-// the max size of a line of log.
-#define LOG_MAX_SIZE 65536 // 64 KB
+#define LOG_MAX_SIZE 65536
 
-// the tail append to each log.
 #define LOG_TAIL '\n'
-// reserved for the end of log data, it must be strlen(LOG_TAIL)
 #define LOG_TAIL_SIZE 1
 
 ISrsLogWriter::ISrsLogWriter()
@@ -78,7 +75,6 @@ SrsFileLog::SrsFileLog()
     log_to_file_tank_ = false;
     utc_ = false;
 
-    // The config global does not exist yet when the logger is created, so it is captured by initialize().
     config_ = NULL;
 
     writer_ = new SrsLogWriter();
@@ -103,8 +99,7 @@ SrsFileLog::~SrsFileLog()
 
 srs_error_t SrsFileLog::initialize()
 {
-    // Capture the config here rather than in the constructor: the logger is one of the first objects created, before
-    // the config global exists.
+    // The logger is one of the first objects created, before the config global exists.
     config_ = _srs_config;
 
     if (config_) {
@@ -123,9 +118,7 @@ srs_error_t SrsFileLog::initialize()
 
 void SrsFileLog::reopen()
 {
-    // Clear the descriptor with the close. Every path below may leave without opening a new file, and write_log()
-    // opens one only when the descriptor is negative, so a closed descriptor left here would be written to after the
-    // number has been handed to another socket or file.
+    // The system hands a closed descriptor number to the next socket or file it opens.
     if (fd_ >= 0) {
         writer_->close_file(fd_);
         fd_ = -1;
@@ -151,18 +144,16 @@ void SrsFileLog::log(SrsLogLevel level, const char *tag, const SrsContextId &con
         return;
     }
 
-    // Something not expected, drop the log.
     int r0 = vsnprintf(log_data_ + size, LOG_MAX_SIZE - size, fmt, args);
     if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
         return;
     }
     size += r0;
 
-    // Add errno and strerror() if error. Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    // Security issue of the size check: https://github.com/ossrs/srs/issues/1229
     if (level == SrsLogLevelError && errno != 0 && size < LOG_MAX_SIZE) {
         r0 = snprintf(log_data_ + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
 
-        // Something not expected, drop the log.
         if (r0 <= 0 || r0 >= LOG_MAX_SIZE - size) {
             return;
         }
@@ -174,21 +165,12 @@ void SrsFileLog::log(SrsLogLevel level, const char *tag, const SrsContextId &con
 
 void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
 {
-    // ensure the tail and EOF of string
-    //      LOG_TAIL_SIZE for the TAIL char.
-    //      1 for the last char(0).
     size = srs_min(LOG_MAX_SIZE - 1 - LOG_TAIL_SIZE, size);
 
-    // add some to the end of char.
     str_log[size++] = LOG_TAIL;
 
-    // if not to file, to console and return.
     if (!log_to_file_tank_) {
-        // if is error msg, then print color msg.
-        // \033[31m : red text code in shell
-        // \033[32m : green text code in shell
-        // \033[33m : yellow text code in shell
-        // \033[0m : normal text code
+        // Shell color codes: \033[33m is yellow, \033[31m is red.
         if (level <= SrsLogLevelTrace) {
             writer_->write_console("", str_log, size);
         } else if (level == SrsLogLevelWarn) {
@@ -200,13 +182,11 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
         return;
     }
 
-    // open log file. if specified
     if (fd < 0) {
         open_log_file();
     }
 
-    // write log to file. A descriptor of 0 is a log file like any other: the process may have been started with its
-    // standard input closed, so open() hands out 0. Only the negative sentinel means there is no file.
+    // The process may be started with its standard input closed, so open() can return 0.
     if (fd >= 0) {
         writer_->write_file(fd, str_log, size);
     }

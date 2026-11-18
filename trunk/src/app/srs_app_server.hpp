@@ -76,13 +76,10 @@ class ISrsRtcConnection;
 class ISrsReloadStatus;
 class SrsReloadStatus;
 
-// Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
 
-// The status of the latest config reload.
 extern SrsReloadStatus *_srs_reload_status;
 
-// The signal handler interface.
 class ISrsSignalHandler
 {
 public:
@@ -93,7 +90,6 @@ public:
     virtual void on_signal(int signo) = 0;
 };
 
-// The API server owner interface.
 class ISrsApiServerOwner
 {
 public:
@@ -104,7 +100,6 @@ public:
     virtual ISrsCommonHttpHandler *api_server() = 0;
 };
 
-// The RTC API server owner interface.
 class ISrsRtcApiServer
 {
 public:
@@ -116,10 +111,7 @@ public:
     virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag) = 0;
 };
 
-// SrsServer is the main server class of SRS (Simple Realtime Server) that provides comprehensive
-// streaming media server functionality. It serves as the central orchestrator for all streaming
-// protocols and services in a single-threaded, coroutine-based architecture.
-class SrsServer : public ISrsLiveSourceHandler, // For live source handler.
+class SrsServer : public ISrsLiveSourceHandler,
                   public ISrsTcpHandler,
                   public ISrsHourGlassHandler,
                   public ISrsSrtClientHandler,
@@ -165,66 +157,45 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // PID file manager for process identification and locking.
     ISrsPidFileLocker *pid_file_locker_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // If reusing, HTTP API use the same port of HTTP server.
     bool reuse_api_over_server_;
-    // If reusing, WebRTC TCP use the same port of HTTP server.
     bool reuse_rtc_over_server_;
-    // How long a client of the port shared with WebRTC over TCP may wait before its first bytes.
     srs_utime_t peek_timeout_;
-    // RTMP stream listeners, over TCP.
     ISrsMultipleTcpListeners *rtmp_listener_;
-    // RTMPS stream listeners, over TCP.
     ISrsMultipleTcpListeners *rtmps_listener_;
-    // HTTP API listener, over TCP. Please note that it might reuse with stream listener.
     ISrsMultipleTcpListeners *api_listener_;
-    // HTTPS API listener, over TCP. Please note that it might reuse with stream listener.
     ISrsMultipleTcpListeners *apis_listener_;
-    // HTTP server listener, over TCP. Please note that request of both HTTP static and stream are served by this
-    // listener, and it might be reused by HTTP API and WebRTC TCP.
+    // Serves both HTTP static files and HTTP streams, and may be shared with the HTTP API and WebRTC over TCP.
     ISrsMultipleTcpListeners *http_listener_;
-    // HTTPS server listener, over TCP. Please note that request of both HTTP static and stream are served by this
-    // listener, and it might be reused by HTTP API and WebRTC TCP.
+    // Serves both HTTPS static files and HTTPS streams, and may be shared with the HTTPS API and WebRTC over TCP.
     ISrsMultipleTcpListeners *https_listener_;
-    // WebRTC over TCP listener. Please note that there is always a UDP listener by RTC server.
     ISrsMultipleTcpListeners *webrtc_listener_;
 #ifdef SRS_RTSP
-    // RTSP listener, over TCP.
     ISrsMultipleTcpListeners *rtsp_listener_;
 #endif
-    // Stream Caster for push over MPEGTS-UDP
     ISrsUdpCasterListener *stream_caster_mpegts_;
-    // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
-    // listener, and it might be reused by HTTP API.
     ISrsIpListener *exporter_listener_;
 #ifdef SRS_GB28181
-    // Stream Caster for GB28181.
     ISrsGbListener *stream_caster_gb28181_;
 #endif
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // SRT acceptors for MPEG-TS over SRT.
     std::vector<ISrsSrtAcceptor *>
         srt_acceptors_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // WebRTC UDP listeners for RTC server functionality.
     std::vector<ISrsUdpMuxListener *>
         rtc_listeners_;
-    // WebRTC session manager.
     ISrsRtcSessionManager *rtc_session_manager_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Signal manager which convert gignal to io message.
     ISrsSignalManager *signal_manager_;
-    // User send the signal, convert to variable.
     bool signal_reload_;
     bool signal_persistence_config_;
     bool signal_gmc_stop_;
@@ -236,25 +207,17 @@ public:
     virtual ~SrsServer();
 
 public:
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // When SIGTERM, SRS should do cleanup, for example,
-    // to stop all ingesters, cleanup HLS and dvr.
     virtual void dispose();
-    // Close listener to stop accepting new connections,
-    // then wait and quit when all connections finished.
     virtual void gracefully_dispose();
 
 public:
-    // Get the HTTP API server mux.
     ISrsCommonHttpHandler *api_server();
 
-    // server startup workflow, @see run_master()
 public:
-    // Initialize server with callback handler ch.
-    // @remark user must free the handler.
     virtual srs_error_t initialize();
 
 public:
@@ -272,37 +235,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     void stop();
 
-    // interface ISrsCoroutineHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t cycle();
 
-    // server utilities.
 public:
-    // The callback for signal manager got a signal.
-    // The signal manager convert signal to io message,
-    // whatever, we will got the signo like the orignal signal(int signo) handler.
-    // @param signo the signal number from user, where:
-    //      SRS_SIGNAL_FAST_QUIT, the SIGTERM, do essential dispose then quit.
-    //      SRS_SIGNAL_GRACEFULLY_QUIT, the SIGQUIT, do careful dispose then quit.
-    //      SRS_SIGNAL_REOPEN_LOG, the SIGUSR1, reopen the log file.
-    //      SRS_SIGNAL_RELOAD, the SIGHUP, reload the config.
-    //      SRS_SIGNAL_PERSISTENCE_CONFIG, application level signal, persistence config to file.
-    // @remark, for SIGINT:
-    //       no gmc, fast quit, do essential dispose then quit.
-    //       for gmc, set the variable signal_gmc_stop, the cycle will return and cleanup for gmc.
-    // @remark, maybe the HTTP RAW API will trigger the on_signal() also.
+    // The HTTP RAW API calls it too, not only the signal manager.
     virtual void on_signal(int signo);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The server thread main cycle,
-    // update the global static data, for instance, the current time,
-    // the cpu/mem/network statistic.
     virtual srs_error_t do_cycle();
     virtual srs_error_t do2_cycle();
 
-    // interface ISrsHourGlassHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
@@ -310,10 +255,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Resample the server kbs.
     virtual void resample_kbps();
 
-    // SRT-related methods
     virtual srs_error_t listen_srt_mpegts();
     virtual void close_srt_listeners();
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
@@ -321,10 +264,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // WebRTC-related methods
     virtual srs_error_t listen_rtc_udp();
 
-    // Interface ISrsUdpMuxHandler
 public:
     virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt);
 
@@ -340,7 +281,6 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t srs_update_server_statistics();
 
-    // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
 
@@ -351,20 +291,16 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_before_connection(const char *label, int fd, const std::string &ip, int port);
 
 public:
-    // A client of the HTTP port shared with WebRTC over TCP, called by its peeker in the client's own coroutine.
+    // Runs in the client's own coroutine, started by SrsAsyncClientPeeker.
     virtual srs_error_t on_peeked_client(ISrsListener *listener, srs_netfd_t stfd, const std::string &ip, int port);
 
-    // Interface ISrsLiveSourceHandler
 public:
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish(ISrsRequest *r);
 };
 
-// @global main SRS server, for debugging
 extern SrsServer *_srs_server;
 
-// A client of the HTTP port shared with WebRTC over TCP. Its executor runs it in the client's own coroutine, which
-// waits for the client's first bytes and hands it to the server as a WebRTC or HTTP connection.
 class SrsAsyncClientPeeker : public ISrsResource, public ISrsCoroutineHandler
 {
 // clang-format off
@@ -379,16 +315,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsAsyncClientPeeker(SrsServer *server, ISrsListener *listener, srs_netfd_t stfd, std::string ip, int port);
     virtual ~SrsAsyncClientPeeker();
-    // Interface ISrsCoroutineHandler
+
 public:
     virtual srs_error_t cycle();
-    // Interface ISrsResource
+
 public:
     virtual const SrsContextId &get_id();
     virtual std::string desc();
 };
 
-// The signal manager interface.
 class ISrsSignalManager
 {
 public:
@@ -401,14 +336,12 @@ public:
     virtual srs_error_t start() = 0;
 };
 
-// Convert signal to io,
-// @see: st-1.9/docs/notes.html
+// Converts signals to I/O events, see st-1.9/docs/notes.html
 class SrsSignalManager : public ISrsSignalManager, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Per-process pipe which is used as a signal queue.
-    // Up to PIPE_BUF/sizeof(int) signals can be queued up.
+    // A signal queue of up to PIPE_BUF/sizeof(int) signals.
     int sig_pipe_[2];
     srs_netfd_t signal_read_stfd_;
 
@@ -424,22 +357,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsSignalManager(ISrsSignalHandler *s);
-    virtual void assemble(); // Construct object, to avoid call function in constructor.
+    virtual void assemble(); // Not in the constructor, to avoid calling functions there.
     virtual ~SrsSignalManager();
 
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t start();
-    // Interface ISrsEndlessThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Global singleton instance
     static SrsSignalManager *instance;
-    // Signal catching function.
-    // Converts signal event to I/O event.
     static void sig_catcher(int signo);
 };
 
@@ -463,12 +393,11 @@ public:
 
 public:
     virtual srs_error_t start();
-    // Interface ISrsEndlessThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 };
 
-// The PID file locker interface.
 class ISrsPidFileLocker
 {
 public:
@@ -479,7 +408,6 @@ public:
     virtual srs_error_t acquire() = 0;
 };
 
-// PID file manager for process identification and locking.
 class SrsPidFileLocker : public ISrsPidFileLocker
 {
 // clang-format off
@@ -496,12 +424,10 @@ public:
     virtual ~SrsPidFileLocker();
 
 public:
-    // Acquire the PID file for the whole process.
     virtual srs_error_t acquire();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Close the PID file descriptor.
     virtual void close();
 };
 

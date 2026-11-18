@@ -12,7 +12,6 @@ import (
 	"srsx/internal/logger"
 )
 
-// NewDefaultOriginServerForDebugging initializes the default origin server, for debugging only.
 func NewDefaultOriginServerForDebugging(environment env.ProxyEnvironment) (*OriginServer, error) {
 	if environment.DefaultBackendEnabled() != "on" {
 		return nil, nil

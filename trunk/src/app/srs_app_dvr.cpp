@@ -68,12 +68,8 @@ SrsDvrSegmenter::~SrsDvrSegmenter()
     config_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDvrSegmenter::initialize(ISrsDvrPlan *p, ISrsRequest *r)
 {
     req_ = r;
@@ -94,7 +90,6 @@ srs_error_t SrsDvrSegmenter::open()
 {
     srs_error_t err = srs_success;
 
-    // ignore when already open.
     if (fs_->is_open()) {
         return err;
     }
@@ -110,30 +105,27 @@ srs_error_t SrsDvrSegmenter::open()
     fragment_ = new SrsFragment();
     fragment_->set_path(path);
 
-    // create dir first.
     if ((err = fragment_->create_dir()) != srs_success) {
         return srs_error_wrap(err, "create dir");
     }
 
-    // create jitter.
     srs_freep(jitter_);
     jitter_ = new SrsRtmpJitter();
 
-    // open file writer, in append or create mode.
     string tmp_dvr_file = fragment_->tmppath();
     if ((err = fs_->open(tmp_dvr_file)) != srs_success) {
         return srs_error_wrap(err, "open file %s", path.c_str());
     }
 
-    // Set libc file write cache buffer size, then initialize the encoder, which writes the file header.
+    // The encoder writes the file header.
     if ((err = fs_->set_iobuf_size(SRS_FWRITE_CACHE_SIZE)) != srs_success) {
         err = srs_error_wrap(err, "set iobuf size for file %s", path.c_str());
     } else if ((err = open_encoder()) != srs_success) {
         err = srs_error_wrap(err, "open encoder");
     }
 
-    // A file whose header can't be written, such as on a full disk, holds no recording. Close and remove it, so it is
-    // never named nor reported by a later close.
+    // A file whose header can't be written, such as on a full disk, holds no recording. Close and remove it, so a
+    // later close neither renames nor reports it.
     if (err != srs_success) {
         fs_->close();
         srs_error_t r0 = fragment_->unlink_tmpfile();
@@ -206,14 +198,12 @@ srs_error_t SrsDvrSegmenter::close()
 {
     srs_error_t err = srs_success;
 
-    // ignore when already closed.
     if (!fs_->is_open()) {
         return err;
     }
 
-    // Close the encoder, then close the fs object.
     err = close_encoder();
-    fs_->close(); // Always close the file.
+    fs_->close();
     if (err != srs_success) {
         // An MP4 with no sample, such as a publish with no frame, is never reaped, so remove its tmp file.
         if (srs_error_code(err) == ERROR_MP4_ILLEGAL_MOOV) {
@@ -226,13 +216,12 @@ srs_error_t SrsDvrSegmenter::close()
         return srs_error_wrap(err, "close encoder");
     }
 
-    // when tmp flv file exists, reap it.
     if ((err = fragment_->rename()) != srs_success) {
         return srs_error_wrap(err, "rename fragment");
     }
 
-    // TODO: FIXME: the http callback is async, which will trigger thread switch,
-    //          so the on_video maybe invoked during the http callback, and error.
+    // TODO: FIXME: the http callback is async, which will trigger a coroutine switch,
+    //          so on_video may be invoked during the http callback, and fail.
     if ((err = plan_->on_reap_segment()) != srs_success) {
         return srs_error_wrap(err, "reap segment");
     }
@@ -242,16 +231,13 @@ srs_error_t SrsDvrSegmenter::close()
 
 string SrsDvrSegmenter::generate_path()
 {
-    // the path in config, for example,
-    //      /data/[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv
+    // Such as /data/[vhost]/[app]/[stream]/[2006]/[01]/[02]/[15].[04].[05].[999].flv
     std::string path_config = config_->get_dvr_path(req_->vhost_);
 
-    // add [stream].[timestamp].flv as filename for dir
     if (!srs_strings_ends_with(path_config, ".flv", ".mp4")) {
         path_config += "/[stream].[timestamp].flv";
     }
 
-    // the flv file path
     std::string flv_path = path_config;
     flv_path = srs_path_build_stream(flv_path, req_->vhost_, req_->app_, req_->stream_);
     flv_path = srs_path_build_timestamp(config_, flv_path);
@@ -288,18 +274,15 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
 {
     srs_error_t err = srs_success;
 
-    // no duration or filesize specified.
     if (!duration_offset_ || !filesize_offset_) {
         return err;
     }
 
     int64_t cur = fs_->tellg();
 
-    // buffer to write the size.
     SrsUniquePtr<char[]> buf(new char[SrsAmf0Size::number()]);
     SrsBuffer stream(buf.get(), SrsAmf0Size::number());
 
-    // filesize to buf.
     SrsUniquePtr<SrsAmf0Any> size(SrsAmf0Any::number((double)cur));
 
     stream.skip(-1 * stream.pos());
@@ -307,7 +290,6 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
         return srs_error_wrap(err, "write filesize");
     }
 
-    // update the flesize.
     if ((err = fs_->seek2(filesize_offset_)) != srs_success) {
         return srs_error_wrap(err, "seek filesize");
     }
@@ -315,7 +297,6 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
         return srs_error_wrap(err, "update filesize");
     }
 
-    // duration to buf
     SrsUniquePtr<SrsAmf0Any> dur(SrsAmf0Any::number((double)srsu2ms(fragment_->duration()) / 1000.0));
 
     stream.skip(-1 * stream.pos());
@@ -323,7 +304,6 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
         return srs_error_wrap(err, "write duration");
     }
 
-    // update the duration
     if ((err = fs_->seek2(duration_offset_)) != srs_success) {
         return srs_error_wrap(err, "seek duration");
     }
@@ -331,7 +311,6 @@ srs_error_t SrsDvrFlvSegmenter::refresh_metadata()
         return srs_error_wrap(err, "update duration");
     }
 
-    // reset the offset.
     if ((err = fs_->seek2(cur)) != srs_success) {
         return srs_error_wrap(err, "seek end");
     }
@@ -345,7 +324,6 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
 
     has_keyframe_ = false;
 
-    // update the duration and filesize offset.
     duration_offset_ = 0;
     filesize_offset_ = 0;
 
@@ -356,7 +334,6 @@ srs_error_t SrsDvrFlvSegmenter::open_encoder()
         return srs_error_wrap(err, "init encoder");
     }
 
-    // write the flv header to writer.
     if ((err = enc_->write_header()) != srs_success) {
         return srs_error_wrap(err, "write flv header");
     }
@@ -368,7 +345,6 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsMediaPacket *metadata)
 {
     srs_error_t err = srs_success;
 
-    // Ignore when metadata already written.
     if (duration_offset_ || filesize_offset_) {
         return err;
     }
@@ -385,11 +361,9 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsMediaPacket *metadata)
         return srs_error_wrap(err, "read object");
     }
 
-    // remove duration and filesize.
     obj->set("filesize", NULL);
     obj->set("duration", NULL);
 
-    // add properties.
     obj->set("service", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     obj->set("filesize", SrsAmf0Any::number(0));
     obj->set("duration", SrsAmf0Any::number(0));
@@ -397,12 +371,11 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsMediaPacket *metadata)
     int size = name->total_size() + obj->total_size();
     SrsUniquePtr<char[]> payload(new char[size]);
 
-    // 11B flv header, 3B object EOF, 8B number value, 1B number flag.
+    // 11B FLV tag header, 3B object EOF, 1B number marker and 8B number value.
     duration_offset_ = fs_->tellg() + size + 11 - SrsAmf0Size::object_eof() - SrsAmf0Size::number();
-    // 2B string flag, 8B number value, 8B string 'duration', 1B number flag
+    // 2B length and 8B 'duration' key, 1B number marker and 8B number value.
     filesize_offset_ = duration_offset_ - SrsAmf0Size::utf8("duration") - SrsAmf0Size::number();
 
-    // convert metadata to bytes.
     SrsBuffer buf(payload.get(), size);
 
     if ((err = name->write(&buf)) != srs_success) {
@@ -412,7 +385,6 @@ srs_error_t SrsDvrFlvSegmenter::encode_metadata(SrsMediaPacket *metadata)
         return srs_error_wrap(err, "write object");
     }
 
-    // to flv file.
     if ((err = enc_->write_metadata(18, payload.get(), size)) != srs_success) {
         return srs_error_wrap(err, "write metadata");
     }
@@ -446,8 +418,6 @@ srs_error_t SrsDvrFlvSegmenter::encode_video(SrsMediaPacket *video, SrsFormat *f
         has_keyframe_ = true;
     }
 
-    // accept the sequence header here.
-    // when got no keyframe, ignore when should wait keyframe.
     if (!has_keyframe_ && !sh && wait_keyframe_) {
         return err;
     }
@@ -598,8 +568,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -658,12 +627,8 @@ SrsDvrPlan::~SrsDvrPlan()
     stat_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDvrPlan::initialize(ISrsOriginHub *h, ISrsDvrSegmenter *s, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -752,12 +717,8 @@ srs_error_t SrsDvrPlan::on_reap_segment()
     return err;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDvrPlan::create_plan(ISrsAppConfig *config, string vhost, ISrsDvrPlan **pplan)
 {
     SrsDvrPlan *dvr_plan = NULL;
@@ -795,7 +756,6 @@ srs_error_t SrsDvrSessionPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    // support multiple publish.
     if (dvr_enabled_) {
         return err;
     }
@@ -819,12 +779,10 @@ srs_error_t SrsDvrSessionPlan::on_publish(ISrsRequest *r)
 
 void SrsDvrSessionPlan::on_unpublish()
 {
-    // support multiple publish.
     if (!dvr_enabled_) {
         return;
     }
 
-    // ignore error.
     srs_error_t err = segment_->close();
     if (err != srs_success) {
         srs_warn("ignore dvr segment close failed. ret=%d", srs_error_code(err));
@@ -833,7 +791,6 @@ void SrsDvrSessionPlan::on_unpublish()
 
     dvr_enabled_ = false;
 
-    // We should notify the on_dvr, then stop the async.
     // @see https://github.com/ossrs/srs/issues/1601
     SrsDvrPlan::on_unpublish();
 }
@@ -874,7 +831,6 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
         return err;
     }
 
-    // support multiple publish.
     if (dvr_enabled_) {
         return err;
     }
@@ -909,7 +865,6 @@ void SrsDvrSegmentPlan::on_unpublish()
 
     dvr_enabled_ = false;
 
-    // We should notify the on_dvr, then stop the async.
     // @see https://github.com/ossrs/srs/issues/1601
     SrsDvrPlan::on_unpublish();
 }
@@ -967,14 +922,12 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
     }
     last_timestamp_ = msg->timestamp_;
 
-    // ignore if duration ok.
     if (cduration_ <= 0 || duration < cduration_) {
         return err;
     }
 
-    // when wait keyframe, ignore if no frame arrived. A publish with no video has no
-    // keyframe to wait for, so any message at the duration cuts it, as HLS and DASH
-    // cut pure audio by their duration.
+    // A publish with no video has no keyframe to wait for, so any message at the duration
+    // cuts it, as HLS and DASH cut pure audio by their duration.
     if (wait_keyframe_ && has_video_) {
         if (!msg->is_video()) {
             return err;
@@ -992,17 +945,15 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
         }
     }
 
-    // reap segment
     if ((err = segment_->close()) != srs_success) {
         return srs_error_wrap(err, "segment close");
     }
 
-    // open new flv file
     if ((err = segment_->open()) != srs_success) {
         return srs_error_wrap(err, "segment open");
     }
 
-    // When update sequence header, set the reopening state to prevent infinitely recursive call.
+    // The hub sends the sequence headers back through on_audio and on_video, which would call this again.
     reopening_segment_ = true;
     err = hub_->on_dvr_request_sh();
     reopening_segment_ = false;
@@ -1048,12 +999,8 @@ SrsDvr::~SrsDvr()
     app_factory_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDvr::initialize(ISrsOriginHub *h, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -1089,7 +1036,6 @@ srs_error_t SrsDvr::on_publish(ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
-    // the dvr for this stream is not actived.
     if (!actived_) {
         return err;
     }
@@ -1113,7 +1059,6 @@ srs_error_t SrsDvr::on_meta_data(SrsMediaPacket *metadata)
 {
     srs_error_t err = srs_success;
 
-    // the dvr for this stream is not actived.
     if (!actived_) {
         return err;
     }
@@ -1127,7 +1072,6 @@ srs_error_t SrsDvr::on_meta_data(SrsMediaPacket *metadata)
 
 srs_error_t SrsDvr::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
-    // the dvr for this stream is not actived.
     if (!actived_) {
         return srs_success;
     }
@@ -1137,7 +1081,6 @@ srs_error_t SrsDvr::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 
 srs_error_t SrsDvr::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
-    // the dvr for this stream is not actived.
     if (!actived_) {
         return srs_success;
     }

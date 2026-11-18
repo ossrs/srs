@@ -21,7 +21,6 @@ class ISrsRequest;
 class ISrsAppConfig;
 class ISrsRand;
 
-// The interface for DTLS certificate.
 class ISrsDtlsCertificate
 {
 public:
@@ -37,13 +36,11 @@ public:
     virtual bool is_ecdsa() = 0;
 };
 
-// The DTLS certificate.
 class SrsDtlsCertificate : public ISrsDtlsCertificate
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
-    // The generator of the certificate serial number.
     ISrsRand *rand_;
 
     std::string fingerprint_;
@@ -57,32 +54,23 @@ public:
     virtual ~SrsDtlsCertificate();
 
 public:
-    // Initialize DTLS certificate.
     srs_error_t initialize();
-    // dtls_cert
     X509 *get_cert();
-    // public key
     EVP_PKEY *get_public_key();
-    // ECDSA key
     EC_KEY *get_ecdsa_key();
-    // certificate fingerprint
     std::string get_fingerprint();
-    // whether is ecdsa
     bool is_ecdsa();
 };
 
-// @global config object.
 extern SrsDtlsCertificate *_srs_rtc_dtls_certificate;
 
-// @remark: play the role of DTLS_CLIENT, will send handshake
-// packet first.
+// The DTLS client sends the first handshake packet.
 enum SrsDtlsRole {
     SrsDtlsRoleClient,
     SrsDtlsRoleServer
 };
 
-// @remark: DTLS_10 will all be ignored, and only DTLS1_2 will be accepted,
-// DTLS_10 Support will be completely removed in M84 or later.
+// WebRTC ignores DTLS 1.0 and accepts only DTLS 1.2, and removes DTLS 1.0 support in M84 or later.
 // TODO(https://bugs.webrtc.org/10261).
 enum SrsDtlsVersion {
     SrsDtlsVersionAuto = -1,
@@ -90,7 +78,6 @@ enum SrsDtlsVersion {
     SrsDtlsVersion1_2
 };
 
-// Build the DTLS context with the certificate and its key.
 extern SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role);
 
 class ISrsDtlsCallback
@@ -100,20 +87,15 @@ public:
     virtual ~ISrsDtlsCallback();
 
 public:
-    // DTLS handshake done callback.
     virtual srs_error_t on_dtls_handshake_done() = 0;
-    // DTLS receive application data callback.
     virtual srs_error_t on_dtls_application_data(const char *data, const int len) = 0;
-    // DTLS write dtls data.
     virtual srs_error_t write_dtls_data(void *data, int size) = 0;
-    // Callback when DTLS Alert message.
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 };
 
-// The state for DTLS client.
 enum SrsDtlsState {
-    SrsDtlsStateInit,       // Start.
-    SrsDtlsStateClientDone, // Done.
+    SrsDtlsStateInit,
+    SrsDtlsStateClientDone,
 };
 
 class SrsDtlsImpl
@@ -126,15 +108,12 @@ SRS_DECLARE_PROTECTED: // clang-format on
     BIO *bio_out_;
     ISrsDtlsCallback *callback_;
     ISrsDtlsCertificate *dtls_certificate_;
-    // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
     SrsDtlsVersion version_;
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
-    // Whether the handshake is done, for us only.
-    // @remark For us only, means peer maybe not done, we also need to handle the DTLS packet.
+    // The peer may not be done yet, so its DTLS packets still need handling after this is set.
     bool handshake_done_for_us_;
-    // The stat for ARQ packets.
     int nn_arq_packets_;
     uint8_t last_handshake_type_;
     uint8_t last_content_type_;
@@ -157,7 +136,6 @@ public:
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     srs_error_t do_on_dtls(char *data, int nb_data);
-    // Send the queued records, after OpenSSL returns.
     void flush_dtls_data();
     srs_error_t write_dtls_data(void *data, int size);
     void state_trace(uint8_t *data, int length, bool incoming, int r0);
@@ -178,12 +156,8 @@ class SrsDtlsClientImpl : public SrsDtlsImpl, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // ARQ thread, for role active(DTLS client).
-    // @note If passive(DTLS server), the ARQ is driven by DTLS client.
     ISrsCoroutine *trd_;
-    // The DTLS-client state to drive the ARQ thread.
     SrsDtlsState state_;
-    // The max ARQ retry.
     int arq_max_retry_;
 
 public:
@@ -244,7 +218,6 @@ SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t start_arq();
 };
 
-// The interface for DTLS.
 class ISrsDtls
 {
 public:
@@ -259,7 +232,6 @@ public:
     virtual srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint) = 0;
 };
 
-// The DTLS transport.
 class SrsDtls : public ISrsDtls
 {
 // clang-format off
@@ -275,10 +247,7 @@ public:
     srs_error_t initialize(std::string role, std::string version);
 
 public:
-    // Start DTLS handshake mechanism.
     srs_error_t start_active_handshake();
-    // When got DTLS packet, may handshake packets or application data.
-    // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.
     srs_error_t on_dtls(char *data, int nb_data);
 
 public:
@@ -286,7 +255,6 @@ public:
     srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint);
 };
 
-// The interface for SRTP.
 class ISrsSRTP
 {
 public:
@@ -301,7 +269,6 @@ public:
     virtual srs_error_t unprotect_rtcp(void *packet, int *nb_plaintext) = 0;
 };
 
-// The SRTP transport.
 class SrsSRTP : public ISrsSRTP
 {
 // clang-format off
@@ -314,7 +281,6 @@ public:
     virtual ~SrsSRTP();
 
 public:
-    // Intialize srtp context with recv_key and send_key.
     srs_error_t initialize(std::string recv_key, std::string send_key);
 
 public:

@@ -30,7 +30,6 @@ class ISrsSrtSource;
 class ISrsClock;
 class ISrsAppFactory;
 
-// The SRT packet with shared message.
 class SrsSrtPacket
 {
 public:
@@ -38,12 +37,9 @@ public:
     virtual ~SrsSrtPacket();
 
 public:
-    // Wrap buffer to shared_message, which is managed by us.
     char *wrap(int size);
     char *wrap(char *data, int size);
-    // Wrap the shared message, we copy it.
     char *wrap(SrsMediaPacket *msg);
-    // Copy the SRT packet.
     virtual SrsSrtPacket *copy();
 
 public:
@@ -53,11 +49,9 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsMediaPacket *shared_buffer_;
-    // The size of SRT packet or SRT payload.
     int actual_buffer_size_;
 };
 
-// The SRT source manager interface.
 class ISrsSrtSourceManager
 {
 public:
@@ -70,7 +64,6 @@ public:
     virtual SrsSharedPtr<SrsSrtSource> fetch(ISrsRequest *r) = 0;
 };
 
-// The SRT source manager.
 class SrsSrtSourceManager : public ISrsHourGlassHandler, public ISrsSrtSourceManager
 {
 // clang-format off
@@ -85,32 +78,26 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsSrtSourceManager();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
     virtual ~SrsSrtSourceManager();
 
 public:
     virtual srs_error_t initialize();
-    // interface ISrsHourGlassHandler
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
 public:
-    //  create source when fetch from cache failed.
-    // @param r the client request.
-    // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(ISrsRequest *r, SrsSharedPtr<SrsSrtSource> &pps);
 
 public:
-    // Get the exists source, NULL when not exists.
     virtual SrsSharedPtr<SrsSrtSource> fetch(ISrsRequest *r);
 };
 
-// Global singleton instance.
 extern SrsSrtSourceManager *_srs_srt_sources;
 
-// The SRT consumer interface.
 class ISrsSrtConsumer
 {
 public:
@@ -120,17 +107,14 @@ public:
 public:
     virtual srs_error_t enqueue(SrsSrtPacket *packet) = 0;
     virtual srs_error_t dump_packet(SrsSrtPacket **ppkt) = 0;
-    // Wait for at-least some messages incoming in queue.
-    // @return true if there are enough messages, false if timeout.
     virtual bool wait(int nb_msgs, srs_utime_t timeout) = 0;
 };
 
-// The SRT consumer, consume packets from SRT stream source.
 class SrsSrtConsumer : public ISrsSrtConsumer
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Because source references to this object, so we should directly use the source ptr.
+    // The source holds this consumer, so this is a raw pointer to the source.
     ISrsSrtSource *source_;
 
 public:
@@ -140,26 +124,19 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<SrsSrtPacket *> queue_;
-    // when source id changed, notice all consumers
     bool should_update_source_id_;
-    // The cond wait for mw.
     srs_cond_t mw_wait_;
     bool mw_waiting_;
     int mw_min_msgs_;
 
 public:
-    // When source id changed, notice client to print.
     void update_source_id();
-    // Put SRT packet into queue.
     srs_error_t enqueue(SrsSrtPacket *packet);
-    // For SRT, we only got one packet, because there is not many packets in queue.
+    // One packet at a time, since the SRT queue holds few packets.
     virtual srs_error_t dump_packet(SrsSrtPacket **ppkt);
-    // Wait for at-least some messages incoming in queue.
-    // @return true if there are enough messages, false if timeout.
     virtual bool wait(int nb_msgs, srs_utime_t timeout);
 };
 
-// The SRT format interface.
 class ISrsSrtFormat
 {
 public:
@@ -171,8 +148,6 @@ public:
     virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt) = 0;
 };
 
-// Lightweight format parser for SRT streams to extract codec information
-// from MPEG-TS packets and update statistics.
 class SrsSrtFormat : public ISrsSrtFormat, public ISrsTsHandler
 {
 public:
@@ -184,14 +159,12 @@ public:
     srs_error_t on_srt_packet(SrsSrtPacket *pkt);
 
 public:
-    // Interface ISrsTsHandler
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     void count_ts_frame(char *p);
     void update_ts_message_stats(bool is_audio);
-    // Set parsed to true only when the msg holds an SPS and PPS that the format parsed.
     srs_error_t parse_video_codec(SrsTsMessage *msg, bool &parsed);
     srs_error_t parse_audio_codec(SrsTsMessage *msg);
 
@@ -201,21 +174,18 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     SrsTsContext *ts_ctx_;
     SrsRtmpFormat *format_;
-    // Track whether we've already reported codec info to avoid duplicate updates
     bool video_codec_reported_;
     bool audio_codec_reported_;
-    // Frame counters for statistics reporting
     int nn_video_frames_;
     int nn_audio_frames_;
 };
 
-// Collect and build SRT TS packet to AV frames.
 class SrsSrtFrameBuilder : public ISrsTsHandler
 {
 public:
     SrsSrtFrameBuilder(ISrsFrameTarget *target);
     virtual ~SrsSrtFrameBuilder();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
 
 public:
     srs_error_t initialize(ISrsRequest *r);
@@ -224,7 +194,7 @@ public:
     virtual srs_error_t on_publish();
     virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt);
     virtual void on_unpublish();
-    // Interface ISrsTsHandler
+
 public:
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
 
@@ -247,7 +217,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsTsContext *ts_ctx_;
-    // Record sps/pps had changed, if change, need to generate new video sh frame.
     bool sps_pps_change_;
     std::string sps_;
     std::string pps_;
@@ -255,7 +224,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string hevc_vps_;
     std::string hevc_sps_;
     std::vector<std::string> hevc_pps_;
-    // Record audio sepcific config had changed, if change, need to generate new audio sh frame.
     bool audio_sh_change_;
     std::string audio_sh_;
 
@@ -265,15 +233,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // SRT to rtmp, video stream id.
     int video_streamid_;
-    // SRT to rtmp, audio stream id.
     int audio_streamid_;
-    // Cycle print when audio duration too large because mpegts may merge multi audio frame in one pes packet.
     SrsAlonePithyPrint *pp_audio_duration_;
 };
 
-// The SRT source interface.
 class ISrsSrtSource : public ISrsSrtTarget
 {
 public:
@@ -284,11 +248,9 @@ public:
     virtual SrsContextId source_id() = 0;
     virtual SrsContextId pre_source_id() = 0;
     virtual void on_consumer_destroy(ISrsSrtConsumer *consumer) = 0;
-    // Whether we can publish stream to the source, return true if no publisher.
     virtual bool can_publish() = 0;
 };
 
-// A SRT source is a stream, to publish and to play with.
 class SrsSrtSource : public ISrsSrtSource
 {
 // clang-format off
@@ -299,39 +261,29 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsSrtSource();
     virtual ~SrsSrtSource();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Not in the constructor, to avoid calling functions there.
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);
 
 public:
-    // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
 
 public:
-    // The source id changed.
     virtual srs_error_t on_source_id_changed(SrsContextId id);
-    // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
-    // Update the authentication information in request.
     virtual void update_auth(ISrsRequest *r);
 
 public:
     void set_bridge(ISrsSrtBridge *bridge);
 
 public:
-    // Create consumer
-    // @param consumer, output the create consumer.
     virtual srs_error_t create_consumer(ISrsSrtConsumer *&consumer);
-    // Dumps packets in cache to consumer.
     virtual srs_error_t consumer_dumps(ISrsSrtConsumer *consumer);
     virtual void on_consumer_destroy(ISrsSrtConsumer *consumer);
-    // Whether we can publish stream to the source, return false if it exists.
     virtual bool can_publish();
-    // When start publish stream.
     virtual srs_error_t on_publish();
-    // When stop publish stream.
     virtual void on_unpublish();
 
 public:
@@ -339,21 +291,17 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Source id.
     SrsContextId source_id_;
-    // previous source id.
     SrsContextId pre_source_id_;
     ISrsRequest *req_;
-    // To delivery packets to clients.
     std::vector<ISrsSrtConsumer *> consumers_;
     bool can_publish_;
-    // The last die time, while die means neither publishers nor players.
+    // When the source last had neither publishers nor players.
     srs_utime_t stream_die_at_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtBridge *srt_bridge_;
-    // Format parser for extracting codec information and updating statistics
     ISrsSrtFormat *format_;
 };
 

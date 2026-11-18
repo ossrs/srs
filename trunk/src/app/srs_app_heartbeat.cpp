@@ -68,10 +68,8 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     string ip;
     std::string device_id = config_->get_heartbeat_device_id();
 
-    // Try to load the ip from the environment variable.
     ip = srs_getenv("srs.device.ip"); // SRS_DEVICE_IP
     if (ip.empty()) {
-        // Use the local ip address specified by the stats.network config.
         SrsProtocolUtility utility;
         vector<SrsIPAddress *> &ips = utility.local_ips();
         if (!ips.empty()) {
@@ -96,7 +94,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     }
 
     if (config_->get_heartbeat_ports()) {
-        // For RTMP listen endpoints.
         if (true) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("rtmp", o);
@@ -107,7 +104,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             }
         }
 
-        // For HTTP Stream listen endpoints.
         if (config_->get_http_stream_enabled()) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("http", o);
@@ -118,7 +114,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             }
         }
 
-        // For HTTP API listen endpoints.
         if (config_->get_http_api_enabled()) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("api", o);
@@ -129,7 +124,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             }
         }
 
-        // For SRT listen endpoints.
         if (config_->get_srt_enabled()) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("srt", o);
@@ -140,7 +134,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             }
         }
 
-        // For RTSP listen endpoints.
         if (config_->get_rtsp_server_enabled()) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("rtsp", o);
@@ -151,7 +144,6 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
             }
         }
 
-        // For WebRTC listen endpoints.
         if (config_->get_rtc_server_enabled()) {
             SrsJsonArray *o = SrsJsonAny::array();
             obj->set("rtc", o);

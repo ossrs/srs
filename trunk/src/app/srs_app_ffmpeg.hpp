@@ -21,7 +21,6 @@ class SrsProcess;
 class ISrsProcess;
 class ISrsAppConfig;
 
-// The ffmpeg interface.
 class ISrsFFMPEG
 {
 public:
@@ -48,7 +47,6 @@ public:
     virtual void fast_kill() = 0;
 };
 
-// A transcode engine: ffmepg, used to transcode a stream to another.
 class SrsFFMPEG : public ISrsFFMPEG
 {
 // clang-format off

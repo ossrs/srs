@@ -31,7 +31,6 @@ extern "C" {
 }
 #endif
 
-// Register FFmpeg log callback funciton.
 class SrsFFmpegLogHelper
 {
 // clang-format off
@@ -47,7 +46,6 @@ public:
     static void ffmpeg_log_callback(void *, int level, const char *fmt, va_list vl);
 };
 
-// The interface for audio transcoder.
 class ISrsAudioTranscoder
 {
 public:
@@ -55,23 +53,16 @@ public:
     virtual ~ISrsAudioTranscoder();
 
 public:
-    // Initialize the transcoder, transcode from codec as to codec.
-    // The channels specifies the number of output channels for encoder, for example, 2.
-    // The sample_rate specifies the sample rate of encoder, for example, 48000.
-    // The bit_rate specifies the bitrate of encoder, for example, 48000.
+    // The channels, sample_rate and bit_rate are for the encoder output.
     virtual srs_error_t initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate) = 0;
-    // Transcode the input audio frame in, as output audio frames outs.
     virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs) = 0;
-    // Free the generated audio frames by transcode.
     virtual void free_frames(std::vector<SrsParsedAudioPacket *> &frames) = 0;
 
 public:
-    // Get the aac codec header, for example, FLV sequence header.
-    // @remark User should never free the data, it's managed by this transcoder.
+    // The AAC sequence header for FLV. The transcoder owns the data, so never free it.
     virtual void aac_codec_header(uint8_t **data, int *len) = 0;
 };
 
-// The audio transcoder, transcode audio from one codec to another.
 class SrsAudioTranscoder : public ISrsAudioTranscoder
 {
 // clang-format off
@@ -85,11 +76,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     AVPacket *enc_packet_;
 
     SwrContext *swr_;
-    // The input the resampler is built for, from the decoded frame.
     uint64_t swr_in_layout_;
     int swr_in_format_;
     int swr_in_rate_;
-    // buffer for swr out put
     uint8_t **swr_data_;
     AVAudioFifo *fifo_;
 
@@ -101,19 +90,11 @@ public:
     virtual ~SrsAudioTranscoder();
 
 public:
-    // Initialize the transcoder, transcode from codec as to codec.
-    // The channels specifies the number of output channels for encoder, for example, 2.
-    // The sample_rate specifies the sample rate of encoder, for example, 48000.
-    // The bit_rate specifies the bitrate of encoder, for example, 48000.
     srs_error_t initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate);
-    // Transcode the input audio frame in, as output audio frames outs.
     virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
-    // Free the generated audio frames by transcode.
     void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
 
 public:
-    // Get the aac codec header, for example, FLV sequence header.
-    // @remark User should never free the data, it's managed by this transcoder.
     void aac_codec_header(uint8_t **data, int *len);
 
 // clang-format off
@@ -130,4 +111,4 @@ SRS_DECLARE_PRIVATE: // clang-format on
     void free_swr_samples();
 };
 
-#endif /* SRS_APP_AUDIO_RECODE_HPP */
+#endif
