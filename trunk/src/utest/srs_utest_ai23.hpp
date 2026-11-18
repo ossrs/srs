@@ -19,6 +19,7 @@
 #include <srs_app_gb28181.hpp>
 #endif
 #include <srs_app_server.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_raw_avc.hpp>
@@ -767,6 +768,22 @@ public:
     void reset();
     void set_unprotect_rtp_error(srs_error_t err);
     void set_unprotect_rtcp_error(srs_error_t err);
+};
+
+class MockClockForUdpNetwork : public ISrsClock
+{
+public:
+    srs_utime_t now_;
+
+public:
+    MockClockForUdpNetwork()
+    {
+        now_ = 0;
+    }
+    virtual srs_utime_t now()
+    {
+        return now_;
+    }
 };
 
 // Mock ISrsResourceManager for testing SrsRtcUdpNetwork::update_sendonly_socket

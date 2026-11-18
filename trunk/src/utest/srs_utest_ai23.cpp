@@ -4994,6 +4994,243 @@ VOID TEST(RtcUdpNetworkTest, OnStunFromPeerSwitchesAddressOnlyWhenAccepted)
     udp_network.conn_manager_ = NULL;
 }
 
+static void rtc_udp_network_utest_peer(MockUdpMuxSocket &skt, int port)
+{
+    skt.peer_ip_ = "192.168.1.100";
+    skt.peer_port_ = port;
+    skt.peer_id_ = srs_fmt_sprintf("192.168.1.100:%d", port);
+}
+
+// The client's ICE check from the peer address of skt, which the session accepts.
+static srs_error_t rtc_udp_network_utest_check(SrsRtcUdpNetwork &network, MockUdpMuxSocket &skt, bool nominate)
+{
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+    request.use_candidate_ = nominate;
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+    return network.on_stun(&skt, &request, data, sizeof(data));
+}
+
+// Writes media to the session, and returns the number of datagrams each peer address got.
+static srs_error_t rtc_udp_network_utest_media(SrsRtcUdpNetwork &network, MockUdpMuxSocket &a, MockUdpMuxSocket &b, int *na, int *nb)
+{
+    int a0 = a.sendto_called_count_, b0 = b.sendto_called_count_;
+    char media[] = "media";
+    srs_error_t err = network.write(media, sizeof(media), NULL);
+    *na = a.sendto_called_count_ - a0;
+    *nb = b.sendto_called_count_ - b0;
+    return err;
+}
+
+static void rtc_udp_network_utest_close(SrsRtcUdpNetwork &network)
+{
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    network.peer_addresses_.clear();
+    network.sendonly_skt_ = NULL;
+    network.conn_manager_ = NULL;
+    network.clk_ = NULL;
+}
+
+// A browser on a host with Ethernet, Wi-Fi and Docker bridges puts USE-CANDIDATE on each check of its nominated pair,
+// and checks its other pairs for a while without it.
+VOID TEST(RtcUdpNetworkTest, BrowserChecksOtherPairs_MediaStaysOnNominatedPair)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket ethernet, wifi, bridge;
+    rtc_udp_network_utest_peer(ethernet, 5000);
+    rtc_udp_network_utest_peer(wifi, 5001);
+    rtc_udp_network_utest_peer(bridge, 5002);
+
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.conn_manager_ = &manager;
+
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, ethernet, true));
+    EXPECT_EQ(1, ethernet.sendto_called_count_);
+
+    MockUdpMuxSocket *others[] = {&wifi, &bridge};
+    for (int i = 0; i < 2; i++) {
+        MockUdpMuxSocket *other = others[i];
+        HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, *other, false));
+        EXPECT_EQ(1, other->sendto_called_count_);
+        EXPECT_TRUE(manager.id_map_.find(other->peer_id_) != manager.id_map_.end());
+
+        int ne = 0, no = 0;
+        HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, ethernet, *other, &ne, &no));
+        EXPECT_EQ(1, ne);
+        EXPECT_EQ(0, no);
+
+        HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, ethernet, true));
+    }
+
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, wifi, true));
+    int ne = 0, nw = 0;
+    HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, ethernet, wifi, &ne, &nw));
+    EXPECT_EQ(0, ne);
+    EXPECT_EQ(1, nw);
+    EXPECT_EQ(3, (int)network.peer_addresses_.size());
+
+    rtc_udp_network_utest_close(network);
+}
+
+// pion nominates its pair once, or again until it gets the response, and then keeps it alive with checks without
+// USE-CANDIDATE.
+VOID TEST(RtcUdpNetworkTest, KeepaliveWithoutNomination_SessionFollowsLaterRebinding)
+{
+    srs_error_t err;
+
+    for (int nominations = 1; nominations <= 2; nominations++) {
+        MockRtcConnectionForUdpNetwork conn;
+        MockEphemeralDelta delta;
+        MockResourceManagerForUdpNetwork manager;
+        MockUdpMuxSocket before, after;
+        rtc_udp_network_utest_peer(before, 5000);
+        rtc_udp_network_utest_peer(after, 5001);
+
+        SrsRtcUdpNetwork network(&conn, &delta);
+        network.conn_manager_ = &manager;
+        MockClockForUdpNetwork clock;
+        clock.now_ = 3600 * SRS_UTIME_SECONDS;
+        network.clk_ = &clock;
+
+        HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, before, false));
+        for (int i = 0; i < nominations; i++) {
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, before, true));
+        }
+        for (int i = 0; i < 4; i++) {
+            clock.now_ += 2 * SRS_UTIME_SECONDS;
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, before, false));
+        }
+
+        HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, after, false));
+        EXPECT_EQ(1, after.sendto_called_count_);
+        int nb = 0, na = 0;
+        HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, before, after, &nb, &na));
+        EXPECT_EQ(0, nb) << "nominations=" << nominations;
+        EXPECT_EQ(1, na) << "nominations=" << nominations;
+
+        rtc_udp_network_utest_close(network);
+    }
+}
+
+// A client's NAT rebinds right after it nominated its pair, so its checks come from the new address without
+// USE-CANDIDATE, as a browser's checks of its other pairs do.
+VOID TEST(RtcUdpNetworkTest, NominationTimesOut_SessionFollowsRebinding)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket before, after;
+    rtc_udp_network_utest_peer(before, 5000);
+    rtc_udp_network_utest_peer(after, 5001);
+
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.conn_manager_ = &manager;
+    MockClockForUdpNetwork clock;
+    clock.now_ = 3600 * SRS_UTIME_SECONDS;
+    network.clk_ = &clock;
+
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, before, true));
+
+    clock.now_ += SRS_RTC_NOMINATION_TIMEOUT - SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, after, false));
+    EXPECT_EQ(1, after.sendto_called_count_);
+    int nb = 0, na = 0;
+    HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, before, after, &nb, &na));
+    EXPECT_EQ(1, nb);
+    EXPECT_EQ(0, na);
+
+    clock.now_ += 2 * SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, after, false));
+    HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, before, after, &nb, &na));
+    EXPECT_EQ(0, nb);
+    EXPECT_EQ(1, na);
+
+    rtc_udp_network_utest_close(network);
+}
+
+// With two server candidates on one port, such as the API host's address beside the configured candidate, Chrome
+// checks its pair to the other candidate from its nominated address without USE-CANDIDATE, in any order with its
+// checks of the nominated pair.
+VOID TEST(RtcUdpNetworkTest, BrowserChecksPairToOtherServerCandidate_MediaStaysOnNominatedPair)
+{
+    srs_error_t err;
+
+    // Chrome's first check carries no USE-CANDIDATE, and its next checks of the nominated pair do.
+    bool starts[][3] = {{false, true, true}, {true, false, false}};
+    int nn_starts[] = {3, 1};
+    for (int s = 0; s < 2; s++) {
+        MockRtcConnectionForUdpNetwork conn;
+        MockEphemeralDelta delta;
+        MockResourceManagerForUdpNetwork manager;
+        MockUdpMuxSocket ethernet, wifi;
+        rtc_udp_network_utest_peer(ethernet, 5000);
+        rtc_udp_network_utest_peer(wifi, 5001);
+
+        SrsRtcUdpNetwork network(&conn, &delta);
+        network.conn_manager_ = &manager;
+
+        for (int i = 0; i < nn_starts[s]; i++) {
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, ethernet, starts[s][i]));
+        }
+
+        for (int round = 0; round < 3; round++) {
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, ethernet, false));
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, wifi, false));
+            EXPECT_EQ(round + 1, wifi.sendto_called_count_) << "start=" << s << ", round=" << round;
+
+            int ne = 0, nw = 0;
+            HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, ethernet, wifi, &ne, &nw));
+            EXPECT_EQ(1, ne) << "start=" << s << ", round=" << round;
+            EXPECT_EQ(0, nw) << "start=" << s << ", round=" << round;
+
+            HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, ethernet, true));
+        }
+
+        rtc_udp_network_utest_close(network);
+    }
+}
+
+// An NTP correction steps the server's wall clock back after a client nominated its pair.
+VOID TEST(RtcUdpNetworkTest, ClockStepsBackAfterNomination_SessionFollowsRebinding)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket before, after;
+    rtc_udp_network_utest_peer(before, 5000);
+    rtc_udp_network_utest_peer(after, 5001);
+
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.conn_manager_ = &manager;
+    MockClockForUdpNetwork clock;
+    clock.now_ = 7200 * SRS_UTIME_SECONDS;
+    network.clk_ = &clock;
+
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, before, true));
+
+    clock.now_ -= 3600 * SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(rtc_udp_network_utest_check(network, after, false));
+    int nb = 0, na = 0;
+    HELPER_EXPECT_SUCCESS(rtc_udp_network_utest_media(network, before, after, &nb, &na));
+    EXPECT_EQ(0, nb);
+    EXPECT_EQ(1, na);
+
+    rtc_udp_network_utest_close(network);
+}
+
 // Test SrsRtcTcpNetwork major use scenario: DTLS handshake and RTP/RTCP protection
 VOID TEST(RtcTcpNetworkTest, DtlsHandshakeAndPacketProtection)
 {
