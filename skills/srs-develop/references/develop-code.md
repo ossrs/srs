@@ -40,7 +40,7 @@ The proxy server is a complex, growing product — not a small app. It has many 
    - Which modules might be affected as dependencies?
    - Which docs cover the design/architecture of this area?
    - Is this a new module or a change to an existing one?
-5. **Present your reasoning to the user — both the module(s) and document(s) you identified — and ask for confirmation.** Even if you are confident, you MUST ask. Do not proceed without confirmation.
+5. Present your reasoning to the user, both the module(s) and document(s) you identified, and wait for their confirmation before Step 2, also when you are confident.
 6. If you are unsure, stop and ask the user to clarify. Do not guess.
 
 Only after the user confirms the routing do you proceed to Step 2.

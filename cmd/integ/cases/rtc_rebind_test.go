@@ -17,25 +17,26 @@ import (
 	"srs-integ/internal/server"
 )
 
-// rtcRebind adds to TestRtc_Common the cases of a client whose address
-// changes during a session, as when a phone goes from Wi-Fi to 4G or a NAT
-// rebinds: the client moves its socket to another local port, which SRS
-// sees as it sees another IP. SRS moves a UDP session to the address of a
-// STUN binding request signed with the session's ICE password, and drops RTP
-// and RTCP from an address it doesn't know; pion sends a binding request
-// every check interval, 20ms.
-func rtcRebind(t *testing.T) {
+// TestTimer_Rtc_Rebind has the cases of a client whose address changes
+// during a session, as when a phone goes from Wi-Fi to 4G or a NAT rebinds:
+// the client moves its socket to another local port, which SRS sees as it
+// sees another IP. pion sends a binding request every check interval, 20ms,
+// with USE-CANDIDATE only the first time.
+func TestTimer_Rtc_Rebind(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "RtcRebind", server.CommonConfig())
+
 	// PublisherSwitchPort moves the publisher to another port in the middle
 	// of the stream: SRS sends its RTCP there, and no more to the old port,
 	// the player plays on, and the publisher stays the same client, with no
 	// on_unpublish.
-	check.Case(t, "PublisherSwitchPort", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
+	check.Case(t, "PublisherSwitchPort", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		r := &rtc.Rebinder{}
 		pub := rtcPublisher(c, whipURL(srs, "live", stream), &rtc.Options{Rebinder: r, TWCC: true})
 		h := waitHook(c, srs, "on_publish", stream)
 		player := rtcPlayer(c, whepURL(srs, "live", stream), nil)
+		time.Sleep(rtcSettle)
 		sendRTC(c, pub, player)
 		waitPlayed(c, player, rtcPlayedUntil)
 
@@ -52,12 +53,12 @@ func rtcRebind(t *testing.T) {
 
 	// PlayerSwitchPort moves the player to another port in the middle of
 	// the stream: SRS sends the media there, and no more to the old port.
-	check.Case(t, "PlayerSwitchPort", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
+	check.Case(t, "PlayerSwitchPort", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		r := &rtc.Rebinder{}
 		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
 		player := rtcPlayer(c, whepURL(srs, "live", stream), &rtc.Options{Rebinder: r})
+		time.Sleep(rtcSettle)
 		sendRTC(c, pub, player)
 		waitPlayed(c, player, rtcPlayedUntil)
 
@@ -72,12 +73,12 @@ func rtcRebind(t *testing.T) {
 
 	// SwitchBackToOldPort moves the player to another port and back: SRS
 	// sends the media to the first port again, and no more to the second.
-	check.Case(t, "SwitchBackToOldPort", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
+	check.Case(t, "SwitchBackToOldPort", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		r := &rtc.Rebinder{}
 		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
 		player := rtcPlayer(c, whepURL(srs, "live", stream), &rtc.Options{Rebinder: r})
+		time.Sleep(rtcSettle)
 		sendRTC(c, pub, player)
 		waitPlayed(c, player, rtcPlayedUntil)
 
@@ -98,12 +99,12 @@ func rtcRebind(t *testing.T) {
 	// its binding requests: SRS drops the media from the new port, so the
 	// player gets none, until the next binding request moves the session
 	// and the player plays on.
-	check.Case(t, "SwitchMediaBeforeStun", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
+	check.Case(t, "SwitchMediaBeforeStun", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		r := &rtc.Rebinder{}
 		pub := rtcPublisher(c, whipURL(srs, "live", stream), &rtc.Options{Rebinder: r})
 		player := rtcPlayer(c, whepURL(srs, "live", stream), nil)
+		time.Sleep(rtcSettle)
 		sendRTC(c, pub, player)
 		waitPlayed(c, player, rtcPlayedUntil)
 
@@ -123,26 +124,55 @@ func rtcRebind(t *testing.T) {
 	// socket with another password: SRS doesn't move the session there, as
 	// RFC 8445 section 7.3 says, so the socket gets no media; one signed
 	// with the answer's password gets it, which shows the case would see a
-	// move. The player holds its own binding requests meanwhile, or the next
-	// one would move the session back within 20ms; once it sends them again,
-	// it plays on.
-	check.Case(t, "SwitchUnsignedBindingIgnored", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
+	// move; it doesn't nominate the pair, or SRS would hold the media there for
+	// 6s. The player holds its own binding requests meanwhile, or the next one
+	// would move the session back within 20ms; once it sends them again, it
+	// plays on.
+	check.Case(t, "SwitchUnsignedBindingIgnored", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		r := &rtc.Rebinder{}
 		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
 		player := rtcPlayer(c, whepURL(srs, "live", stream), &rtc.Options{Rebinder: r})
+		time.Sleep(rtcSettle)
 		sendRTC(c, pub, player)
 		waitPlayed(c, player, rtcPlayedUntil)
 
 		c.Must(r.HoldSTUN(true), "hold the player's binding requests")
-		n := rtcIntrude(c, player.Offer, withICE(player.Answer, "", "wrongpassword0123456789"))
+		n := rtcIntrude(c, player.Offer, withICE(player.Answer, "", "wrongpassword0123456789"), nil)
 		c.CheckEqual(n, 0, "media to a binding signed with another password")
-		n = rtcIntrude(c, player.Offer, player.Answer)
+		n = rtcIntrude(c, player.Offer, player.Answer, &rtc.Options{NoNominate: true})
 		c.Check(n > 0, "no media to a binding signed with the answer's password")
 
 		c.Must(r.HoldSTUN(false), "send the player's binding requests")
 		waitPlayed(c, player, framesAfter(player, rtcSwitchFrames))
+	})
+}
+
+// rtcRebind adds to TestRtc_Common the address cases that need no wait for a
+// nomination to end.
+func rtcRebind(t *testing.T) {
+	// OtherPairChecksKeepMedia plays as a browser on Ethernet and Wi-Fi does:
+	// it nominates one candidate pair with USE-CANDIDATE, and checks its other
+	// pairs for a while without it.
+	check.Case(t, "OtherPairChecksKeepMedia", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
+		player := rtcRawPlayer(c, whepURL(srs, "live", stream)+"&encrypt=false", true)
+		sendRTC(c, pub, player)
+		waitPlayed(c, player, rtcPlayedUntil)
+
+		checkOnly := &rtc.Options{NoNominate: true}
+		b, err := rtcBind(c, player.Offer, player.Answer, checkOnly, 300*time.Millisecond)
+		if c.Check(err == nil, "a check of another pair: %v", err) {
+			c.CheckEqual(b.Mapped, b.Local, "the address mapped for a check of another pair")
+		}
+		n := rtcIntrude(c, player.Offer, player.Answer, checkOnly)
+		c.CheckEqual(n, 0, "media to a pair the player only checks")
+		checkRTCPlayed(c, waitPlayed(c, player, framesAfter(player, rtcSwitchFrames)))
+
+		n = rtcIntrude(c, player.Offer, player.Answer, nil)
+		c.Check(n > 0, "no media to a pair the player nominates")
 	})
 
 	// TcpSwitchEndsSession closes the TCP connection of a publisher's
@@ -171,6 +201,10 @@ func rtcRebind(t *testing.T) {
 // rtcFrame is the time of a video frame of the WHIP test file, 25 fps.
 const rtcFrame = 40 * time.Millisecond
 
+// rtcSettle outlasts the 6s for which SRS holds a nomination, as a real client
+// moves long after it connected.
+const rtcSettle = 7 * time.Second
+
 // rtcSwitchFrames is how many more video frames a case waits for after a
 // client moves, longer than ICE's 20ms check interval.
 const rtcSwitchFrames = 2
@@ -192,11 +226,11 @@ func framesAfter(p rtcReceiver, n int) report.Until {
 
 // rtcIntrude binds a session from a new socket for 100ms, and returns how
 // many media packets came to it.
-func rtcIntrude(c *check.C, offer, answer string) int {
+func rtcIntrude(c *check.C, offer, answer string, opts *rtc.Options) int {
 	c.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	n, err := rtc.Intrude(ctx, offer, answer, nil)
+	n, err := rtc.Intrude(ctx, offer, answer, opts)
 	c.Must(err, "bind from a new socket")
 	return n
 }

@@ -163,9 +163,8 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 // bind sends a STUN binding request every 50ms until the server answers
 // it, and returns the answer; ErrClosed when the connection closes first.
 func (s *RawSession) bind(ctx context.Context) (*stun.Message, error) {
-	controlled := s.opts != nil && s.opts.Controlled
 	for {
-		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, controlled)
+		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, s.opts)
 		if err != nil {
 			return nil, err
 		}
@@ -538,16 +537,20 @@ func parseAnswer(sdp string) (*answerInfo, error) {
 }
 
 // bindingRequest is a STUN binding request to the server, as an ICE
-// controlling agent that nominates the pair, or as a controlled one, which
-// doesn't.
-func bindingRequest(serverUfrag, clientUfrag, serverPwd string, controlled bool) (*stun.Message, error) {
+// controlling agent that nominates the pair, or one that only checks it with
+// opts.NoNominate, or as a controlled one with opts.Controlled, which doesn't
+// nominate either.
+func bindingRequest(serverUfrag, clientUfrag, serverPwd string, opts *Options) (*stun.Message, error) {
 	var b [8]byte
 	rand.Read(b[:])
 	tie := binary.BigEndian.Uint64(b[:])
 	setters := []stun.Setter{stun.TransactionID, stun.BindingRequest, stun.NewUsername(serverUfrag + ":" + clientUfrag)}
-	if controlled {
+	switch {
+	case opts != nil && opts.Controlled:
 		setters = append(setters, ice.AttrControlled(tie), ice.PriorityAttr(2130706431))
-	} else {
+	case opts != nil && opts.NoNominate:
+		setters = append(setters, ice.AttrControlling(tie), ice.PriorityAttr(2130706431))
+	default:
 		setters = append(setters, ice.AttrControlling(tie), ice.PriorityAttr(2130706431), ice.UseCandidate())
 	}
 	return stun.Build(append(setters, stun.NewShortTermIntegrity(serverPwd), stun.Fingerprint)...)

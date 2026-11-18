@@ -33,7 +33,8 @@ type Binding struct {
 // Bind sends STUN binding requests for the session of an offer and its
 // answer, as the client that made the offer, from a new socket, on
 // opts.LocalPort when it is set, to the answer's loopback candidate: over TCP when opts.TCP is set and UDP
-// otherwise, as an ICE-controlled agent when opts.Controlled is set. It
+// otherwise, as an ICE-controlled agent when opts.Controlled is set, or a
+// controlling one that doesn't nominate the pair when opts.NoNominate is. It
 // returns the binding, ErrClosed when the server closes the connection, or
 // the ctx error when no answer comes. The socket is closed when it returns:
 // over TCP, a binding closes its end first and waits, until ctx ends, for
@@ -89,7 +90,7 @@ func Intrude(ctx context.Context, offer, answer string, opts *Options) (int, err
 	tick := time.NewTicker(50 * time.Millisecond)
 	defer tick.Stop()
 	for {
-		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, false)
+		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, s.opts)
 		if err != nil {
 			return media, err
 		}

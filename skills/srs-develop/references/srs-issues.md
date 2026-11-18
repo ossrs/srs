@@ -2,6 +2,14 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4801 [UNCONFIRMED] SRS: OBS AV1 over WHIP plays only keyframes over WHEP
+
+- Issue: https://github.com/ossrs/srs/issues/4801
+- Truth Record: https://github.com/ossrs/srs/issues/4801#issuecomment-6906278598
+- Status: Closed as not reproduced, 2026-11-15
+
+The report says SRS `8.0.63` drops every predicted frame of OBS SVT-AV1. Not reproduced on `8.0.76`: OBS AOM AV1 with a 1 s keyframe interval plays in Chrome at 30 fps with no loss, and SRS relays the AV1 payload unchanged. With the encoder's default keyframe interval a new player decoded nothing in 15 s, since OBS sent no keyframe after the PLI; that is the likely cause. Not tested: SVT-AV1, `8.0.63`, the reporter's player. Reopen needs logs, the keyframe interval, and the player's `inbound-rtp` stats.
+
 ## #4739 [BUG] SRT multi-level stream IDs could not play over HTTP-FLV/TS
 
 - Issue: https://github.com/ossrs/srs/issues/4739

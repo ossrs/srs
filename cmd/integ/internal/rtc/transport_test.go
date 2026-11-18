@@ -25,7 +25,7 @@ import (
 // agent: its role attribute, and no nomination, which only the controlling
 // agent sends.
 func TestBindingRequestControlled(t *testing.T) {
-	m, err := bindingRequest("srvu", "cliu", "srvpwd", true)
+	m, err := bindingRequest("srvu", "cliu", "srvpwd", &Options{Controlled: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,5 +365,22 @@ func TestBindTCPWaitsForClose(t *testing.T) {
 	srv.mu.Unlock()
 	if closedAt.IsZero() || end.Before(closedAt) {
 		t.Errorf("Bind returned at %v, before the server closed at %v", end, closedAt)
+	}
+}
+
+func TestBindingRequestNoNominate(t *testing.T) {
+	m, err := bindingRequest("srvu", "cliu", "srvpwd", &Options{NoNominate: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &stun.Message{Raw: append([]byte(nil), m.Raw...)}
+	if err := d.Decode(); err != nil {
+		t.Fatal(err)
+	}
+	if !d.Contains(stun.AttrICEControlling) || d.Contains(stun.AttrICEControlled) || d.Contains(stun.AttrUseCandidate) {
+		t.Errorf("attributes %v, want ICE-CONTROLLING without ICE-CONTROLLED and USE-CANDIDATE", d)
+	}
+	if err := stun.NewShortTermIntegrity("srvpwd").Check(d); err != nil {
+		t.Errorf("integrity: %v", err)
 	}
 }
