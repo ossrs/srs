@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	stdSync "sync"
@@ -51,6 +52,14 @@ type webRTCProxyServer struct {
 	// TODO: Support fast earch by uint64 address.
 	addresses sync.Map[string, *rtcConnection]
 
+	// cacheMu serializes cache ownership changes with eviction. Never take it
+	// while holding a connection mutex.
+	cacheMu   stdSync.Mutex
+	resources map[string]*rtcConnection
+	stop      chan struct{}
+	stopOnce  stdSync.Once
+	closed    bool
+
 	// The wait group for server.
 	wg stdSync.WaitGroup
 
@@ -71,6 +80,8 @@ func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 		loadBalancer: loadBalancer,
 		usernames:    sync.NewMap[string, *rtcConnection](),
 		addresses:    sync.NewMap[string, *rtcConnection](),
+		resources:    make(map[string]*rtcConnection),
+		stop:         make(chan struct{}),
 	}
 
 	// Default listenUDP: resolve the endpoint and open a real UDP socket.
@@ -106,6 +117,12 @@ func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 }
 
 func (v *webRTCProxyServer) Close() error {
+	v.stopOnce.Do(func() { close(v.stop) })
+	v.cacheMu.Lock()
+	v.closed = true
+	v.usernames.Range(func(_ string, c *rtcConnection) bool { c.Close(); return true })
+	v.evictClosedLocked()
+	v.cacheMu.Unlock()
 	if v.listener != nil {
 		_ = v.listener.Close()
 	}
@@ -192,6 +209,15 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer,
 	remoteSDPOffer string, streamURL string,
 ) error {
+	// A session DELETE belongs to the Origin that created it, even if stream
+	// routing has since moved to another Origin.
+	if r.Method == http.MethodDelete {
+		v.cacheMu.Lock()
+		if c := v.resources[rtcResourceKey(r.URL)]; c != nil && c.origin != nil {
+			backend = c.origin
+		}
+		v.cacheMu.Unlock()
+	}
 	// Resolve the backend URL via the configurable seam (so tests can redirect to
 	// an httptest.Server).
 	backendURL, err := v.backendURL(backend, r)
@@ -210,13 +236,19 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && !(r.Method == http.MethodDelete && resp.StatusCode == http.StatusNoContent) {
 		return errors.Errorf("proxy api to %v failed, status=%v", backendURL, resp.Status)
 	}
 
 	// A WHIP client ends its session by a DELETE to the Location of the answer,
 	// which carries no SDP.
 	if r.Method == http.MethodDelete {
+		v.cacheMu.Lock()
+		if c := v.resources[rtcResourceKey(r.URL)]; c != nil {
+			c.Close()
+		}
+		v.evictClosedLocked()
+		v.cacheMu.Unlock()
 		copyBackendResponseHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
 		if _, err = io.Copy(w, resp.Body); err != nil {
@@ -264,16 +296,33 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 		RemoteICEUfrag: remoteICEUfrag, RemoteICEPwd: remoteICEPwd,
 		LocalICEUfrag: localICEUfrag, LocalICEPwd: localICEPwd,
 	}
-	if err := v.loadBalancer.StoreWebRTC(ctx, streamURL, newRTCConnection(func(c *rtcConnection) {
+	c := newRTCConnection(func(c *rtcConnection) {
 		c.loadBalancer = v.loadBalancer
 		c.StreamURL, c.Ufrag = streamURL, icePair.Ufrag()
-		c.Initialize(ctx, v.listener)
-
-		// Cache the connection for fast search by username.
-		v.usernames.Store(c.Ufrag, c)
-	})); err != nil {
+		c.origin = backend
+		// HTTP request cancellation must not end the negotiated media session.
+		c.Initialize(context.WithoutCancel(ctx), v.listener)
+	})
+	if err := v.loadBalancer.StoreWebRTC(ctx, streamURL, c); err != nil {
+		c.Close()
 		return errors.Wrapf(err, "load or store webrtc %v", streamURL)
 	}
+	v.cacheMu.Lock()
+	if v.closed {
+		c.Close()
+		v.forgetConnection(c)
+		v.cacheMu.Unlock()
+		return errors.Errorf("WebRTC proxy closed")
+	}
+	if old, ok := v.usernames.Load(c.Ufrag); ok && old != c {
+		old.Close()
+	}
+	v.usernames.Store(c.Ufrag, c)
+	if location, err := url.Parse(resp.Header.Get("Location")); err == nil && resp.Header.Get("Location") != "" {
+		v.resources[rtcResourceKey(r.URL.ResolveReference(location))] = c
+	}
+	v.evictClosedLocked()
+	v.cacheMu.Unlock()
 
 	// Headers changed after WriteHeader are not sent by net/http, and a WHIP
 	// client needs the backend's Location to delete its session.
@@ -285,6 +334,8 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 
 	// Response client with local answer.
 	if _, err = w.Write([]byte(localSDPAnswer)); err != nil {
+		c.Close()
+		v.sweep(time.Now())
 		return errors.Wrapf(err, "write local sdp answer %v", localSDPAnswer)
 	}
 
@@ -307,6 +358,31 @@ func (v *webRTCProxyServer) Run(ctx context.Context) error {
 	v.listener = listener
 	logger.Debug(ctx, "WebRTC server listen at %v", listener.LocalAddr())
 
+	// UDP has no EOF on client departure. Bound abandoned negotiations and
+	// disconnected clients by their last inbound packet, not outgoing video.
+	v.wg.Add(1)
+	go func() {
+		defer v.wg.Done()
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case now := <-ticker.C:
+				v.sweep(now)
+			case <-v.stop:
+				return
+			case <-ctx.Done():
+				// Unblock ReadFrom; Close also waits for the worker goroutines.
+				_ = listener.Close()
+				v.cacheMu.Lock()
+				v.closed = true
+				v.usernames.Range(func(_ string, c *rtcConnection) bool { c.Close(); return true })
+				v.evictClosedLocked()
+				v.cacheMu.Unlock()
+				return
+			}
+		}
+	}()
 	// Consume all messages from UDP media transport.
 	v.wg.Add(1)
 	go func() {
@@ -342,7 +418,11 @@ func (v *webRTCProxyServer) Run(ctx context.Context) error {
 
 func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, data []byte) error {
 	var connection *rtcConnection
-
+	v.cacheMu.Lock()
+	if v.closed {
+		v.cacheMu.Unlock()
+		return nil
+	}
 	// If STUN binding request, parse the ufrag and identify the connection.
 	if err := func() error {
 		if utils.RtcIsRTPOrRTCP(data) || !utils.RtcIsSTUN(data) {
@@ -364,7 +444,15 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 		if s, err := v.loadBalancer.LoadWebRTCByUfrag(ctx, pkt.Username); err != nil {
 			return errors.Wrapf(err, "load webrtc by ufrag %v", pkt.Username)
 		} else {
-			connection = s.(*rtcConnection).Initialize(ctx, v.listener)
+			var ok bool
+			connection, ok = s.(*rtcConnection)
+			if !ok || connection == nil {
+				return errors.Errorf("invalid WebRTC session")
+			}
+			if connection.isClosed() {
+				return errors.Errorf("WebRTC session closed")
+			}
+			connection.Initialize(context.WithoutCancel(ctx), v.listener)
 			connection.loadBalancer = v.loadBalancer
 			logger.Debug(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
 		}
@@ -375,6 +463,7 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 		}
 		return nil
 	}(); err != nil {
+		v.cacheMu.Unlock()
 		return err
 	}
 
@@ -382,12 +471,22 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 	// the address of one that ended, so the ufrag wins and the address cache
 	// follows it; other packets are found by the address.
 	if connection != nil {
+		// Keep only the current address for this session; rebinding must not grow
+		// the address index forever or remove a replacement session's entry.
+		if old := connection.cacheAddress; old != "" && old != addr.String() {
+			if current, ok := v.addresses.Load(old); ok && current == connection {
+				v.addresses.Delete(old)
+			}
+		}
+		connection.cacheAddress = addr.String()
 		if s, ok := v.addresses.Load(addr.String()); !ok || s != connection {
 			v.addresses.Store(addr.String(), connection)
 		}
 	} else if s, ok := v.addresses.Load(addr.String()); ok {
 		connection = s
 	}
+
+	v.cacheMu.Unlock()
 
 	// If connection is not found, ignore the packet.
 	if connection == nil {
@@ -414,6 +513,13 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 // to another UDP address, it may connect to another WebRTC proxy, then we should discover the
 // rtcConnection by the ufrag from the ICE binding request.
 type rtcConnection struct {
+	mu               stdSync.Mutex
+	closed           bool
+	lastClientPacket time.Time
+	cacheAddress     string           // guarded by the owning server's cacheMu
+	origin           *lb.OriginServer // immutable after publication
+	readerDone       chan struct{}
+
 	// The stream context for WebRTC streaming.
 	ctx context.Context
 	// The load balancer for origin servers.
@@ -444,7 +550,7 @@ type rtcConnection struct {
 }
 
 func newRTCConnection(opts ...func(*rtcConnection)) *rtcConnection {
-	v := &rtcConnection{}
+	v := &rtcConnection{lastClientPacket: time.Now()}
 
 	// Default dial: a real UDP connection to the backend. Uses Dialer.DialContext
 	// so ctx cancellation/deadline aborts DNS resolution (UDP itself has no handshake).
@@ -460,6 +566,8 @@ func newRTCConnection(opts ...func(*rtcConnection)) *rtcConnection {
 }
 
 func (v *rtcConnection) Initialize(ctx context.Context, listener net.PacketConn) *rtcConnection {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	if v.ctx == nil {
 		v.ctx = logger.WithContext(ctx)
 	}
@@ -473,52 +581,68 @@ func (v *rtcConnection) GetUfrag() string {
 	return v.Ufrag
 }
 
+// Close is idempotent and closes the socket to unblock the backend reader.
+func (v *rtcConnection) Close() { v.mu.Lock(); defer v.mu.Unlock(); v.closeLocked() }
+func (v *rtcConnection) closeLocked() {
+	if v.closed {
+		return
+	}
+	v.closed = true
+	if v.backendUDP != nil {
+		_ = v.backendUDP.Close()
+	}
+}
+func (v *rtcConnection) isClosed() bool { v.mu.Lock(); defer v.mu.Unlock(); return v.closed }
+func (v *rtcConnection) expire(now time.Time) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if now.Sub(v.lastClientPacket) >= lb.RTCAliveDuration {
+		v.closeLocked()
+	}
+}
+
 func (v *rtcConnection) HandlePacket(addr net.Addr, data []byte) error {
+	v.mu.Lock()
+	if v.closed {
+		v.mu.Unlock()
+		return errors.Errorf("WebRTC session closed")
+	}
+	v.lastClientPacket, v.clientUDP = time.Now(), addr
 	ctx := v.ctx
-
-	// Update the current UDP address.
-	v.clientUDP = addr
-
-	// Start the UDP proxy to backend.
 	if err := v.connectBackend(ctx); err != nil {
+		v.closeLocked()
+		v.mu.Unlock()
 		return errors.Wrapf(err, "connect backend for %v", v.StreamURL)
 	}
-
-	// Proxy client message to backend.
-	if v.backendUDP == nil {
-		return nil
-	}
-
-	// Spawn the backend->client reader exactly once per connection. Previously
-	// this goroutine was launched unconditionally here on every inbound client
-	// packet, which leaked tens of thousands of goroutines under steady-state
-	// WHEP load (STUN keepalives + RTCP feedback). The buffer is reused across
-	// iterations: WriteTo copies into the kernel before returning, so the next
-	// Read can safely overwrite.
+	backend, listener := v.backendUDP, v.listenerUDP
 	v.startReader.Do(func() {
+		v.readerDone = make(chan struct{})
 		go func() {
+			defer close(v.readerDone)
+			defer v.Close()
 			buf := make([]byte, 4096)
-			for ctx.Err() == nil {
-				n, err := v.backendUDP.Read(buf)
+			for {
+				n, err := backend.Read(buf)
 				if err != nil {
-					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-					logger.Warn(ctx, "read from backend failed, err=%v", err)
 					return
 				}
-
-				if _, err = v.listenerUDP.WriteTo(buf[:n], v.clientUDP); err != nil {
-					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-					logger.Warn(ctx, "write to client failed, err=%v", err)
+				v.mu.Lock()
+				client, closed := v.clientUDP, v.closed
+				v.mu.Unlock()
+				if closed {
+					return
+				}
+				if _, err = listener.WriteTo(buf[:n], client); err != nil {
 					return
 				}
 			}
 		}()
 	})
-
-	if _, err := v.backendUDP.Write(data); err != nil {
+	v.mu.Unlock()
+	if _, err := backend.Write(data); err != nil {
+		v.Close()
 		return errors.Wrapf(err, "write to backend %v", v.StreamURL)
 	}
-
 	return nil
 }
 
@@ -528,7 +652,11 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	}
 
 	// Pick a backend SRS server to proxy the RTC stream.
-	backend, err := v.loadBalancer.Pick(ctx, v.StreamURL)
+	backend := v.origin
+	var err error
+	if backend == nil {
+		backend, err = v.loadBalancer.Pick(ctx, v.StreamURL)
+	}
 	if err != nil {
 		return errors.Wrapf(err, "pick backend")
 	}
@@ -544,7 +672,7 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	}
 
 	// Connect to backend SRS server via UDP client.
-	// TODO: FIXME: Support close the connection when timeout or DTLS alert.
+	// The owner closes this socket on DELETE, idle timeout, I/O failure or shutdown.
 	backendUDP, err := v.dialBackendUDP(ctx, backend.IP, int(udpPort))
 	if err != nil {
 		return errors.Wrapf(err, "dial udp to %v:%v", backend.IP, udpPort)
@@ -552,6 +680,59 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	v.backendUDP = backendUDP
 
 	return nil
+}
+
+// Resource identity includes the full normalized query (including the session
+// token), so deleting one viewer cannot end another viewer of the same stream.
+func rtcResourceKey(u *url.URL) string { return u.EscapedPath() + "?" + u.Query().Encode() }
+
+func (v *webRTCProxyServer) forgetConnection(c *rtcConnection) {
+	// Redis entries already have a 120-second TTL. Memory LB needs explicit
+	// deletion; implementations may also remove Redis entries eagerly.
+	if remover, ok := v.loadBalancer.(interface {
+		DeleteWebRTC(context.Context, string, lb.RTCConnection) error
+	}); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := remover.DeleteWebRTC(ctx, c.StreamURL, c); err != nil {
+			logger.Warn(ctx, "forget WebRTC session: %v", err)
+		}
+	}
+}
+
+func (v *webRTCProxyServer) evictClosedLocked() {
+	active, reaped := 0, 0
+	v.usernames.Range(func(key string, c *rtcConnection) bool {
+		if c.isClosed() {
+			v.usernames.Delete(key)
+			v.forgetConnection(c)
+			reaped++
+		} else {
+			active++
+		}
+		return true
+	})
+	v.addresses.Range(func(key string, c *rtcConnection) bool {
+		if c.isClosed() {
+			v.addresses.Delete(key)
+		}
+		return true
+	})
+	for key, c := range v.resources {
+		if c.isClosed() {
+			delete(v.resources, key)
+		}
+	}
+	if reaped > 0 {
+		logger.Debug(context.Background(), "WebRTC sessions: active=%v, reaped=%v", active, reaped)
+	}
+}
+
+func (v *webRTCProxyServer) sweep(now time.Time) {
+	v.cacheMu.Lock()
+	defer v.cacheMu.Unlock()
+	v.usernames.Range(func(_ string, c *rtcConnection) bool { c.expire(now); return true })
+	v.evictClosedLocked()
 }
 
 // unwrapSDPEnvelope returns the SDP string carried inside the legacy SRS RTC
