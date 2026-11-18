@@ -147,7 +147,7 @@ func TestParseAnswer(t *testing.T) {
 // both fragments, the integrity of the server's password, a fingerprint, and
 // the attributes of a controlling agent that nominates the pair.
 func TestBindingRequest(t *testing.T) {
-	m, err := bindingRequest("srvu", "cliu", "srvpwd", false)
+	m, err := bindingRequest("srvu", "cliu", "srvpwd", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

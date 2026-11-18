@@ -40,6 +40,7 @@ class SrsRtcTcpConn;
 class ISrsRtcTcpConn;
 class ISrsContext;
 class ISrsRtcBlackhole;
+class ISrsClock;
 
 // The network stat.
 enum SrsRtcNetworkState {
@@ -178,6 +179,10 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
+// Chrome repeats USE-CANDIDATE on its selected pair at least every 2.5s, and RFC 7675 consent checks come at most 6s
+// apart.
+#define SRS_RTC_NOMINATION_TIMEOUT (6 * SRS_UTIME_SECONDS)
+
 // The WebRTC over UDP network.
 class SrsRtcUdpNetwork : public ISrsRtcNetwork
 {
@@ -185,6 +190,7 @@ class SrsRtcUdpNetwork : public ISrsRtcNetwork
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *conn_manager_;
     ISrsRtcBlackhole *blackhole_;
+    ISrsClock *clk_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -200,6 +206,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsErrorPithyPrint *pp_address_change_;
     // The peer address, client maybe use more than one address, it's the current selected one.
     ISrsUdpMuxSocket *sendonly_skt_;
+    srs_utime_t nominated_at_;
     // The address list, client may use multiple addresses.
     std::map<std::string, ISrsUdpMuxSocket *> peer_addresses_;
     // The DTLS transport over this network.
@@ -214,12 +221,13 @@ public:
     void update_sendonly_socket(ISrsUdpMuxSocket *skt);
     // When got STUN ping message. The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
-    // When got STUN message from the peer address of skt, which the peer switches to by an authenticated binding request.
+    // When got STUN message from the peer address of skt.
     srs_error_t on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, char *data, int nb_data);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    srs_error_t on_binding_request(SrsStunPacket *r, std::string ice_pwd);
+    ISrsUdpMuxSocket *cache_peer_address(ISrsUdpMuxSocket *skt);
+    srs_error_t on_binding_request(SrsStunPacket *r, std::string ice_pwd, ISrsUdpMuxSocket *from);
     // DTLS transport functions.
 public:
     srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
