@@ -1,6 +1,6 @@
 #!/bin/bash
 # Chrome on this host publishes and plays against SRS built and run for Linux in Docker: the WebRTC, loss,
-# HTTP and codec cases of lane I.
+# HTTP, codec and SPED cases of lane I.
 #
 #   chrome-linux-test.sh [--build]
 #
@@ -9,8 +9,8 @@
 #     named volume srs-chrome-linux-build and builds objs/srs there in the ossrs/srs:ubuntu20 image with
 #     obs-linux-test.sh's Linux build, for Linux on the Docker host's CPU. make rebuilds only what changed,
 #     and the local trunk/objs keeps its own flags. --build stops after this step.
-#   - Then chrome-lane-test.sh --cases-only runs the four cases in parallel on SRS_TEST_PORT_BASE (default
-#     16000), 16100, 16200 and 16300. Each SRS of a case runs in its own container of the build volume
+#   - Then chrome-lane-test.sh --cases-only runs four cases in parallel on SRS_TEST_PORT_BASE (default
+#     16000), 16100, 16200 and 16300, then SPED on 16900. Each SRS of a case runs in its own container of the build volume
 #     (chrome-test-lib.sh CHROME_SRS_DOCKER): TCP ports on 127.0.0.1, the RTC UDP port on the host's own
 #     IPv4, the WebRTC candidate. Logs are in /tmp/srs-chrome-linux.
 #   - Google Chrome has no Linux arm64 build, so on the Mac Chrome runs on the host; on Linux, such as the
@@ -32,8 +32,8 @@ usage() {
 
 check_slot() {
   case "$SLOT" in ''|*[!0-9]*) echo 'FAIL invalid port base' >&2; exit 3;; esac
-  # The four cases take a 100-port slot each.
-  [[ $SLOT -ge 11000 && $((SLOT + 399)) -lt 32768 ]] || { echo 'FAIL port slot outside test range' >&2; exit 3; }
+  # The cases take a 100-port slot each, the last, SPED's, at +900.
+  [[ $SLOT -ge 11000 && $((SLOT + 999)) -lt 32768 ]] || { echo 'FAIL port slot outside test range' >&2; exit 3; }
 }
 
 # Copy the tracked trunk files into the volume and build SRS there.

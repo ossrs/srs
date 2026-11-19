@@ -20,6 +20,7 @@
 class ISrsRequest;
 class ISrsAppConfig;
 class ISrsRand;
+class SrsSpedController;
 
 class ISrsDtlsCertificate
 {
@@ -31,7 +32,6 @@ public:
     virtual srs_error_t initialize() = 0;
     virtual X509 *get_cert() = 0;
     virtual EVP_PKEY *get_public_key() = 0;
-    virtual EC_KEY *get_ecdsa_key() = 0;
     virtual std::string get_fingerprint() = 0;
     virtual bool is_ecdsa() = 0;
 };
@@ -47,7 +47,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool ecdsa_mode_;
     X509 *dtls_cert_;
     EVP_PKEY *dtls_pkey_;
-    EC_KEY *eckey_;
 
 public:
     SrsDtlsCertificate();
@@ -57,7 +56,6 @@ public:
     srs_error_t initialize();
     X509 *get_cert();
     EVP_PKEY *get_public_key();
-    EC_KEY *get_ecdsa_key();
     std::string get_fingerprint();
     bool is_ecdsa();
 };
@@ -72,11 +70,17 @@ enum SrsDtlsRole {
 
 // WebRTC ignores DTLS 1.0 and accepts only DTLS 1.2, and removes DTLS 1.0 support in M84 or later.
 // TODO(https://bugs.webrtc.org/10261).
+// DTLS 1.3 needs OpenSSL 4.1 or newer, see srs_dtls_version13_supported.
 enum SrsDtlsVersion {
     SrsDtlsVersionAuto = -1,
     SrsDtlsVersion1_0,
-    SrsDtlsVersion1_2
+    SrsDtlsVersion1_2,
+    SrsDtlsVersion1_3
 };
+
+// Whether this build has DTLS 1.3, which OpenSSL has from 4.1. Without it, dtls_version dtls1.3 is refused
+// by the config check, and auto stops at DTLS 1.2.
+extern bool srs_dtls_version13_supported();
 
 extern SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role);
 
@@ -119,6 +123,10 @@ SRS_DECLARE_PROTECTED: // clang-format on
     uint8_t last_content_type_;
     // The records OpenSSL wrote, sent after it returns, because a send may switch coroutines.
     std::vector<std::string> out_records_;
+    // Not NULL only when SPED is negotiated: it keeps each flight to embed in STUN, and the CRCs to ACK.
+    SrsSpedController *sped_;
+    // Whether OpenSSL writes the records of a timer retransmission.
+    bool retransmitting_;
 
 public:
     SrsDtlsImpl(ISrsDtlsCallback *callback);
@@ -131,11 +139,22 @@ public:
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
     virtual srs_error_t start_active_handshake();
+    // Handle a DTLS datagram received raw, outside STUN.
     virtual srs_error_t on_dtls(char *data, int nb_data);
+    // Each datagram DTLS writes is still sent raw, and also kept by the controller to embed.
+    void enable_sped();
+    SrsSpedController *sped();
+    // Handle a DTLS datagram embedded in a STUN message, which the controller has already ACKed.
+    srs_error_t on_embedded_dtls(char *data, int nb_data);
+    bool is_dtls13_server();
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     srs_error_t do_on_dtls(char *data, int nb_data);
+    // Called after OpenSSL read a datagram and its writes are sent.
+    virtual srs_error_t on_dtls_read();
+    // Resend the last flight when the DTLS timer expired.
+    srs_error_t handle_timeout();
     void flush_dtls_data();
     srs_error_t write_dtls_data(void *data, int size);
     void state_trace(uint8_t *data, int length, bool incoming, int r0);
@@ -181,8 +200,13 @@ public:
     virtual srs_error_t cycle();
 };
 
-class SrsDtlsServerImpl : public SrsDtlsImpl
+class SrsDtlsServerImpl : public SrsDtlsImpl, public ISrsCoroutineHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Not NULL only for a DTLS 1.3 handshake, from the first flight until it is done.
+    ISrsCoroutine *trd_;
+
 public:
     SrsDtlsServerImpl(ISrsDtlsCallback *callback);
     virtual ~SrsDtlsServerImpl();
@@ -194,7 +218,11 @@ public:
 SRS_DECLARE_PROTECTED: // clang-format on
     virtual srs_error_t on_handshake_done();
     virtual bool is_dtls_client();
+    virtual srs_error_t on_dtls_read();
     srs_error_t start_arq();
+
+public:
+    virtual srs_error_t cycle();
 };
 
 class SrsDtlsEmptyImpl : public SrsDtlsImpl
@@ -228,6 +256,11 @@ public:
     virtual srs_error_t initialize(std::string role, std::string version) = 0;
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char *data, int nb_data) = 0;
+    // Called after initialize, when SPED is negotiated.
+    virtual void enable_sped() = 0;
+    // The SPED controller, or NULL when SPED is not enabled.
+    virtual SrsSpedController *sped() = 0;
+    virtual srs_error_t on_embedded_dtls(char *data, int nb_data) = 0;
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key) = 0;
     virtual srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint) = 0;
 };
@@ -249,6 +282,9 @@ public:
 public:
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char *data, int nb_data);
+    void enable_sped();
+    SrsSpedController *sped();
+    srs_error_t on_embedded_dtls(char *data, int nb_data);
 
 public:
     srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);

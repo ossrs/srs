@@ -301,6 +301,7 @@ SrsRtcUserConfig::SrsRtcUserConfig()
     publish_ = false;
     dtls_ = srtp_ = true;
     audio_before_video_ = false;
+    drop_stun_ = drop_dtls_ = drop_finished_ = 0;
 }
 
 SrsRtcUserConfig::~SrsRtcUserConfig()
@@ -390,6 +391,10 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
     if ((err = do_create_rtc_session(ruc, local_sdp, session)) != srs_success) {
         srs_freep(session);
         return srs_error_wrap(err, "create session");
+    }
+
+    if (ruc->drop_stun_ > 0 || ruc->drop_dtls_ > 0 || ruc->drop_finished_ > 0) {
+        session->simulate_handshake_drop(ruc->drop_stun_, ruc->drop_dtls_, ruc->drop_finished_);
     }
 
     if (ruc->publish_) {

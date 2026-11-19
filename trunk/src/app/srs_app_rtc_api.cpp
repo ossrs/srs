@@ -212,6 +212,7 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
     local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
+    local_sdp.session_config_.sped_ = config_->get_rtc_sped(ruc->req_->vhost_);
 
     bool server_enabled = config_->get_rtc_server_enabled();
     bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
@@ -548,6 +549,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     // TODO: FIXME: move to create_session.
     local_sdp.session_config_.dtls_role_ = config_->get_rtc_dtls_role(ruc->req_->vhost_);
     local_sdp.session_config_.dtls_version_ = config_->get_rtc_dtls_version(ruc->req_->vhost_);
+    local_sdp.session_config_.sped_ = config_->get_rtc_sped(ruc->req_->vhost_);
 
     bool server_enabled = config_->get_rtc_server_enabled();
     bool rtc_enabled = config_->get_rtc_enabled(ruc->req_->vhost_);
@@ -866,6 +868,12 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     ruc->vcodec_ = vcodec;
     ruc->acodec_ = acodec;
     ruc->publish_ = (action == "publish");
+
+#ifdef SRS_SIMULATOR
+    ruc->drop_stun_ = ::atoi(r->query_get("drop-stun").c_str());
+    ruc->drop_dtls_ = ::atoi(r->query_get("drop-dtls").c_str());
+    ruc->drop_finished_ = ::atoi(r->query_get("drop-finished").c_str());
+#endif
 
     ruc->dtls_ = (dtls != "false");
     if (srtp.empty()) {

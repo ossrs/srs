@@ -22,28 +22,15 @@ using namespace srs_internal;
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/dh.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
 
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_VERSION ")"
 
 // @see https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-
-HMAC_CTX *HMAC_CTX_new(void)
-{
-    HMAC_CTX *ctx = (HMAC_CTX *)malloc(sizeof(*ctx));
-    if (ctx != NULL) {
-        HMAC_CTX_init(ctx);
-    }
-    return ctx;
-}
-
-void HMAC_CTX_free(HMAC_CTX *ctx)
-{
-    if (ctx != NULL) {
-        HMAC_CTX_cleanup(ctx);
-        free(ctx);
-    }
-}
 
 static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key)
 {
@@ -113,21 +100,6 @@ uint8_t SrsGenuineFPKey[] = {
     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
     0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE};
 
-srs_error_t do_openssl_HMACsha256(HMAC_CTX *ctx, const void *data, int data_size, void *digest, unsigned int *digest_size)
-{
-    srs_error_t err = srs_success;
-
-    if (HMAC_Update(ctx, (unsigned char *)data, data_size) < 0) {
-        return srs_error_new(ERROR_OpenSslSha256Update, "hmac update");
-    }
-
-    if (HMAC_Final(ctx, (unsigned char *)digest, digest_size) < 0) {
-        return srs_error_new(ERROR_OpenSslSha256Final, "hmac final");
-    }
-
-    return err;
-}
-
 // A NULL key gives the plain SHA-256, as hashlib.sha256(data).digest() in Python.
 srs_error_t openssl_HMACsha256(const void *key, int key_size, const void *data, int data_size, void *digest)
 {
@@ -145,20 +117,8 @@ srs_error_t openssl_HMACsha256(const void *key, int key_size, const void *data, 
             return srs_error_new(ERROR_OpenSslSha256EvpDigest, "evp digest");
         }
     } else {
-        HMAC_CTX *ctx = HMAC_CTX_new();
-        if (ctx == NULL) {
-            return srs_error_new(ERROR_OpenSslCreateHMAC, "hmac new");
-        }
-        if (HMAC_Init_ex(ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
-            HMAC_CTX_free(ctx);
-            return srs_error_new(ERROR_OpenSslSha256Init, "hmac init");
-        }
-
-        err = do_openssl_HMACsha256(ctx, data, data_size, temp_digest, &digest_size);
-        HMAC_CTX_free(ctx);
-
-        if (err != srs_success) {
-            return srs_error_wrap(err, "hmac sha256");
+        if (HMAC(EVP_sha256(), temp_key, key_size, (const unsigned char *)data, data_size, temp_digest, &digest_size) == NULL) {
+            return srs_error_new(ERROR_OpenSslCreateHMAC, "hmac sha256");
         }
     }
 
@@ -177,9 +137,50 @@ srs_error_t openssl_HMACsha256(const void *key, int key_size, const void *data, 
     "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
     "FFFFFFFFFFFFFFFF"
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+// Makes a DH key in the RFC 2409 group: its domain parameters only, or with the public key pub.
+static srs_error_t srs_dh_pkey_new(const BIGNUM *pub, EVP_PKEY **ppkey)
+{
+    srs_error_t err = srs_success;
+
+    BIGNUM *p = NULL;
+    BIGNUM *g = BN_new();
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    OSSL_PARAM *params = NULL;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", NULL);
+    int selection = pub ? EVP_PKEY_PUBLIC_KEY : EVP_PKEY_KEY_PARAMETERS;
+
+    if (!BN_hex2bn(&p, RFC2409_PRIME_1024)) {
+        err = srs_error_new(ERROR_OpenSslParseP1024, "hex2bn");
+    } else if (g == NULL || !BN_set_word(g, 2)) {
+        err = srs_error_new(ERROR_OpenSslSetG, "set word");
+    } else if (bld == NULL || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) || !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g)) {
+        err = srs_error_new(ERROR_OpenSslCreateDH, "param p and g");
+    } else if (pub && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, pub)) {
+        err = srs_error_new(ERROR_OpenSslCreateDH, "param public key");
+    } else if ((params = OSSL_PARAM_BLD_to_param(bld)) == NULL) {
+        err = srs_error_new(ERROR_OpenSslCreateDH, "params");
+    } else if (ctx == NULL || EVP_PKEY_fromdata_init(ctx) != 1 || EVP_PKEY_fromdata(ctx, ppkey, selection, params) != 1) {
+        err = srs_error_new(ERROR_OpenSslCreateDH, "dh fromdata");
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(g);
+    BN_free(p);
+
+    return err;
+}
+#endif
+
 SrsDH::SrsDH()
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    pkey_ = NULL;
+#else
     pdh = NULL;
+#endif
 }
 
 SrsDH::~SrsDH()
@@ -189,10 +190,15 @@ SrsDH::~SrsDH()
 
 void SrsDH::close()
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY_free(pkey_);
+    pkey_ = NULL;
+#else
     if (pdh != NULL) {
         DH_free(pdh);
         pdh = NULL;
     }
+#endif
 }
 
 srs_error_t SrsDH::initialize(bool ensure_128bytes_public_key)
@@ -205,9 +211,18 @@ srs_error_t SrsDH::initialize(bool ensure_128bytes_public_key)
         }
 
         if (ensure_128bytes_public_key) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+            BIGNUM *pub_key = NULL;
+            if (!EVP_PKEY_get_bn_param(pkey_, OSSL_PKEY_PARAM_PUB_KEY, &pub_key)) {
+                return srs_error_new(ERROR_OpenSslGenerateDHKeys, "get public key");
+            }
+            int32_t key_size = BN_num_bytes(pub_key);
+            BN_free(pub_key);
+#else
             const BIGNUM *pub_key = NULL;
             DH_get0_key(pdh, &pub_key, NULL);
             int32_t key_size = BN_num_bytes(pub_key);
+#endif
             if (key_size != 128) {
                 srs_warn("regenerate 128B key, current=%dB", key_size);
                 continue;
@@ -226,6 +241,18 @@ srs_error_t SrsDH::copy_public_key(char *pkey, int32_t &pkey_size)
 
     // The key may be 127 bytes.
     // @see https://github.com/ossrs/srs/issues/165
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    BIGNUM *pub_key = NULL;
+    if (!EVP_PKEY_get_bn_param(pkey_, OSSL_PKEY_PARAM_PUB_KEY, &pub_key)) {
+        return srs_error_new(ERROR_OpenSslGenerateDHKeys, "get public key");
+    }
+    int32_t key_size = BN_num_bytes(pub_key);
+    srs_assert(key_size > 0);
+
+    key_size = BN_bn2bin(pub_key, (unsigned char *)pkey);
+    BN_free(pub_key);
+    srs_assert(key_size > 0);
+#else
     const BIGNUM *pub_key = NULL;
     DH_get0_key(pdh, &pub_key, NULL);
     int32_t key_size = BN_num_bytes(pub_key);
@@ -233,6 +260,7 @@ srs_error_t SrsDH::copy_public_key(char *pkey, int32_t &pkey_size)
 
     key_size = BN_bn2bin(pub_key, (unsigned char *)pkey);
     srs_assert(key_size > 0);
+#endif
 
     srs_assert(key_size <= pkey_size);
     pkey_size = key_size;
@@ -240,6 +268,66 @@ srs_error_t SrsDH::copy_public_key(char *pkey, int32_t &pkey_size)
     return err;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+srs_error_t SrsDH::copy_shared_key(const char *ppkey, int32_t ppkey_size, char *skey, int32_t &skey_size)
+{
+    srs_error_t err = srs_success;
+
+    BIGNUM *ppk = NULL;
+    if ((ppk = BN_bin2bn((const unsigned char *)ppkey, ppkey_size, 0)) == NULL) {
+        return srs_error_new(ERROR_OpenSslGetPeerPublicKey, "bin2bn");
+    }
+
+    EVP_PKEY *peer = NULL;
+    err = srs_dh_pkey_new(ppk, &peer);
+    BN_free(ppk);
+    if (err != srs_success) {
+        return srs_error_wrap(err, "peer key");
+    }
+
+    // OpenSSL checks the peer key when it is set, as DH_compute_key does.
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pkey_, NULL);
+    size_t key_size = skey_size;
+    bool derived = ctx && EVP_PKEY_derive_init(ctx) == 1 && EVP_PKEY_derive_set_peer(ctx, peer) == 1 &&
+                   EVP_PKEY_derive(ctx, (unsigned char *)skey, &key_size) == 1;
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(peer);
+    if (!derived) {
+        return srs_error_new(ERROR_OpenSslComputeSharedKey, "derive");
+    }
+
+    // The key may be 127 bytes.
+    // @see https://github.com/ossrs/srs/issues/165
+    if ((int32_t)key_size < ppkey_size) {
+        srs_warn("shared key size=%d, ppk_size=%d", (int)key_size, ppkey_size);
+    }
+    skey_size = (int32_t)key_size;
+
+    return err;
+}
+
+srs_error_t SrsDH::do_initialize()
+{
+    srs_error_t err = srs_success;
+
+    close();
+
+    EVP_PKEY *params = NULL;
+    if ((err = srs_dh_pkey_new(NULL, &params)) != srs_success) {
+        return srs_error_wrap(err, "dh params");
+    }
+
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_pkey(NULL, params, NULL);
+    bool generated = ctx && EVP_PKEY_keygen_init(ctx) == 1 && EVP_PKEY_keygen(ctx, &pkey_) == 1;
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(params);
+    if (!generated) {
+        return srs_error_new(ERROR_OpenSslGenerateDHKeys, "dh generate key");
+    }
+
+    return err;
+}
+#else
 srs_error_t SrsDH::copy_shared_key(const char *ppkey, int32_t ppkey_size, char *skey, int32_t &skey_size)
 {
     srs_error_t err = srs_success;
@@ -307,6 +395,7 @@ srs_error_t SrsDH::do_initialize()
 
     return err;
 }
+#endif
 
 SrsKeyBlock::SrsKeyBlock()
 {

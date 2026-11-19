@@ -34,7 +34,7 @@ SRS_APP_FILES=(srs_app_server srs_app_rtmp_conn srs_app_rtmp_source srs_app_hls 
     srs_app_coworkers srs_app_circuit_breaker srs_app_factory srs_app_stream_token
     srs_app_http_stream srs_app_srt_server srs_app_srt_listener srs_app_srt_conn srs_app_srt_source
     srs_app_rtc_conn srs_app_rtc_dtls srs_app_rtc_network srs_app_rtc_server srs_app_rtc_source
-    srs_app_rtc_api)
+    srs_app_rtc_api srs_app_rtc_sped)
 SRS_APP_RTSP_FILES=(srs_app_rtsp_source srs_app_rtsp_conn)
 SRS_APP_FFMPEG_FIT_FILES=(srs_app_rtc_codec)
 SRS_APP_GB28181_FILES=(srs_app_gb28181)
@@ -60,6 +60,7 @@ SRS_UTEST_FILES=(srs_utest srs_utest_manual_amf0 srs_utest_manual_kernel srs_ute
     srs_utest_ai26 srs_utest_ai27 srs_utest_ai28 srs_utest_ai29 srs_utest_ai30 srs_utest_ai31
     srs_utest_ai32 srs_utest_ai33 srs_utest_ai34 srs_utest_ai35 srs_utest_ai36 srs_utest_ai37
     srs_utest_ai38 srs_utest_ai39 srs_utest_ai40 srs_utest_ai41 srs_utest_ai42 srs_utest_ai43
-    srs_utest_ai44 srs_utest_ai45 srs_utest_ai46 srs_utest_ai47 srs_utest_ai48 srs_utest_ai49)
+    srs_utest_ai44 srs_utest_ai45 srs_utest_ai46 srs_utest_ai47 srs_utest_ai48 srs_utest_ai49
+    srs_utest_ai50 srs_utest_ai51 srs_utest_ai52)
 SRS_UTEST_GB28181_FILES=(srs_utest_manual_gb28181 srs_utest_ai23)
 SRS_UTEST_RTSP_FILES=(srs_utest_ai21 srs_utest_ai22)

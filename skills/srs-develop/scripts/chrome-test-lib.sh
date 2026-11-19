@@ -23,6 +23,8 @@
 # - CHROME_TEST_EIP overrides the candidate address.
 # - CHROME_NODE and CHROME_NPM name the node and npm commands; CHROME_PATH
 #   picks the browser (see the internal-chrome-control skill).
+# - CHROME_TEST_BUDGET: the seconds a case may take, 60 by default; only a
+#   measurement, which is no test case, sets more.
 
 # before(d) and since(d) split the samples at the wall-clock time d (epoch
 # ms, the samples' at), such as a drop; series(f) lists f over such a part.
@@ -82,7 +84,7 @@ chrome_test_loopback_known() {
 
 chrome_test_budget() {
   local elapsed=$((SECONDS - CHROME_STARTED))
-  [[ $elapsed -le 60 ]] || chrome_test_fail "budget ${elapsed}s > 60s"
+  [[ $elapsed -le ${CHROME_TEST_BUDGET:-60} ]] || chrome_test_fail "budget ${elapsed}s > ${CHROME_TEST_BUDGET:-60}s"
 }
 
 # Bound each external command by both its own timeout and the remaining budget.
@@ -104,7 +106,7 @@ chrome_test_spawn() {
 chrome_test_reap() {
   local status=0
   while kill -0 "$CHROME_COMMAND_PID" 2>/dev/null; do
-    if [[ $SECONDS -ge $CHROME_COMMAND_DEADLINE || $((SECONDS - CHROME_STARTED)) -ge 60 ]]; then
+    if [[ $SECONDS -ge $CHROME_COMMAND_DEADLINE || $((SECONDS - CHROME_STARTED)) -ge ${CHROME_TEST_BUDGET:-60} ]]; then
       kill "$CHROME_COMMAND_PID" 2>/dev/null || true
       sleep 0.1
       kill -KILL "$CHROME_COMMAND_PID" 2>/dev/null || true
@@ -388,7 +390,7 @@ chrome_test_run_start() {
   local left
   CHROME_RUN_NAME=$1
   shift
-  left=$((60 - (SECONDS - CHROME_STARTED)))
+  left=$((${CHROME_TEST_BUDGET:-60} - (SECONDS - CHROME_STARTED)))
   [[ $left -gt 0 ]] || { chrome_test_budget; return 1; }
   rm -f "$CHROME_TEST_DIR/$CHROME_RUN_NAME-stats.json"
   chrome_test_spawn "$left" "${CHROME_NODE:-node}" "$CHROME_JS" run --page-port "$CHROME_PAGE_PORT" \

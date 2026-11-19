@@ -3417,6 +3417,10 @@ void MockRtcConnectionForUpdateSessions::simulate_nack_drop(int nn)
 {
 }
 
+void MockRtcConnectionForUpdateSessions::simulate_handshake_drop(int stun, int dtls, int finished)
+{
+}
+
 srs_error_t MockRtcConnectionForUpdateSessions::generate_local_sdp(SrsRtcUserConfig * /*ruc*/, SrsSdp & /*local_sdp*/, std::string & /*username*/)
 {
     return srs_success;
@@ -3686,6 +3690,11 @@ srs_error_t MockRtcNetworkForUdpNetwork::protect_rtcp(void *packet, int *nb_ciph
 bool MockRtcNetworkForUdpNetwork::is_establelished()
 {
     return true;
+}
+
+SrsSpedController *MockRtcNetworkForUdpNetwork::sped()
+{
+    return NULL;
 }
 
 srs_error_t MockRtcNetworkForUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)

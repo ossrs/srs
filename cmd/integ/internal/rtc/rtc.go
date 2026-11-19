@@ -94,6 +94,14 @@ type Options struct {
 	// receives, with the keys of its DTLS handshake, for a server that
 	// encrypts, as SRS does unless encrypt=false.
 	SRTP bool
+	// SPED makes a raw session with DTLS offer a=ice-options:sped and, when
+	// the answer has it too, carry its DTLS handshake in its STUN binding
+	// requests and the server's responses, as draft-hancke-webrtc-sped
+	// says, while it still sends each DTLS datagram raw too.
+	SPED bool
+	// Faults loses and delays the datagrams of a raw session's socket, as a
+	// network does.
+	Faults *Faults
 }
 
 func (o *Options) client() *http.Client {

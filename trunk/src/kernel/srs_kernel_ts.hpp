@@ -17,6 +17,8 @@
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_packet.hpp>
 
+typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
+
 class SrsBuffer;
 class SrsTsMessageCache;
 class ISrsTsMessageCache;
@@ -951,8 +953,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    unsigned char *key;
-    unsigned char iv[16];
+    EVP_CIPHER_CTX *cipher_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

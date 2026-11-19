@@ -41,6 +41,7 @@ class ISrsRtcTcpConn;
 class ISrsContext;
 class ISrsRtcBlackhole;
 class ISrsClock;
+class SrsSpedController;
 
 enum SrsRtcNetworkState {
     SrsRtcNetworkStateInit = -1,
@@ -49,6 +50,35 @@ enum SrsRtcNetworkState {
     SrsRtcNetworkStateDtls = 3,
     SrsRtcNetworkStateEstablished = 4,
     SrsRtcNetworkStateClosed = 5,
+};
+
+// The handshake simulator loses what SRS sends a client in its handshake, as a lossy network
+// does, so a test sees how the client recovers. The --simulator=on build arms it from the WHIP
+// or WHEP request, since a client starts its checks as soon as it has the answer.
+class SrsRtcHandshakeDrop
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    int stun_;
+    int dtls_;
+    int finished_;
+
+public:
+    SrsRtcHandshakeDrop();
+    virtual ~SrsRtcHandshakeDrop();
+
+public:
+    // Lose the next stun STUN binding responses, the next dtls DTLS datagrams, and the next finished
+    // datagrams that carry the DTLS 1.2 server's last flight, ChangeCipherSpec and Finished.
+    void arm(int stun, int dtls, int finished);
+    // Whether to lose this STUN binding response.
+    bool drop_stun(int size);
+    // Whether to lose this packet, which is lost only when it is DTLS.
+    bool drop_dtls(void *data, size_t size);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    static bool is_last_flight(const uint8_t *data, size_t size);
 };
 
 class ISrsRtcNetworks
@@ -64,6 +94,7 @@ public:
     virtual ISrsRtcNetwork *tcp() = 0;
     virtual ISrsRtcNetwork *available() = 0;
     virtual ISrsKbpsDelta *delta() = 0;
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished) = 0;
 };
 
 class SrsRtcNetworks : public ISrsRtcNetworks
@@ -78,6 +109,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcConnection *conn_;
     ISrsEphemeralDelta *delta_;
+    // Shared by the UDP and TCP networks, as the drops are of the session.
+    SrsRtcHandshakeDrop *drop_;
 
 public:
     SrsRtcNetworks(ISrsRtcConnection *conn);
@@ -94,6 +127,7 @@ public:
 
 public:
     virtual ISrsKbpsDelta *delta();
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
 };
 
 class ISrsRtcNetwork : public ISrsStreamWriter
@@ -122,6 +156,8 @@ public:
 
 public:
     virtual bool is_establelished() = 0;
+    // Get the SPED controller of the network's DTLS, NULL without SPED.
+    virtual SrsSpedController *sped() = 0;
 };
 
 class SrsRtcDummyNetwork : public ISrsRtcNetwork
@@ -148,6 +184,7 @@ public:
 
 public:
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
 
 public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
@@ -179,12 +216,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // A client may send from more than one address.
     std::map<std::string, ISrsUdpMuxSocket *> peer_addresses_;
     ISrsRtcTransport *transport_;
+    // The session's, not owned.
+    SrsRtcHandshakeDrop *drop_;
 
 public:
     SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta);
     virtual ~SrsRtcUdpNetwork();
 
 public:
+    void set_handshake_drop(SrsRtcHandshakeDrop *drop);
     void update_sendonly_socket(ISrsUdpMuxSocket *skt);
     srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
     // The skt is the peer address of the request. An authenticated binding request moves media to it when the
@@ -195,6 +235,11 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsUdpMuxSocket *cache_peer_address(ISrsUdpMuxSocket *skt);
     srs_error_t on_binding_request(SrsStunPacket *r, std::string ice_pwd, ISrsUdpMuxSocket *from);
+    // Start the DTLS handshake on the first binding request.
+    srs_error_t on_stun_done();
+    // Take the SPED attributes of a request: its ACKs, and its DTLS, which DTLS reads before the
+    // response is built, so the response carries the ACK and the flight DTLS writes.
+    srs_error_t on_sped_request(SrsSpedController *sped, SrsStunPacket *r);
 
 public:
     srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
@@ -211,6 +256,7 @@ public:
 public:
     void set_state(SrsRtcNetworkState state);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     std::string get_peer_ip();
     int get_peer_port();
 
@@ -248,6 +294,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcTransport *transport_;
     SrsSharedResource<ISrsRtcTcpConn> owner_;
+    // The session's, not owned.
+    SrsRtcHandshakeDrop *drop_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -262,6 +310,7 @@ public:
 public:
     virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
     virtual SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
+    void set_handshake_drop(SrsRtcHandshakeDrop *drop);
     virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
     virtual void stop_sends();
 
@@ -276,6 +325,11 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_binding_request(SrsStunPacket *r, std::string ice_pwd);
+    // Start the DTLS handshake on the first binding request.
+    srs_error_t on_stun_done();
+    // Take the SPED attributes of a request: its ACKs, and its DTLS, which DTLS reads before the
+    // response is built, so the response carries the ACK and the flight DTLS writes.
+    srs_error_t on_sped_request(SrsSpedController *sped, SrsStunPacket *r);
 
 public:
     srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
@@ -288,6 +342,7 @@ public:
 public:
     void set_state(SrsRtcNetworkState state);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     std::string get_peer_ip();
     int get_peer_port();
 

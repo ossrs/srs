@@ -378,6 +378,7 @@ class MockAppConfigForRtcPlay : public MockAppConfig
 public:
     std::string dtls_role_;
     std::string dtls_version_;
+    bool sped_;
     bool rtc_server_enabled_;
     bool rtc_enabled_;
     bool vhost_is_edge_;
@@ -392,6 +393,7 @@ public:
 public:
     virtual std::string get_rtc_dtls_role(std::string vhost);
     virtual std::string get_rtc_dtls_version(std::string vhost);
+    virtual bool get_rtc_sped(std::string vhost);
     virtual bool get_rtc_server_enabled();
     virtual bool get_rtc_enabled(std::string vhost);
     virtual bool get_vhost_is_edge(std::string vhost);
@@ -450,6 +452,8 @@ public:
     MockRtcConnectionForPlay *mock_connection_;
     // The session create_rtc_session made, which find_rtc_session_by_username finds by its username.
     ISrsRtcConnection *session_;
+    // The session config of the local SDP create_rtc_session got.
+    SrsSessionConfig session_config_;
 
 public:
     MockRtcApiServerForPlay();

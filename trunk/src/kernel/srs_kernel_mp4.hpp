@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
+
 class ISrsWriter;
 class ISrsWriteSeeker;
 class ISrsReadSeeker;
@@ -2493,7 +2495,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    unsigned char *key_;
+    EVP_CIPHER_CTX *cipher_;
     unsigned char iv_[16];
     bool do_sample_encryption_;
     // To find the video slices to encrypt.

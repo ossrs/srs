@@ -26,6 +26,8 @@ using namespace std;
 #include <srs_utest_manual_kernel.hpp>
 #include <vector>
 
+#include <openssl/opensslv.h>
+
 // External function declarations for testing
 extern srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter *w, string callback, string data);
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code);
@@ -1899,9 +1901,11 @@ VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
 #ifdef SRS_SANITIZER
     sanitizer = true;
 #endif
+    // DTLS 1.3 comes with the OpenSSL SRS is built with, not a build macro.
+    bool dtls13 = OPENSSL_VERSION_NUMBER >= 0x40100000L;
 
-    const char *names[] = {"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"};
-    bool expects[] = {srt, rtsp, gb28181, rtc, simulator, sanitizer};
+    const char *names[] = {"srt", "rtsp", "gb28181", "rtc", "simulator", "handshake_drop", "sanitizer", "dtls13"};
+    bool expects[] = {srt, rtsp, gb28181, rtc, simulator, simulator, sanitizer, dtls13};
     for (int i = 0; i < (int)(sizeof(names) / sizeof(names[0])); i++) {
         SrsJsonAny *any = features->get_property(names[i]);
         ASSERT_TRUE(any != NULL) << names[i];

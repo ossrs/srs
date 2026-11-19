@@ -127,6 +127,8 @@ public:
     int binding_requests_;
     // The network udp() returns.
     ISrsRtcNetwork *udp_network_;
+    // How many times the network reported the DTLS handshake done, which starts the session's streams.
+    int handshake_done_count_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -189,6 +191,7 @@ public:
     virtual std::string token();
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
     virtual void simulate_nack_drop(int nn);
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
     virtual srs_error_t generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::string &username);
 
 public:
@@ -595,6 +598,7 @@ public:
     virtual std::string token();
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
     virtual void simulate_nack_drop(int nn);
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
     virtual srs_error_t generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::string &username);
 };
 
@@ -755,6 +759,7 @@ public:
     virtual srs_error_t on_rtp(char *data, int nb_data);
     virtual srs_error_t on_rtcp(char *data, int nb_data);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 
 public:
@@ -782,6 +787,8 @@ public:
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char *data, int nb_data);
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
+    virtual SrsSpedController *sped();
+    virtual srs_error_t on_embedded_dtls(char *data, int nb_data);
     virtual srs_error_t protect_rtp(void *packet, int *nb_cipher);
     virtual srs_error_t protect_rtcp(void *packet, int *nb_cipher);
     virtual srs_error_t unprotect_rtp(void *packet, int *nb_plaintext);
@@ -959,6 +966,7 @@ public:
     virtual std::string token();
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
     virtual void simulate_nack_drop(int nn);
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
     virtual srs_error_t generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::string &username);
 
 public:
@@ -999,6 +1007,7 @@ public:
     virtual srs_error_t on_rtp(char *data, int nb_data);
     virtual srs_error_t on_rtcp(char *data, int nb_data);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 

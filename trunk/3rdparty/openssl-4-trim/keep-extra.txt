@@ -1,0 +1,9 @@
+# Files of openssl-4-fit that no build reads but that must stay, for report.pl: the license; the sources
+# Configure only checks exist, for libfips and liblegacy, which SRS does not build; and on Linux the
+# symbol lists Configure checks for the shared library version scripts, which a -no-shared build skips.
+LICENSE.txt
+providers/common/securitycheck_fips.c
+providers/implementations/kdfs/pbkdf1.c
+providers/implementations/rands/fips_crng_test.c
+util/libcrypto.num
+util/libssl.num

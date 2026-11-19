@@ -441,6 +441,7 @@ public:
     virtual bool get_rtc_stun_strict_check(std::string vhost) = 0;
     virtual std::string get_rtc_dtls_role(std::string vhost) = 0;
     virtual std::string get_rtc_dtls_version(std::string vhost) = 0;
+    virtual bool get_rtc_sped(std::string vhost) = 0;
     virtual SrsConfDirective *get_vhost_on_hls(std::string vhost) = 0;
     virtual SrsConfDirective *get_vhost_on_hls_notify(std::string vhost) = 0;
     virtual bool get_hls_enabled(std::string vhost) = 0;
@@ -778,6 +779,7 @@ public:
     bool get_rtc_stun_strict_check(std::string vhost);
     std::string get_rtc_dtls_role(std::string vhost);
     std::string get_rtc_dtls_version(std::string vhost);
+    bool get_rtc_sped(std::string vhost);
     int get_rtc_drop_for_pt(std::string vhost);
     bool get_rtc_to_rtmp(std::string vhost);
     srs_utime_t get_rtc_pli_for_rtmp(std::string vhost);
