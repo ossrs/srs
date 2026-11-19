@@ -70,27 +70,9 @@ static srs_error_t hmac_encode(const std::string &algo, const char *key, const i
         return srs_error_new(ERROR_RTC_STUN, "unknown algo=%s", algo.c_str());
     }
 
-    HMAC_CTX *ctx = HMAC_CTX_new();
-    if (ctx == NULL) {
-        return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
+    if (HMAC(engine, key, key_length, (const unsigned char *)input, input_length, (unsigned char *)output, &output_length) == NULL) {
+        return srs_error_new(ERROR_RTC_STUN, "hmac failed");
     }
-
-    if (HMAC_Init_ex(ctx, key, key_length, engine, NULL) < 0) {
-        HMAC_CTX_free(ctx);
-        return srs_error_new(ERROR_RTC_STUN, "hmac init faied");
-    }
-
-    if (HMAC_Update(ctx, (const unsigned char *)input, input_length) < 0) {
-        HMAC_CTX_free(ctx);
-        return srs_error_new(ERROR_RTC_STUN, "hmac update faied");
-    }
-
-    if (HMAC_Final(ctx, (unsigned char *)output, &output_length) < 0) {
-        HMAC_CTX_free(ctx);
-        return srs_error_new(ERROR_RTC_STUN, "hmac final faied");
-    }
-
-    HMAC_CTX_free(ctx);
 
     return err;
 }
@@ -105,6 +87,8 @@ SrsStunPacket::SrsStunPacket()
     ice_controlling_ = false;
     mapped_port_ = 0;
     mapped_address_ = 0;
+    has_dtls_in_stun_data_ = false;
+    has_dtls_in_stun_ack_ = false;
 }
 
 SrsStunPacket::~SrsStunPacket()
@@ -169,6 +153,56 @@ bool SrsStunPacket::get_ice_controlling() const
 bool SrsStunPacket::get_use_candidate() const
 {
     return use_candidate_;
+}
+
+bool SrsStunPacket::has_dtls_in_stun_data() const
+{
+    return has_dtls_in_stun_data_;
+}
+
+std::string SrsStunPacket::get_dtls_in_stun_data() const
+{
+    return dtls_in_stun_data_;
+}
+
+bool SrsStunPacket::has_dtls_in_stun_ack() const
+{
+    return has_dtls_in_stun_ack_;
+}
+
+std::vector<uint32_t> SrsStunPacket::get_dtls_in_stun_acks() const
+{
+    return dtls_in_stun_acks_;
+}
+
+void SrsStunPacket::set_dtls_in_stun_data(const std::string &datagram)
+{
+    has_dtls_in_stun_data_ = true;
+    dtls_in_stun_data_ = datagram;
+}
+
+void SrsStunPacket::set_dtls_in_stun_acks(const std::vector<uint32_t> &acks)
+{
+    has_dtls_in_stun_ack_ = true;
+    dtls_in_stun_acks_ = acks;
+}
+
+// The size of an attribute on the wire: the type, the length, the value and its padding to 4 bytes.
+static int stun_attribute_size(int value_size)
+{
+    return 4 + value_size + ((value_size % 4 != 0) ? 4 - (value_size % 4) : 0);
+}
+
+bool SrsStunPacket::dtls_in_stun_data_fits(int size) const
+{
+    int body = stun_attribute_size((int)(remote_ufrag_.size() + 1 + local_ufrag_.size()));
+    body += stun_attribute_size(8);
+    if (has_dtls_in_stun_ack_) {
+        body += stun_attribute_size(4 * (int)dtls_in_stun_acks_.size());
+    }
+    body += stun_attribute_size(size);
+
+    return body <= kStunSpedMaxBodySize;
 }
 
 void SrsStunPacket::set_message_type(const uint16_t &m)
@@ -283,6 +317,26 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
             break;
         }
 
+        case DtlsInStunData: {
+            has_dtls_in_stun_data_ = true;
+            dtls_in_stun_data_ = val;
+            break;
+        }
+
+        case DtlsInStunAck: {
+            if (len % 4 != 0 || len / 4 > kStunDtlsInStunMaxAcks) {
+                return srs_error_new(ERROR_RTC_STUN, "invalid dtls-in-stun-ack, len=%d", len);
+            }
+
+            has_dtls_in_stun_ack_ = true;
+            dtls_in_stun_acks_.clear();
+            SrsBuffer acks((char *)val.data(), (int)val.size());
+            while (!acks.empty()) {
+                dtls_in_stun_acks_.push_back(acks.read_4bytes());
+            }
+            break;
+        }
+
         default: {
             srs_verbose("stun type=%u, no process", type);
             break;
@@ -333,22 +387,32 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
 {
     srs_error_t err = srs_success;
 
+    if (has_dtls_in_stun_ack_ && (int)dtls_in_stun_acks_.size() > kStunDtlsInStunMaxAcks) {
+        return srs_error_new(ERROR_RTC_STUN, "dtls-in-stun-ack has %d crcs, max %d", (int)dtls_in_stun_acks_.size(), kStunDtlsInStunMaxAcks);
+    }
+    if (has_dtls_in_stun_data_ && !dtls_in_stun_data_fits((int)dtls_in_stun_data_.size())) {
+        return srs_error_new(ERROR_RTC_STUN, "dtls-in-stun-data size=%d exceeds stun body %d", (int)dtls_in_stun_data_.size(), kStunSpedMaxBodySize);
+    }
+
     string property_username = encode_username();
     string mapped_address = encode_mapped_address();
+    string dtls_in_stun = encode_dtls_in_stun();
 
-    // The header, the username and mapped address, then the 24 bytes integrity and 8 bytes fingerprint. The username
-    // comes from the client, so a long one does not fit the caller's buffer.
-    int nb_response = 20 + (int)property_username.size() + (int)mapped_address.size() + 24 + 8;
+    // The header, the username, mapped address and SPED attributes, then the 24 bytes integrity and 8 bytes
+    // fingerprint. The username comes from the client, so a long one does not fit the caller's buffer.
+    int nb_body = (int)property_username.size() + (int)mapped_address.size() + (int)dtls_in_stun.size();
+    int nb_response = 20 + nb_body + 24 + 8;
     if (!stream->require(nb_response)) {
         return srs_error_new(ERROR_RTC_STUN, "stun response requires %d only %d bytes", nb_response, stream->left());
     }
 
     stream->write_2bytes(BindingResponse);
-    stream->write_2bytes(property_username.size() + mapped_address.size());
+    stream->write_2bytes(nb_body);
     stream->write_4bytes(kStunMagicCookie);
     stream->write_string(transcation_id_);
     stream->write_string(property_username);
     stream->write_string(mapped_address);
+    stream->write_string(dtls_in_stun);
 
     stream->data()[2] = ((stream->pos() - 20 + 20 + 4) & 0x0000FF00) >> 8;
     stream->data()[3] = ((stream->pos() - 20 + 20 + 4) & 0x000000FF);
@@ -410,6 +474,43 @@ string SrsStunPacket::encode_mapped_address()
     stream->write_4bytes(mapped_address_ ^ kStunMagicCookie);
 
     return string(stream->data(), stream->pos());
+}
+
+string SrsStunPacket::encode_dtls_in_stun()
+{
+    int size = 0;
+    if (has_dtls_in_stun_ack_) {
+        size += stun_attribute_size(4 * (int)dtls_in_stun_acks_.size());
+    }
+    if (has_dtls_in_stun_data_) {
+        size += stun_attribute_size((int)dtls_in_stun_data_.size());
+    }
+    if (!size) {
+        return "";
+    }
+
+    vector<char> buf(size);
+    SrsBuffer stream(&buf[0], size);
+
+    if (has_dtls_in_stun_ack_) {
+        stream.write_2bytes(DtlsInStunAck);
+        stream.write_2bytes(4 * dtls_in_stun_acks_.size());
+        for (int i = 0; i < (int)dtls_in_stun_acks_.size(); i++) {
+            stream.write_4bytes(dtls_in_stun_acks_[i]);
+        }
+    }
+
+    if (has_dtls_in_stun_data_) {
+        stream.write_2bytes(DtlsInStunData);
+        stream.write_2bytes(dtls_in_stun_data_.size());
+        stream.write_string(dtls_in_stun_data_);
+        if (stream.pos() % 4 != 0) {
+            static char padding[4] = {0};
+            stream.write_bytes(padding, 4 - (stream.pos() % 4));
+        }
+    }
+
+    return string(stream.data(), stream.pos());
 }
 
 string SrsStunPacket::encode_hmac(char *hmac_buf, const int hmac_buf_len)

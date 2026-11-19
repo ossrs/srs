@@ -307,6 +307,10 @@ run_over_budget() {
   [[ $status -eq 1 && "$output" == *'FAIL command timed out'* ]]
 }
 check run_over_budget
+run_in_longer_budget() {
+  CHROME_TEST_BUDGET=120 CHROME_STARTED=$((SECONDS - 58)) FAKE_RUN_SLEEP=3 chrome_test_run r6 --mode whep --url http://x/ >/dev/null 2>&1
+}
+check run_in_longer_budget
 # A run in the background: the case acts on a job once it is ready, then
 # waits for the run; the job's session comes from its LOCATION line.
 run_in_background() {
@@ -538,6 +542,10 @@ check srs_log_per_instance
 # The budget, KNOWN and the loopback finding.
 CHROME_STARTED=$((SECONDS - 61))
 check test "$(out_status chrome_test_budget)" = 'FAIL budget 61s > 60s 1'
+# A measurement, not a test case, sets a longer budget.
+check test "$(CHROME_TEST_BUDGET=300 out_status chrome_test_budget)" = ' 0'
+CHROME_STARTED=$((SECONDS - 301))
+check test "$(CHROME_TEST_BUDGET=300 out_status chrome_test_budget)" = 'FAIL budget 301s > 300s 1'
 CHROME_STARTED=$SECONDS
 check chrome_test_budget
 known_counts() {
@@ -720,7 +728,8 @@ printf '%s\n' '#!/bin/bash' 'echo "start unit-lib" >> /tmp/srs-chrome-lib-regres
   '[[ "$FAKE_LIB_FAIL" != 1 ]] || { echo "FAIL regression 7 x"; exit 1; }' \
   'echo "PASS regression 1 a"; echo "PASS regression 2 b"; echo "PASS 2 harness regressions"' \
   'echo "end unit-lib" >> /tmp/srs-chrome-lib-regression/lane.calls' > "$L/chrome-test-lib-test.sh"
-for name in webrtc loss http codec; do
+LANE_CASES='webrtc loss http codec sped'
+for name in $LANE_CASES; do
   printf '%s\n' '#!/bin/bash' "name=$name" \
     'echo "start $name $SRS_TEST_PORT_BASE" >> /tmp/srs-chrome-lib-regression/lane.calls' 'sleep 0.2' \
     'echo "end $name" >> /tmp/srs-chrome-lib-regression/lane.calls' \
@@ -739,7 +748,9 @@ run_lane() {
 }
 lane_says() { grep -qxF -- "$1" "$T/lane.out"; }
 lane_line() { grep -n -m 1 -F -- "$1" "$T/lane.calls" | cut -d: -f1; }
-# Every case starts after both unit suites end, and all four run at once.
+# Every case starts after both unit suites end. The first four run at once;
+# SPED, whose two browsers made the loss case's players freeze under the Full
+# tier's load, starts after all four end.
 lane_units_first() {
   local unit=$(lane_line 'unit driver') lib=$(lane_line 'end unit-lib') name start
   local first_end=$(grep -n -m 1 -E '^end (webrtc|loss|http|codec)$' "$T/lane.calls" | cut -d: -f1)
@@ -748,18 +759,32 @@ lane_units_first() {
     start=$(lane_line "start $name ")
     [[ -n $start && $start -gt $unit && $start -gt $lib && $start -lt $first_end ]] || return 1
   done
+  lane_after_four
 }
+lane_after_four() {
+  local sped=$(lane_line 'start sped ') name end
+  [[ -n $sped ]] || return 1
+  for name in webrtc loss http codec; do
+    end=$(lane_line "end $name")
+    [[ -n $end && $sped -gt $end ]] || return 1
+  done
+}
+# The first four cases take the four slots from the base; the SPED case takes
+# base +900, its own default 16500 from the lane's 15600, so the Linux run's
+# 16000-16399 stays free.
 lane_slots() {
   grep -qx "start webrtc $1" "$T/lane.calls" && grep -qx "start loss $(($1 + 100))" "$T/lane.calls" \
-    && grep -qx "start http $(($1 + 200))" "$T/lane.calls" && grep -qx "start codec $(($1 + 300))" "$T/lane.calls"
+    && grep -qx "start http $(($1 + 200))" "$T/lane.calls" && grep -qx "start codec $(($1 + 300))" "$T/lane.calls" \
+    && grep -qx "start sped $(($1 + 900))" "$T/lane.calls" && test "$(grep '^start ' "$T/lane.calls" | grep -vc '^start unit-')" = 5 \
+    && lane_after_four
 }
 
 # SRS_TEST_CHROME=0 runs nothing.
 run_lane SRS_TEST_CHROME=0
 check test "$(cat "$T/lane.out") $(cat "$T/lane.code")" = 'SKIP SRS_TEST_CHROME=0 0'
 check test ! -f "$T/lane.calls"
-# Default: the unit suites, then the four cases on 15600-15900; only the
-# lane's and the cases' own lines are at the start of a line.
+# Default: the unit suites, then the five cases on 15600-15900 and 16500;
+# only the lane's and the cases' own lines are at the start of a line.
 run_lane
 check test "$(cat "$T/lane.code")" = 0
 check lane_units_first
@@ -772,28 +797,31 @@ check lane_says 'PASS loss check'
 check lane_says '  PASS loss driver line'
 check lane_says 'KNOWN F3 webrtc track'
 check lane_says 'LANE codec passed'
-check grep -qE '^LANE chrome passed=6 skipped=0 known=1 failed=0 elapsed=[0-9]+s$' "$T/lane.out"
+check lane_says 'PASS sped check'
+check lane_says 'LANE sped passed'
+check grep -qE '^LANE chrome passed=7 skipped=0 known=1 failed=0 elapsed=[0-9]+s$' "$T/lane.out"
 check run_lane SRS_TEST_PORT_BASE=16000
 check lane_slots 16000
 # A failing or skipped case, or a failing unit suite, is counted; every case
 # still runs.
 run_lane FAKE_CASE_FAIL=loss FAKE_CASE_SKIP=http
 check test "$(cat "$T/lane.code")" = 1
+check lane_after_four
 check lane_says 'LANE loss failed exit=1'
 check lane_says 'LANE http skipped'
-check grep -qE '^LANE chrome passed=4 skipped=1 known=1 failed=1 ' "$T/lane.out"
+check grep -qE '^LANE chrome passed=5 skipped=1 known=1 failed=1 ' "$T/lane.out"
 run_lane FAKE_TEST_PASS=1 FAKE_TEST_EXIT=1 FAKE_TEST_FAIL=2 FAKE_LIB_FAIL=1
 check test "$(cat "$T/lane.code")" = 1
 check grep -q '^FAIL unit driver: exit 1, 2 of 3 tests failed' "$T/lane.out"
 check grep -q '^FAIL unit chrome-test-lib-test.sh: exit 1' "$T/lane.out"
 check lane_says '  FAIL regression 7 x'
-check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=2 ' "$T/lane.out"
+check grep -qE '^LANE chrome passed=5 skipped=0 known=1 failed=2 ' "$T/lane.out"
 check lane_slots 15600
 # No node: the driver's suite is a skip listed as unverified, not a failure.
 run_lane CHROME_NODE=/nonexistent/node
 check test "$(cat "$T/lane.code")" = 0
 check lane_says 'SKIP driver: unverified: Chrome not available (no node)'
-check grep -qE '^LANE chrome passed=5 skipped=1 known=1 failed=0 ' "$T/lane.out"
+check grep -qE '^LANE chrome passed=6 skipped=1 known=1 failed=0 ' "$T/lane.out"
 # The lane installs the skill's packages before the cases, so they never wait
 # on each other's npm ci.
 rm -rf "$T/skill-lane"
@@ -803,20 +831,20 @@ run_lane CHROME_SKILL_DIR=$T/skill-lane
 check test "$(cat "$T/lane.code")" = 0
 check grep -q "^$T/skill-lane ci" "$T/npm.calls"
 check test -d "$T/skill-lane/node_modules"
-# --cases-only runs the four cases without the unit suites.
+# --cases-only runs the five cases without the unit suites.
 LANE_ARGS=--cases-only run_lane SRS_TEST_PORT_BASE=16000 FAKE_LIB_FAIL=1 FAKE_TEST_EXIT=1
 check test "$(cat "$T/lane.code")" = 0
 check lane_slots 16000
 check test "$(grep -c 'unit' "$T/lane.calls")" = 0
-check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=0 ' "$T/lane.out"
+check grep -qE '^LANE chrome passed=5 skipped=0 known=1 failed=0 ' "$T/lane.out"
 
 # chrome-linux-test.sh in a fake checkout: the fake docker builds and the fake
-# lane's cases run against SRS in Docker on 16000-16300.
+# lane's cases run against SRS in Docker on 16000-16300 and 16900.
 W=$T/linuxws
 mkdir -p "$W/trunk" "$W/skills/srs-develop/scripts"
 cp "$L"/* "$W/skills/srs-develop/scripts/"
 cp "$SCRIPT_DIR/chrome-linux-test.sh" "$W/skills/srs-develop/scripts/"
-for name in webrtc loss http codec; do
+for name in $LANE_CASES; do
   printf '%s\n' "echo \"env $name \${CHROME_SRS_DOCKER:-none} \${CHROME_TEST_ROOT:-none} \${CHROME_SRS_IMAGE:-none}\" >> /tmp/srs-chrome-lib-regression/lane.calls" \
     >> "$W/skills/srs-develop/scripts/chrome-$name-test.sh"
 done
@@ -842,6 +870,9 @@ LINUX_ARGS=--bad run_linux
 check test "$(cat "$T/linux.code")" = 3
 run_linux SRS_TEST_PORT_BASE=80
 check test "$(cat "$T/linux.code")" = 3
+# The SPED case's slot, base +900, must stay below the ephemeral ports too.
+run_linux SRS_TEST_PORT_BASE=31800
+check test "$(cat "$T/linux.code")" = 3
 # --build copies the tracked trunk files into the volume and builds there with
 # obs-linux-test.sh's Linux build, then stops.
 LINUX_ARGS=--build run_linux
@@ -853,27 +884,29 @@ check test ! -f "$T/lane.calls"
 LINUX_ARGS=--build run_linux FAKE_DOCKER_BUILD=1
 check test "$(cat "$T/linux.code")" = 1
 check grep -q '^FAIL Linux build of ' "$T/linux.out"
-# Default: the build, then the four cases at once on 16000-16300, each with
-# SRS in a container of the build volume and its logs under the Linux folder.
+# Default: the build, then the five cases at once on 16000-16300 and 16900,
+# each with SRS in a container of the build volume and its logs under the
+# Linux folder.
 run_linux
 check test "$(cat "$T/linux.code")" = 0
 check grep -q -- '--container-build' "$T/docker.calls"
 check lane_slots 16000
 check test "$(grep -c 'unit' "$T/lane.calls")" = 0
 check grep -qx "env codec srs-chrome-linux-build $T/srs-chrome-linux ossrs/srs:ubuntu20" "$T/lane.calls"
-check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=0 ' "$T/linux.out"
+check grep -qx "env sped srs-chrome-linux-build $T/srs-chrome-linux ossrs/srs:ubuntu20" "$T/lane.calls"
+check grep -qE '^LANE chrome passed=5 skipped=0 known=1 failed=0 ' "$T/linux.out"
 run_linux SRS_TEST_PORT_BASE=17000 FAKE_CASE_FAIL=http
 check test "$(cat "$T/linux.code")" = 1
 check lane_slots 17000
-check grep -qE '^LANE chrome passed=3 skipped=0 known=1 failed=1 ' "$T/linux.out"
+check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=1 ' "$T/linux.out"
 
 # chrome-windows-test.sh in a fake host checkout: the fake runner builds
-# srs.exe, and the fake lane's cases run against it on 15600-15900.
+# srs.exe, and the fake lane's cases run against it on 15600-15900 and 16500.
 WH=$T/winhost
 mkdir -p "$WH/trunk/objs/windows" "$WH/skills/srs-develop/scripts"
 cp "$L"/* "$WH/skills/srs-develop/scripts/"
 cp "$SCRIPT_DIR/chrome-windows-test.sh" "$WH/skills/srs-develop/scripts/"
-for name in webrtc loss http codec; do
+for name in $LANE_CASES; do
   printf '%s\n' "echo \"env $name \${CHROME_SRS_BIN:-none} \${CHROME_TEST_ROOT:-none}\" >> /tmp/srs-chrome-lib-regression/lane.calls" \
     >> "$WH/skills/srs-develop/scripts/chrome-$name-test.sh"
 done
@@ -911,7 +944,7 @@ check grep -qx "host-run $WH $WH/skills/srs-develop/scripts/chrome-windows-test.
 WINDOWS_ARGS=--wip run_windows FAKE_HOST_RUN_EXIT=1
 check test "$(cat "$T/windows.code")" = 1
 check grep -qx "host-run --wip $WH $WH/skills/srs-develop/scripts/chrome-windows-test.sh --host" "$T/lane.calls"
-# On the host: the runner's build, then the four cases at once against
+# On the host: the runner's build, then the five cases at once against
 # srs.exe, with their logs under the Windows folder.
 WINDOWS_ARGS=--host run_windows
 check test "$(cat "$T/windows.code")" = 0
@@ -920,7 +953,8 @@ check grep -qE "^BUILD windows $(git -C "$WH" rev-parse HEAD) [0-9]+s$" "$T/wind
 check lane_slots 15600
 check test "$(grep -c 'unit' "$T/lane.calls")" = 0
 check grep -qx "env codec objs/windows/srs.exe $T/srs-chrome-windows" "$T/lane.calls"
-check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=0 ' "$T/windows.out"
+check grep -qx "env sped objs/windows/srs.exe $T/srs-chrome-windows" "$T/lane.calls"
+check grep -qE '^LANE chrome passed=5 skipped=0 known=1 failed=0 ' "$T/windows.out"
 WINDOWS_ARGS=--host run_windows FAKE_BUILD_FAIL=1
 check test "$(cat "$T/windows.code")" = 1
 check grep -q '^runner output$' "$T/windows.out"
@@ -931,7 +965,7 @@ WINDOWS_ARGS=--host-cases run_windows
 check test "$(windows_out)" = 'FAIL build trunk/objs/windows/srs.exe first 1'
 WINDOWS_ARGS=--host run_windows FAKE_CASE_FAIL=http
 check test "$(cat "$T/windows.code")" = 1
-check grep -qE '^LANE chrome passed=3 skipped=0 known=1 failed=1 ' "$T/windows.out"
+check grep -qE '^LANE chrome passed=4 skipped=0 known=1 failed=1 ' "$T/windows.out"
 
 # The chrome-test job of the Test workflow: the unit tests first, then the
 # Linux build and cases with the runner's Chrome, the logs kept on failure.

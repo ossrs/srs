@@ -110,6 +110,7 @@ The CLI gives the stream tools by hand:
 bin/srs-integ probe <url>            # Print the stream report of rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL (http://host:1985/rtc/v1/whep/?app=live&stream=s, offering every codec), srt://host:port?streamid=#!::r=live/s,m=request (also passphrase, pbkeylen and latency in ms), rtsp://host:port/app/stream (over TCP) or an FLV, TS, AAC, MP3 or MP4 file; -duration, -timeout.
 bin/srs-integ publish <file> <url>   # Publish an FLV file in real time, to rtmp:// or rtmps://, or an MP4 file with H.264, HEVC, VP9 or AV1 and Opus by WHIP (http://host:1985/rtc/v1/whip/?app=live&stream=s; it adds vcodec for a codec other than H.264), or an MPEG-TS file to srt://host:port?streamid=#!::r=live/s,m=publish, timed by its PCR. Neither verifies an rtmps:// certificate, like ffmpeg.
 bin/srs-integ prepare -h             # Make the test media; its flags.
+bin/srs-integ measure -h             # Time WebRTC setup with and without SPED against an SRS with sped on; its flags. skills/srs-develop/scripts/sped-measure.sh starts that SRS and runs it.
 ```
 
 ## Layout
@@ -331,7 +332,7 @@ checks are in the test files under `cases/`.
 | Https | Common | The HTTPS server's TLS |
 | Hls | Common, Options, Fmp4, Fmp4Default, TsFloor, Keys, Fmp4Keys, Sessions, CtxOff, Dispose, Fmp4Dispose, Cleanup | HLS TS and fMP4, its options and file names, encryption, `hls_ctx` sessions, dispose and cleanup |
 | Dash | Common, Options, StreamDir, Dispose, Cleanup | DASH play, the MPD, its options, dispose and cleanup |
-| Rtc | Common, Transport, PreferRtx, NackTwccOff, TwccLoss, StartFails | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC and how right its feedback is, packets the client loses, a failed start |
+| Rtc | Common, Transport, PreferRtx, NackTwccOff, TwccLoss, StartFails, Sped | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC and how right its feedback is, packets the client loses, a failed start, SPED (the DTLS handshake inside the STUN checks) over UDP and TCP, with STUN and DTLS datagrams lost, and a lost DTLS 1.2 last flight without SPED |
 | Srt | Common, Latencies, LatencyOnly, Options, PeerIdle | SRT publish and play, latencies, stream ids, encryption, idle peers |
 | Rtsp | Common, Options, VhostOff | RTSP play from RTMP, its options |
 | Gb | Common, Reconnect, MediaTimeout, RtmpOutput | GB28181 publish over TCP, reconnects, media timeouts, its RTMP output |

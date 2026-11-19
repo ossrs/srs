@@ -130,6 +130,11 @@ srs_error_t srs_parse_h265_fmtp(const std::string &fmtp, H265SpecificParam &h265
     return err;
 }
 
+SrsSessionConfig::SrsSessionConfig()
+{
+    sped_ = false;
+}
+
 SrsSessionInfo::SrsSessionInfo()
 {
 }
@@ -1061,6 +1066,33 @@ std::string SrsSdp::get_fingerprint() const
     }
 
     return "";
+}
+
+static bool srs_sdp_has_token(const std::string &tokens, const std::string &token)
+{
+    std::istringstream is(tokens);
+    std::string word;
+    while (is >> word) {
+        if (word == token) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SrsSdp::has_ice_option(const std::string &option) const
+{
+    if (srs_sdp_has_token(session_info_.ice_options_, option)) {
+        return true;
+    }
+
+    // With BUNDLE, every m-line shares one transport.
+    for (std::vector<SrsMediaDesc>::const_iterator iter = media_descs_.begin(); iter != media_descs_.end(); ++iter) {
+        const SrsMediaDesc *desc = &(*iter);
+        return srs_sdp_has_token(desc->session_info_.ice_options_, option);
+    }
+
+    return false;
 }
 
 srs_error_t SrsSdp::parse_line(const std::string &line)

@@ -17,12 +17,6 @@ class SrsBuffer;
 
 #include <openssl/hmac.h>
 
-// @see https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-extern HMAC_CTX *HMAC_CTX_new(void);
-extern void HMAC_CTX_free(HMAC_CTX *ctx);
-#endif
-
 namespace srs_internal
 {
 #define SRS_OpensslHashSize 512
@@ -35,7 +29,11 @@ class SrsDH
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    EVP_PKEY *pkey_;
+#else
     DH *pdh;
+#endif
 
 public:
     SrsDH();

@@ -24,6 +24,7 @@
 using namespace std;
 
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
@@ -1973,7 +1974,8 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_RTC_STUN_TIMEOUT=30                 Seconds without STUN to close a session.\n"
         "      SRS_VHOST_RTC_STUN_STRICT_CHECK=off           Strict STUN check.\n"
         "      SRS_VHOST_RTC_DTLS_ROLE=passive               DTLS role when the peer is actpass: passive or active.\n"
-        "      SRS_VHOST_RTC_DTLS_VERSION=auto               dtls1.0, dtls1.2 or auto.\n"
+        "      SRS_VHOST_RTC_DTLS_VERSION=auto               dtls1.0, dtls1.2, dtls1.3 (OpenSSL 4.1+) or auto.\n"
+        "      SRS_VHOST_RTC_SPED=off                        SPED, DTLS inside STUN, when the offer has it.\n"
         "      SRS_VHOST_RTC_DROP_FOR_PT=0                   Drop packets of this payload type, 0 never.\n"
         "      SRS_VHOST_RTC_INIT_RATE_FROM_SDP=off          Init the RTP rate from SDP, for fast A/V sync.\n"
         "      SRS_VHOST_RTC_KEEP_ORIGINAL_SSRC=off          Keep the SSRC and timestamp when forwarding.\n"
@@ -2560,6 +2562,48 @@ srs_error_t SrsConfig::check_normal_config()
         }
     }
 
+    // The getter reads every value but on as off, so a typo such as yes would leave SPED off without a word.
+    if (true) {
+        string value = srs_getenv("SRS_VHOST_RTC_SPED");
+        if (!value.empty() && value != "on" && value != "off") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_RTC_SPED=%s, not on or off",
+                                 value.c_str());
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            SrsConfDirective *rtc = vhost->get("rtc");
+            SrsConfDirective *conf = rtc ? rtc->get("sped") : NULL;
+            if (conf && !conf->arg0().empty() && conf->arg0() != "on" && conf->arg0() != "off") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s rtc sped=%s, not on or off",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
+            }
+        }
+    }
+
+    // DTLS 1.3 needs OpenSSL 4.1 or newer; a build without it would take dtls1.3 as auto without a word.
+    if (!srs_dtls_version13_supported()) {
+        string value = srs_getenv("SRS_VHOST_RTC_DTLS_VERSION");
+        if (value == "dtls1.3") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_VHOST_RTC_DTLS_VERSION=%s, needs OpenSSL 4.1 or newer, such as --ssl-4=on",
+                                 value.c_str());
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            SrsConfDirective *rtc = vhost->get("rtc");
+            SrsConfDirective *conf = rtc ? rtc->get("dtls_version") : NULL;
+            if (conf && conf->arg0() == "dtls1.3") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s rtc dtls_version=%s, needs OpenSSL 4.1 or newer, such as --ssl-4=on",
+                                     vhost->arg0().c_str(), conf->arg0().c_str());
+            }
+        }
+    }
+
     // The getter clamps the tcmalloc release rate with srs_min and srs_max, which pass nan through to tcmalloc, and a
     // value with no number has no rate.
     if (true) {
@@ -2893,7 +2937,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "nack_prefer_rtx" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei" && m != "init_rate_from_sdp" && m != "keep_original_ssrc") {
+                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "nack_prefer_rtx" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "sped" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei" && m != "init_rate_from_sdp" && m != "keep_original_ssrc") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4391,6 +4435,26 @@ std::string SrsConfig::get_rtc_dtls_version(string vhost)
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_rtc_sped(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.sped"); // SRS_VHOST_RTC_SPED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = get_rtc(vhost);
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sped");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
 int SrsConfig::get_rtc_drop_for_pt(string vhost)

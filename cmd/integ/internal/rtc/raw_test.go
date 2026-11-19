@@ -441,6 +441,12 @@ type fakeRaw struct {
 	// it closes the connection too, at closedAt.
 	closeDelay time.Duration
 	closedAt   time.Time
+	// spedAnswer makes the answer have a=ice-options:sped, and link is the
+	// server's SPED side, nil when it answers STUN without SPED; requests
+	// counts the binding requests it got.
+	spedAnswer bool
+	link       *spedLink
+	requests   int
 }
 
 func newFakeRaw(t *testing.T, withDTLS bool) *fakeRaw {
@@ -459,6 +465,39 @@ func newFakeRawOn(t *testing.T, withDTLS, tcp bool) *fakeRaw {
 // SRTP after the DTLS handshake when withSRTP is set.
 func newFakeRawWith(t *testing.T, withDTLS, tcp, withSRTP bool) *fakeRaw {
 	t.Helper()
+	return startFakeRaw(t, &fakeRaw{withDTLS: withDTLS, withSRTP: withSRTP, tcp: tcp})
+}
+
+// newFakeSped makes a fake server with DTLS whose answer has sped, and that
+// embeds DTLS in its STUN responses as SPED says, or, when plain is set,
+// answers STUN without SPED.
+func newFakeSped(t *testing.T, tcp, plain bool) *fakeRaw {
+	t.Helper()
+	f := &fakeRaw{withDTLS: true, tcp: tcp, spedAnswer: true}
+	if !plain {
+		f.link = newSpedLink(func(b []byte) (int, error) {
+			f.mu.Lock()
+			peer := f.peer
+			f.mu.Unlock()
+			if peer == nil {
+				return len(b), nil
+			}
+			return peer.Write(b)
+		}, true)
+	}
+	return startFakeRaw(t, f)
+}
+
+// requestCount is how many binding requests the server got.
+func (f *fakeRaw) requestCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.requests
+}
+
+// startFakeRaw opens the sockets of a fake server and serves.
+func startFakeRaw(t *testing.T, f *fakeRaw) *fakeRaw {
+	t.Helper()
 	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -467,10 +506,13 @@ func newFakeRawWith(t *testing.T, withDTLS, tcp, withSRTP bool) *fakeRaw {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &fakeRaw{withDTLS: withDTLS, withSRTP: withSRTP, tcp: tcp, udp: udp, ln: ln, analysis: newAnalysis(), ready: make(chan struct{}),
-		vs: newVideoSender(), as: newAudioSender()}
+	f.udp, f.ln, f.analysis, f.ready = udp, ln, newAnalysis(), make(chan struct{})
+	f.vs, f.as = newVideoSender(), newAudioSender()
 	answer := strings.ReplaceAll(srsAnswer, " 14100 ", fmt.Sprintf(" %d ", udp.LocalAddr().(*net.UDPAddr).Port))
 	answer = strings.ReplaceAll(answer, " 14101 ", fmt.Sprintf(" %d ", ln.Addr().(*net.TCPAddr).Port))
+	if f.spedAnswer {
+		answer = strings.Replace(answer, "a=ice-lite\r\n", "a=ice-lite\r\na=ice-options:sped\r\n", 1)
+	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.ReadAll(r.Body)
 		w.Header().Set("Location", "/rtc/v1/whip/?action=delete&session=raw")
@@ -556,11 +598,20 @@ func (f *fakeRaw) serve(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		c, err := dtls.Server(m.packetConn(), peer.RemoteAddr(), &dtls.Config{
-			Certificates:           []tls.Certificate{cert},
-			ClientAuth:             dtls.RequireAnyClientCert,
-			SRTPProtectionProfiles: []dtls.SRTPProtectionProfile{dtls.SRTP_AES128_CM_HMAC_SHA1_80},
-		})
+		// Like SRS: no cookie.
+		cfg := &dtls.Config{
+			Certificates:            []tls.Certificate{cert},
+			ClientAuth:              dtls.RequireAnyClientCert,
+			SRTPProtectionProfiles:  []dtls.SRTPProtectionProfile{dtls.SRTP_AES128_CM_HMAC_SHA1_80},
+			InsecureSkipVerifyHello: true,
+		}
+		pc := m.packetConn()
+		if f.link != nil {
+			// Like SRS: a flight that fits a STUN message.
+			cfg.MTU = spedMTU
+			pc = m.spedPacketConn(f.link)
+		}
+		c, err := dtls.Server(pc, peer.RemoteAddr(), cfg)
 		if err != nil {
 			t.Error(err)
 			return
@@ -568,8 +619,14 @@ func (f *fakeRaw) serve(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := c.HandshakeContext(ctx); err != nil {
-			t.Error(err)
+			// A client that gives up first, as one test does, is no error.
+			if f.link == nil || f.link.state() != SpedConfirmed {
+				t.Error(err)
+			}
 			return
+		}
+		if f.link != nil {
+			f.link.handshakeDone()
 		}
 		if f.withSRTP {
 			s, err := newSRTPPair(c, false)
@@ -639,15 +696,24 @@ func (f *fakeRaw) answerSTUN(p []byte) {
 	f.mu.Lock()
 	f.user = u.String()
 	f.controlled = req.Contains(stun.AttrICEControlled)
+	f.requests++
 	peer := f.peer
 	f.mu.Unlock()
 	addr, err := netip.ParseAddrPort(peer.RemoteAddr().String())
 	if err != nil {
 		return
 	}
-	res, err := stun.Build(stun.NewTransactionIDSetter(req.TransactionID), stun.BindingSuccess,
-		&stun.XORMappedAddress{IP: addr.Addr().AsSlice(), Port: int(addr.Port())},
-		stun.NewShortTermIntegrity("srvpwd0123456789abcdef0123"), stun.Fingerprint)
+	setters := []stun.Setter{stun.NewTransactionIDSetter(req.TransactionID), stun.BindingSuccess,
+		&stun.XORMappedAddress{IP: addr.Addr().AsSlice(), Port: int(addr.Port())}}
+	if f.link != nil {
+		// Embedded DTLS counts only when MESSAGE-INTEGRITY covers it.
+		if stun.NewShortTermIntegrity("srvpwd0123456789abcdef0123").Check(req) != nil {
+			return
+		}
+		f.link.onMessage(req)
+		setters = append(setters, f.link)
+	}
+	res, err := stun.Build(append(setters, stun.NewShortTermIntegrity("srvpwd0123456789abcdef0123"), stun.Fingerprint)...)
 	if err == nil {
 		peer.Write(res.Raw)
 	}

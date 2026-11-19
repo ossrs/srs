@@ -45,15 +45,19 @@ Before a test, check each step and stop at the first one that fails:
 1. `node --version` is 22.12 or later, else the driver cannot run.
 2. `node_modules/` exists and is newer than `package-lock.json`, else run `npm ci --ignore-scripts`.
 3. `node scripts/chrome.js find-browser` prints a browser; exit 2 means there is none (a `SKIP`).
-4. `node scripts/chrome.js launch --probe` prints `PASS launch` with the version and video codecs.
+4. `node scripts/chrome.js launch --probe` prints `PASS launch` with the version, video codecs and offer
+   `ice-options`.
 5. SRS answers on its HTTP API, and for WebRTC its candidate is the host's own IPv4.
 
 ## Commands
 
 - `node scripts/chrome.js find-browser`: prints the browser executable.
-- `node scripts/chrome.js launch --probe [--headed] [--log-dir <dir>]`: starts the browser, prints its
-  version, pid and video codecs, then closes it.
+- `node scripts/chrome.js launch --probe [--headed] [--log-dir <dir>] [--extra-chrome-flags <flags>]`:
+  starts the browser, prints its version, pid and video codecs, and the `a=ice-options` of a video offer
+  (`offer ice-options: trickle`, or `none`), then closes it.
   - `--probe` is required; it is the only thing `launch` does.
+  - `--extra-chrome-flags` is the same as for `run`; with a field trial, the `ice-options` line shows
+    whether it took effect.
   - `--headed` shows the window, for a human watching.
   - `--log-dir` keeps the browser profile under that directory; without it, the profile is a temporary
     directory removed at exit. When Windows still holds it after 3 s, the driver prints
@@ -78,6 +82,9 @@ Before a test, check each step and stop at the first one that fails:
   - `--log-dir <dir>` keeps the browser profile there; `--page-port <n>` is the test page port on
     `127.0.0.1` (default: a free port); `--headed` shows the windows.
   - `--allow-loopback` lets the browser use loopback candidates, only for a host with no other IPv4.
+  - `--extra-chrome-flags <flags>` adds browser flags after the driver's own, space-separated in one
+    value; it may repeat. Each must start with `--`. `--remote-debugging-*` and `--user-data-dir` are
+    refused, as they would break the [Safety](#safety) rules.
   - Output: `PASS <job> ready ...`, `PASS <job> <metric> +<n> in <s>s`, `FAIL <job>: <reason>`, and
     `SKIP <job>: <reason>` for a codec the browser lacks and for the players of that stream.
   - `LOCATION <job> <url>` follows the ready line of a WHIP or WHEP job: the answer's `Location`. Its
@@ -120,7 +127,8 @@ The page keeps everything in `window.srsTest`:
 - `state`: `starting`, `signaling`, `connected` (ICE and DTLS up), `playing` (the `<video>` plays), then
   `stopped`; or `error` and `unsupported` (such as a codec the browser lacks), with the reason in `error`.
 - `samples`: one per second; see [Stats files](#stats-files).
-- `events`: state changes and player events, with milliseconds since load.
+- `events`: state changes and player events, with milliseconds since load. `remote-description` is just
+  before the answer is set, and `first-frame` is the WHEP player's first video frame.
 - `location`: the WHIP or WHEP resource from the answer's `Location`.
 - `stop()`: takes a last sample, sends the WHIP or WHEP `DELETE`, and closes everything.
 
@@ -131,7 +139,9 @@ The page keeps everything in `window.srsTest`:
 - Top level: `command`, `browser`, `executablePath`, `startedAt`, `seconds`, `exitCode`, `jobs`, and `internals`
   with `--internals`.
 - Each job: `name`, `mode`, `url`, `codec`, `result`, `reason`, `readyMs`, `state`, `error`,
-  `location`, `events`, `samples`, and up to 100 `console` lines.
+  `location`, `events`, `samples`, `setup`, and up to 100 `console` lines.
+- `setup`: `connectedMs` and `firstFrameMs`, from `remote-description` to the first `connected` and the
+  first `first-frame` event; `null` when the page never got there.
 
 Each sample has `t`, milliseconds since the page loaded, `at`, the wall clock in epoch milliseconds (to
 line samples up with an action taken outside the browser), and these groups; a group is `null` when the
@@ -149,6 +159,8 @@ report does not exist:
 - `outboundAudio` (publish): `codec`, `packetsSent`, `nackCount`, `retransmittedPacketsSent`,
   `retransmittedBytesSent`.
 - `pair`: the selected candidate pair's `state`, `nominated` and `currentRoundTripTime`.
+- `dtls`: the transport's `dtlsState`, `tlsVersion` (`FEFD` is DTLS 1.2, `FEFC` DTLS 1.3), `dtlsCipher`,
+  `srtpCipher` and `dtlsRole`, once the transport has a selected pair.
 - `media` (every play mode): the `<video>` element's `currentTime`, `videoWidth`, `videoHeight`,
   `paused`, `readyState`, `droppedVideoFrames`, `totalVideoFrames` and `audioDecodedBytes`.
 
@@ -184,6 +196,13 @@ The driver passes these flags to the browser:
   by side keep playing and sampling.
 - `--no-first-run` and `--no-default-browser-check`: no welcome page or dialogs.
 - `--allow-loopback-in-peer-connection`: only with `run --allow-loopback`.
+- The `--extra-chrome-flags` values, last.
+
+Example: Chrome's SPED field trial, which adds `sped googspedv1` to the offer's `a=ice-options`:
+
+```bash
+node scripts/chrome.js launch --probe --extra-chrome-flags --force-fieldtrials=WebRTC-IceHandshakeDtls/Enabled/
+```
 
 ## Windows and Edge
 
@@ -207,13 +226,14 @@ The `srs-develop` skill tests SRS with this driver through Bash scripts in `skil
 - **`chrome-loss-test.sh`**: NACK and RTX under loss from the SRS drop simulator, downlink and uplink.
 - **`chrome-http-test.sh`**: HTTP-FLV, HTTP-TS and HLS playback.
 - **`chrome-codec-test.sh`**: WHIP and WHEP with H.264, VP9, AV1 and H.265, each with Opus.
+- **`chrome-sped-test.sh`**: WHIP and WHEP with SPED, through Chrome's `WebRTC-IceHandshakeDtls` field trial.
 - **`chrome-test-lib.sh`**: the helper they source. It starts SRS, runs the driver and checks the stats
   files with `jq`; `chrome-test-lib-test.sh` tests it.
 
 How they run:
 
-- **Lane I**: `chrome-lane-test.sh` runs this skill's `npm test` and the helper's self-test, then the four
-  cases in parallel, as lane I of the Full tier.
+- **Lane I**: `chrome-lane-test.sh` runs this skill's `npm test` and the helper's self-test, then the first four
+  cases in parallel and the SPED case after them, as lane I of the Full tier.
 - **SRS on Linux**: `chrome-linux-test.sh` runs the same cases against SRS for Linux in Docker. The
   GitHub Actions `chrome-test` job runs it with Chrome on Linux.
 - **SRS on Windows**: `chrome-windows-test.sh` runs the same cases from Edge on the Windows test host to

@@ -12,6 +12,7 @@ using namespace std;
 
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_rtc_sped.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
@@ -22,6 +23,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 
 #include <openssl/err.h>
+#include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <srtp2/srtp.h>
 
@@ -78,11 +80,24 @@ unsigned int dtls_timer_cb(SSL *dtls, unsigned int previous_us)
     SrsDtlsImpl *dtls_impl = (SrsDtlsImpl *)SSL_get_ex_data(dtls, 0);
     srs_assert(dtls_impl);
 
+    // While SPED is on, it resends the flight in the STUN messages until the peer ACKs it, so the timer waits its
+    // longest, as draft-hancke-webrtc-sped says DTLS timers should be off: a retransmission on this timer would
+    // replace the flight SPED resends with a copy in more datagrams, which the peer needs all of.
+    //
+    // Not for a DTLS 1.3 server: a client that ACKed part of the flight waits for the server's timer
+    // to resend the rest (RFC 9147 section 7.2), and so does a client that SPED says has every datagram,
+    // since BoringSSL drops encrypted records that come before the ServerHello.
+    const unsigned int max_us = 30 * 1000 * 1000;
+    SrsSpedController *sped = dtls_impl->sped();
+    if (sped && sped->is_active() && !dtls_impl->is_dtls13_server()) {
+        return max_us;
+    }
+
     // The previous_us can be 0.
     unsigned int timeout_us = previous_us * 2;
 
     timeout_us = srs_max(timeout_us, 50 * 1000);
-    timeout_us = srs_min(timeout_us, 30 * 1000 * 1000);
+    timeout_us = srs_min(timeout_us, max_us);
     srs_info("DTLS: ARQ timer cb timeout=%ums, previous=%ums", timeout_us / 1000, previous_us / 1000);
 
     return timeout_us;
@@ -141,6 +156,15 @@ void ssl_on_info(const SSL *dtls, int where, int ret)
     }
 }
 
+bool srs_dtls_version13_supported()
+{
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L // v4.1
+    return true;
+#else
+    return false;
+#endif
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role)
@@ -148,6 +172,35 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
     SSL_CTX *dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
     dtls_ctx = SSL_CTX_new(DTLSv1_method());
+#elif OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    // OpenSSL 3 deprecates the version-specific methods and OpenSSL 4 has none, so pin the version on the flexible ones.
+    // The newest version SRS takes is DTLS 1.3 from OpenSSL 4.1, else DTLS 1.2.
+    int newest = DTLS1_2_VERSION;
+    int pinned = 0;
+    if (version == SrsDtlsVersion1_0) {
+        pinned = DTLS1_VERSION;
+    } else if (version == SrsDtlsVersion1_2) {
+        pinned = DTLS1_2_VERSION;
+    }
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L // v4.1
+    newest = DTLS1_3_VERSION;
+    if (version == SrsDtlsVersion1_3) {
+        pinned = DTLS1_3_VERSION;
+    }
+#endif
+    if (pinned) {
+        if (role == "active") {
+            dtls_ctx = SSL_CTX_new(DTLS_client_method());
+        } else {
+            dtls_ctx = SSL_CTX_new(DTLS_server_method());
+        }
+        SSL_CTX_set_min_proto_version(dtls_ctx, pinned);
+        SSL_CTX_set_max_proto_version(dtls_ctx, pinned);
+    } else {
+        // The version-flexible DTLS method, up to the newest version SRS takes.
+        dtls_ctx = SSL_CTX_new(DTLS_method());
+        SSL_CTX_set_max_proto_version(dtls_ctx, newest);
+    }
 #else
     if (version == SrsDtlsVersion1_0) {
         if (role == "active") {
@@ -180,7 +233,11 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
 #endif
 
     if (certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L        // v1.0.2
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L // v4.1
+        // The P curves list below would also limit the DTLS 1.3 key_share. Browsers share X25519MLKEM768 and
+        // X25519, so every handshake would get a HelloRetryRequest and cost a round trip. OpenSSL's default
+        // groups take both, and still have the P curves for older peers.
+#elif OPENSSL_VERSION_NUMBER >= 0x10002000L // v1.0.2
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
         SSL_CTX_set1_curves_list(dtls_ctx, "P-521:P-384:P-256");
 #endif
@@ -189,7 +246,9 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
         // @see https://stackoverrun.com/cn/q/10791887
 #if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, certificate->get_ecdsa_key());
+        EC_KEY *eckey = EVP_PKEY_get1_EC_KEY(certificate->get_public_key());
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, eckey);
+        EC_KEY_free(eckey);
 #else
         SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
 #endif
@@ -241,15 +300,10 @@ SrsDtlsCertificate::SrsDtlsCertificate()
     ecdsa_mode_ = true;
     dtls_cert_ = NULL;
     dtls_pkey_ = NULL;
-    eckey_ = NULL;
 }
 
 SrsDtlsCertificate::~SrsDtlsCertificate()
 {
-    if (eckey_) {
-        EC_KEY_free(eckey_);
-    }
-
     if (dtls_pkey_) {
         EVP_PKEY_free(dtls_pkey_);
     }
@@ -272,6 +326,15 @@ srs_error_t SrsDtlsCertificate::initialize()
 
     ecdsa_mode_ = config_->get_rtc_server_ecdsa();
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    if (ecdsa_mode_) { // By ECDSA, https://stackoverflow.com/a/6006898
+        dtls_pkey_ = EVP_EC_gen("P-256");
+    } else {
+        // OpenSSL 3.2+ defaults to security level 2, which refuses an RSA key below 2048 bits.
+        dtls_pkey_ = EVP_RSA_gen(2048);
+    }
+    srs_assert(dtls_pkey_);
+#else
     dtls_pkey_ = EVP_PKEY_new();
     srs_assert(dtls_pkey_);
     if (!ecdsa_mode_) {
@@ -283,13 +346,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         BN_set_word(exponent, RSA_F4);
 
         // @see https://www.openssl.org/docs/man1.0.2/man3/RSA_generate_key_ex.html
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
-        // OpenSSL 3.2+ defaults to security level 2, which refuses an RSA key below 2048 bits.
-        int key_bits = 2048;
-#else
-        int key_bits = 1024;
-#endif
-        RSA_generate_key_ex(rsa, key_bits, exponent, NULL);
+        RSA_generate_key_ex(rsa, 1024, exponent, NULL);
 
         // @see https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_type.html
         srs_assert(EVP_PKEY_set1_RSA(dtls_pkey_, rsa) == 1);
@@ -298,8 +355,8 @@ srs_error_t SrsDtlsCertificate::initialize()
         BN_free(exponent);
     }
     if (ecdsa_mode_) { // By ECDSA, https://stackoverflow.com/a/6006898
-        eckey_ = EC_KEY_new();
-        srs_assert(eckey_);
+        EC_KEY *eckey = EC_KEY_new();
+        srs_assert(eckey);
 
         // Should use the curves in ClientHello.supported_groups
         // For example:
@@ -319,14 +376,16 @@ srs_error_t SrsDtlsCertificate::initialize()
         EC_GROUP_set_asn1_flag(ecgroup, OPENSSL_EC_NAMED_CURVE);
 #endif
 
-        srs_assert(EC_KEY_set_group(eckey_, ecgroup) == 1);
-        srs_assert(EC_KEY_generate_key(eckey_) == 1);
+        srs_assert(EC_KEY_set_group(eckey, ecgroup) == 1);
+        srs_assert(EC_KEY_generate_key(eckey) == 1);
 
         // @see https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_type.html
-        srs_assert(EVP_PKEY_set1_EC_KEY(dtls_pkey_, eckey_) == 1);
+        srs_assert(EVP_PKEY_set1_EC_KEY(dtls_pkey_, eckey) == 1);
 
+        EC_KEY_free(eckey);
         EC_GROUP_free(ecgroup);
     }
+#endif
 
     // TODO: Support ECDSA certificate.
     dtls_cert_ = X509_new();
@@ -347,8 +406,13 @@ srs_error_t SrsDtlsCertificate::initialize()
         int expire_day = 365;
         const long cert_duration = 60 * 60 * 24 * expire_day;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+        X509_gmtime_adj(X509_getm_notBefore(dtls_cert_), 0);
+        X509_gmtime_adj(X509_getm_notAfter(dtls_cert_), cert_duration);
+#else
         X509_gmtime_adj(X509_get_notBefore(dtls_cert_), 0);
         X509_gmtime_adj(X509_get_notAfter(dtls_cert_), cert_duration);
+#endif
 
         X509_set_version(dtls_cert_, 2);
         srs_assert(X509_set_pubkey(dtls_cert_, dtls_pkey_) == 1);
@@ -371,11 +435,6 @@ X509 *SrsDtlsCertificate::get_cert()
 EVP_PKEY *SrsDtlsCertificate::get_public_key()
 {
     return dtls_pkey_;
-}
-
-EC_KEY *SrsDtlsCertificate::get_ecdsa_key()
-{
-    return eckey_;
 }
 
 std::string SrsDtlsCertificate::get_fingerprint()
@@ -408,6 +467,8 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback *callback)
     nn_arq_packets_ = 0;
     last_handshake_type_ = 0;
     last_content_type_ = 0;
+    sped_ = NULL;
+    retransmitting_ = false;
 
     version_ = SrsDtlsVersionAuto;
 
@@ -432,9 +493,21 @@ SrsDtlsImpl::~SrsDtlsImpl()
         dtls_ = NULL;
     }
 
+    srs_freep(sped_);
     dtls_certificate_ = NULL;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, size_t len, int argi, long argl, int ret, size_t *processed)
+{
+    long r0 = (BIO_CB_RETURN & cmd) ? ret : 1;
+    if (cmd == BIO_CB_WRITE && argp && len > 0) {
+        SrsDtlsImpl *dtls = (SrsDtlsImpl *)BIO_get_callback_arg(bio);
+        dtls->queue_dtls_data((void *)argp, (int)len);
+    }
+    return r0;
+}
+#else
 long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, int argi, long argl, long ret)
 {
     long r0 = (BIO_CB_RETURN & cmd) ? ret : 1;
@@ -444,16 +517,28 @@ long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, int argi, lo
     }
     return r0;
 }
+#endif
 
 void SrsDtlsImpl::queue_dtls_data(void *data, int size)
 {
     // Never send from inside OpenSSL: the send may switch to a coroutine that calls OpenSSL on the same SSL, or ends
     // the handshake and frees the buffer of this record, so copy it and send it once OpenSSL returns.
     out_records_.push_back(std::string((char *)data, size));
+
+    if (sped_ && retransmitting_) {
+        sped_->capture_retransmission((const char *)data, size);
+    } else if (sped_) {
+        sped_->capture((const char *)data, size);
+    }
 }
 
 void SrsDtlsImpl::flush_dtls_data()
 {
+    // OpenSSL writes a whole flight in one call, so what it wrote before this flush is one flight.
+    if (sped_) {
+        sped_->flush();
+    }
+
     // Take each record before its send, because another coroutine may flush while the send switches.
     while (!out_records_.empty()) {
         std::string record = out_records_.front();
@@ -499,6 +584,8 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
         version_ = SrsDtlsVersion1_0;
     } else if (version == "dtls1.2") {
         version_ = SrsDtlsVersion1_2;
+    } else if (version == "dtls1.3") {
+        version_ = SrsDtlsVersion1_3;
     } else {
         version_ = SrsDtlsVersionAuto;
     }
@@ -542,7 +629,11 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
     //      ServerHello+Certificate(Fragment) = 95+1105=1200bytes.
     //      Certificate(Fragment) = 143bytes.
     // A real handshake has more packets, such as ServerKeyExchange, CertificateRequest and ServerHelloDone.
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    BIO_set_callback_ex(bio_out_, srs_dtls_bio_out_callback);
+#else
     BIO_set_callback(bio_out_, srs_dtls_bio_out_callback);
+#endif
     BIO_set_callback_arg(bio_out_, (char *)this);
 
     SSL_set_bio(dtls_, bio_in_, bio_out_);
@@ -586,12 +677,53 @@ srs_error_t SrsDtlsImpl::on_dtls(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
+    if (sped_) {
+        sped_->on_dtls_received(data, nb_data);
+    }
+
     if ((err = do_on_dtls(data, nb_data)) != srs_success) {
         return srs_error_wrap(err, "on_dtls size=%u, data=[%s]", nb_data,
                               srs_strings_dumps_hex(data, nb_data, 32).c_str());
     }
 
     return err;
+}
+
+void SrsDtlsImpl::enable_sped()
+{
+    if (!sped_) {
+        sped_ = new SrsSpedController();
+    }
+
+    // SPED resends a datagram only if it fits a STUN message, so write each one small enough.
+    SSL_set_mtu(dtls_, kSpedDtlsMtu);
+    DTLS_set_link_mtu(dtls_, kSpedDtlsMtu);
+}
+
+SrsSpedController *SrsDtlsImpl::sped()
+{
+    return sped_;
+}
+
+srs_error_t SrsDtlsImpl::on_embedded_dtls(char *data, int nb_data)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = do_on_dtls(data, nb_data)) != srs_success) {
+        return srs_error_wrap(err, "on_embedded_dtls size=%u, data=[%s]", nb_data,
+                              srs_strings_dumps_hex(data, nb_data, 32).c_str());
+    }
+
+    return err;
+}
+
+bool SrsDtlsImpl::is_dtls13_server()
+{
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L // v4.1
+    return !is_dtls_client() && SSL_version(dtls_) == DTLS1_3_VERSION;
+#else
+    return false;
+#endif
 }
 
 srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
@@ -601,6 +733,12 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
     // After the handshake is done for us, the peer may resend because our response was lost, or send application data.
     if (handshake_done_for_us_) {
         srs_trace("DTLS: After done, got %d bytes", nb_data);
+    }
+
+    // SSL_read resends the last flight first when the timer expired, and what it writes then would go out
+    // with the records of the read, as one flight to SPED.
+    if (sped_ && (err = handle_timeout()) != srs_success) {
+        return srs_error_wrap(err, "timeout");
     }
 
     int r0 = 0;
@@ -640,9 +778,53 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
 
     if (!handshake_done_for_us_ && SSL_is_init_finished(dtls_) == 1) {
         handshake_done_for_us_ = true;
+
+        // The server keeps its last flight until the client ACKs it: CCS and Finished in DTLS 1.2, and in
+        // DTLS 1.3 the ACK record of the client's Finished, which the client waits for. The client's last
+        // flight needs no resend once it is done: in DTLS 1.2 the server's Finished answers it, and in
+        // DTLS 1.3 the client is done only on the server's ACK of it. A DTLS 1.2 server is done when it sends
+        // its last flight, before the client has it, while a DTLS 1.3 server is done only on the client's
+        // Finished, which the client sends once it is done.
+        if (sped_) {
+            sped_->on_handshake_done(is_dtls_client(), !is_dtls_client() && !is_dtls13_server());
+        }
+
         if (((err = on_handshake_done()) != srs_success)) {
             return srs_error_wrap(err, "done");
         }
+    }
+
+    if ((err = on_dtls_read()) != srs_success) {
+        return srs_error_wrap(err, "read");
+    }
+
+    return err;
+}
+
+srs_error_t SrsDtlsImpl::on_dtls_read()
+{
+    return srs_success;
+}
+
+srs_error_t SrsDtlsImpl::handle_timeout()
+{
+    srs_error_t err = srs_success;
+
+    // DTLSv1_handle_timeout returns 0 when no timer expired, 1 after it resends the previous flight, and -1
+    // after too many timeouts without progress or on an error.
+    retransmitting_ = true;
+    int r0 = DTLSv1_handle_timeout(dtls_);
+    int r1 = SSL_get_error(dtls_, r0);
+    ERR_clear_error();
+    retransmitting_ = false;
+
+    // Send what OpenSSL wrote here: not before SSL_get_error and ERR_clear_error, because a send may switch to a
+    // coroutine whose OpenSSL call changes this thread's error queue; and not after the check below, because on
+    // an error the records may hold an alert the peer must get.
+    flush_dtls_data();
+
+    if (r0 != 0 && r0 != 1) {
+        return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
     }
 
     return err;
@@ -657,7 +839,11 @@ srs_error_t SrsDtlsImpl::get_peer_fingerprint(std::string algo, std::string &fin
         return srs_error_new(ERROR_RTC_DTLS, "unsupported fingerprint algo %s", algo.c_str());
     }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    X509 *cert = SSL_get1_peer_certificate(dtls_);
+#else
     X509 *cert = SSL_get_peer_certificate(dtls_);
+#endif
     if (!cert) {
         return srs_error_new(ERROR_RTC_DTLS, "no peer certificate");
     }
@@ -837,19 +1023,8 @@ srs_error_t SrsDtlsClientImpl::cycle()
             continue;
         }
 
-        // DTLSv1_handle_timeout returns 0 when no timer expired, 1 after it resends the previous flight, and -1
-        // after too many timeouts without progress or on an error.
-        r0 = DTLSv1_handle_timeout(dtls_);
-        int r1 = SSL_get_error(dtls_, r0);
-        ERR_clear_error();
-
-        // Send what OpenSSL wrote here: not before SSL_get_error and ERR_clear_error, because a send may switch to a
-        // coroutine whose OpenSSL call changes this thread's error queue; and not after the check below, because on
-        // an error the records may hold an alert the peer must get.
-        flush_dtls_data();
-
-        if (r0 != 0 && r0 != 1) {
-            return srs_error_new(ERROR_RTC_DTLS, "ARQ r0=%d, r1=%d", r0, r1);
+        if ((err = handle_timeout()) != srs_success) {
+            return err;
         }
     }
 
@@ -858,10 +1033,12 @@ srs_error_t SrsDtlsClientImpl::cycle()
 
 SrsDtlsServerImpl::SrsDtlsServerImpl(ISrsDtlsCallback *callback) : SrsDtlsImpl(callback)
 {
+    trd_ = NULL;
 }
 
 SrsDtlsServerImpl::~SrsDtlsServerImpl()
 {
+    srs_freep(trd_);
 }
 
 srs_error_t SrsDtlsServerImpl::initialize(std::string version, std::string role)
@@ -881,6 +1058,8 @@ srs_error_t SrsDtlsServerImpl::on_handshake_done()
 {
     srs_error_t err = srs_success;
 
+    srs_freep(trd_);
+
     if (((err = callback_->on_dtls_handshake_done()) != srs_success)) {
         return srs_error_wrap(err, "dtls done");
     }
@@ -893,10 +1072,59 @@ bool SrsDtlsServerImpl::is_dtls_client()
     return false;
 }
 
+// A DTLS 1.2 client drives the ARQ: it resends its flight on its timer, and the read resends the server's.
+// A DTLS 1.3 client that ACKed part of the server's flight resends nothing, and waits for the server's timer
+// to resend the rest, see RFC 9147 section 7.2.
+srs_error_t SrsDtlsServerImpl::on_dtls_read()
+{
+    srs_error_t err = srs_success;
+
+    timeval to = {0};
+    if (trd_ || handshake_done_for_us_ || !is_dtls13_server() || DTLSv1_get_timeout(dtls_, &to) != 1) {
+        return err;
+    }
+
+    trd_ = new SrsSTCoroutine("dtls", this, _srs_context->get_id());
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "arq start");
+    }
+
+    return err;
+}
+
 srs_error_t SrsDtlsServerImpl::start_arq()
 {
-    // The DTLS client drives the ARQ.
     return srs_success;
+}
+
+srs_error_t SrsDtlsServerImpl::cycle()
+{
+    srs_error_t err = srs_success;
+
+    while (!handshake_done_for_us_) {
+        if ((err = trd_->pull()) != srs_success) {
+            srs_freep(err);
+            return err;
+        }
+
+        // No timer runs once the client ACKed the whole flight, until a new flight.
+        timeval to = {0};
+        srs_utime_t timeout = 100 * SRS_UTIME_MILLISECONDS;
+        if (DTLSv1_get_timeout(dtls_, &to) == 1) {
+            timeout = srs_min(timeout, to.tv_sec * SRS_UTIME_SECONDS + to.tv_usec);
+        }
+
+        if (timeout > 0) {
+            srs_usleep(timeout);
+            continue;
+        }
+
+        if ((err = handle_timeout()) != srs_success) {
+            return srs_error_wrap(err, "arq");
+        }
+    }
+
+    return err;
 }
 
 SrsDtlsEmptyImpl::SrsDtlsEmptyImpl() : SrsDtlsImpl(NULL)
@@ -981,6 +1209,21 @@ srs_error_t SrsDtls::start_active_handshake()
 srs_error_t SrsDtls::on_dtls(char *data, int nb_data)
 {
     return impl_->on_dtls(data, nb_data);
+}
+
+void SrsDtls::enable_sped()
+{
+    impl_->enable_sped();
+}
+
+SrsSpedController *SrsDtls::sped()
+{
+    return impl_->sped();
+}
+
+srs_error_t SrsDtls::on_embedded_dtls(char *data, int nb_data)
+{
+    return impl_->on_embedded_dtls(data, nb_data);
 }
 
 srs_error_t SrsDtls::get_srtp_key(std::string &recv_key, std::string &send_key)

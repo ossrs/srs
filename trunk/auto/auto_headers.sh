@@ -93,6 +93,12 @@ else
     srs_undefine_macro "SRS_SIMULATOR" $SRS_AUTO_HEADERS_H
 fi
 
+if [[ $SRS_SSL_4 == YES ]]; then
+    srs_define_macro "SRS_SSL_4" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_SSL_4" $SRS_AUTO_HEADERS_H
+fi
+
 if [[ $SRS_HTTPS == YES ]]; then
     srs_define_macro "SRS_HTTPS" $SRS_AUTO_HEADERS_H
 else

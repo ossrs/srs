@@ -41,6 +41,12 @@ if [[ $SRS_CROSS_BUILD == YES ]]; then
     SRS_PLATFORM="${SRS_PLATFORM}-crossbuild-$(echo $SRS_TOOL_CC_NAME|awk -F - '{print $1"-"$2}')"
 fi
 
+# Use isolate cache for the bundled openssl-4, because SRT and the other libraries are built against
+# the openssl headers, so they must not be mixed with the openssl-1.1 builds.
+if [[ $SRS_SSL_4 == YES ]]; then
+    SRS_PLATFORM="${SRS_PLATFORM}-SSL4"
+fi
+
 echo "SRS_WORKDIR: ${SRS_WORKDIR}, SRS_OBJS: ${SRS_OBJS}, SRS_PLATFORM: ${SRS_PLATFORM}"
 echo "All outputs to: ${SRS_OBJS}/${SRS_PLATFORM}"
 

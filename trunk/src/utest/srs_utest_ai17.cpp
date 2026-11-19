@@ -2964,6 +2964,7 @@ MockAppConfigForRtcPlay::MockAppConfigForRtcPlay()
 {
     dtls_role_ = "passive";
     dtls_version_ = "auto";
+    sped_ = false;
     rtc_server_enabled_ = true;
     rtc_enabled_ = true;
     vhost_is_edge_ = false;
@@ -2985,6 +2986,11 @@ std::string MockAppConfigForRtcPlay::get_rtc_dtls_role(std::string vhost)
 std::string MockAppConfigForRtcPlay::get_rtc_dtls_version(std::string vhost)
 {
     return dtls_version_;
+}
+
+bool MockAppConfigForRtcPlay::get_rtc_sped(std::string vhost)
+{
+    return sped_;
 }
 
 bool MockAppConfigForRtcPlay::get_rtc_server_enabled()
@@ -3119,6 +3125,7 @@ MockRtcApiServerForPlay::~MockRtcApiServerForPlay()
 srs_error_t MockRtcApiServerForPlay::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
 {
     create_session_called_ = true;
+    session_config_ = local_sdp.session_config_;
 
     // Create a real SrsRtcConnection object for testing
     // Note: We need to pass a valid exec and cid

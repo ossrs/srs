@@ -93,6 +93,22 @@ jobs:
         run: DOCKER_BUILDKIT=1 docker build -f trunk/Dockerfile.builds --target ubuntu20-all .
     runs-on: ubuntu-22.04
 
+  # The bundled OpenSSL 4.1 build (--ssl-4=on) and its utest. It builds every dependency from source, as the
+  # image's cache holds only the default build's, and runs beside the longer test jobs.
+  utest-ssl4:
+    name: utest-openssl4
+    needs:
+      - fast
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Build with OpenSSL 4.1
+        run: DOCKER_BUILDKIT=1 docker build --tag srs:ssl4 -f trunk/Dockerfile.builds --target ubuntu20-ssl4 .
+      - name: Run SRS utest with OpenSSL 4.1
+        run: docker run --rm srs:ssl4 ./objs/srs_utest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
   build-cross-arm:
     name: build-cross-arm
     needs:
@@ -248,7 +264,7 @@ jobs:
     runs-on: ubuntu-22.04
 
   # Chrome publishes and plays over WebRTC and HTTP against SRS for Linux in Docker: the WebRTC, loss,
-  # HTTP and codec cases of the Full tier's lane I, see chrome-linux-test.sh. The unit tests of the
+  # HTTP, codec and SPED cases of the Full tier's lane I, see chrome-linux-test.sh. The unit tests of the
   # Chrome driver and of the shared helper run first. CHROME_PATH names the runner's Chrome, so a
   # runner without it fails instead of skipping the cases.
   chrome:
@@ -432,6 +448,7 @@ jobs:
       - build-ubuntu16
       - build-ubuntu18
       - build-ubuntu20
+      - utest-ssl4
       - build-cross-arm
       - build-cross-aarch64
       - multiple-arch-armv7

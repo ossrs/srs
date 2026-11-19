@@ -140,7 +140,9 @@ fi
 # Try to load cache if exists /usr/local/srs-cache
 #####################################################################################
 # Use srs-cache from base image. See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
-if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" && $SRS_BUILD_CACHE == YES ]]; then
+# The cache holds the default build's dependencies, built against OpenSSL 1.1, so a --ssl-4=on build, whose
+# OpenSSL, libsrtp and libsrt must be its own, does not use it.
+if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" && $SRS_BUILD_CACHE == YES && $SRS_SSL_4 == NO ]]; then
     SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-SRS${SRS_MAJOR}-* 2>/dev/null|head -n 1)
     if [[ -d $SOURCE_DIR ]]; then
         TARGET_DIR=${SRS_OBJS}/${SRS_PLATFORM} &&
@@ -343,7 +345,7 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         if [[ $SRS_CROSS_BUILD_ARCH == "mipsel" ]]; then OPENSSL_CONFIG="./Configure linux-mips32"; fi
     elif [[ ! -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib/libssl.a ]]; then
         # Try to use exists libraries.
-        if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO ]]; then
+        if [[ -f /usr/local/ssl/lib/libssl.a && $SRS_SSL_LOCAL == NO && $SRS_SSL_4 == NO ]]; then
             (mkdir -p  ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib && cd ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/lib &&
                 cp /usr/local/ssl/lib/libssl.a . && cp /usr/local/ssl/lib/libcrypto.a . &&
                 mkdir -p /usr/local/ssl/lib/pkgconfig && cp -rf /usr/local/ssl/lib/pkgconfig .)
@@ -374,6 +376,25 @@ if [[ $SRS_SSL == YES && $SRS_USE_SYS_SSL != YES ]]; then
         OPENSSL_AR="$SRS_TOOL_AR -r" # For openssl 1.0, MUST specifies the args for ar or build faild.
         OPENSSL_CANDIDATE="openssl-OpenSSL_1_0_2u" &&
         OPENSSL_UNZIP="tar xf ${SRS_WORKDIR}/3rdparty/$OPENSSL_CANDIDATE.tar.gz -C ${SRS_OBJS}/${SRS_PLATFORM}"
+    elif [[ $SRS_SSL_4 == YES ]]; then
+        # The fit source has no tests, and openssl-4 installs to lib64 on some 64-bit Linux without libdir.
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-tests --libdir=lib"
+        # Only what SRS, libsrtp and libsrt use, the parts the fit source keeps. Assembly stays on, as for 1.1,
+        # with -no-asm only from the Loongson and --nasm=off checks above; the fit source builds both ways.
+        # ChaCha20-Poly1305 stays for the browsers' DTLS suites, MD5 for STUN and DTLS 1.0.
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-apps no-quic no-cms no-cmp no-ts no-sm2 no-sm3 no-sm4"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-sm2-precomp no-ech no-ocsp no-http no-ct no-srp"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-aria no-bf no-camellia no-cast no-des no-idea no-md4 no-mdc2"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-rc2 no-rc4 no-seed no-whirlpool no-rmd160 no-ocb no-siv no-cmac"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-scrypt no-blake2 no-argon2 no-siphash no-gost no-dsa no-ec2m"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-slh-dsa no-ml-dsa no-krb5kdf no-sshkdf no-x942kdf no-x963kdf"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-snmpkdf no-pvkkdf no-ikev2kdf no-kbkdf no-sskdf no-hmac-drbg-kdf"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-srtpkdf no-integrity-only-ciphers no-comp no-multiblock"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-nextprotoneg no-ssl-trace no-ui-console no-legacy no-async no-dso"
+        OPENSSL_OPTIONS="$OPENSSL_OPTIONS no-rfc3779 no-winstore no-docs"
+        OPENSSL_AR="$SRS_TOOL_AR"
+        OPENSSL_CANDIDATE="openssl-4-fit" &&
+        OPENSSL_UNZIP="cp -R ${SRS_WORKDIR}/3rdparty/$OPENSSL_CANDIDATE ${SRS_OBJS}/${SRS_PLATFORM}/"
     else
         OPENSSL_AR="$SRS_TOOL_AR"
         OPENSSL_CANDIDATE="openssl-1.1-fit" &&

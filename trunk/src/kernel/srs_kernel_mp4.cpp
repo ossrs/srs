@@ -17,7 +17,7 @@
 #include <srs_kernel_utility.hpp>
 
 #include <iomanip>
-#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <sstream>
 #include <string.h>
 using namespace std;
@@ -7726,7 +7726,7 @@ SrsFmp4SegmentEncoder::SrsFmp4SegmentEncoder()
     video_samples_ = new SrsMp4SampleManager();
 
     memset(iv_, 0, 16);
-    key_ = (unsigned char *)new AES_KEY();
+    cipher_ = EVP_CIPHER_CTX_new();
     do_sample_encryption_ = false;
     video_codec_ = SrsVideoCodecIdAVC;
     nalu_length_size_ = 4;
@@ -7736,9 +7736,7 @@ SrsFmp4SegmentEncoder::~SrsFmp4SegmentEncoder()
 {
     srs_freep(audio_samples_);
     srs_freep(video_samples_);
-
-    AES_KEY *k = (AES_KEY *)key_;
-    srs_freep(k);
+    EVP_CIPHER_CTX_free(cipher_);
 }
 
 srs_error_t SrsFmp4SegmentEncoder::initialize(ISrsWriter *w, uint32_t sequence, srs_utime_t basetime, uint32_t v_tid, uint32_t a_tid)
@@ -7760,8 +7758,7 @@ srs_error_t SrsFmp4SegmentEncoder::config_cipher(unsigned char *key, unsigned ch
 
     memcpy(this->iv_, iv, 16);
 
-    AES_KEY *k = (AES_KEY *)this->key_;
-    if (AES_set_encrypt_key(key, 16 * 8, k)) {
+    if (EVP_EncryptInit_ex(cipher_, EVP_aes_128_cbc(), NULL, key, iv) != 1) {
         return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "set aes key failed");
     }
     do_sample_encryption_ = true;
@@ -7967,15 +7964,15 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
 // Encrypt the whole 16-byte blocks of data in place by AES-128-CBC, from the constant IV, crypt
 // blocks of each run of crypt+skip blocks; skip 0 encrypts every block. The partial block at the
 // end stays clear, as cbcs (ISO/IEC 23001-7) says.
-static void srs_mp4_cbcs_encrypt(AES_KEY *key, unsigned char *iv, int crypt, int skip, uint8_t *data, uint32_t size)
+static void srs_mp4_cbcs_encrypt(EVP_CIPHER_CTX *cipher, unsigned char *iv, int crypt, int skip, uint8_t *data, uint32_t size)
 {
-    unsigned char chain[16];
-    memcpy(chain, iv, 16);
+    EVP_EncryptInit_ex(cipher, NULL, NULL, NULL, iv);
 
     uint32_t blocks = size / 16;
     for (uint32_t i = 0; i < blocks; i += crypt + skip) {
         uint32_t n = srs_min((uint32_t)crypt, blocks - i);
-        AES_cbc_encrypt(data + i * 16, data + i * 16, n * 16, key, chain, AES_ENCRYPT);
+        int nb_cipher = 0;
+        EVP_EncryptUpdate(cipher, data + i * 16, &nb_cipher, data + i * 16, n * 16);
     }
 }
 
@@ -8032,7 +8029,7 @@ void SrsFmp4SegmentEncoder::encrypt_video(SrsMp4Sample *sample, SrsMp4SampleEncr
         clear += nalu_length_size_ + nalu_size - protect;
         if (protect > 0) {
             uint8_t *data = p + start + SRS_FMP4_CBCS_SLICE_CLEAR;
-            srs_mp4_cbcs_encrypt((AES_KEY *)key_, iv_, SRS_FMP4_CBCS_CRYPT_BLOCKS, SRS_FMP4_CBCS_SKIP_BLOCKS, data, protect);
+            srs_mp4_cbcs_encrypt(cipher_, iv_, SRS_FMP4_CBCS_CRYPT_BLOCKS, SRS_FMP4_CBCS_SKIP_BLOCKS, data, protect);
             srs_mp4_cbcs_subsample(entry, clear, protect);
             clear = 0;
         }
@@ -8051,5 +8048,5 @@ void SrsFmp4SegmentEncoder::encrypt_audio(SrsMp4Sample *sample, SrsMp4SampleEncr
     SrsMp4SampleEncryptionEntry *entry = new SrsMp4SampleEncryptionEntry(senc, 0);
     senc->entries_.push_back(entry);
 
-    srs_mp4_cbcs_encrypt((AES_KEY *)key_, iv_, 1, 0, sample->data_, sample->nb_data_);
+    srs_mp4_cbcs_encrypt(cipher_, iv_, 1, 0, sample->data_, sample->nb_data_);
 }

@@ -81,9 +81,10 @@ setup() {
 run_tier() {
     setup
     env PATH="$FAKE_BIN:$PATH" SRS_FULL_TIER_LOGS=$WORK/logs SRS_TEST_PORT_BASE= SRS_TEST_CHROME= "$@" \
-        bash $FAKE_SCRIPTS/srs-full-tier.sh >$OUT 2>&1
+        bash $FAKE_SCRIPTS/srs-full-tier.sh $TIER_ARGS >$OUT 2>&1
     echo $? >$WORK/code
 }
+TIER_ARGS=
 
 # The line number of the first call that starts with the text.
 at() { grep -n -m 1 -F -- "$1" $CALLS | cut -d: -f1; }
@@ -135,6 +136,9 @@ check row '^chrome-linux +0 +1 +0 '
 check row '^chrome-linux-build +0 +0 +0 '
 check grep -qx 'unverified chrome-linux: KNOWN F3 FLV of WHIP video' $OUT
 check not_called 'chrome-windows-test.sh'
+# objs already has the Full-tier flags, so there is no configure.
+check not_called 'start configure'
+check says "flags: $FLAGS"
 
 # With the Windows host: its build and run in lane G, none in Step 1; its failure fails the tier.
 run_tier SRS_TEST_OBS=1 SRS_TEST_WINDOWS_HOST=host
@@ -268,6 +272,31 @@ check test "$(cat $WORK/code)" = 1
 check called 'start srs-windows-runner.sh [--alone integ]'
 check row '^windows-utest +1 +3 +1 '
 check row '^windows-integ +0 +4 +0 '
+
+# --ssl-4: the Full-tier flags plus --ssl-4=on, so objs configured with the default flags is configured again,
+# and the lanes run as before.
+TIER_ARGS=--ssl-4
+run_tier SRS_TEST_OBS=0 SRS_TEST_WINDOWS_HOST= SRS_TEST_CHROME=0
+check test "$(cat $WORK/code)" = 0
+check grep -qxF "start configure [$FLAGS --ssl-4=on]" $CALLS
+check says "flags: $FLAGS --ssl-4=on"
+check before 'end configure [' 'start make [-j10 server]'
+check called 'start make [integ'
+check called 'start srs_utest ['
+# An unknown option is refused before the lock, with the usage.
+TIER_ARGS=--bad
+run_tier SRS_TEST_OBS=0 SRS_TEST_WINDOWS_HOST= SRS_TEST_CHROME=0
+check test "$(cat $WORK/code)" = 2
+check says 'Usage:'
+check not_called 'start make ['
+check test "$(grep -c '^lock:' $OUT)" = 0
+# Native Windows has no OpenSSL 4.1 build, so --ssl-4 is refused there.
+TIER_ARGS=--ssl-4
+run_tier SRS_TEST_OBS=0 SRS_TEST_WINDOWS_HOST= SRS_TEST_CHROME=0 STUB_UNAME=MINGW64_NT-10.0-26100
+check test "$(cat $WORK/code)" = 2
+check says 'no OpenSSL 4.1'
+check not_called 'srs-windows-runner.sh'
+TIER_ARGS=
 
 rm -rf $WORK
 echo "PASS $checks full tier regressions"

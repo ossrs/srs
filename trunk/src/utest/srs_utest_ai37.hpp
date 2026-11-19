@@ -71,6 +71,9 @@ public:
     bool last_init_dtls_;
     bool last_init_srtp_;
     std::string last_init_username_;
+    int last_drop_stun_;
+    int last_drop_dtls_;
+    int last_drop_finished_;
     SrsSharedPtr<ISrsStreamPublishToken> publish_token_;
     bool *destroyed_;
 
@@ -88,6 +91,7 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r, bool dtls, bool srtp, std::string username);
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
     virtual srs_error_t generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::string &username);
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
 };
 
 // Mock app factory that hands out the connection the test prepared.

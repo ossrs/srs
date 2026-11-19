@@ -85,7 +85,10 @@ test('resolveLocation turns the WHIP answer Location into an absolute URL', () =
 
 function playerStats() {
   return [
-    { id: 'T', type: 'transport', selectedCandidatePairId: 'CP1' },
+    {
+      id: 'T', type: 'transport', selectedCandidatePairId: 'CP1', dtlsState: 'connected', tlsVersion: 'FEFC',
+      dtlsCipher: 'TLS_AES_128_GCM_SHA256', srtpCipher: 'AES_CM_128_HMAC_SHA1_80', dtlsRole: 'client',
+    },
     { id: 'CP0', type: 'candidate-pair', state: 'failed', nominated: false, currentRoundTripTime: 9 },
     { id: 'CP1', type: 'candidate-pair', state: 'succeeded', nominated: true, currentRoundTripTime: 0.001 },
     { id: 'CV', type: 'codec', mimeType: 'video/H264' },
@@ -116,6 +119,21 @@ test('summarizeStats picks the play-side fields and reads absent RTX counters as
   assert.strictEqual(s.outboundVideo, null);
   assert.strictEqual(s.outboundAudio, null);
   assert.deepStrictEqual(s.pair, { state: 'succeeded', nominated: true, currentRoundTripTime: 0.001 });
+  // FEFC is DTLS 1.3, FEFD DTLS 1.2.
+  assert.deepStrictEqual(s.dtls, {
+    dtlsState: 'connected', tlsVersion: 'FEFC', dtlsCipher: 'TLS_AES_128_GCM_SHA256',
+    srtpCipher: 'AES_CM_128_HMAC_SHA1_80', dtlsRole: 'client',
+  });
+});
+
+test('summarizeStats has DTLS fields as null until the handshake reports them', () => {
+  const s = page.summarizeStats([
+    { id: 'T', type: 'transport', selectedCandidatePairId: 'CP', dtlsState: 'connecting' },
+    { id: 'CP', type: 'candidate-pair', state: 'succeeded', nominated: true, currentRoundTripTime: 0 },
+  ]);
+  assert.deepStrictEqual(s.dtls, {
+    dtlsState: 'connecting', tlsVersion: null, dtlsCipher: null, srtpCipher: null, dtlsRole: null,
+  });
 });
 
 test('summarizeStats picks the publish-side fields', () => {
@@ -144,6 +162,21 @@ test('summarizeStats picks the publish-side fields', () => {
 test('summarizeStats has no pair before ICE succeeds', () => {
   const s = page.summarizeStats([{ id: 'CP', type: 'candidate-pair', state: 'in-progress', nominated: false }]);
   assert.strictEqual(s.pair, null);
+  assert.strictEqual(s.dtls, null);
+});
+
+test('setupTimes counts from setRemoteDescription to connected and to the first frame', () => {
+  const events = [
+    { t: 10, name: 'signaling' }, { t: 40, name: 'remote-description' }, { t: 45, name: 'pc', detail: 'connecting' },
+    { t: 52, name: 'pc', detail: 'connected' }, { t: 52, name: 'connected' }, { t: 90, name: 'first-frame' },
+    { t: 95, name: 'playing' }, { t: 3000, name: 'connected' }, { t: 3100, name: 'first-frame' },
+  ];
+  assert.deepStrictEqual(page.setupTimes(events), { connectedMs: 12, firstFrameMs: 50 });
+  // A publisher has no frame; a page that failed before the answer has neither.
+  assert.deepStrictEqual(page.setupTimes(events.slice(0, 5)), { connectedMs: 12, firstFrameMs: null });
+  assert.deepStrictEqual(page.setupTimes([{ t: 10, name: 'signaling' }, { t: 20, name: 'error', detail: 'x' }]),
+    { connectedMs: null, firstFrameMs: null });
+  assert.deepStrictEqual(page.setupTimes([]), { connectedMs: null, firstFrameMs: null });
 });
 
 test('summarizeMedia reads the HTTP player element', () => {
@@ -178,6 +211,11 @@ function startStub() {
         return;
       }
       seen.push({ method: req.method, url: req.url, type: req.headers['content-type'], body });
+      if (req.method === 'POST' && req.url.includes('stream=bad-answer')) {
+        res.writeHead(201, { 'Content-Type': 'application/sdp' });
+        res.end('stub: not an SDP');
+        return;
+      }
       if (req.method === 'POST') {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('stub: stream not found');
@@ -258,6 +296,14 @@ test('the page in Chrome reports a clear error when the server refuses or is mis
       assert.ok(first, 'no sample in 3 s');
       assert.strictEqual(typeof first.t, 'number');
       assert.ok(Math.abs(first.at - before) < 5000, `at ${first.at}, now ${before}`);
+    });
+
+    await t.test('WHEP marks when it sets the answer, which the setup times count from', async () => {
+      const tab = await open(`mode=whep&url=${stubUrl('/rtc/v1/whep/?app=live&stream=bad-answer')}`);
+      const st = await waitState(tab, ['error'], 10000);
+      assert.strictEqual(st.state, 'error', JSON.stringify(st));
+      const names = await tab.evaluate(() => window.srsTest.events.map((e) => e.name));
+      assert.deepStrictEqual(names.slice(-3), ['signaling', 'remote-description', 'error'], JSON.stringify(names));
     });
 
     await t.test('WHIP prefers the codec and names it in the URL', async () => {

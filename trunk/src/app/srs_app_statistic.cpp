@@ -10,6 +10,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_rtc_sped.hpp>
 #include <srs_protocol_conn.hpp>
 
 #include <srs_app_utility.hpp>
@@ -292,6 +293,15 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
 
     okbps->set("recv_30s", SrsJsonAny::integer(kbps_->get_recv_kbps_30s()));
     okbps->set("send_30s", SrsJsonAny::integer(kbps_->get_send_kbps_30s()));
+
+    // An RTC session that negotiated SPED reports it.
+    ISrsSpedSource *source = dynamic_cast<ISrsSpedSource *>(conn_);
+    SrsSpedController *sped = source ? source->sped() : NULL;
+    if (sped) {
+        SrsJsonObject *osped = SrsJsonAny::object();
+        obj->set("sped", osped);
+        sped->dumps(osped);
+    }
 
     return err;
 }
