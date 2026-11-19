@@ -19,7 +19,8 @@ Commands:
   probe [flags] <url>    Read a stream or an FLV file and print its stream report; -h for its flags.
   publish <file> <url>   Publish a media file in real time.
   prepare [flags]        Make the test media from doc/source.flv; -h for its flags.
-  help                   Print this help.
+  measure [flags] <url>  Time WebRTC setup with and without SPED; -h for its flags.
+  help                  Print this help.
 `
 
 func main() {
@@ -42,6 +43,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return probe(rest, stdout, stderr)
 	case "prepare":
 		return prepare(rest, stdout, stderr)
+	case "measure":
+		return measure(rest, stdout, stderr)
 	case "publish":
 		if len(rest) != 2 {
 			fmt.Fprintln(stderr, "Usage: srs-integ publish <file> <url>")

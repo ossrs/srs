@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_app_coworkers.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
@@ -680,14 +681,17 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 #endif
 #ifdef SRS_SIMULATOR
     features->set("simulator", SrsJsonAny::boolean(true));
+    features->set("handshake_drop", SrsJsonAny::boolean(true));
 #else
     features->set("simulator", SrsJsonAny::boolean(false));
+    features->set("handshake_drop", SrsJsonAny::boolean(false));
 #endif
 #ifdef SRS_SANITIZER
     features->set("sanitizer", SrsJsonAny::boolean(true));
 #else
     features->set("sanitizer", SrsJsonAny::boolean(false));
 #endif
+    features->set("dtls13", SrsJsonAny::boolean(srs_dtls_version13_supported()));
 
     return srs_api_response(w, r, obj->dumps());
 }

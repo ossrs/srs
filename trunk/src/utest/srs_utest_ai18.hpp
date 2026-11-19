@@ -396,6 +396,7 @@ public:
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token);
     virtual void simulate_drop_packet(bool v, int nn);
     virtual void simulate_nack_drop(int nn);
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
     virtual srs_error_t generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::string &username);
 };
 
@@ -457,6 +458,7 @@ public:
     virtual srs_error_t protect_rtp(void *packet, int *nb_cipher);
     virtual srs_error_t protect_rtcp(void *packet, int *nb_cipher);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 

@@ -31,11 +31,27 @@ test('parseArgs reads find-browser', () => {
 
 test('parseArgs reads launch --probe with its options', () => {
   assert.deepStrictEqual(chrome.parseArgs(['launch', '--probe']), {
-    command: 'launch', probe: true, headed: false, logDir: null,
+    command: 'launch', probe: true, headed: false, logDir: null, extraFlags: [],
   });
   assert.deepStrictEqual(chrome.parseArgs(['launch', '--probe', '--headed', '--log-dir', '/tmp/x']), {
-    command: 'launch', probe: true, headed: true, logDir: '/tmp/x',
+    command: 'launch', probe: true, headed: true, logDir: '/tmp/x', extraFlags: [],
   });
+});
+
+test('parseArgs reads --extra-chrome-flags as space-separated flags, and adds up repeats', () => {
+  const trial = '--force-fieldtrials=WebRTC-IceHandshakeDtls/Enabled/';
+  assert.deepStrictEqual(chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags', trial]).extraFlags, [trial]);
+  assert.deepStrictEqual(chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags', ` ${trial}  --v=1 `,
+    '--extra-chrome-flags', '--enable-logging=stderr']).extraFlags, [trial, '--v=1', '--enable-logging=stderr']);
+});
+
+test('parseArgs refuses extra flags that are not flags or that break the isolation', () => {
+  assert.throws(() => chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags']), /--extra-chrome-flags needs/);
+  assert.throws(() => chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags', '  ']), /--extra-chrome-flags needs/);
+  assert.throws(() => chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags', 'about:blank']), /not a flag: about:blank/);
+  for (const flag of ['--remote-debugging-port=9222', '--remote-debugging-pipe', '--user-data-dir=/tmp/p']) {
+    assert.throws(() => chrome.parseArgs(['launch', '--probe', '--extra-chrome-flags', flag]), new RegExp(`not allowed: ${flag}`));
+  }
 });
 
 test('parseArgs rejects what it does not know', () => {
@@ -127,6 +143,13 @@ test('launch options isolate the browser and fake its media', () => {
   assert.strictEqual(chrome.launchOptions({ executablePath: '/b', userDataDir: '/p', headed: true }).headless, false);
 });
 
+test('launch options end with the extra flags', () => {
+  const trial = '--force-fieldtrials=WebRTC-IceHandshakeDtls/Enabled/';
+  const o = chrome.launchOptions({ executablePath: '/b', userDataDir: '/p', headed: false, extraFlags: [trial] });
+  assert.strictEqual(o.args[o.args.length - 1], trial);
+  assert.ok(o.args.includes('--use-fake-device-for-media-stream'), o.args.join(' '));
+});
+
 test('launch options add loopback candidates only when asked', () => {
   const o = chrome.launchOptions({ executablePath: '/b', userDataDir: '/p', headed: false, allowLoopback: true });
   assert.ok(o.args.includes('--allow-loopback-in-peer-connection'), o.args.join(' '));
@@ -142,7 +165,12 @@ function fakeBrowser(opts = {}) {
     process: () => proc,
     newPage: async () => {
       state.pages += 1;
-      return { evaluate: async () => (opts.codecs || ['video/H264', 'video/VP9', 'video/AV1']) };
+      return {
+        evaluate: async () => ({
+          codecs: opts.codecs || ['video/H264', 'video/VP9', 'video/AV1'],
+          iceOptions: opts.iceOptions === undefined ? 'trickle' : opts.iceOptions,
+        }),
+      };
     },
     close: () => (opts.hangOnClose ? new Promise(() => {}) : Promise.resolve().then(() => { state.closed = true; })),
   };
@@ -203,6 +231,22 @@ test('launch --probe reports the browser, closes it and removes its temporary pr
   const text = c.lines.out.join('\n');
   assert.match(text, /^PASS launch .*Chrome\/156\.0\.0\.0.*pid 4242/m);
   assert.match(text, /video\/H264/);
+  assert.match(text, /^offer ice-options: trickle$/m);
+});
+
+test('launch --probe passes the extra flags and prints the offer\'s ice-options, or none', async () => {
+  const trial = '--force-fieldtrials=WebRTC-IceHandshakeDtls/Enabled/';
+  for (const [iceOptions, line] of [['trickle sped', 'trickle sped'], [null, 'none']]) {
+    const c = capture();
+    const seen = {};
+    const code = await chrome.main(['launch', '--probe', '--extra-chrome-flags', trial], {
+      platform: 'linux', env: {}, exists: existsIn(['/usr/bin/chromium']), out: c.out, err: c.err,
+      puppeteer: fakePuppeteer(fakeBrowser({ iceOptions }), seen),
+    });
+    assert.strictEqual(code, 0, c.lines.err.join('\n'));
+    assert.strictEqual(seen.options.args[seen.options.args.length - 1], trial);
+    assert.match(c.lines.out.join('\n'), new RegExp(`^offer ice-options: ${line}$`, 'm'));
+  }
 });
 
 test('launch --probe keeps the profile under --log-dir', async () => {
@@ -279,6 +323,7 @@ test('the command line probes the installed browser', (t) => {
   assert.strictEqual(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /^PASS launch /m);
   assert.match(r.stdout, /video\/H264/);
+  assert.match(r.stdout, /^offer ice-options: /m);
 });
 
 test('parseArgs reads serve with its port and host', () => {

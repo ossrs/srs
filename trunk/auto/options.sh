@@ -20,6 +20,7 @@ SRS_STREAM_CASTER=YES
 SRS_INGEST=YES
 SRS_SSL=YES
 SRS_SSL_1_0=NO
+SRS_SSL_4=NO
 SRS_SSL_LOCAL=NO
 SRS_HTTPS=YES
 SRS_STAT=YES
@@ -222,6 +223,7 @@ Cross Build options:        @see https://ossrs.net/lts/zh-cn/docs/v7/doc/arm#ubu
 Experts:
   --sys-ssl=on|off          Do not compile ssl, use system ssl(-lssl) if required. Default: $(value2switch $SRS_USE_SYS_SSL)
   --ssl-1-0=on|off          Whether use openssl-1.0.*. Default: $(value2switch $SRS_SSL_1_0)
+  --ssl-4=on|off            Whether use the bundled openssl-4, which has DTLS 1.3. Default: $(value2switch $SRS_SSL_4)
   --ssl-local=on|off        Whether use local openssl, not system even exists. Default: $(value2switch $SRS_SSL_LOCAL)
   --shared-st=on|off        Use shared libraries for ST which is MPL license. Default: $(value2switch $SRS_SHARED_ST)
   --shared-srt=on|off       Use shared libraries for SRT which is MPL license. Default: $(value2switch $SRS_SHARED_SRT)
@@ -337,6 +339,7 @@ function parse_user_option() {
         --ssl)                          SRS_SSL=$(switch2value $value) ;;
         --https)                        SRS_HTTPS=$(switch2value $value) ;;
         --ssl-1-0)                      SRS_SSL_1_0=$(switch2value $value) ;;
+        --ssl-4)                        SRS_SSL_4=$(switch2value $value) ;;
         --ssl-local)                    SRS_SSL_LOCAL=$(switch2value $value) ;;
         --transcode)                    SRS_TRANSCODE=$(switch2value $value) ;;
         --ingest)                       SRS_INGEST=$(switch2value $value) ;;
@@ -660,6 +663,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=$(value2switch $SRS_SSL)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=$(value2switch $SRS_HTTPS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-1-0=$(value2switch $SRS_SSL_1_0)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-4=$(value2switch $SRS_SSL_4)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl-local=$(value2switch $SRS_SSL_LOCAL)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ssl=$(value2switch $SRS_USE_SYS_SSL)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --transcode=$(value2switch $SRS_TRANSCODE)"
@@ -754,6 +758,8 @@ function check_option_conflicts() {
 
     __check_ok=YES
     # check conflict
+    if [[ $SRS_SSL_4 == YES && $SRS_SSL_1_0 == YES ]]; then echo "ssl-4 not compatible with ssl-1-0, see: ./configure --help"; __check_ok=NO; fi
+    if [[ $SRS_SSL_4 == YES && $SRS_USE_SYS_SSL == YES ]]; then echo "ssl-4 not compatible with sys-ssl, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_GPERF == NO ]]; then
         if [[ $SRS_GPERF_MC == YES ]]; then echo "gperf-mc depends on gperf, see: ./configure --help"; __check_ok=NO; fi
         if [[ $SRS_GPERF_MD == YES ]]; then echo "gperf-md depends on gperf, see: ./configure --help"; __check_ok=NO; fi

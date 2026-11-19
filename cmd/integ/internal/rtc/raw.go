@@ -50,6 +50,11 @@ type RawSession struct {
 	dconn  *dtls.Conn
 	srtp   *srtpPair
 	cert   tls.Certificate
+	// link is the session's side of SPED, nil without it.
+	link *spedLink
+	// posted is when the offer was posted.
+	posted time.Time
+	setup  SetupTimes
 }
 
 // WriteRaw sends b to the server as it is, with no SRTP.
@@ -103,6 +108,9 @@ func rawConnect(ctx context.Context, url string, opts *Options, publish, withDTL
 	if offer, err = withFingerprint(offer, cert); err != nil {
 		return nil, err
 	}
+	if opts != nil && opts.SPED && withDTLS {
+		offer = withIceOption(offer, "sped")
+	}
 	s := &RawSession{Session: Session{Offer: withSetup(offer, opts.setup()), opts: opts}, cert: cert}
 	if err := s.connect(ctx, url, withDTLS); err != nil {
 		s.Close()
@@ -116,17 +124,26 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 	if s.offer, err = parseAnswer(s.Offer); err != nil {
 		return fmt.Errorf("offer: %w", err)
 	}
+	s.posted = time.Now()
 	if err := s.post(ctx, url); err != nil {
 		return err
 	}
+	s.setup.Answer = time.Since(s.posted)
 	if s.answer, err = parseAnswer(s.Answer); err != nil {
 		return fmt.Errorf("answer: %w", err)
+	}
+	// SPED is on only when both the offer and the answer have it.
+	if withDTLS && s.opts != nil && s.opts.SPED && s.answer.sped {
+		s.link = newSpedLink(func(b []byte) (int, error) { return s.conn.Write(b) }, false)
 	}
 	if err := s.dial(ctx); err != nil {
 		return err
 	}
-	if _, err := s.bind(ctx); err != nil {
-		return err
+	// With SPED, the checks go on during the handshake and carry it.
+	if s.link == nil {
+		if _, err := s.bind(ctx); err != nil {
+			return err
+		}
 	}
 	if !withDTLS {
 		return nil
@@ -138,18 +155,27 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 		ClientAuth:             dtls.RequireAnyClientCert,
 		SRTPProtectionProfiles: []dtls.SRTPProtectionProfile{dtls.SRTP_AES128_CM_HMAC_SHA1_80},
 	}
+	pc := s.mux.packetConn()
+	if s.link != nil {
+		cfg.MTU, pc = spedMTU, s.mux.spedPacketConn(s.link)
+		go s.spedChecks()
+	}
 	// The server is passive unless its answer says active.
 	isClient := !strings.Contains(s.Answer, "a=setup:active")
 	if isClient {
-		s.dconn, err = dtls.Client(s.mux.packetConn(), s.conn.RemoteAddr(), cfg)
+		s.dconn, err = dtls.Client(pc, s.conn.RemoteAddr(), cfg)
 	} else {
-		s.dconn, err = dtls.Server(s.mux.packetConn(), s.conn.RemoteAddr(), cfg)
+		s.dconn, err = dtls.Server(pc, s.conn.RemoteAddr(), cfg)
 	}
 	if err != nil {
 		return err
 	}
 	if err := s.dconn.HandshakeContext(ctx); err != nil {
 		return fmt.Errorf("DTLS handshake: %w", err)
+	}
+	s.setup.DTLS = time.Since(s.posted)
+	if s.link != nil {
+		s.link.handshakeDone()
 	}
 	s.DTLS = true
 	if s.opts != nil && s.opts.SRTP {
@@ -161,13 +187,17 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 }
 
 // bind sends a STUN binding request every 50ms until the server answers
-// it, and returns the answer; ErrClosed when the connection closes first.
+// one of them, and returns the answer; ErrClosed when the connection closes
+// first. On a path whose round trip is longer than 50ms, the answer comes
+// after the next request is sent.
 func (s *RawSession) bind(ctx context.Context) (*stun.Message, error) {
+	sent := map[[stun.TransactionIDSize]byte]bool{}
 	for {
 		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, s.opts)
 		if err != nil {
 			return nil, err
 		}
+		sent[req.TransactionID] = true
 		if _, err := s.conn.Write(req.Raw); err != nil {
 			return nil, err
 		}
@@ -177,7 +207,7 @@ func (s *RawSession) bind(ctx context.Context) (*stun.Message, error) {
 			select {
 			case p := <-s.mux.stun:
 				res := &stun.Message{Raw: p}
-				if res.Decode() == nil && res.Type == stun.BindingSuccess && res.TransactionID == req.TransactionID {
+				if res.Decode() == nil && res.Type == stun.BindingSuccess && sent[res.TransactionID] {
 					timeout.Stop()
 					return res, nil
 				}
@@ -371,6 +401,10 @@ func (p *RawPublisher) Send(ctx context.Context, samples []Sample, pacer *rtmp.P
 type RawPlayer struct {
 	RawSession
 	*analysis
+
+	// first is closed when the first packet came, at firstAt.
+	first   chan struct{}
+	firstAt time.Duration
 }
 
 // RawPlay connects a raw player by WHEP to url, with a DTLS handshake when
@@ -381,7 +415,7 @@ func RawPlay(ctx context.Context, url string, opts *Options, withDTLS bool) (*Ra
 	if err != nil {
 		return nil, err
 	}
-	p := &RawPlayer{RawSession: *s, analysis: newAnalysis()}
+	p := &RawPlayer{RawSession: *s, analysis: newAnalysis(), first: make(chan struct{})}
 	go p.readRTP()
 	return p, nil
 }
@@ -408,6 +442,10 @@ func (p *RawPlayer) readRTP() {
 		}
 		for _, m := range p.answer.medias {
 			if c, ok := m.codecs[pkt.PayloadType]; ok && (c.name == "h264" || c.name == "opus") {
+				if p.firstAt == 0 {
+					p.firstAt = time.Since(p.posted)
+					close(p.first)
+				}
 				p.add(c.name, c.rate, &pkt)
 				break
 			}
@@ -437,9 +475,11 @@ func (p *RawPlayer) RequestKeyframe() error {
 }
 
 // An answerInfo is what a raw session needs of an SDP: the ICE credentials,
-// the UDP and the TCP candidates, and each media section.
+// whether an a=ice-options line has sped, the UDP and the TCP candidates,
+// and each media section.
 type answerInfo struct {
 	ufrag, pwd    string
+	sped          bool
 	candidates    []netip.AddrPort
 	tcpCandidates []netip.AddrPort
 	medias        []answerMedia
@@ -487,6 +527,8 @@ func parseAnswer(sdp string) (*answerInfo, error) {
 			if a.pwd == "" {
 				a.pwd = value
 			}
+		case "ice-options":
+			a.sped = a.sped || hasToken(value, "sped")
 		case "candidate":
 			// foundation component transport priority address port typ type
 			f := strings.Fields(value)
@@ -539,8 +581,8 @@ func parseAnswer(sdp string) (*answerInfo, error) {
 // bindingRequest is a STUN binding request to the server, as an ICE
 // controlling agent that nominates the pair, or one that only checks it with
 // opts.NoNominate, or as a controlled one with opts.Controlled, which doesn't
-// nominate either.
-func bindingRequest(serverUfrag, clientUfrag, serverPwd string, opts *Options) (*stun.Message, error) {
+// nominate either. extra adds attributes before MESSAGE-INTEGRITY.
+func bindingRequest(serverUfrag, clientUfrag, serverPwd string, opts *Options, extra ...stun.Setter) (*stun.Message, error) {
 	var b [8]byte
 	rand.Read(b[:])
 	tie := binary.BigEndian.Uint64(b[:])
@@ -553,6 +595,7 @@ func bindingRequest(serverUfrag, clientUfrag, serverPwd string, opts *Options) (
 	default:
 		setters = append(setters, ice.AttrControlling(tie), ice.PriorityAttr(2130706431), ice.UseCandidate())
 	}
+	setters = append(setters, extra...)
 	return stun.Build(append(setters, stun.NewShortTermIntegrity(serverPwd), stun.Fingerprint)...)
 }
 
@@ -624,9 +667,12 @@ func (m *mux) packetConn() net.PacketConn {
 	return &dtlsConn{m: m, closed: make(chan struct{}), changed: make(chan struct{})}
 }
 
-// A dtlsConn reads the DTLS packets of a mux and writes to its connection.
+// A dtlsConn reads the DTLS packets of a mux and writes to its connection,
+// or, with a SPED link, also reads the link's embedded packets, tells it of
+// each raw one, and writes through it.
 type dtlsConn struct {
 	m      *mux
+	link   *spedLink
 	once   sync.Once
 	closed chan struct{}
 
@@ -664,8 +710,17 @@ func (c *dtlsConn) ReadFrom(b []byte) (int, net.Addr, error) {
 // wait reads one DTLS packet, unless the deadline passes, changes, or the
 // connection closes; again tells that the deadline changed.
 func (c *dtlsConn) wait(b []byte, timeout <-chan time.Time, changed chan struct{}) (int, net.Addr, error, bool) {
+	var embedded chan []byte
+	if c.link != nil {
+		embedded = c.link.in
+	}
 	select {
 	case p := <-c.m.dtls:
+		if c.link != nil {
+			c.link.received(p, false)
+		}
+		return copy(b, p), c.m.conn.RemoteAddr(), nil, false
+	case p := <-embedded:
 		return copy(b, p), c.m.conn.RemoteAddr(), nil, false
 	case <-timeout:
 		return 0, nil, os.ErrDeadlineExceeded, false
@@ -678,7 +733,12 @@ func (c *dtlsConn) wait(b []byte, timeout <-chan time.Time, changed chan struct{
 	}
 }
 
-func (c *dtlsConn) WriteTo(b []byte, _ net.Addr) (int, error) { return c.m.conn.Write(b) }
+func (c *dtlsConn) WriteTo(b []byte, _ net.Addr) (int, error) {
+	if c.link != nil {
+		return c.link.write(b)
+	}
+	return c.m.conn.Write(b)
+}
 
 func (c *dtlsConn) Close() error {
 	c.once.Do(func() { close(c.closed) })

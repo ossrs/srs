@@ -30,6 +30,7 @@ test('parseArgs reads run jobs, each option after its --mode', () => {
   assert.strictEqual(o.pagePort, 0);
   assert.strictEqual(o.internals, null);
   assert.strictEqual(o.allowLoopback, false);
+  assert.deepStrictEqual(o.extraFlags, []);
 });
 
 test('parseArgs reads --allow-loopback for the run', () => {
@@ -248,7 +249,7 @@ function fakeSrsTest(script, q, log) {
   const mode = q.get('mode');
   const t = {
     mode, url: q.get('url'), codec: q.get('codec'), error: null, location: script.location || null,
-    events: [], samples: [],
+    events: (script.events || []).slice(), samples: [],
     stop: async () => {
       log.push({ at: Date.now(), what: 'stop', mode, url: t.url });
       sample();
@@ -319,6 +320,16 @@ test('run --allow-loopback launches the browser with loopback candidates', async
   assert.ok(r.fake.state.options.args.includes('--allow-loopback-in-peer-connection'), r.fake.state.options.args.join(' '));
 });
 
+test('run --extra-chrome-flags launches the browser with those flags last', async () => {
+  const trial = '--force-fieldtrials=WebRTC-IceHandshakeDtls/Enabled/';
+  const r = await runFake(['--mode', 'whep', '--url', WHEP, '--seconds', '1', '--extra-chrome-flags', trial], {
+    whep: { readyMs: 20, rate: 20 },
+  });
+  assert.strictEqual(r.code, 0, r.text);
+  const { args } = r.fake.state.options;
+  assert.strictEqual(args[args.length - 1], trial);
+});
+
 test('run prints the WHIP or WHEP resource of each ready job, so the caller can find its session', async () => {
   const loc = 'http://127.0.0.1:1985/rtc/v1/whip/?action=delete&token=t1&app=live&stream=s&session=ab12:cd34';
   const r = await runFake(['--mode', 'whep', '--url', WHEP, '--mode', 'flv', '--url', 'http://127.0.0.1:8080/live/s.flv', '--seconds', '1'], {
@@ -372,6 +383,23 @@ test('run publishes, then plays, samples, stops players first and writes the sta
     assert.ok(whip.readyMs >= 30, String(whip.readyMs));
     assert.ok(whip.samples.length >= 1);
     assert.ok(stats.jobs[1].samples.at(-1).inboundVideo.framesDecoded > 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('run writes each job setup times from its page events', async () => {
+  const dir = tmpDir();
+  try {
+    const out = path.join(dir, 'stats.json');
+    const r = await runFake(['--mode', 'whip', '--url', WHIP, '--mode', 'whep', '--url', WHEP, '--seconds', '1', '--out', out], {
+      whip: { readyMs: 20, rate: 20, events: [{ t: 5, name: 'remote-description' }, { t: 12, name: 'connected' }] },
+      whep: { readyMs: 20, rate: 20, events: [{ t: 3, name: 'remote-description' }, { t: 9, name: 'connected' }, { t: 30, name: 'first-frame' }] },
+    });
+    assert.strictEqual(r.code, 0, r.text);
+    const stats = JSON.parse(fs.readFileSync(out, 'utf8'));
+    assert.deepStrictEqual(stats.jobs.map((j) => [j.name, j.setup]), [
+      ['whip', { connectedMs: 7, firstFrameMs: null }], ['whep', { connectedMs: 6, firstFrameMs: 27 }]]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

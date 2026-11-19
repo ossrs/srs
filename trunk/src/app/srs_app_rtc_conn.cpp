@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_app_rtc_network.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_sped.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_srt_source.hpp>
@@ -101,10 +102,20 @@ SrsSecurityTransport::~SrsSecurityTransport()
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig *cfg)
 {
+    srs_error_t err = srs_success;
+
     remote_fingerprint_algo_ = cfg->remote_fingerprint_algo_;
     remote_fingerprint_ = cfg->remote_fingerprint_;
 
-    return dtls_->initialize(cfg->dtls_role_, cfg->dtls_version_);
+    if ((err = dtls_->initialize(cfg->dtls_role_, cfg->dtls_version_)) != srs_success) {
+        return srs_error_wrap(err, "dtls");
+    }
+
+    if (cfg->sped_) {
+        dtls_->enable_sped();
+    }
+
+    return err;
 }
 
 srs_error_t SrsSecurityTransport::start_active_handshake()
@@ -139,6 +150,16 @@ srs_error_t SrsSecurityTransport::on_dtls(char *data, int nb_data)
 srs_error_t SrsSecurityTransport::on_dtls_alert(std::string type, std::string desc)
 {
     return network_->on_dtls_alert(type, desc);
+}
+
+SrsSpedController *SrsSecurityTransport::sped()
+{
+    return dtls_->sped();
+}
+
+srs_error_t SrsSecurityTransport::on_embedded_dtls(char *data, int nb_data)
+{
+    return dtls_->on_embedded_dtls(data, nb_data);
 }
 
 srs_error_t SrsSecurityTransport::on_dtls_handshake_done()
@@ -227,12 +248,36 @@ srs_error_t SrsSecurityTransport::protect_rtcp(void *packet, int *nb_cipher)
 
 srs_error_t SrsSecurityTransport::unprotect_rtp(void *packet, int *nb_plaintext)
 {
-    return srtp_->unprotect_rtp(packet, nb_plaintext);
+    srs_error_t err = srs_success;
+
+    if ((err = srtp_->unprotect_rtp(packet, nb_plaintext)) != srs_success) {
+        return err;
+    }
+
+    on_srtp_received();
+    return err;
 }
 
 srs_error_t SrsSecurityTransport::unprotect_rtcp(void *packet, int *nb_plaintext)
 {
-    return srtp_->unprotect_rtcp(packet, nb_plaintext);
+    srs_error_t err = srs_success;
+
+    if ((err = srtp_->unprotect_rtcp(packet, nb_plaintext)) != srs_success) {
+        return err;
+    }
+
+    on_srtp_received();
+    return err;
+}
+
+void SrsSecurityTransport::on_srtp_received()
+{
+    // A packet that decrypts proves the peer has finished DTLS, so SPED needs no more ACK of the
+    // last flight, even when the check carrying it is lost.
+    SrsSpedController *sped = dtls_->sped();
+    if (sped) {
+        sped->on_srtp_received();
+    }
 }
 
 SrsSemiSecurityTransport::SrsSemiSecurityTransport(ISrsRtcNetwork *s) : SrsSecurityTransport(s)
@@ -288,6 +333,16 @@ srs_error_t SrsPlaintextTransport::on_dtls(char *data, int nb_data)
 }
 
 srs_error_t SrsPlaintextTransport::on_dtls_alert(std::string type, std::string desc)
+{
+    return srs_success;
+}
+
+SrsSpedController *SrsPlaintextTransport::sped()
+{
+    return NULL;
+}
+
+srs_error_t SrsPlaintextTransport::on_embedded_dtls(char *data, int nb_data)
 {
     return srs_success;
 }
@@ -2260,6 +2315,7 @@ SrsRtcConnection::SrsRtcConnection(ISrsExecRtcAsyncTask *exec, const SrsContextI
     last_stun_time_ = 0;
     session_timeout_ = 0;
     disposing_ = false;
+    players_wait_sped_ = false;
 
     twcc_id_ = 0;
     nn_simulate_nack_drop_player_ = 0;
@@ -2619,6 +2675,11 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
     local_sdp.session_negotiate_.remote_fingerprint_algo_ = ruc->remote_sdp_.get_fingerprint_algo();
     local_sdp.session_negotiate_.remote_fingerprint_ = ruc->remote_sdp_.get_fingerprint();
 
+    local_sdp.session_negotiate_.sped_ = local_sdp.session_config_.sped_ && ruc->remote_sdp_.has_ice_option("sped");
+    if (local_sdp.session_negotiate_.sped_) {
+        local_sdp.session_info_.ice_options_ = "sped";
+    }
+
     return err;
 }
 
@@ -2635,6 +2696,15 @@ srs_error_t SrsRtcConnection::initialize(ISrsRequest *r, bool dtls, bool srtp, s
         return srs_error_wrap(err, "init");
     }
 
+    SrsSpedController *udp_sped = networks_->udp()->sped();
+    if (udp_sped) {
+        udp_sped->set_handler(this);
+    }
+    SrsSpedController *tcp_sped = networks_->tcp()->sped();
+    if (tcp_sped) {
+        tcp_sped->set_handler(this);
+    }
+
     // TODO: FIXME: Support reload.
     session_timeout_ = config_->get_rtc_stun_timeout(req_->vhost_);
     last_stun_time_ = srs_time_now_cached();
@@ -2645,9 +2715,9 @@ srs_error_t SrsRtcConnection::initialize(ISrsRequest *r, bool dtls, bool srtp, s
         return srs_error_wrap(err, "initialize timer nack");
     }
 
-    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms, nack=%d",
+    srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), sped=%d, timeout=%dms, nack=%d",
               username.c_str(), r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role_.c_str(), cfg->dtls_version_.c_str(),
-              srsu2msi(session_timeout_), nack_enabled_);
+              cfg->sped_, srsu2msi(session_timeout_), nack_enabled_);
 
     return err;
 }
@@ -2859,6 +2929,21 @@ srs_error_t SrsRtcConnection::start_streams()
         }
     }
 
+    // A client drops SRTP until its DTLS is done, so a player whose client may not be done yet starts when
+    // SPED is complete, on the client's proof that it is done.
+    players_wait_sped_ = !players_.empty() && sped_waits_for_peer();
+    if (players_wait_sped_) {
+        srs_trace("RTC: session sub=%u wait for SPED complete", players_.size());
+        return err;
+    }
+
+    return start_players();
+}
+
+srs_error_t SrsRtcConnection::start_players()
+{
+    srs_error_t err = srs_success;
+
     for (map<string, ISrsRtcPlayStream *>::iterator it = players_.begin(); it != players_.end(); ++it) {
         string url = it->first;
         ISrsRtcPlayStream *player = it->second;
@@ -2913,6 +2998,42 @@ ISrsRtcNetwork *SrsRtcConnection::udp()
 ISrsRtcNetwork *SrsRtcConnection::tcp()
 {
     return networks_->tcp();
+}
+
+SrsSpedController *SrsRtcConnection::sped()
+{
+    // Each network has its own DTLS, and the client checks on the one it uses, so report TCP
+    // once the client has shown SPED there, and UDP otherwise.
+    SrsSpedController *udp = networks_->udp()->sped();
+    SrsSpedController *tcp = networks_->tcp()->sped();
+    if (tcp && tcp->state() != SrsSpedStateTentative) {
+        return tcp;
+    }
+
+    return udp ? udp : tcp;
+}
+
+bool SrsRtcConnection::sped_waits_for_peer()
+{
+    SrsSpedController *udp = networks_->udp()->sped();
+    SrsSpedController *tcp = networks_->tcp()->sped();
+    return (udp && udp->waits_for_peer()) || (tcp && tcp->waits_for_peer());
+}
+
+void SrsRtcConnection::on_sped_complete()
+{
+    srs_error_t err = srs_success;
+
+    if (!players_wait_sped_ || disposing_) {
+        return;
+    }
+    players_wait_sped_ = false;
+
+    if ((err = start_players()) != srs_success) {
+        srs_warn("RTC: session destroy by start failed, username=%s, err=%s", username_.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+        expire();
+    }
 }
 
 srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
@@ -3117,6 +3238,13 @@ void SrsRtcConnection::simulate_nack_drop(int nn)
     }
 
     nn_simulate_nack_drop_player_ = nn;
+}
+
+void SrsRtcConnection::simulate_handshake_drop(int stun, int dtls, int finished)
+{
+    srs_trace("RTC: handshake simulator drops the next %d STUN binding responses, %d DTLS datagrams and %d DTLS last flights",
+              stun, dtls, finished);
+    networks_->simulate_handshake_drop(stun, dtls, finished);
 }
 
 void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader *h, int nn_bytes)

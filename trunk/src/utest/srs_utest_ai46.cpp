@@ -45,6 +45,11 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
+
 #ifndef _WIN32
 #include <fcntl.h>
 #include <net/if.h>
@@ -2473,6 +2478,40 @@ public:
                          "5386CB9047FF145B20BCC539A053F71BAAB3463EA4F887505C25BF60EDCD6E16"
                          "1FB5AC2628FE1F8121C5D60E679EF6A22DA2A8520D21E35F0E34CCD0AA95AB1A"
                          "45A50FF6A273CE0A551339A51A061B9B534B7601A227ADBC9B9C88AB7271B86B");
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        BIGNUM *p = NULL;
+        BIGNUM *g = NULL;
+        EVP_PKEY_get_bn_param(pkey_, OSSL_PKEY_PARAM_FFC_P, &p);
+        EVP_PKEY_get_bn_param(pkey_, OSSL_PKEY_PARAM_FFC_G, &g);
+
+        BIGNUM *pub = BN_new();
+        BN_CTX *ctx = BN_CTX_new();
+        BN_mod_exp(pub, g, priv, p, ctx);
+        BN_CTX_free(ctx);
+
+        OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+        OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p);
+        OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g);
+        OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, pub);
+        OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, priv);
+        OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(bld);
+
+        EVP_PKEY *key = NULL;
+        EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_from_name(NULL, "DH", NULL);
+        EVP_PKEY_fromdata_init(pctx);
+        EVP_PKEY_fromdata(pctx, &key, EVP_PKEY_KEYPAIR, params);
+        EVP_PKEY_free(pkey_);
+        pkey_ = key;
+        first_key_size_ = BN_num_bytes(pub);
+
+        EVP_PKEY_CTX_free(pctx);
+        OSSL_PARAM_free(params);
+        OSSL_PARAM_BLD_free(bld);
+        BN_free(pub);
+        BN_free(priv);
+        BN_free(g);
+        BN_free(p);
+#else
         const BIGNUM *p = NULL;
         const BIGNUM *g = NULL;
         DH_get0_pqg(pdh, &p, NULL, &g);
@@ -2484,6 +2523,7 @@ public:
 
         DH_set0_key(pdh, pub, priv);
         first_key_size_ = BN_num_bytes(pub);
+#endif
         return err;
     }
 };

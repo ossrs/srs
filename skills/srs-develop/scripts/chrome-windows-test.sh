@@ -8,8 +8,10 @@
 # the host, with --wip as a snapshot of the working tree, and runs the --host step in the host checkout:
 #   - srs-windows-runner.sh build builds srs.exe, with its deps step first; both keep their builds.
 #   - The --host-cases step runs chrome-lane-test.sh --cases-only there against trunk/objs/windows/srs.exe:
-#     the WebRTC, loss, HTTP and codec cases in parallel on SRS_TEST_PORT_BASE (default 15600), 15700, 15800
-#     and 15900, each with its own browser and srs.exe, as on macOS. Logs are in /tmp/srs-chrome-windows.
+#     the WebRTC, loss, HTTP and codec cases in parallel on SRS_TEST_PORT_BASE (default 15600), 15700,
+#     15800 and 15900, then SPED on 16500, each with its own browser and srs.exe, as on macOS. Logs are in
+#     /tmp/srs-chrome-windows. SPED needs the browser's WebRTC-IceHandshakeDtls field trial; a browser whose
+#     offer has no sped with it is a SKIP.
 #
 # The host needs Node.js 22.12+, Edge or Chrome, FFmpeg, jq and curl in Git Bash. Prints the build time,
 # each case's log and result, and the LANE chrome line; the cases fail over 60 s. Exits 0 when passed or

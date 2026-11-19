@@ -190,6 +190,7 @@ public:
     virtual ISrsRtcNetwork *tcp();
     virtual ISrsRtcNetwork *available();
     virtual ISrsKbpsDelta *delta();
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished);
 };
 
 // Mock RTC source whose publish fails, as when its bridge to RTMP can't start.

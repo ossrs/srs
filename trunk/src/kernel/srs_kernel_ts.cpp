@@ -11,7 +11,7 @@
 using namespace std;
 
 #include <cstring>
-#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
@@ -2630,21 +2630,17 @@ void SrsTsContextWriter::set_acodec(SrsAudioCodecId v)
 
 SrsEncFileWriter::SrsEncFileWriter()
 {
-    memset(iv, 0, 16);
-
     buf = new char[HLS_AES_ENCRYPT_BLOCK_LENGTH];
     memset(buf, 0, HLS_AES_ENCRYPT_BLOCK_LENGTH);
 
     nb_buf = 0;
-    key = (unsigned char *)new AES_KEY();
+    cipher_ = EVP_CIPHER_CTX_new();
 }
 
 SrsEncFileWriter::~SrsEncFileWriter()
 {
     srs_freepa(buf);
-
-    AES_KEY *k = (AES_KEY *)key;
-    srs_freep(k);
+    EVP_CIPHER_CTX_free(cipher_);
 }
 
 srs_error_t SrsEncFileWriter::write(void *data, size_t count, ssize_t *pnwrite)
@@ -2663,10 +2659,12 @@ srs_error_t SrsEncFileWriter::write(void *data, size_t count, ssize_t *pnwrite)
 
         SrsUniquePtr<char[]> cipher(new char[HLS_AES_ENCRYPT_BLOCK_LENGTH]);
 
-        AES_KEY *k = (AES_KEY *)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, k, iv, AES_ENCRYPT);
+        int nb_cipher = 0;
+        if (EVP_EncryptUpdate(cipher_, (unsigned char *)cipher.get(), &nb_cipher, (unsigned char *)buf, HLS_AES_ENCRYPT_BLOCK_LENGTH) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "aes encrypt");
+        }
 
-        if ((err = SrsFileWriter::write(cipher.get(), HLS_AES_ENCRYPT_BLOCK_LENGTH, pnwrite)) != srs_success) {
+        if ((err = SrsFileWriter::write(cipher.get(), nb_cipher, pnwrite)) != srs_success) {
             return srs_error_wrap(err, "write cipher");
         }
     }
@@ -2678,10 +2676,8 @@ srs_error_t SrsEncFileWriter::config_cipher(unsigned char *key, unsigned char *i
 {
     srs_error_t err = srs_success;
 
-    memcpy(this->iv, iv, 16);
-
-    AES_KEY *k = (AES_KEY *)this->key;
-    if (AES_set_encrypt_key(key, 16 * 8, k)) {
+    // RFC 8216 encrypts a whole segment as one AES-128-CBC stream, so every write goes on with this cipher.
+    if (EVP_EncryptInit_ex(cipher_, EVP_aes_128_cbc(), NULL, key, iv) != 1) {
         return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "set aes key failed");
     }
 
@@ -2699,11 +2695,11 @@ void SrsEncFileWriter::close()
 
         SrsUniquePtr<char[]> cipher(new char[nb_buf + nb_padding]);
 
-        AES_KEY *k = (AES_KEY *)key;
-        AES_cbc_encrypt((unsigned char *)buf, (unsigned char *)cipher.get(), nb_buf + nb_padding, k, iv, AES_ENCRYPT);
-
+        int nb_cipher = 0;
         srs_error_t err = srs_success;
-        if ((err = SrsFileWriter::write(cipher.get(), nb_buf + nb_padding, NULL)) != srs_success) {
+        if (EVP_EncryptUpdate(cipher_, (unsigned char *)cipher.get(), &nb_cipher, (unsigned char *)buf, nb_buf + nb_padding) != 1) {
+            srs_warn("ignore aes encrypt failed");
+        } else if ((err = SrsFileWriter::write(cipher.get(), nb_cipher, NULL)) != srs_success) {
             srs_warn("ignore err %s", srs_error_desc(err).c_str());
             srs_freep(err);
         }

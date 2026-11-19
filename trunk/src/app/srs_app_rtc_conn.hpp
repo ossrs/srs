@@ -13,6 +13,7 @@
 #include <srs_app_reload.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtc_sped.hpp>
 #include <srs_core.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_hourglass.hpp>
@@ -32,6 +33,7 @@
 class SrsUdpMuxSocket;
 class SrsLiveConsumer;
 class SrsStunPacket;
+class SrsSpedController;
 class SrsServer;
 class SrsRtcConnection;
 class SrsMediaPacket;
@@ -100,6 +102,10 @@ public:
     virtual srs_error_t start_active_handshake() = 0;
     virtual srs_error_t on_dtls(char *data, int nb_data) = 0;
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
+    // The SPED controller of the DTLS handshake, or NULL when SPED is not negotiated.
+    virtual SrsSpedController *sped() = 0;
+    // Feed DTLS a datagram that came inside a STUN message, which SPED has already ACKed.
+    virtual srs_error_t on_embedded_dtls(char *data, int nb_data) = 0;
 
 public:
     // Encrypts in place, so the buffer needs some room after the packet. The nb_cipher is the
@@ -131,6 +137,8 @@ public:
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char *data, int nb_data);
     srs_error_t on_dtls_alert(std::string type, std::string desc);
+    SrsSpedController *sped();
+    srs_error_t on_embedded_dtls(char *data, int nb_data);
 
 public:
     srs_error_t protect_rtp(void *packet, int *nb_cipher);
@@ -147,6 +155,7 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t srtp_initialize();
     srs_error_t verify_peer_fingerprint();
+    void on_srtp_received();
 };
 
 class SrsSemiSecurityTransport : public SrsSecurityTransport
@@ -177,6 +186,8 @@ public:
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char *data, int nb_data);
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
+    virtual SrsSpedController *sped();
+    virtual srs_error_t on_embedded_dtls(char *data, int nb_data);
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char *data, const int len);
     virtual srs_error_t write_dtls_data(void *data, int size);
@@ -748,11 +759,14 @@ public:
     virtual std::string token() = 0;
     virtual void set_publish_token(SrsSharedPtr<ISrsStreamPublishToken> publish_token) = 0;
     virtual void simulate_nack_drop(int nn) = 0;
+    // Lose the next stun STUN binding responses, the next dtls DTLS datagrams and the next finished DTLS 1.2
+    // last flights to the client.
+    virtual void simulate_handshake_drop(int stun, int dtls, int finished) = 0;
 };
 
 // ISrsResource is not a virtual base, so a static_cast from it is allowed, see
 // https://stackoverflow.com/questions/3747066/c-cannot-convert-from-base-a-to-derived-type-b-via-virtual-base-a
-class SrsRtcConnection : public ISrsRtcConnection
+class SrsRtcConnection : public ISrsRtcConnection, public ISrsSpedSource, public ISrsSpedHandler
 {
     friend class SrsSecurityTransport;
 
@@ -804,6 +818,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_utime_t session_timeout_;
     // TODO: FIXME: Rename it.
     srs_utime_t last_stun_time_;
+    // Whether the players start only when SPED is complete.
+    bool players_wait_sped_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -891,6 +907,8 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t start_streams();
+    srs_error_t start_players();
+    bool sped_waits_for_peer();
 
 public:
     srs_error_t on_dtls_alert(std::string type, std::string desc);
@@ -901,6 +919,14 @@ public:
 public:
     ISrsRtcNetwork *udp();
     ISrsRtcNetwork *tcp();
+
+    // Interface ISrsSpedSource
+public:
+    virtual SrsSpedController *sped();
+
+    // Interface ISrsSpedHandler
+public:
+    virtual void on_sped_complete();
 
 public:
     srs_error_t send_rtcp(char *data, int nb_data);
@@ -914,6 +940,7 @@ public:
 
 public:
     void simulate_nack_drop(int nn);
+    void simulate_handshake_drop(int stun, int dtls, int finished);
     void simulate_player_drop_packet(SrsRtpHeader *h, int nn_bytes);
     srs_error_t do_send_packet(SrsRtpPacket *pkt);
     void set_all_tracks_status(std::string stream_uri, bool is_publish, bool status);

@@ -89,6 +89,7 @@ MockRtcConnectionForCreateSession::MockRtcConnectionForCreateSession()
     last_tracks_status_ = false;
     last_init_dtls_ = false;
     last_init_srtp_ = false;
+    last_drop_stun_ = last_drop_dtls_ = last_drop_finished_ = 0;
     destroyed_ = NULL;
 }
 
@@ -158,6 +159,14 @@ srs_error_t MockRtcConnectionForCreateSession::generate_local_sdp(SrsRtcUserConf
     calls_.push_back("generate_local_sdp");
     username = generated_username_;
     return srs_error_copy(generate_local_sdp_error_);
+}
+
+void MockRtcConnectionForCreateSession::simulate_handshake_drop(int stun, int dtls, int finished)
+{
+    calls_.push_back("simulate_handshake_drop");
+    last_drop_stun_ = stun;
+    last_drop_dtls_ = dtls;
+    last_drop_finished_ = finished;
 }
 
 MockAppFactoryForCreateSession::MockAppFactoryForCreateSession()
@@ -1174,6 +1183,32 @@ VOID TEST(RtcSessionManagerTest, CreateSessionFreesFailedConnection)
         EXPECT_TRUE(env.conns_.name_map_.empty()) << "step " << step;
         EXPECT_TRUE(env.conns_.resources_.empty()) << "step " << step;
     }
+}
+
+// A session whose client asked the handshake simulator for drops is armed once it is made, before
+// the client has the answer, so the drops start at its first check.
+VOID TEST(RtcSessionManagerTest, CreateSessionArmsHandshakeDrop)
+{
+    srs_error_t err;
+
+    RtcCreateSessionEnv env(false);
+    env.ruc_.drop_stun_ = 1;
+    env.ruc_.drop_dtls_ = 2;
+    env.ruc_.drop_finished_ = 3;
+    MockRtcConnectionForCreateSession *conn = new MockRtcConnectionForCreateSession();
+    env.factory_.connection_ = conn;
+
+    ISrsRtcConnection *session = NULL;
+    HELPER_ASSERT_SUCCESS(env.manager_.create_rtc_session(&env.ruc_, env.local_sdp_, &session));
+
+    ASSERT_EQ(8, (int)conn->calls_.size());
+    EXPECT_STREQ("initialize", conn->calls_[6].c_str());
+    EXPECT_STREQ("simulate_handshake_drop", conn->calls_[7].c_str());
+    EXPECT_EQ(1, conn->last_drop_stun_);
+    EXPECT_EQ(2, conn->last_drop_dtls_);
+    EXPECT_EQ(3, conn->last_drop_finished_);
+
+    srs_freep(conn);
 }
 
 // A task handed to the session manager runs on its async worker.
