@@ -51,3 +51,4 @@ When the maintainer says they start reviewing an issue, prepare its branch in th
    - Why the obvious fix is not enough, when it is not.
    - The fix in plain words, and its cost.
    - Where to read the code, with the few lines that matter, and the tests to read with it.
+5. Also write that explanation as one HTML page in `$HOME/Downloads`, with diagrams, tables and charts where they show it better than words.
