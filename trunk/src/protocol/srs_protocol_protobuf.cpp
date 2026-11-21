@@ -389,8 +389,7 @@ srs_error_t SrsProtobufFixed64::encode(SrsBuffer *b, uint64_t v)
         return srs_error_new(ERROR_PB_NO_SPACE, "require 8 only %d byte", b->left());
     }
 
-    // Encode values in little-endian byte order,
-    // see https://developers.google.com/protocol-buffers/docs/encoding#non-varint_numbers
+    // See https://developers.google.com/protocol-buffers/docs/encoding#non-varint_numbers
     b->write_le8bytes((int64_t)v);
 
     return err;
@@ -413,7 +412,6 @@ srs_error_t SrsProtobufString::encode(SrsBuffer *b, const std::string &v)
         return srs_error_wrap(err, "string size %d", n);
     }
 
-    // Ignore content if empty.
     if (v.empty()) {
         return err;
     }
@@ -435,13 +433,11 @@ srs_error_t SrsProtobufObject::encode(SrsBuffer *b, ISrsEncoder *obj)
 {
     srs_error_t err = srs_success;
 
-    // Encode the varint size of children.
     uint64_t size = obj->nb_bytes();
     if ((err = SrsProtobufVarints::encode(b, size)) != srs_success) {
         return srs_error_wrap(err, "encode size=%d", (int)size);
     }
 
-    // Encode the log group itself.
     if ((err = obj->encode(b)) != srs_success) {
         return srs_error_wrap(err, "encode group");
     }

@@ -985,6 +985,7 @@ public:
     virtual SrsSharedResource<ISrsRtcTcpConn> owner();
     virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
     virtual void set_peer_id(const std::string &ip, int port);
+    virtual void stop_sends();
 
 public:
     virtual srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);

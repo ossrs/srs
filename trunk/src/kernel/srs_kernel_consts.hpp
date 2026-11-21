@@ -9,216 +9,95 @@
 
 #include <srs_core.hpp>
 
-// Default port of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_PORT 1935
-
-// Default http listen port.
 #define SRS_DEFAULT_HTTP_PORT 80
-
-// Default https listen port.
 #define SRS_DEFAULT_HTTPS_PORT 443
-
-// Default Redis listen port.
 #define SRS_DEFAULT_REDIS_PORT 6379
 
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////
-// RTMP consts values
-///////////////////////////////////////////////////////////
-// Default vhost of rtmp
 #define SRS_CONSTS_RTMP_DEFAULT_VHOST "__defaultVhost__"
 #define SRS_CONSTS_RTMP_DEFAULT_APP "__defaultApp__"
 
-// The default chunk size for system.
 #define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
-// 6. Chunking, RTMP protocol default chunk size.
+// RTMP spec 6. Chunking: the default chunk size.
 #define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
 
-// 6. Chunking
-// The chunk size is configurable. It can be set using a control
-// message(Set Chunk Size) as described in section 7.1. The maximum
-// chunk size can be 65536 bytes and minimum 128 bytes. Larger values
-// reduce CPU usage, but also commit to larger writes that can delay
-// other content on lower bandwidth connections. Smaller chunks are not
-// good for high-bit rate streaming. Chunk size is maintained
-// independently for each direction.
+// RTMP spec 6. Chunking: a Set Chunk Size message (section 7.1) sets the chunk size, from 128
+// to 65536 bytes, for each direction on its own. Larger chunks use less CPU but can delay
+// other content on low bandwidth connections; small chunks are bad for high bitrate streams.
 #define SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 128
 #define SRS_CONSTS_RTMP_MAX_CHUNK_SIZE 65536
 
-// The following is the timeout for rtmp protocol,
-// to avoid death connection.
-
-// The common io timeout, for connect, recv or send.
 // TODO: FIXME: Maybe change to smaller value, such as 3s?
 #define SRS_CONSTS_RTMP_TIMEOUT (30 * SRS_UTIME_SECONDS)
-
-// The timeout to wait for client control message,
-// if timeout, we generally ignore and send the data to client,
-// generally, it's the pulse time for data seding.
-// @remark, recomment to 500ms.
 #define SRS_CONSTS_RTMP_PULSE (500 * SRS_UTIME_MILLISECONDS)
 
-// The max rtmp header size:
-//     1bytes basic header,
-//     11bytes message header,
-//     4bytes timestamp header,
-// that is, 1+11+4=16bytes.
+// A 1-byte basic header, an 11-byte message header and a 4-byte extended timestamp.
 #define SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE 16
-// The max rtmp header size:
-//     1bytes basic header,
-//     4bytes timestamp header,
-// that is, 1+4=5bytes.
-// always use fmt0 as cache.
+// A 1-byte basic header and a 4-byte extended timestamp.
 #define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
-// For performance issue,
-// iovs cache for multiple messages for each connections.
-// suppose the chunk size is 64k, each message send in a chunk which needs only 2 iovec,
-// so the iovs max should be (SRS_PERF_MW_MSGS * 2)
-//
-// @remark, SRS will realloc when the iovs not enough.
+// At a 64KB chunk size, each message fits in one chunk, which takes 2 iovecs.
 #define SRS_CONSTS_IOVS_MAX (SRS_PERF_MW_MSGS * 2)
-// For performance issue,
-// c0c3 cache for multiple messages for each connections.
-// each c0 <= 16byes, suppose the chunk size is 64k,
-// each message send in a chunk which needs only a c0 header,
-// so the c0c3 cache should be (SRS_PERF_MW_MSGS * 16)
-//
-// @remark, SRS will try another loop when c0c3 cache dry, for we cannot realloc it.
-//       so we use larger c0c3 cache, that is (SRS_PERF_MW_MSGS * 32)
+// At a 64KB chunk size, each message fits in one chunk with one header of up to 16 bytes.
+// The cache is twice that, since it cannot be reallocated and a dry cache costs another send loop.
 #define SRS_CONSTS_C0C3_HEADERS_MAX (SRS_PERF_MW_MSGS * 32)
 
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////
-// SRS consts values
-///////////////////////////////////////////////////////////
 #define SRS_CONSTS_NULL_FILE "/dev/null"
 #define SRS_CONSTS_LOCALHOST "127.0.0.1"
 #define SRS_CONSTS_LOCALHOST_NAME "localhost"
 #define SRS_CONSTS_LOOPBACK "0.0.0.0"
 #define SRS_CONSTS_LOOPBACK6 "::"
 
-// The signal defines.
-// To reload the config file and apply new config.
 #define SRS_SIGNAL_RELOAD SIGHUP
-// Reopen the log file.
 #define SRS_SIGNAL_REOPEN_LOG SIGUSR1
-// For gracefully upgrade, start new SRS and gracefully quit old one.
+// Start a new SRS and gracefully quit the old one.
 // @see https://github.com/ossrs/srs/issues/1579
 // TODO: Not implemented.
 #define SRS_SIGNAL_UPGRADE SIGUSR2
-// The signal for srs to fast quit, do essential dispose then exit.
 #define SRS_SIGNAL_FAST_QUIT SIGTERM
-// The signal for srs to gracefully quit, do carefully dispose then exit.
 // @see https://github.com/ossrs/srs/issues/1579
 #define SRS_SIGNAL_GRACEFULLY_QUIT SIGQUIT
-// The signal for SRS to abort by assert(false).
 #define SRS_SIGNAL_ASSERT_ABORT SIGABRT
 
-// The application level signals.
-// Persistence the config in memory to config file.
+// Writes the config in memory to the config file. Not an OS signal, so no handler is installed for it.
 // @see https://github.com/ossrs/srs/issues/319#issuecomment-134993922
-// @remark we actually don't handle the signal for it's not a valid os signal.
 #define SRS_SIGNAL_PERSISTENCE_CONFIG 1000
 
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////
-// The log consts values
-///////////////////////////////////////////////////////////
-// Downloading speed-up, play to edge, ingest from origin
 #define SRS_CONSTS_LOG_EDGE_PLAY "EIG"
-// Uploading speed-up, publish to edge, foward to origin
 #define SRS_CONSTS_LOG_EDGE_PUBLISH "EPB"
-// The edge/origin forwarder.
 #define SRS_CONSTS_LOG_FOWARDER "FWR"
-// Play stream on edge/origin.
 #define SRS_CONSTS_LOG_PLAY "PLA"
-// Client publish to edge/origin
 #define SRS_CONSTS_LOG_CLIENT_PUBLISH "CPB"
-// The web/flash publish to edge/origin
 #define SRS_CONSTS_LOG_WEB_PUBLISH "WPB"
-// Ingester for edge(play)/origin
 #define SRS_CONSTS_LOG_INGESTER "IGS"
-// The hls log id.
 #define SRS_CONSTS_LOG_HLS "HLS"
-// The encoder log id.
 #define SRS_CONSTS_LOG_ENCODER "ENC"
-// The http stream log id.
 #define SRS_CONSTS_LOG_HTTP_STREAM "HTS"
-// The http stream cache log id.
 #define SRS_CONSTS_LOG_HTTP_STREAM_CACHE "HTC"
-// The stream caster log id.
 #define SRS_CONSTS_LOG_STREAM_CASTER "SCS"
-// The nginx exec log id.
+// For the nginx exec.
 #define SRS_CONSTS_LOG_EXEC "EXE"
-// The rtc.
 #define SRS_CONSTS_LOG_RTC "RTC"
-// Srt client play
 #define SRS_CONSTS_LOG_SRT_PLAY "SRT_PLA"
-// Srt client publish
 #define SRS_CONSTS_LOG_SRT_PUBLISH "SRT_CPB"
 
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////
-// RTMP consts values
-///////////////////////////////////////////////////////////
 #define SRS_CONSTS_RTMP_SET_DATAFRAME "@setDataFrame"
 #define SRS_CONSTS_RTMP_ON_METADATA "onMetaData"
 
-///////////////////////////////////////////////////////////
-// HTTP/HLS consts values
-///////////////////////////////////////////////////////////
 // @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 4
 // Lines are terminated by either a single LF character or a CR
 // character followed by an LF character.
-// CR             = <US-ASCII CR, carriage return (13)>
-#define SRS_CONSTS_CR '\r' // 0x0D
-// LF             = <US-ASCII LF, linefeed (10)>
-#define SRS_CONSTS_LF '\n' // 0x0A
-// SP             = <US-ASCII SP, space>
-#define SRS_CONSTS_SP ' ' // 0x20
-// SE             = <US-ASCII SE, semicolon>
-#define SRS_CONSTS_SE ';' // 0x3b
-// LB             = <US-ASCII SE, left-brace>
-#define SRS_CONSTS_LB '{' // 0x7b
-// RB             = <US-ASCII SE, right-brace>
-#define SRS_CONSTS_RB '}' // 0x7d
+#define SRS_CONSTS_CR '\r'
+#define SRS_CONSTS_LF '\n'
+#define SRS_CONSTS_SP ' '
+#define SRS_CONSTS_SE ';'
+#define SRS_CONSTS_LB '{'
+#define SRS_CONSTS_RB '}'
 
-///////////////////////////////////////////////////////////
-// HTTP consts values
-///////////////////////////////////////////////////////////
-// The default http port.
 #define SRS_CONSTS_HTTP_DEFAULT_PORT 80
-// The linux path seprator
 #define SRS_CONSTS_HTTP_PATH_SEP '/'
-// Query string seprator
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
-// The default recv timeout.
 #define SRS_HTTP_RECV_TIMEOUT (15 * SRS_UTIME_SECONDS)
 
 // 6.1.1 Status Code and Reason Phrase
@@ -304,9 +183,6 @@
 #define SRS_CONSTS_HTTP_GatewayTimeout_str "Gateway Timeout"
 #define SRS_CONSTS_HTTP_HTTPVersionNotSupported_str "HTTP Version Not Supported"
 
-///////////////////////////////////////////////////////////
-// RTSP consts values
-///////////////////////////////////////////////////////////
 // 7.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_RTSP_Continue 100
 #define SRS_CONSTS_RTSP_OK 200

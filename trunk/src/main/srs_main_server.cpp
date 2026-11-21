@@ -47,46 +47,37 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_srt.hpp>
 
-// pre-declare
 srs_error_t run_directly_or_daemon();
 srs_error_t run_srs_server();
 void show_macro_features();
 
-// @global log and context.
 ISrsLog *_srs_log = NULL;
-// It SHOULD be thread-safe, because it use thread-local thread private data.
+// Each ST thread keeps its own context id, in ST thread-specific data.
 ISrsContext *_srs_context = NULL;
-// @global config object for app module.
 SrsConfig *_srs_config = NULL;
 
-// @global kernel factory.
 ISrsAppFactory *_srs_app_factory = new SrsAppFactory();
 ISrsKernelFactory *_srs_kernel_factory = _srs_app_factory;
 
 #ifdef SRS_FFMPEG_FIT
-// Register FFmpeg log callback funciton.
+// Its constructor registers the FFmpeg log callback.
 SrsFFmpegLogHelper _srs_ffmpeg_log_helper;
 #endif
 
-// @global version of srs, which can grep keyword "XCORE"
+// Starts with the keyword "XCORE", to grep the version from the binary.
 extern const char *_srs_version;
 
-// Whether setup config by environment variables, see https://github.com/ossrs/srs/issues/2277
+// See https://github.com/ossrs/srs/issues/2277
 bool _srs_config_by_env = false;
 
-// The binary name of SRS.
 const char *_srs_binary = NULL;
 
-// @global Other variables.
 bool _srs_in_docker = false;
 
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char *str);
 #endif
 
-/**
- * main entrance.
- */
 srs_error_t do_main(int argc, char **argv, char **envp)
 {
     srs_error_t err = srs_success;
@@ -94,26 +85,24 @@ srs_error_t do_main(int argc, char **argv, char **envp)
     // TODO: Might fail if change working directory.
     _srs_binary = argv[0];
 
-    // For sanitizer on macOS, to avoid the warning on startup.
 #if defined(SRS_OSX) && defined(SRS_SANITIZER)
     if (!getenv("MallocNanoZone")) {
         fprintf(stderr, "Asan: Please setup the env MallocNanoZone=0 to disable the warning, see https://stackoverflow.com/a/70209891/17679565\n");
     }
 #endif
 
-    // Root global objects, should be created before any other global objects.
+    // Create these before any other global object.
     _srs_log = new SrsFileLog();
     _srs_context = new SrsThreadContext();
     _srs_config = new SrsConfig();
 
-    // For background context id.
+    // Before the global init, this sets the default context id.
     _srs_context->set_id(_srs_context->generate_id());
 
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
-    // for gperf gmp or gcp,
-    // should never enable it when not enabled for performance issue.
+    // The gperf gmp and gcp profilers hurt performance, so build them in only when needed.
 #ifdef SRS_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
 #endif
@@ -121,7 +110,6 @@ srs_error_t do_main(int argc, char **argv, char **envp)
     ProfilerStart("gperf.srs.gcp");
 #endif
 
-    // never use gmp to check memory leak.
 #ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."
 #endif
@@ -130,13 +118,12 @@ srs_error_t do_main(int argc, char **argv, char **envp)
         return srs_error_new(ERROR_SOCKET_CREATE, "socket startup");
     }
 
-    // never use srs log(srs_trace, srs_error, etc) before config parse the option,
-    // which will load the log config and apply it.
+    // Do not use the SRS log, such as srs_trace or srs_error, before the options are parsed,
+    // which load the log config.
     if ((err = _srs_config->parse_options(argc, argv)) != srs_success) {
         return srs_error_wrap(err, "config parse options");
     }
 
-    // change the work dir and set cwd.
     int r0 = 0;
     string cwd = _srs_config->get_work_dir();
     if (!cwd.empty() && cwd != "./" && (r0 = chdir(cwd.c_str())) == -1) {
@@ -146,12 +133,10 @@ srs_error_t do_main(int argc, char **argv, char **envp)
         return srs_error_wrap(err, "config cwd");
     }
 
-    // config parsed, initialize log.
     if ((err = _srs_log->initialize()) != srs_success) {
         return srs_error_wrap(err, "log initialize");
     }
 
-    // Detect whether set SRS config by envrionment variables.
     for (char **pp = envp; *pp; pp++) {
         char *p = *pp;
         if (p[0] == 'S' && p[1] == 'R' && p[2] == 'S' && p[3] == '_') {
@@ -160,7 +145,6 @@ srs_error_t do_main(int argc, char **argv, char **envp)
         }
     }
 
-    // config already applied to log.
     srs_trace("%s, %s", RTMP_SIG_SRS_SERVER, RTMP_SIG_SRS_LICENSE);
     srs_trace("authors: %sand %s", RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS);
     srs_trace("cwd=%s, work_dir=%s, build: %s, configure: %s, uname: %s, osx: %d, env: %d, pkg: %s",
@@ -171,17 +155,16 @@ srs_error_t do_main(int argc, char **argv, char **envp)
     srs_trace("crossbuild tool chain: " SRS_EMBEDED_TOOL_CHAIN);
 #endif
 
-    // for memory check or detect.
     if (true) {
         stringstream ss;
 
 #ifdef SRS_PERF_GLIBC_MEMORY_CHECK
-        // ensure glibc write error to stderr.
+        // Make glibc write fatal errors to stderr.
         string lfsov = srs_getenv("LIBC_FATAL_STDERR_");
         setenv("LIBC_FATAL_STDERR_", "1", 1);
         string lfsnv = srs_getenv("LIBC_FATAL_STDERR_");
-        //
-        // ensure glibc to do alloc check.
+
+        // Make glibc check allocations.
         string mcov = srs_getenv("MALLOC_CHECK_");
         setenv("MALLOC_CHECK_", "1", 1);
         string mcnv = srs_getenv("MALLOC_CHECK_");
@@ -213,16 +196,14 @@ srs_error_t do_main(int argc, char **argv, char **envp)
         }
     }
 
-    // we check the config when the log initialized.
     if ((err = _srs_config->check_config()) != srs_success) {
         return srs_error_wrap(err, "check config");
     }
 
-    // features
     show_macro_features();
 
 #ifdef SRS_GPERF
-    // For tcmalloc, use slower release rate.
+    // For tcmalloc, use a slower release rate.
     if (true) {
         double trr = _srs_config->tcmalloc_release_rate();
         double otrr = MallocExtension::instance()->GetMemoryReleaseRate();
@@ -245,8 +226,7 @@ srs_error_t do_main(int argc, char **argv, char **envp)
 int main(int argc, char **argv, char **envp)
 {
 #ifdef SRS_SANITIZER
-    // Setup the primordial stack for st. Use the current variable address as the stack top.
-    // This is not very accurate but sufficient.
+    // The address of a local is not the exact stack top, but close enough for ST.
     void *p = NULL;
     srs_set_primordial_stack(&p);
 #endif
@@ -262,9 +242,6 @@ int main(int argc, char **argv, char **envp)
     return ret;
 }
 
-/**
- * show the features by macro, the actual macro values.
- */
 void show_macro_features()
 {
     if (true) {
@@ -368,7 +345,7 @@ void show_macro_features()
         ss << "off";
 #endif
 
-        // ss(SO_SENDBUF)
+        // ss(SO_SNDBUF)
         ss << ", ss:";
 #ifdef SRS_PERF_SO_SNDBUF_SIZE
         ss << SRS_PERF_SO_SNDBUF_SIZE;
@@ -379,7 +356,6 @@ void show_macro_features()
         srs_trace("%s", ss.str().c_str());
     }
 
-    // others
     int possible_mr_latency = 0;
 #ifdef SRS_PERF_MERGED_READ
     possible_mr_latency = srsu2msi(SRS_PERF_MR_SLEEP);
@@ -405,7 +381,6 @@ srs_error_t run_directly_or_daemon()
 {
     srs_error_t err = srs_success;
 
-    // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
     bool run_as_daemon = _srs_config->get_daemon();
     if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
@@ -413,7 +388,6 @@ srs_error_t run_directly_or_daemon()
         run_as_daemon = false;
     }
 
-    // If not daemon, directly run hybrid server.
     if (!run_as_daemon) {
         if ((err = run_srs_server()) != srs_success) {
             return srs_error_wrap(err, "run server");
@@ -429,7 +403,6 @@ srs_error_t run_directly_or_daemon()
         return srs_error_new(-1, "fork father process");
     }
 
-    // grandpa
     if (pid > 0) {
         int status = 0;
         srs_waitpid(pid, &status, 0);
@@ -437,7 +410,6 @@ srs_error_t run_directly_or_daemon()
         exit(0);
     }
 
-    // father
     pid = srs_fork();
 
     if (pid < 0) {
@@ -449,7 +421,6 @@ srs_error_t run_directly_or_daemon()
         exit(0);
     }
 
-    // son
     srs_trace("son(daemon) process running.");
 
     if ((err = run_srs_server()) != srs_success) {
@@ -463,28 +434,24 @@ srs_error_t run_srs_server()
 {
     srs_error_t err = srs_success;
 
-    // Initialize global and thread-local variables.
     if ((err = srs_global_initialize()) != srs_success) {
         return srs_error_wrap(err, "global init");
     }
 
-    // For primordial thread, share the default cid.
+    // The primordial thread shares the default cid.
     _srs_context->set_id(_srs_context->get_id());
 
     _srs_server = new SrsServer();
     _srs_server->assemble();
 
-    // Do some system initialize.
     if ((err = _srs_server->initialize()) != srs_success) {
         return srs_error_wrap(err, "hybrid initialize");
     }
 
-    // Should run util hybrid servers all done.
     if ((err = _srs_server->run()) != srs_success) {
         return srs_error_wrap(err, "hybrid run");
     }
 
-    // After all done, stop and cleanup.
     _srs_server->stop();
 
     return err;

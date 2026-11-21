@@ -21,10 +21,8 @@ using namespace std;
 
 #define SRS_RTSP_BUFFER 4096
 
-// Forward declaration of RTCP detection function
 extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
-// get the status text of code.
 string srs_generate_rtsp_status_text(int status)
 {
     static std::map<int, std::string> status_map;
@@ -248,20 +246,16 @@ srs_error_t SrsRtspResponse::encode(stringstream &ss)
 {
     srs_error_t err = srs_success;
 
-    // status line
     ss << SRS_RTSP_VERSION << SRS_RTSP_SP
        << status_ << SRS_RTSP_SP
        << srs_generate_rtsp_status_text(status_) << SRS_RTSP_CRLF;
 
-    // cseq
     ss << SRS_RTSP_TOKEN_CSEQ << ":" << SRS_RTSP_SP << seq_ << SRS_RTSP_CRLF;
 
-    // others.
     ss << "Cache-Control: no-store" << SRS_RTSP_CRLF
        << "Pragma: no-cache" << SRS_RTSP_CRLF
        << "Server: " << RTMP_SIG_SRS_SERVER << SRS_RTSP_CRLF;
 
-    // session if specified.
     if (!session_.empty()) {
         ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session_ << SRS_RTSP_CRLF;
     }
@@ -270,7 +264,6 @@ srs_error_t SrsRtspResponse::encode(stringstream &ss)
         return srs_error_wrap(err, "encode header");
     };
 
-    // header EOF.
     ss << SRS_RTSP_CRLF;
 
     return err;
@@ -336,7 +329,7 @@ SrsRtspDescribeResponse::~SrsRtspDescribeResponse()
 srs_error_t SrsRtspDescribeResponse::encode_header(stringstream &ss)
 {
     ss << SRS_RTSP_TOKEN_CONTENT_TYPE << ":" << SRS_RTSP_SP << "application/sdp" << SRS_RTSP_CRLF;
-    // WILL add CRLF to the end of sdp in SrsRtspResponse::encode, so add 2.
+    // SrsRtspResponse::encode adds a CRLF after the SDP, so count 2 more bytes.
     ss << SRS_RTSP_TOKEN_CONTENT_LENGTH << ":" << SRS_RTSP_SP << sdp_.length() + 2 << SRS_RTSP_CRLF;
     ss << SRS_RTSP_CRLF;
     ss << sdp_;
@@ -438,7 +431,6 @@ srs_error_t SrsRtspStack::send_message(SrsRtspResponse *res)
     srs_error_t err = srs_success;
 
     std::stringstream ss;
-    // encode the message to string.
     if ((err = res->encode(ss)) != srs_success) {
         return srs_error_wrap(err, "encode message");
     }
@@ -457,38 +449,24 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
 {
     srs_error_t err = srs_success;
 
-    // Parse RTSP request line: "METHOD URI VERSION"
-    // Example: "PLAY rtsp://example.com/stream RTSP/1.0"
-
-    // Parse the RTSP method (PLAY, SETUP, DESCRIBE, etc.)
     if ((err = recv_token_normal(req->method_)) != srs_success) {
         return srs_error_wrap(err, "method");
     }
 
-    // Parse the request URI (resource path or full URL)
     if ((err = recv_token_normal(req->uri_)) != srs_success) {
         return srs_error_wrap(err, "uri");
     }
 
-    // Parse the RTSP version (typically "RTSP/1.0")
     if ((err = recv_token_eof(req->version_)) != srs_success) {
         return srs_error_wrap(err, "version");
     }
 
-    // Parse RTSP headers in "Name: Value" format
-    // Example headers:
-    //   CSeq: 1
-    //   Content-Type: application/sdp
-    //   Content-Length: 460
-    //   Transport: RTP/AVP;unicast;client_port=8000-8001
-    //   Session: 12345678
     for (;;) {
         std::string line;
         if ((err = recv_line(line)) != srs_success) {
             return srs_error_wrap(err, "recv header");
         }
 
-        // End of headers reached (empty line)
         if (line.empty()) {
             break;
         }
@@ -506,21 +484,16 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
             value = srs_strings_trim_end(srs_strings_trim_start(line.substr(pos + 1), " \t"), " \t");
         }
 
-        // Parse the header value (after the colon) based on header name
         if (token == SRS_RTSP_TOKEN_CSEQ) {
-            // CSeq: sequence number for request/response matching
             req->seq_ = ::atoll(value.c_str());
         } else if (token == SRS_RTSP_TOKEN_CONTENT_TYPE) {
-            // Content-Type: MIME type of the message body (e.g., application/sdp)
             req->content_type_ = value;
         } else if (token == SRS_RTSP_TOKEN_CONTENT_LENGTH) {
-            // Content-Length: size of the message body in bytes
             req->content_length_ = ::atoll(value.c_str());
             if (req->content_length_ < 0) {
                 return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid content length=%s", value.c_str());
             }
         } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
-            // Transport: RTP transport parameters (protocol, ports, etc.)
             if (!req->transport_) {
                 req->transport_ = new SrsRtspTransport();
             }
@@ -528,16 +501,12 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
                 return srs_error_wrap(err, "parse transport=%s", value.c_str());
             }
         } else if (token == SRS_RTSP_TOKEN_SESSION) {
-            // Session: session identifier for maintaining state
             req->session_ = value;
         } else if (token == SRS_RTSP_TOKEN_ACCEPT) {
-            // Accept: acceptable media types for the response
             req->accept_ = value;
         } else if (token == SRS_RTSP_TOKEN_USER_AGENT) {
-            // User-Agent: client software identification
             req->user_agent_ = value;
         } else if (token == SRS_RTSP_TOKEN_RANGE) {
-            // Range: time range for playback (e.g., npt=0-30)
             req->range_ = value;
         } else {
             srs_trace("rtsp: ignore header %s=%s", token.c_str(), value.c_str());
@@ -550,7 +519,6 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
         return srs_error_wrap(err, "body size=%ld", req->content_length_);
     }
 
-    // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         SrsPath path;
         size_t pos = string::npos;
@@ -664,15 +632,11 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
 {
     srs_error_t err = srs_success;
 
-    // whatever, default to error state.
     state = SrsRtspTokenStateError;
 
-    // when buffer is empty, append bytes first.
     bool append_bytes = buf_->length() == 0;
 
-    // parse util token.
     for (;;) {
-        // append bytes if required.
         if (append_bytes) {
             append_bytes = false;
 
@@ -685,21 +649,17 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
             buf_->append(buffer, (int)nb_read);
         }
 
-        // Try to detect and consume any RTCP frames from the buffer
         bool need_more_data = false;
         while (buf_->length() > 0) {
             srs_error_t rtcp_err = try_consume_rtcp_frame();
 
             if (rtcp_err == srs_success) {
-                // Successfully consumed an RTCP frame, continue to check for more
                 continue;
             } else if (srs_error_code(rtcp_err) == ERROR_RTSP_NEED_MORE_DATA) {
-                // Need more data to complete RTCP frame, let the outer loop read more
                 srs_freep(rtcp_err);
                 need_more_data = true;
                 break;
             } else {
-                // Not an RTCP frame or other error, break and try RTSP parsing
                 srs_freep(rtcp_err);
                 break;
             }
@@ -711,12 +671,10 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
             continue;
         }
 
-        // parse one by one.
         char *start = buf_->bytes();
         char *end = start + buf_->length();
         char *p = start;
 
-        // find util SP/CR/LF, max 2 EOF, to finger out the EOF of message.
         for (; p < end && p[0] != normal_ch && p[0] != SRS_RTSP_CR && p[0] != SRS_RTSP_LF; p++) {
         }
 
@@ -727,18 +685,14 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
             continue;
         }
 
-        // matched.
         if (p < end) {
-            // finger out the state.
             if (p[0] == normal_ch) {
                 state = SrsRtspTokenStateNormal;
             } else {
                 state = SrsRtspTokenStateEOF;
             }
 
-            // got the token.
             int nb_token = (int)(p - start);
-            // trim last ':' character.
             if (nb_token && p[-1] == ':') {
                 nb_token--;
             }
@@ -748,11 +702,9 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
                 err = srs_error_new(ERROR_RTSP_REQUEST_HEADER_EOF, "EOF");
             }
 
-            // ignore SP/CR/LF
             for (int i = 0; i < 2 && p < end && (p[0] == normal_ch || p[0] == SRS_RTSP_CR || p[0] == SRS_RTSP_LF); p++, i++) {
             }
 
-            // consume the token bytes.
             srs_assert(p - start);
             buf_->erase((int)(p - start));
             if (pconsumed) {
@@ -761,7 +713,6 @@ srs_error_t SrsRtspStack::recv_token(std::string &token, SrsRtspTokenState &stat
             break;
         }
 
-        // append more and parse again.
         append_bytes = true;
     }
 
@@ -772,34 +723,28 @@ srs_error_t SrsRtspStack::try_consume_rtcp_frame()
 {
     char *data = buf_->bytes();
 
-    // Check for RTCP over TCP format: $ + channel + length(2 bytes)
+    // RFC 2326 10.12 interleaved frame: '$', a 1-byte channel and a 2-byte length, then the payload.
     if (buf_->length() > 0 && data[0] == '$') {
-        // Need at least 4 bytes for RTCP over TCP header: $ + channel + length
         if (buf_->length() < 4) {
-            // Not enough data, let caller read more
             return srs_error_new(ERROR_RTSP_NEED_MORE_DATA, "need more data for rtcp header");
         }
 
 
         uint8_t channel = (uint8_t)data[1];
         uint16_t payload_length = (uint16_t(data[2]) << 8) | uint16_t(data[3]);
-        int total_frame_size = 4 + payload_length; // 4-byte header + payload
+        int total_frame_size = 4 + payload_length;
 
-        // Check if we have the complete frame
         if (buf_->length() < total_frame_size) {
-            // Not enough data for complete frame, let caller read more
             return srs_error_new(ERROR_RTSP_NEED_MORE_DATA, "need more data for complete rtcp frame");
         }
 
-        // Check if the payload is RTCP (starts at offset 4)
         if (payload_length >= 8 && srs_is_rtcp((const uint8_t *)(data + 4), payload_length)) {
-            // This is an RTCP packet in RTSP over TCP format
             srs_trace("RTSP: Consuming RTCP packet(%d), channel=%d, size=%d bytes",
                       (uint8_t)data[5], channel, payload_length);
             buf_->erase(total_frame_size);
             return srs_success;
         } else {
-            // Unknown interleaved frame, consume it anyway to avoid blocking RTSP parsing
+            // Drop an interleaved frame that is not RTCP too, or the requests after it are never parsed.
             srs_trace("RTSP: Consuming unknown interleaved frame, channel=%d, size=%d bytes",
                       channel, payload_length);
             buf_->erase(total_frame_size);
@@ -807,6 +752,5 @@ srs_error_t SrsRtspStack::try_consume_rtcp_frame()
         }
     }
 
-    // Not an interleaved frame (RTP/RTCP over TCP)
     return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "not interleaved frame");
 }

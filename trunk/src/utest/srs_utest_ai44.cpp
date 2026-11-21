@@ -43,6 +43,7 @@
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai24.hpp>
 #include <srs_utest_ai30.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_ai34.hpp>
 #include <srs_utest_ai38.hpp>
 #include <srs_utest_ai41.hpp>
@@ -240,7 +241,7 @@ VOID TEST(AppIngestTest, IngestWithoutFfmpegBinary_ServerStartRefused)
 
 // A vhost turned off keeps its ingests off, and an ingest turned off is skipped: only the enabled ingest of the
 // enabled vhost runs FFmpeg, which copies its input to the vhost's stream, as its engine is off.
-VOID TEST(AppIngestTest, DisabledVhostOrIngest_OnlyEnabledIngestRuns)
+VOID TEST(AppIngestTest, VhostOrIngestOff_OnlyEnabledIngestRuns)
 {
     srs_error_t err;
 
@@ -4678,9 +4679,9 @@ static srs_error_t rtc_network_utest_start(RtcConnUtestClient &client, RtcNetwor
 }
 
 // The ICE check of the client, signed with the ICE password of the server's answer.
-static std::string rtc_network_utest_check(RtcConnUtestClient &client)
+static std::string rtc_network_utest_check(RtcConnUtestClient &client, bool nominate)
 {
-    return stun_controlling_binding_request(client.conn_->username(), client.answer_.get_ice_pwd(), true);
+    return stun_controlling_binding_request(client.conn_->username(), client.answer_.get_ice_pwd(), nominate);
 }
 
 // Whether the datagram is the server's binding response to the client's check: for the check's transaction, and
@@ -4799,11 +4800,11 @@ public:
 
     // The client's ICE check, received on the server's port, handed to the session's UDP network as the session
     // manager does with a binding request.
-    srs_error_t check(int index, RtcConnUtestClient &client)
+    srs_error_t check(int index, RtcConnUtestClient &client, bool nominate = true)
     {
         srs_error_t err = srs_success;
 
-        if ((err = deliver(index, rtc_network_utest_check(client))) != srs_success) {
+        if ((err = deliver(index, rtc_network_utest_check(client, nominate))) != srs_success) {
             return srs_error_wrap(err, "deliver");
         }
 
@@ -4923,6 +4924,242 @@ VOID TEST(AppRtcNetworkTest, ClientAddressChangesAndBack_SessionFollowsIt)
     HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
     EXPECT_STREQ("media", udp.recv(wifi).c_str());
     EXPECT_TRUE(udp.recv(cellular, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+static int rtc_network_utest_mapped_port(const std::string &datagram)
+{
+    for (size_t i = 20; i + 4 <= datagram.size();) {
+        int type = ((uint8_t)datagram[i] << 8) | (uint8_t)datagram[i + 1];
+        int len = ((uint8_t)datagram[i + 2] << 8) | (uint8_t)datagram[i + 3];
+        if (type == XorMappedAddress && len >= 4 && i + 8 <= datagram.size()) {
+            int port = ((uint8_t)datagram[i + 6] << 8) | (uint8_t)datagram[i + 7];
+            return port ^ (kStunMagicCookie >> 16);
+        }
+        i += 4 + (len + 3) / 4 * 4;
+    }
+    return 0;
+}
+
+// A browser on a host with Ethernet, Wi-Fi and Docker bridges puts USE-CANDIDATE on each check of its nominated pair,
+// and checks its other pairs for a while without it.
+VOID TEST(AppRtcNetworkTest, BrowserChecksOtherPairs_MediaStaysOnNominatedPair)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int ethernet = 0, wifi = 0, bridge = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&ethernet));
+    HELPER_ASSERT_SUCCESS(udp.client(&wifi));
+    HELPER_ASSERT_SUCCESS(udp.client(&bridge));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+    char media[] = "media";
+
+    HELPER_ASSERT_SUCCESS(udp.check(ethernet, player, true));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(ethernet), player));
+
+    int others[] = {wifi, bridge};
+    for (int i = 0; i < 2; i++) {
+        int other = others[i];
+        HELPER_ASSERT_SUCCESS(udp.check(other, player, false));
+        std::string response = udp.recv(other);
+        HELPER_EXPECT_SUCCESS(rtc_network_utest_response(response, player));
+        EXPECT_EQ(srs_get_local_port(srs_netfd_fileno(udp.clients_[other])), rtc_network_utest_mapped_port(response));
+        EXPECT_TRUE(conns.ids_[udp.peer_id(other)] == player.conn_);
+
+        HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+        EXPECT_STREQ("media", udp.recv(ethernet).c_str());
+        EXPECT_TRUE(udp.recv(other, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+        HELPER_ASSERT_SUCCESS(udp.check(ethernet, player, true));
+        HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(ethernet), player));
+    }
+
+    HELPER_ASSERT_SUCCESS(udp.check(wifi, player, true));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(wifi).c_str());
+    EXPECT_TRUE(udp.recv(ethernet, 50 * SRS_UTIME_MILLISECONDS).empty());
+    EXPECT_EQ(3, (int)network->peer_addresses_.size());
+}
+
+// pion nominates its pair once, or again until it gets the response, and then keeps it alive with checks without
+// USE-CANDIDATE.
+VOID TEST(AppRtcNetworkTest, KeepaliveWithoutNomination_SessionFollowsLaterRebinding)
+{
+    srs_error_t err;
+
+    for (int nominations = 1; nominations <= 2; nominations++) {
+        RtcNetworkUtestUdp udp;
+        HELPER_ASSERT_SUCCESS(udp.listen());
+        int before = 0, after = 0;
+        HELPER_ASSERT_SUCCESS(udp.client(&before));
+        HELPER_ASSERT_SUCCESS(udp.client(&after));
+
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        RtcNetworkUtestConns conns;
+        RtcConnUtestClient player(&server);
+        HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+        HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+        SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+        MockClockForPithyPrint clock;
+        clock.now_ = srs_time_now_cached();
+        network->clk_ = &clock;
+        char media[] = "media";
+
+        HELPER_ASSERT_SUCCESS(udp.check(before, player, false));
+        HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(before), player));
+        HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+        EXPECT_STREQ("media", udp.recv(before).c_str());
+
+        for (int i = 0; i < nominations; i++) {
+            HELPER_ASSERT_SUCCESS(udp.check(before, player, true));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(before), player));
+        }
+
+        for (int i = 0; i < 4; i++) {
+            clock.now_ += 2 * SRS_UTIME_SECONDS;
+            HELPER_ASSERT_SUCCESS(udp.check(before, player, false));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(before), player));
+        }
+
+        HELPER_ASSERT_SUCCESS(udp.check(after, player, false));
+        HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(after), player));
+        HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+        EXPECT_STREQ("media", udp.recv(after).c_str()) << "nominations=" << nominations;
+        EXPECT_TRUE(udp.recv(before, 50 * SRS_UTIME_MILLISECONDS).empty()) << "nominations=" << nominations;
+    }
+}
+
+// A client's NAT rebinds right after it nominated its pair, so its checks come from the new address without
+// USE-CANDIDATE, as a browser's checks of its other pairs do.
+VOID TEST(AppRtcNetworkTest, NominationTimesOut_SessionFollowsRebinding)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int before = 0, after = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&before));
+    HELPER_ASSERT_SUCCESS(udp.client(&after));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+    MockClockForPithyPrint clock;
+    clock.now_ = srs_time_now_cached();
+    network->clk_ = &clock;
+    char media[] = "media";
+
+    HELPER_ASSERT_SUCCESS(udp.check(before, player, true));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(before), player));
+
+    clock.now_ += SRS_RTC_NOMINATION_TIMEOUT - SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(udp.check(after, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(after), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(before).c_str());
+    EXPECT_TRUE(udp.recv(after, 50 * SRS_UTIME_MILLISECONDS).empty());
+
+    clock.now_ += 2 * SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(udp.check(after, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(after), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(after).c_str());
+    EXPECT_TRUE(udp.recv(before, 50 * SRS_UTIME_MILLISECONDS).empty());
+}
+
+// With two server candidates on one port, such as the API host's address beside the configured candidate, Chrome
+// checks its pair to the other candidate from its nominated address without USE-CANDIDATE, in any order with its
+// checks of the nominated pair.
+VOID TEST(AppRtcNetworkTest, BrowserChecksPairToOtherServerCandidate_MediaStaysOnNominatedPair)
+{
+    srs_error_t err;
+
+    // Chrome's first check carries no USE-CANDIDATE, and its next checks of the nominated pair do.
+    bool starts[][3] = {{false, true, true}, {true, false, false}};
+    int nn_starts[] = {3, 1};
+    for (int s = 0; s < 2; s++) {
+        RtcNetworkUtestUdp udp;
+        HELPER_ASSERT_SUCCESS(udp.listen());
+        int ethernet = 0, wifi = 0;
+        HELPER_ASSERT_SUCCESS(udp.client(&ethernet));
+        HELPER_ASSERT_SUCCESS(udp.client(&wifi));
+
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        RtcNetworkUtestConns conns;
+        RtcConnUtestClient player(&server);
+        HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+        HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+        SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+        char media[] = "media";
+
+        for (int i = 0; i < nn_starts[s]; i++) {
+            HELPER_ASSERT_SUCCESS(udp.check(ethernet, player, starts[s][i]));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(ethernet), player));
+        }
+
+        for (int round = 0; round < 3; round++) {
+            HELPER_ASSERT_SUCCESS(udp.check(ethernet, player, false));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(ethernet), player));
+            HELPER_ASSERT_SUCCESS(udp.check(wifi, player, false));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(wifi), player));
+
+            HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+            EXPECT_STREQ("media", udp.recv(ethernet).c_str()) << "start=" << s << ", round=" << round;
+            EXPECT_TRUE(udp.recv(wifi, 50 * SRS_UTIME_MILLISECONDS).empty()) << "start=" << s << ", round=" << round;
+
+            HELPER_ASSERT_SUCCESS(udp.check(ethernet, player, true));
+            HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(ethernet), player));
+        }
+    }
+}
+
+// An NTP correction steps the server's wall clock back after a client nominated its pair.
+VOID TEST(AppRtcNetworkTest, ClockStepsBackAfterNomination_SessionFollowsRebinding)
+{
+    srs_error_t err;
+
+    RtcNetworkUtestUdp udp;
+    HELPER_ASSERT_SUCCESS(udp.listen());
+    int before = 0, after = 0;
+    HELPER_ASSERT_SUCCESS(udp.client(&before));
+    HELPER_ASSERT_SUCCESS(udp.client(&after));
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcNetworkUtestConns conns;
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(rtc_network_utest_start(player, conns, true, true));
+    SrsRtcUdpNetwork *network = dynamic_cast<SrsRtcUdpNetwork *>(player.conn_->udp());
+    MockClockForPithyPrint clock;
+    clock.now_ = srs_time_now_cached();
+    network->clk_ = &clock;
+    char media[] = "media";
+
+    HELPER_ASSERT_SUCCESS(udp.check(before, player, true));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(before), player));
+
+    clock.now_ -= 3600 * SRS_UTIME_SECONDS;
+    HELPER_ASSERT_SUCCESS(udp.check(after, player, false));
+    HELPER_EXPECT_SUCCESS(rtc_network_utest_response(udp.recv(after), player));
+    HELPER_EXPECT_SUCCESS(network->write(media, sizeof(media), NULL));
+    EXPECT_STREQ("media", udp.recv(after).c_str());
+    EXPECT_TRUE(udp.recv(before, 50 * SRS_UTIME_MILLISECONDS).empty());
 }
 
 // A publisher with encryption off is published at its first ICE check, with no DTLS. The packets the session refuses
@@ -5047,7 +5284,7 @@ static srs_error_t rtc_network_utest_tcp_publisher_sends(const std::string &pack
         return srs_error_wrap(err, "start");
     }
 
-    std::string bytes = rtc_network_utest_frame(rtc_network_utest_check(publisher));
+    std::string bytes = rtc_network_utest_frame(rtc_network_utest_check(publisher, true));
     bytes += rtc_network_utest_frame(rtc_conn_utest_rtp(2001, 106, 100));
     bytes += rtc_network_utest_frame(packet);
     RtcNetworkUtestTcp tcp(&conns, bytes);
@@ -5118,7 +5355,7 @@ VOID TEST(AppRtcNetworkTest, TcpCheckNotSignedWithAnswerPassword_RefusedThenClie
     EXPECT_TRUE(NULL == network->owner().get());
     EXPECT_FALSE(network->is_establelished());
 
-    RtcNetworkUtestTcp client(&conns, rtc_network_utest_frame(rtc_network_utest_check(publisher)));
+    RtcNetworkUtestTcp client(&conns, rtc_network_utest_frame(rtc_network_utest_check(publisher, true)));
     HELPER_EXPECT_SUCCESS(client.conn_->handshake());
     ASSERT_EQ(1, (int)client.io_.written_data_.size());
     HELPER_EXPECT_SUCCESS(rtc_network_utest_response(client.io_.written_data_[0].substr(2), publisher));

@@ -24,11 +24,14 @@ using namespace std;
 #include <srs_protocol_rtc_stun.hpp>
 
 #if defined(SRS_OSX) || defined(_WIN32)
-// These functions are similar to the older byteorder(3) family of functions.
-// For example, be32toh() is identical to ntohl().
+// The be32toh() is identical to ntohl().
 // @see https://linux.die.net/man/3/be32toh
 #define be32toh ntohl
 #endif
+
+// The longest a send to a WebRTC client over TCP waits when the client's buffer is full. Media that waits longer is
+// too late to play, and every such send holds up the coroutine that makes it, such as the shared timer.
+#define SRS_RTC_TCP_SEND_TIMEOUT (1 * SRS_UTIME_SECONDS)
 
 extern bool srs_is_stun(const uint8_t *data, size_t size);
 extern bool srs_is_dtls(const uint8_t *data, size_t len);
@@ -189,20 +192,21 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     conn_ = conn;
     delta_ = delta;
     sendonly_skt_ = NULL;
+    nominated_at_ = 0;
     pp_address_change_ = new SrsErrorPithyPrint();
     transport_ = new SrsSecurityTransport(this);
 
     conn_manager_ = _srs_conn_manager;
     blackhole_ = _srs_blackhole;
+    clk_ = _srs_clock;
 }
 
 SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
 {
-    // Free transport first, which depends on socket.
+    // Free the transport first, as it depends on the socket.
     srs_freep(transport_);
 
-    // Note that we should never delete the sendonly_skt,
-    // it's just point to the object in peer_addresses_.
+    // The sendonly_skt_ points to one of these, so it is not freed on its own.
     map<string, ISrsUdpMuxSocket *>::iterator it;
     for (it = peer_addresses_.begin(); it != peer_addresses_.end(); ++it) {
         ISrsUdpMuxSocket *addr = it->second;
@@ -213,6 +217,7 @@ SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
 
     conn_manager_ = NULL;
     blackhole_ = NULL;
+    clk_ = NULL;
 }
 
 srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -237,7 +242,6 @@ srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool 
 
 srs_error_t SrsRtcUdpNetwork::on_dtls(char *data, int nb_data)
 {
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
@@ -252,7 +256,7 @@ srs_error_t SrsRtcUdpNetwork::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // If DTLS done packet received many times, such as ARQ, ignore.
+    // The DTLS ARQ may report the handshake done more than once.
     if (SrsRtcNetworkStateEstablished == state_) {
         return err;
     }
@@ -279,7 +283,6 @@ srs_error_t SrsRtcUdpNetwork::on_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     int nb_unprotected_buf = nb_data;
@@ -316,7 +319,6 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char *data, int nb_data)
     }
 #endif
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
@@ -379,44 +381,42 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
         prev_peer_id = sendonly_skt_->peer_id();
     }
 
-    // Ignore if same address.
     if (prev_peer_id == peer_id) {
         return;
     }
 
-    // Find object from cache.
-    ISrsUdpMuxSocket *addr_cache = NULL;
-    if (true) {
-        map<string, ISrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
-        if (it != peer_addresses_.end()) {
-            addr_cache = it->second;
-        }
-    }
-
-    // Show address change log.
     if (prev_peer_id.empty()) {
         srs_trace("RTC: session address init %s", peer_id.c_str());
     } else {
         uint32_t nn = 0;
         if (pp_address_change_->can_print(skt->get_peer_port(), &nn)) {
             srs_trace("RTC: session address change %s -> %s, cached=%d, nn_change=%u/%u, nn_address=%u", prev_peer_id.c_str(),
-                      peer_id.c_str(), (addr_cache ? 1 : 0), pp_address_change_->nn_count_, nn, peer_addresses_.size());
+                      peer_id.c_str(), (peer_addresses_.count(peer_id) ? 1 : 0), pp_address_change_->nn_count_, nn, peer_addresses_.size());
         }
     }
 
-    // If no cache, build cache and setup the relations in connection.
-    if (!addr_cache) {
-        peer_addresses_[peer_id] = addr_cache = skt->copy_sendonly();
-        conn_manager_->add_with_id(peer_id, conn_);
+    sendonly_skt_ = cache_peer_address(skt);
+}
 
-        uint64_t fast_id = skt->fast_id();
-        if (fast_id) {
-            conn_manager_->add_with_fast_id(fast_id, conn_);
-        }
+ISrsUdpMuxSocket *SrsRtcUdpNetwork::cache_peer_address(ISrsUdpMuxSocket *skt)
+{
+    string peer_id = skt->peer_id();
+    map<string, ISrsUdpMuxSocket *>::iterator it = peer_addresses_.find(peer_id);
+    if (it != peer_addresses_.end()) {
+        ISrsUdpMuxSocket *addr = it->second;
+        return addr;
     }
 
-    // Update the transport.
-    sendonly_skt_ = addr_cache;
+    ISrsUdpMuxSocket *addr = skt->copy_sendonly();
+    peer_addresses_[peer_id] = addr;
+    conn_manager_->add_with_id(peer_id, conn_);
+
+    uint64_t fast_id = skt->fast_id();
+    if (fast_id) {
+        conn_manager_->add_with_fast_id(fast_id, conn_);
+    }
+
+    return addr;
 }
 
 srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
@@ -428,7 +428,6 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
 {
     srs_error_t err = srs_success;
 
-    // Write STUN messages to blackhole.
     blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
@@ -440,19 +439,33 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
         return srs_error_wrap(err, "udp");
     }
 
-    // Switch to the peer address only after the session accepted the request, so the response goes there too.
+    ISrsUdpMuxSocket *from = sendonly_skt_;
     if (skt) {
-        update_sendonly_socket(skt);
+        // ICE-lite, see #4796: a browser puts USE-CANDIDATE on each check of its nominated pair and checks its other
+        // pairs without it, while a client like pion nominates only once, so its checks after a NAT rebind carry none.
+        bool nominated = r->get_use_candidate();
+        bool selected = sendonly_skt_ && sendonly_skt_->peer_id() == skt->peer_id();
+        srs_utime_t now = clk_->now();
+        bool held = nominated_at_ > 0 && now >= nominated_at_ && now - nominated_at_ <= SRS_RTC_NOMINATION_TIMEOUT;
+        if (!sendonly_skt_ || nominated || selected || !held) {
+            update_sendonly_socket(skt);
+            if (nominated) {
+                nominated_at_ = now;
+            } else if (!selected) {
+                nominated_at_ = 0;
+            }
+        }
+        from = cache_peer_address(skt);
     }
 
-    if ((err = on_binding_request(r, ice_pwd)) != srs_success) {
+    if ((err = on_binding_request(r, ice_pwd, from)) != srs_success) {
         return srs_error_wrap(err, "stun binding request failed");
     }
 
     return err;
 }
 
-srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pwd)
+srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pwd, ISrsUdpMuxSocket *from)
 {
     srs_error_t err = srs_success;
 
@@ -465,14 +478,15 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
     stun_binding_response.set_remote_ufrag(r->get_local_ufrag());
     stun_binding_response.set_transcation_id(r->get_transcation_id());
     // FIXME: inet_addr is deprecated, IPV6 support
-    stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
-    stun_binding_response.set_mapped_port(get_peer_port());
+    stun_binding_response.set_mapped_address(be32toh(inet_addr(from->get_peer_ip().c_str())));
+    stun_binding_response.set_mapped_port(from->get_peer_port());
 
     if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
-    if ((err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
+    delta_->add_delta(0, stream->pos());
+    if ((err = from->sendto(stream->data(), stream->pos(), SRS_UTIME_NO_TIMEOUT)) != srs_success) {
         return srs_error_wrap(err, "stun binding response send failed");
     }
 
@@ -493,7 +507,6 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
 
 srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
-    // Update stat when we sending data.
     delta_->add_delta(0, size);
 
     if (nwrite)
@@ -514,6 +527,8 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     conn_ = conn;
     delta_ = delta;
     sendonly_skt_ = NULL;
+    writers_ = 0;
+    writers_done_ = srs_cond_new();
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
@@ -523,10 +538,14 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 {
+    // The conn's coroutine may wait in a send of this network, under the transport, so let the rest of its sends fail
+    // at once, and wait for it to leave before freeing the transport.
+    sendonly_skt_ = NULL;
     if (owner_.get()) {
         owner_->interrupt();
     }
     srs_freep(transport_);
+    srs_cond_destroy(writers_done_);
 
     blackhole_ = NULL;
 }
@@ -534,13 +553,29 @@ SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
 {
     sendonly_skt_ = skt;
+
+    // A send to a client that stops reading must not wait forever, because the shared timer sends RTCP to every
+    // session.
+    if (sendonly_skt_) {
+        sendonly_skt_->set_send_timeout(SRS_RTC_TCP_SEND_TIMEOUT);
+    }
+}
+
+void SrsRtcTcpNetwork::stop_sends()
+{
+    sendonly_skt_ = NULL;
+
+    // A send waits at most for the send timeout.
+    while (writers_ > 0) {
+        srs_cond_wait(writers_done_);
+    }
 }
 
 srs_error_t SrsRtcTcpNetwork::on_dtls_handshake_done()
 {
     srs_error_t err = srs_success;
 
-    // If DTLS done packet received many times, such as ARQ, ignore.
+    // The DTLS ARQ may report the handshake done more than once.
     if (SrsRtcNetworkStateEstablished == state_) {
         return err;
     }
@@ -572,7 +607,6 @@ srs_error_t SrsRtcTcpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Write STUN messages to blackhole.
     blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
@@ -652,7 +686,6 @@ srs_error_t SrsRtcTcpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool 
 
 srs_error_t SrsRtcTcpNetwork::on_dtls(char *data, int nb_data)
 {
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     return transport_->on_dtls(data, nb_data);
@@ -662,7 +695,6 @@ srs_error_t SrsRtcTcpNetwork::on_rtcp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     int nb_unprotected_buf = nb_data;
@@ -684,7 +716,6 @@ srs_error_t SrsRtcTcpNetwork::on_rtp(char *data, int nb_data)
 {
     srs_error_t err = srs_success;
 
-    // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
     // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
@@ -758,7 +789,15 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     iovs[1].iov_len = size;
 
     ssize_t n = 0;
-    if ((err = sendonly_skt_->writev(iovs, 2, &n)) != srs_success) {
+    writers_++;
+    err = sendonly_skt_->writev(iovs, 2, &n);
+    writers_--;
+    srs_cond_signal(writers_done_);
+
+    // A failed send, such as a timeout, may leave part of a packet on the stream, so the client can parse no later
+    // packet. Drop the socket, so later sends fail at once instead of waiting for the timeout again.
+    if (err != srs_success) {
+        sendonly_skt_ = NULL;
         return srs_error_wrap(err, "rtc tcp write len(%d) and body", size);
     }
 
@@ -791,6 +830,10 @@ void SrsRtcTcpConn::setup()
     pkt_ = NULL;
     delta_ = NULL;
     skt_ = NULL;
+
+    handling_ = false;
+    waiting_ = false;
+    handled_ = srs_cond_new();
 
     conn_manager_ = _srs_conn_manager;
     stat_ = _srs_stat;
@@ -836,6 +879,7 @@ SrsRtcTcpConn::~SrsRtcTcpConn()
     srs_freepa(pkt_);
     srs_freep(delta_);
     srs_freep(skt_);
+    srs_cond_destroy(handled_);
 
     conn_manager_ = NULL;
     stat_ = NULL;
@@ -859,6 +903,14 @@ void SrsRtcTcpConn::interrupt()
     session_ = NULL;
     if (owner_coroutine_)
         owner_coroutine_->interrupt();
+
+    // The session is freed after this, so wait for the coroutine to return from it, for example from a DTLS send
+    // that waits for room in the socket.
+    waiting_ = true;
+    while (handling_) {
+        srs_cond_wait(handled_);
+    }
+    waiting_ = false;
 }
 
 std::string SrsRtcTcpConn::desc()
@@ -885,47 +937,42 @@ srs_error_t SrsRtcTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Only stat the HTTP streaming clients, ignore all API clients.
     stat_->on_disconnect(get_id().c_str(), err);
     stat_->kbps_add_delta(get_id().c_str(), delta_);
 
     if (session_) {
         if (session_->tcp()->is_establelished()) {
-            // Only remove session when network is established, because client might use other UDP network.
+            // Only expire the session when this network is established, because the client might use UDP.
             session_->tcp()->set_state(SrsRtcNetworkStateClosed);
             session_->expire();
         } else {
             // Not established, so release the network to allow the client to reconnect over TCP, and never
-            // send by the socket of this connection, which is freed with it.
+            // send by the socket of this connection, which is freed with it. Another coroutine, such as the DTLS
+            // client's ARQ, may still wait in a send on that socket, and closing a socket with a waiter aborts.
             ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session_->tcp());
             if (network && network->owner().get() == this) {
-                network->update_sendonly_socket(NULL);
+                network->stop_sends();
                 network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
             }
         }
     }
 
-    // For HTTP-API timeout, we think it's done successfully,
-    // because there may be no request or response for HTTP-API.
     if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
         srs_freep(err);
         return srs_success;
     }
 
-    // success.
     if (err == srs_success) {
         srs_trace("client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -943,7 +990,6 @@ srs_error_t SrsRtcTcpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // Update all context id to cid of session.
     context_->set_id(cid_);
     owner_cid_->set_cid(cid_);
 
@@ -964,7 +1010,13 @@ srs_error_t SrsRtcTcpConn::do_cycle()
             return srs_error_wrap(err, "process rtc tcp pkt");
         }
 
-        if ((err = on_tcp_pkt(pkt_, npkt)) != srs_success) {
+        handling_ = true;
+        err = on_tcp_pkt(pkt_, npkt);
+        handling_ = false;
+        if (waiting_) {
+            srs_cond_signal(handled_);
+        }
+        if (err != srs_success) {
             return srs_error_wrap(err, "process rtc tcp pkt");
         }
     }
@@ -988,7 +1040,6 @@ srs_error_t SrsRtcTcpConn::handshake()
                              is_stun, is_rtp_or_rtcp, srs_strings_dumps_hex(pkt_, npkt, 8).c_str());
     }
 
-    // Find session by ping(BindingRequest).
     SrsStunPacket ping;
     if ((err = ping.decode(pkt_, npkt)) != srs_success) {
         return srs_error_wrap(err, "decode stun packet failed");
@@ -1005,7 +1056,7 @@ srs_error_t SrsRtcTcpConn::handshake()
     srs_trace("recv stun packet from %s:%d, use-candidate=%d, ice-controlled=%d, ice-controlling=%d",
               ip_.c_str(), port_, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
-    // Should support only one TCP candidate.
+    // Only one TCP candidate is supported.
     ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session->tcp());
     if (network->owner().get()) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
@@ -1013,21 +1064,26 @@ srs_error_t SrsRtcTcpConn::handshake()
     network->set_owner(*wrapper_);
     session_ = session;
 
-    // For each binding request, update the TCP socket.
     if (ping.is_binding_request()) {
         network->update_sendonly_socket(skt_);
         network->set_peer_id(ip_, port_);
     }
 
-    // Use the session network to handle packet.
-    return network->on_stun(&ping, pkt_, npkt);
+    handling_ = true;
+    err = network->on_stun(&ping, pkt_, npkt);
+    handling_ = false;
+    if (waiting_) {
+        srs_cond_signal(handled_);
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)
 {
     srs_error_t err = srs_success;
 
-    // Read length in 2 bytes @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
+    // Each packet has a 2-byte length before it, @doc: https://www.rfc-editor.org/rfc/rfc4571#section-2
     ssize_t nread = 0;
     uint8_t b[2];
     if ((err = skt_->read_fully((char *)b, sizeof(b), &nread)) != srs_success) {
@@ -1039,7 +1095,6 @@ srs_error_t SrsRtcTcpConn::read_packet(char *pkt, int *nb_pkt)
         return srs_error_new(ERROR_RTC_TCP_SIZE, "invalid size=%u exceed %d", npkt, *nb_pkt);
     }
 
-    // Read a RTC pkt such as STUN, DTLS or RTP/RTCP
     if ((err = skt_->read_fully(pkt, npkt, &nread)) != srs_success) {
         return srs_error_wrap(err, "rtc tcp conn read body");
     }
@@ -1053,7 +1108,7 @@ srs_error_t SrsRtcTcpConn::on_tcp_pkt(char *pkt, int nb_pkt)
 {
     srs_error_t err = srs_success;
 
-    // Session is destroyed, ignore TCP packet.
+    // The session is destroyed.
     if (!session_)
         return err;
 
@@ -1061,7 +1116,6 @@ srs_error_t SrsRtcTcpConn::on_tcp_pkt(char *pkt, int nb_pkt)
     bool is_rtp_or_rtcp = srs_is_rtp_or_rtcp((uint8_t *)pkt, nb_pkt);
     bool is_rtcp = srs_is_rtcp((uint8_t *)pkt, nb_pkt);
 
-    // When got any packet, the session is alive now.
     session_->alive();
 
     if (is_stun) {

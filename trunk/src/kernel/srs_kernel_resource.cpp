@@ -77,7 +77,6 @@ SrsResourceManager::~SrsResourceManager()
 
     clear();
 
-    // Free all objects not in zombies.
     std::vector<ISrsResource *>::iterator it;
     for (it = conns_.begin(); it != conns_.end(); ++it) {
         ISrsResource *resource = *it;
@@ -129,8 +128,7 @@ srs_error_t SrsResourceManager::cycle()
             return srs_error_wrap(err, "conn manager");
         }
 
-        // Clear all zombies, because we may switch context and lost signal
-        // when we clear zombie connection.
+        // Clearing zombies may switch the context, and a signal sent meanwhile is lost.
         while (!zombies_.empty()) {
             clear();
         }
@@ -163,8 +161,7 @@ void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource *conn)
     add(conn);
     conns_fast_id_[id] = conn;
 
-    // Take a free slot, or update the slot of this id, which may move to another resource, such as a
-    // WebRTC address to a new session. The resource may have been added by another id or name already.
+    // An id may move to another resource, such as a WebRTC address to a new session.
     SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
     if (!item->available_ || item->fast_id_ == id) {
         item->fast_id_ = id;
@@ -217,7 +214,6 @@ void SrsResourceManager::subscribe(ISrsDisposingHandler *h)
         handlers_.push_back(h);
     }
 
-    // Restore the handler from unsubscribing handlers.
     vector<ISrsDisposingHandler *>::iterator it;
     if ((it = std::find(unsubs_.begin(), unsubs_.end(), h)) != unsubs_.end()) {
         it = unsubs_.erase(it);
@@ -231,7 +227,6 @@ void SrsResourceManager::unsubscribe(ISrsDisposingHandler *h)
         it = handlers_.erase(it);
     }
 
-    // Put it to the unsubscribing handlers.
     if (std::find(unsubs_.begin(), unsubs_.end(), h) == unsubs_.end()) {
         unsubs_.push_back(h);
     }
@@ -263,17 +258,14 @@ void SrsResourceManager::do_remove(ISrsResource *c)
         return;
     }
 
-    // Push to zombies, we will free it in another coroutine.
     zombies_.push_back(c);
 
-    // We should copy all handlers, because it may change during callback.
+    // A callback may change the handlers.
     vector<ISrsDisposingHandler *> handlers = handlers_;
 
-    // Notify other handlers to handle the before-dispose event.
     for (int i = 0; i < (int)handlers.size(); i++) {
         ISrsDisposingHandler *h = handlers.at(i);
 
-        // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
             srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore before-dispose resource(%s)(%p) for %p, conns=%d",
                       label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());
@@ -283,19 +275,16 @@ void SrsResourceManager::do_remove(ISrsResource *c)
         h->on_before_dispose(c);
     }
 
-    // Notify the coroutine to free it.
     cond_->signal();
 }
 
 void SrsResourceManager::check_remove(ISrsResource *c, bool &in_zombie, bool &in_disposing)
 {
-    // Only notify when not removed(in zombies_).
     vector<ISrsResource *>::iterator it = std::find(zombies_.begin(), zombies_.end(), c);
     if (it != zombies_.end()) {
         in_zombie = true;
     }
 
-    // Also ignore when we are disposing it.
     if (p_disposing_) {
         it = std::find(p_disposing_->begin(), p_disposing_->end(), c);
         if (it != p_disposing_->end()) {
@@ -316,7 +305,6 @@ void SrsResourceManager::clear()
                   label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
     }
 
-    // Clear all unsubscribing handlers, if not removing any resource.
     if (!removing_ && !unsubs_.empty()) {
         vector<ISrsDisposingHandler *>().swap(unsubs_);
     }
@@ -326,8 +314,7 @@ void SrsResourceManager::clear()
 
 void SrsResourceManager::do_clear()
 {
-    // To prevent thread switch when delete connection,
-    // we copy all connections then free one by one.
+    // Deleting a connection may switch the context, so take the zombies out before freeing them.
     vector<ISrsResource *> copy;
     copy.swap(zombies_);
     p_disposing_ = &copy;
@@ -346,13 +333,11 @@ void SrsResourceManager::do_clear()
         dispose(conn);
     }
 
-    // Reset it for it points to a local object.
-    // @remark We must set the disposing to NULL to avoid reusing address,
-    // because the context might switch.
+    // It points to a local object, and the context may switch during the frees below.
     p_disposing_ = NULL;
 
-    // We should free the resources when finished all disposing callbacks,
-    // which might cause context switch and reuse the freed addresses.
+    // Free only after all disposing callbacks, since a callback may switch the context, and a freed
+    // address may then be reused.
     for (int i = 0; i < (int)copy.size(); i++) {
         ISrsResource *conn = copy.at(i);
         srs_freep(conn);
@@ -383,7 +368,6 @@ void SrsResourceManager::dispose(ISrsResource *c)
         if (c != it->second) {
             ++it;
         } else {
-            // Free the level-0 slot only when this id holds it, never another id's slot.
             uint64_t id = it->first;
             SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
             if (item->available_ && item->fast_id_ == id) {
@@ -402,14 +386,12 @@ void SrsResourceManager::dispose(ISrsResource *c)
         it = conns_.erase(it);
     }
 
-    // We should copy all handlers, because it may change during callback.
+    // A callback may change the handlers.
     vector<ISrsDisposingHandler *> handlers = handlers_;
 
-    // Notify other handlers to handle the disposing event.
     for (int i = 0; i < (int)handlers.size(); i++) {
         ISrsDisposingHandler *h = handlers.at(i);
 
-        // Ignore if handler is unsubscribing.
         if (!unsubs_.empty() && std::find(unsubs_.begin(), unsubs_.end(), h) != unsubs_.end()) {
             srs_warn2(TAG_RESOURCE_UNSUB, "%s: ignore disposing resource(%s)(%p) for %p, conns=%d",
                       label_.c_str(), c->desc().c_str(), c, h, (int)conns_.size());

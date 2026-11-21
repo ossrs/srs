@@ -12,7 +12,6 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_st.hpp>
 
-// Global instance
 SrsStreamPublishTokenManager *_srs_stream_publish_tokens = NULL;
 
 ISrsStreamPublishToken::ISrsStreamPublishToken()
@@ -33,7 +32,6 @@ SrsStreamPublishToken::SrsStreamPublishToken(const std::string &stream_url, ISrs
 
 SrsStreamPublishToken::~SrsStreamPublishToken()
 {
-    // Automatically release the token when destroyed
     if (acquired_ && manager_) {
         manager_->release_token(stream_url_);
     }
@@ -79,13 +77,10 @@ SrsStreamPublishTokenManager::SrsStreamPublishTokenManager()
 
 SrsStreamPublishTokenManager::~SrsStreamPublishTokenManager()
 {
-    // Clean up all remaining tokens. Each token's destructor automatically calls
-    // release_token() which removes it from tokens_ map, so we use while loop
-    // to avoid iterator invalidation issues.
+    // The token destructor erases the token from tokens_ by release_token().
     while (!tokens_.empty()) {
         SrsStreamPublishToken *token = tokens_.begin()->second;
 
-        // Token destructor will call release_token() and remove this entry from map
         srs_freep(token);
     }
 
@@ -102,7 +97,6 @@ srs_error_t SrsStreamPublishTokenManager::acquire_token(ISrsRequest *req, SrsStr
 
     SrsLocker(&mutex_);
 
-    // Get or create token for this stream
     SrsStreamPublishToken *stream_token = NULL;
 
     std::map<std::string, SrsStreamPublishToken *>::iterator it = tokens_.find(stream_url);
@@ -113,7 +107,6 @@ srs_error_t SrsStreamPublishTokenManager::acquire_token(ISrsRequest *req, SrsStr
         tokens_[stream_url] = stream_token;
     }
 
-    // Check if token is already acquired by another publisher
     if (stream_token->is_acquired()) {
         SrsContextId existing_cid = stream_token->publisher_cid();
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY,
@@ -124,7 +117,7 @@ srs_error_t SrsStreamPublishTokenManager::acquire_token(ISrsRequest *req, SrsStr
         stream_token->set_publisher_cid(current_cid);
     }
 
-    // Return the token from the map (caller will manage its lifetime)
+    // The caller frees the token, which releases it.
     token = stream_token;
 
     return err;
@@ -134,7 +127,6 @@ void SrsStreamPublishTokenManager::release_token(const std::string &stream_url)
 {
     SrsLocker(&mutex_);
 
-    // Find and erase the token from the map
     std::map<std::string, SrsStreamPublishToken *>::iterator it = tokens_.find(stream_url);
     srs_assert(it != tokens_.end());
 
@@ -142,7 +134,6 @@ void SrsStreamPublishTokenManager::release_token(const std::string &stream_url)
     token->set_acquired(false);
     srs_trace("stream publish token released and deleted, url=%s", stream_url.c_str());
 
-    // Erase from map first, then delete the token
     tokens_.erase(it);
 }
 

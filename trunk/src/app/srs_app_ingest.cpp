@@ -139,13 +139,12 @@ void SrsIngester::dispose()
     }
     disposed_ = true;
 
-    // first, use fast stop to notice all FFMPEG to quit gracefully.
+    // Let FFmpeg quit gracefully before it is killed.
     fast_stop();
 
     SrsUniquePtr<ISrsTime> time(app_factory_->create_time());
     time->usleep(100 * SRS_UTIME_MILLISECONDS);
 
-    // then, use fast kill to ensure FFMPEG quit.
     fast_kill();
 }
 
@@ -158,10 +157,6 @@ srs_error_t SrsIngester::start()
         return srs_error_wrap(err, "parse");
     }
 
-    // even no ingesters, we must also start it,
-    // for the reload may add more ingesters.
-
-    // start thread to run all encoding engines.
     srs_freep(trd_);
     trd_ = app_factory_->create_coroutine("ingest", this, _srs_context->get_id());
 
@@ -204,8 +199,7 @@ void SrsIngester::fast_kill()
     }
 }
 
-// when error, ingester sleep for a while and retry.
-// ingest never sleep a long time, for we must start the stream ASAP.
+// Short, so a stream whose FFmpeg failed starts again soon.
 #define SRS_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsIngester::cycle()
@@ -215,7 +209,6 @@ srs_error_t SrsIngester::cycle()
     SrsUniquePtr<ISrsTime> time(app_factory_->create_time());
 
     while (!disposed_) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "ingester");
@@ -236,37 +229,30 @@ srs_error_t SrsIngester::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // when expired, restart all ingesters.
     if (expired_) {
         expired_ = false;
 
-        // stop current ingesters.
         fast_stop();
         clear_engines();
 
-        // re-prase the ingesters.
         if ((err = parse()) != srs_success) {
             return srs_error_wrap(err, "parse");
         }
     }
 
-    // cycle exists ingesters.
     std::vector<ISrsIngesterFFMPEG *>::iterator it;
     for (it = ingesters_.begin(); it != ingesters_.end(); ++it) {
         ISrsIngesterFFMPEG *ingester = *it;
 
-        // start all ffmpegs.
         if ((err = ingester->start()) != srs_success) {
             return srs_error_wrap(err, "ingester start");
         }
 
-        // check ffmpeg status.
         if ((err = ingester->cycle()) != srs_success) {
             return srs_error_wrap(err, "ingester cycle");
         }
     }
 
-    // pithy print
     show_ingest_log_message();
 
     return err;
@@ -288,7 +274,6 @@ srs_error_t SrsIngester::parse()
 {
     srs_error_t err = srs_success;
 
-    // parse ingesters
     std::vector<SrsConfDirective *> vhosts;
     config_->get_vhosts(vhosts);
 
@@ -306,14 +291,12 @@ srs_error_t SrsIngester::parse_ingesters(SrsConfDirective *vhost)
 {
     srs_error_t err = srs_success;
 
-    // when vhost disabled, ignore any ingesters.
     if (!config_->get_vhost_enabled(vhost)) {
         return err;
     }
 
     std::vector<SrsConfDirective *> ingesters = config_->get_ingesters(vhost->arg0());
 
-    // create engine
     for (int i = 0; i < (int)ingesters.size(); i++) {
         SrsConfDirective *ingest = ingesters[i];
         if ((err = parse_engines(vhost, ingest)) != srs_success) {
@@ -337,10 +320,8 @@ srs_error_t SrsIngester::parse_engines(SrsConfDirective *vhost, SrsConfDirective
         return srs_error_new(ERROR_ENCODER_PARSE, "parse ffmpeg");
     }
 
-    // get all engines.
     std::vector<SrsConfDirective *> engines = config_->get_transcode_engines(ingest);
 
-    // create ingesters without engines.
     if (engines.empty()) {
         ISrsFFMPEG *ffmpeg = app_factory_->create_ffmpeg(ffmpeg_bin);
         if ((err = initialize_ffmpeg(ffmpeg, vhost, ingest, NULL)) != srs_success) {
@@ -358,7 +339,6 @@ srs_error_t SrsIngester::parse_engines(SrsConfDirective *vhost, SrsConfDirective
         return err;
     }
 
-    // create ingesters with engine
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective *engine = engines[i];
         ISrsFFMPEG *ffmpeg = app_factory_->create_ffmpeg(ffmpeg_bin);
@@ -383,23 +363,24 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
 {
     srs_error_t err = srs_success;
 
-    int port;
-    if (true) {
-        std::vector<std::string> ip_ports = config_->get_listens();
-        srs_assert(ip_ports.size() > 0);
+    std::string output = config_->get_engine_output(engine);
+    // The output goes to this or another server, such as rtmp://localhost:1935/live/livestream_sd
+    output = srs_strings_replace(output, "[vhost]", vhost->arg0());
 
+    // The [port] is the first RTMP listen, which a server without RTMP does not have.
+    if (output.find("[port]") != std::string::npos) {
+        std::vector<std::string> ip_ports = config_->get_listens();
+        if (ip_ports.empty()) {
+            return srs_error_new(ERROR_ENCODER_OUTPUT, "no rtmp listen for [port] of %s", output.c_str());
+        }
+
+        int port;
         std::string ip;
         std::string ep = ip_ports[0];
         srs_net_split_for_listener(ep, ip, port);
+        output = srs_strings_replace(output, "[port]", srs_strconv_format_int(port));
     }
-
-    std::string output = config_->get_engine_output(engine);
-    // output stream, to other/self server
-    // ie. rtmp://localhost:1935/live/livestream_sd
-    output = srs_strings_replace(output, "[vhost]", vhost->arg0());
-    output = srs_strings_replace(output, "[port]", srs_strconv_format_int(port));
     output = srs_path_build_timestamp(config_, output);
-    // Remove the only param with default vhost.
     output = srs_strings_replace(output, "vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST, "");
     output = srs_strings_replace(output, "?&", "?");
     output = srs_strings_replace(output, "?/", "/"); // For params over app.
@@ -408,7 +389,6 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         return srs_error_new(ERROR_ENCODER_NO_OUTPUT, "empty output url, ingest=%s", ingest->arg0().c_str());
     }
 
-    // find the app and stream in rtmp url
     std::string app, stream;
     if (true) {
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
@@ -417,8 +397,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         srs_net_url_parse_tcurl(tcUrl, schema, host, vhost2, app, stream, port, param);
     }
 
-    std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
-    // write ffmpeg info to log file.
+    std::string log_file = SRS_CONSTS_NULL_FILE;
     if (config_->get_ff_log_enabled()) {
         log_file = config_->get_ff_log_dir();
         log_file += "/";
@@ -438,7 +417,6 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         ffmpeg->append_iparam(log_level);
     }
 
-    // input
     std::string input_type = config_->get_ingest_input_type(ingest);
     if (input_type.empty()) {
         return srs_error_new(ERROR_ENCODER_NO_INPUT, "empty intput type, ingest=%s", ingest->arg0().c_str());
@@ -450,7 +428,6 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
             return srs_error_new(ERROR_ENCODER_NO_INPUT, "empty intput url, ingest=%s", ingest->arg0().c_str());
         }
 
-        // for file, set re.
         ffmpeg->append_iparam("-re");
 
         if ((err = ffmpeg->initialize(input_url, output, log_file)) != srs_success) {
@@ -462,7 +439,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
             return srs_error_new(ERROR_ENCODER_NO_INPUT, "empty intput url, ingest=%s", ingest->arg0().c_str());
         }
 
-        // For stream, also use -re, to ingest HLS better.
+        // A stream gets -re too, which ingests HLS better.
         ffmpeg->append_iparam("-re");
 
         if ((err = ffmpeg->initialize(input_url, output, log_file)) != srs_success) {
@@ -472,12 +449,10 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         return srs_error_new(ERROR_ENCODER_INPUT_TYPE, "invalid ingest=%s type=%s", ingest->arg0().c_str(), input_type.c_str());
     }
 
-    // set output format to flv for RTMP
     ffmpeg->set_oformat("flv");
 
     std::string vcodec = config_->get_engine_vcodec(engine);
     std::string acodec = config_->get_engine_acodec(engine);
-    // whatever the engine config, use copy as default.
     bool engine_disabled = !engine || !config_->get_engine_enabled(engine);
     if (engine_disabled || vcodec.empty() || acodec.empty()) {
         if ((err = ffmpeg->initialize_copy()) != srs_success) {
@@ -502,11 +477,9 @@ void SrsIngester::show_ingest_log_message()
         return;
     }
 
-    // random choose one ingester to report.
     int index = rand_->integer() % (int)ingesters_.size();
     ISrsIngesterFFMPEG *ingester = ingesters_.at(index);
 
-    // reportable
     if (pprint_->can_print()) {
         srs_trace("-> " SRS_CONSTS_LOG_INGESTER " time=%dms, ingesters=%d, #%d(alive=%dms, %s)",
                   srsu2msi(pprint_->age()), (int)ingesters_.size(), index, srsu2msi(ingester->alive()), ingester->uri().c_str());

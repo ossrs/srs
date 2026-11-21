@@ -137,7 +137,6 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsMediaPacket *msg, const vector<
         raw_raw->push_back(sample->copy());
     }
 
-    // Ignore empty.
     int nn_bytes = raw_raw->nb_bytes();
     if (nn_bytes <= 0) {
         srs_freep(raw_raw);
@@ -145,7 +144,6 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsMediaPacket *msg, const vector<
     }
 
     if (nn_bytes < kRtpMaxPayloadSize) {
-        // Package NALUs in a single RTP packet.
         SrsRtpPacket *pkt = new SrsRtpPacket();
         pkts.push_back(pkt);
 
@@ -158,19 +156,16 @@ srs_error_t SrsRtpVideoBuilder::package_nalus(SrsMediaPacket *msg, const vector<
         pkt->set_payload(raw_raw, SrsRtpPacketPayloadTypeNALU);
         pkt->wrap(msg->payload_);
     } else {
-        // We must free it, should never use RTP packets to free it,
-        // because more than one RTP packet will refer to it.
         SrsUniquePtr<SrsRtpRawNALUs> raw(raw_raw);
 
         int header_size = is_hevc ? SrsHevcNaluHeaderSize : SrsAvcNaluHeaderSize;
 
-        // The first byte is store in FU-A header.
         uint8_t header = raw->skip_bytes(header_size);
 
         int nb_left = nn_bytes - header_size;
 
-        // Package NALUs in FU-A RTP packets. An FU-A must not have both the start and end bits, see
-        // RFC 6184 5.8, so a NALU that fits one fragment is still cut into two.
+        // An FU-A must not have both the start and end bits, see RFC 6184 5.8, so a NALU that fits one
+        // fragment is still cut into two.
         int fu_payload_size = srs_min(kRtpMaxPayloadSize, nb_left - 1);
 
         int num_of_packet = 1 + (nb_left - 1) / fu_payload_size;
@@ -281,7 +276,6 @@ srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsMediaPacket *msg, SrsNaluSample 
         pkt->nalu_type_ = is_hevc ? kFuHevc : kFuA;
 
         if (is_hevc) {
-            // H265 FU-A header
             SrsRtpFUAPayloadHevc2 *fua = new SrsRtpFUAPayloadHevc2();
             pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUAHevc2);
 
@@ -292,7 +286,6 @@ srs_error_t SrsRtpVideoBuilder::package_fu_a(SrsMediaPacket *msg, SrsNaluSample 
             fua->payload_ = p;
             fua->size_ = packet_size;
         } else {
-            // H264 FU-A header
             SrsRtpFUAPayload2 *fua = new SrsRtpFUAPayload2();
             pkt->set_payload(fua, SrsRtpPacketPayloadTypeFUA2);
 

@@ -15,16 +15,13 @@ class ISrsClock;
 class ISrsConfig;
 class ISrsKernelFactory;
 
-// The stage info to calc the age.
 class SrsStageInfo
 {
 public:
     int stage_id_;
     srs_utime_t interval_;
     int nb_clients_;
-    // The number of call of can_print().
     uint32_t nn_count_;
-    // The ratio for interval, 1.0 means no change.
     double interval_ratio_;
     ISrsConfig *config_;
     ISrsKernelFactory *factory_;
@@ -35,7 +32,7 @@ public:
 public:
     SrsStageInfo(int stage_id, double ratio = 1.0);
     virtual ~SrsStageInfo();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual void update_print_time();
 
 public:
@@ -43,7 +40,6 @@ public:
     virtual bool can_print();
 };
 
-// The interface for the stage manager, which owns the stages shared by clients.
 class ISrsStageManager
 {
 public:
@@ -51,12 +47,9 @@ public:
     virtual ~ISrsStageManager();
 
 public:
-    // Fetch a stage, create one if not exists.
     virtual SrsStageInfo *fetch_or_create(int stage_id, bool *pnew = NULL) = 0;
 };
 
-// The manager for stages, it's used for a single client stage.
-// Of course, we can add the multiple user support, which is SrsPithyPrint.
 class SrsStageManager : public ISrsStageManager
 {
 // clang-format off
@@ -68,16 +61,12 @@ public:
     virtual ~SrsStageManager();
 
 public:
-    // Fetch a stage, create one if not exists.
     virtual SrsStageInfo *fetch_or_create(int stage_id, bool *pnew = NULL);
 };
 
-// The error pithy print is a single client stage manager, each stage only has one client.
-// For example, we use it for error pithy print for each UDP packet processing.
 class SrsErrorPithyPrint
 {
 public:
-    // The number of call of can_print().
     uint32_t nn_count_;
 
 // clang-format off
@@ -92,13 +81,10 @@ public:
     virtual ~SrsErrorPithyPrint();
 
 public:
-    // Whether specified stage is ready for print.
     bool can_print(srs_error_t err, uint32_t *pnn = NULL);
-    // We also support int error code.
     bool can_print(int err, uint32_t *pnn = NULL);
 };
 
-// An standalone pithy print, without shared stages.
 class SrsAlonePithyPrint
 {
 // clang-format off
@@ -110,14 +96,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsAlonePithyPrint();
     virtual ~SrsAlonePithyPrint();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
 
 public:
     virtual void elapse();
     virtual bool can_print();
 };
 
-// The interface for pithy print.
 class ISrsPithyPrint
 {
 public:
@@ -130,23 +115,8 @@ public:
     virtual srs_utime_t age() = 0;
 };
 
-// The stage is used for a collection of object to do print,
-// the print time in a stage is constant and not changed,
-// that is, we always got one message to print every specified time.
-//
-// For example, stage #1 for all play clients, print time is 3s,
-// if there is 1client, it will print every 3s.
-// if there is 10clients, random select one to print every 3s.
-// Usage:
-//        SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_rtmp_play());
-//        while (true) {
-//            pprint->elapse();
-//            if (pprint->can_print()) {
-//                // print pithy message.
-//                // user can get the elapse time by: pprint->age()
-//            }
-//            // read and write RTMP messages.
-//        }
+// The clients of a stage share its print time: with 1 or 10 play clients and a 3s
+// print time, one message prints every 3s, from one of the clients.
 class SrsPithyPrint : public ISrsPithyPrint
 {
 // clang-format off
@@ -162,8 +132,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsPithyPrint(int stage_id);
-    void assemble(); // Construct object, to avoid call function in constructor.
-    // Create a printer for the stage, the only construction site of this class.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     static SrsPithyPrint *create(int stage_id);
 
 public:
@@ -179,7 +148,6 @@ public:
     static SrsPithyPrint *create_http_stream();
     static SrsPithyPrint *create_http_stream_cache();
     static SrsPithyPrint *create_rtc_play();
-    // For RTC sender and receiver, we create printer for each fd.
     static SrsPithyPrint *create_rtc_send(int fd);
     static SrsPithyPrint *create_rtc_recv(int fd);
     static SrsPithyPrint *create_srt_play();
@@ -188,22 +156,16 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Enter the specified stage, return the client id.
     virtual int
     enter_stage();
-    // Leave the specified stage, release the client id.
     virtual void leave_stage();
 
 public:
-    // Auto calc the elapse time
     virtual void elapse();
-    // Whether current client can print.
     virtual bool can_print();
-    // Get the elapsed time in srs_utime_t.
     virtual srs_utime_t age();
 };
 
-// Global stage manager for pithy print, multiple stages.
 extern SrsStageManager *_srs_stages;
 
 #endif

@@ -66,17 +66,14 @@ srs_error_t SrsSrtAcceptor::listen(std::string ip, int port)
     srs_freep(listener_);
     listener_ = app_factory_->create_srt_listener(this, ip_, port_);
 
-    // Create srt socket.
     if ((err = listener_->create_socket()) != srs_success) {
         return srs_error_wrap(err, "message srt acceptor");
     }
 
-    // Set all the srt option from config.
     if ((err = set_srt_opt()) != srs_success) {
         return srs_error_wrap(err, "set opt");
     }
 
-    // Start listen srt socket, this function will set the socket in async mode.
     if ((err = listener_->listen()) != srs_success) {
         return srs_error_wrap(err, "message srt acceptor");
     }
@@ -162,7 +159,6 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
 
-    // Notify srt handler to accept srt client, and create new SrsSrtConn on it.
     if ((err = srt_handler_->accept_srt_client(srt_fd)) != srs_success) {
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
@@ -234,18 +230,14 @@ srs_error_t SrsSrtEventLoop::cycle()
             return srs_error_wrap(err, "srt listener");
         }
 
-        // Check and notify fired SRT events by epoll.
-        //
-        // Note that the SRT poller use a dedicated and isolated epoll, which is not the same as the one of SRS, in
-        // short, the wait won't switch to other coroutines when no fd is active, so we must use timeout(0) to make sure
-        // to return directly, then use srs_usleep to do the coroutine switch.
+        // The SRT poller has its own epoll, not the one of state-threads, so its wait never switches to other
+        // coroutines. Wait with timeout 0, then sleep to switch.
         int n_fds = 0;
         if ((err = srt_poller_->wait(0, &n_fds)) != srs_success) {
             srs_warn("srt poll wait failed, n_fds=%d, err=%s", n_fds, srs_error_desc(err).c_str());
             srs_freep(err);
         }
 
-        // We use sleep to switch to other coroutines, because the SRT poller is not possible to do this.
         srs_usleep((n_fds ? 1 : 10) * SRS_UTIME_MILLISECONDS);
     }
 

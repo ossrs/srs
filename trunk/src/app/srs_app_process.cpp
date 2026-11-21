@@ -62,54 +62,43 @@ srs_error_t SrsProcess::initialize(string binary, vector<string> argv)
         std::string nffp = (i < (int)argv.size() - 1) ? argv[i + 1] : "";
         std::string nnffp = (i < (int)argv.size() - 2) ? argv[i + 2] : "";
 
-        // >file
         if (srs_strings_starts_with(ffp, ">")) {
             stdout_file_ = ffp.substr(1);
             continue;
         }
 
-        // 1>file
         if (srs_strings_starts_with(ffp, "1>")) {
             stdout_file_ = ffp.substr(2);
             continue;
         }
 
-        // 2>file
         if (srs_strings_starts_with(ffp, "2>")) {
             stderr_file_ = ffp.substr(2);
             continue;
         }
 
-        // 1 >X
         if (ffp == "1" && srs_strings_starts_with(nffp, ">")) {
             if (nffp == ">") {
-                // 1 > file
                 if (!nnffp.empty()) {
                     stdout_file_ = nnffp;
                     i++;
                 }
             } else {
-                // 1 >file
                 stdout_file_ = srs_strings_trim_start(nffp, ">");
             }
-            // skip the >
             i++;
             continue;
         }
 
-        // 2 >X
         if (ffp == "2" && srs_strings_starts_with(nffp, ">")) {
             if (nffp == ">") {
-                // 2 > file
                 if (!nnffp.empty()) {
                     stderr_file_ = nnffp;
                     i++;
                 }
             } else {
-                // 2 >file
                 stderr_file_ = srs_strings_trim_start(nffp, ">");
             }
-            // skip the >
             i++;
             continue;
         }
@@ -131,7 +120,6 @@ srs_error_t SrsProcess::start()
         return err;
     }
 
-    // generate the argv of process.
     srs_info("fork process: %s", cli_.c_str());
 
     std::vector<const char *> argv;
@@ -149,7 +137,7 @@ srs_error_t SrsProcess::start()
         return srs_error_new(ERROR_ENCODER_FORK, "vfork process failed, cli=%s", cli_.c_str());
     }
 
-    // Wait for a while for process to really started.
+    // Wait a while for the process to really start.
     // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597568840
     srs_usleep(10 * SRS_UTIME_MILLISECONDS);
 
@@ -167,7 +155,6 @@ srs_error_t SrsProcess::cycle()
         return err;
     }
 
-    // ffmpeg is prepare to stop, donot cycle.
     if (fast_stopped_) {
         return err;
     }
@@ -196,10 +183,6 @@ void SrsProcess::stop()
         return;
     }
 
-    // kill the ffmpeg,
-    // when rewind, upstream will stop publish(unpublish),
-    // unpublish event will stop all ffmpeg encoders,
-    // then publish will start all ffmpeg encoders.
     SrsAppUtility utility;
     srs_error_t err = utility.kill(pid_);
     if (err != srs_success) {
@@ -208,7 +191,6 @@ void SrsProcess::stop()
         return;
     }
 
-    // terminated, set started to false to stop the cycle.
     is_started_ = false;
 }
 
@@ -252,7 +234,7 @@ void SrsProcess::fast_kill()
         return;
     }
 
-    // Try to wait pid to avoid zombie FFMEPG.
+    // Try to reap the child, so it does not stay a zombie.
     int status = 0;
     srs_waitpid(pid_, &status, WNOHANG);
 

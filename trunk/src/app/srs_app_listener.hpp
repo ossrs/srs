@@ -24,7 +24,6 @@ class ISrsListener;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
 
-// The udp packet handler.
 class ISrsUdpHandler
 {
 public:
@@ -32,17 +31,11 @@ public:
     virtual ~ISrsUdpHandler();
 
 public:
-    // When udp listener got a udp packet, notice server to process it.
-    // @param type, the client type, used to create concrete connection,
-    //       for instance RTMP connection to serve client.
-    // @param from, the udp packet from address.
-    // @param buf, the udp packet bytes, user should copy if need to use.
-    // @param nb_buf, the size of udp packet bytes.
-    // @remark user should never use the buf, for it's a shared memory bytes.
+    // The buf is the listener's own buffer, reused for the next packet, so copy the bytes to keep them.
     virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf) = 0;
 };
 
-// The UDP packet handler. TODO: FIXME: Merge with ISrsUdpHandler
+// TODO: FIXME: Merge with ISrsUdpHandler
 class ISrsUdpMuxHandler
 {
 public:
@@ -53,7 +46,6 @@ public:
     virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt) = 0;
 };
 
-// All listener should support listen method.
 class ISrsListener
 {
 public:
@@ -64,7 +56,6 @@ public:
     virtual srs_error_t listen() = 0;
 };
 
-// The IP layer TCP/UDP listener.
 class ISrsIpListener : public ISrsListener
 {
 public:
@@ -77,7 +68,6 @@ public:
     virtual void close() = 0;
 };
 
-// The tcp connection handler.
 class ISrsTcpHandler
 {
 public:
@@ -85,11 +75,9 @@ public:
     virtual ~ISrsTcpHandler();
 
 public:
-    // When got tcp client.
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd) = 0;
 };
 
-// Bind udp port, start thread to recv packet and handler it.
 class SrsUdpListener : public ISrsCoroutineHandler, public ISrsIpListener
 {
 // clang-format off
@@ -133,7 +121,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     virtual srs_error_t listen();
     void close();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 
@@ -142,7 +130,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
 };
 
-// Bind and listen tcp port, use handler to process the client.
 class SrsTcpListener : public ISrsCoroutineHandler, public ISrsIpListener
 {
 // clang-format off
@@ -174,7 +161,7 @@ public:
 public:
     virtual srs_error_t listen();
     void close();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 
@@ -183,7 +170,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
 };
 
-// The TCP listeners of a group of endpoints, which work as one listener.
 class ISrsMultipleTcpListeners : public ISrsIpListener
 {
 public:
@@ -191,11 +177,9 @@ public:
     virtual ~ISrsMultipleTcpListeners();
 
 public:
-    // Create a TCP listener for each endpoint.
     virtual ISrsIpListener *add(const std::vector<std::string> &endpoints) = 0;
 };
 
-// Bind and listen tcp port, use handler to process the client.
 class SrsMultipleTcpListeners : public ISrsMultipleTcpListeners, public ISrsTcpHandler
 {
 // clang-format off
@@ -219,12 +203,11 @@ public:
 public:
     srs_error_t listen();
     void close();
-    // Interface ISrsTcpHandler
+
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
 };
 
-// The UDP socket interface.
 class ISrsUdpMuxSocket
 {
 public:
@@ -248,7 +231,6 @@ class SrsUdpMuxSocket : public ISrsUdpMuxSocket
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // For sender yield only.
     uint32_t nn_msgs_for_yield_;
     std::map<uint32_t, std::string> cache_;
     SrsBuffer *cache_buffer_;
@@ -269,11 +251,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Cache for peer id.
     std::string peer_id_;
-    // If the address changed, we should generate the peer_id.
     bool address_changed_;
-    // For IPv4 client, we use 8 bytes int id to find it fastly.
     uint64_t fast_id_;
 
 public:
@@ -296,7 +275,6 @@ public:
     ISrsUdpMuxSocket *copy_sendonly();
 };
 
-// The UDP listener interface, which receives packets for a mux handler.
 class ISrsUdpMuxListener : public ISrsListener
 {
 public:
@@ -333,7 +311,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p);
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsUdpMuxListener();
 
 public:
@@ -342,7 +320,7 @@ public:
 
 public:
     virtual srs_error_t listen();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 

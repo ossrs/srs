@@ -73,7 +73,6 @@ srs_error_t SrsBasicRtmpClient::connect()
     client_->set_recv_timeout(stream_timeout_);
     client_->set_send_timeout(stream_timeout_);
 
-    // connect to vhost/app
     if ((err = client_->handshake()) != srs_success) {
         return srs_error_wrap(err, "handshake");
     }
@@ -104,31 +103,27 @@ srs_error_t SrsBasicRtmpClient::do_connect_app(string local_ip, bool debug)
 {
     srs_error_t err = srs_success;
 
-    // notify server the edge identity,
+    // Tell the upstream server the edge identity.
     SrsAmf0Object *data = extra_args();
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
     data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
     data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
-    // for edge to directly get the id of client.
     data->set("srs_pid", SrsAmf0Any::number(getpid()));
     data->set("srs_id", SrsAmf0Any::str(_srs_context->get_id().c_str()));
 
-    // local ip of edge
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
 
-    // generate the tcUrl
     std::string param = "";
     std::string target_vhost = req_->vhost_;
     std::string tc_url = srs_net_url_encode_tcurl("rtmp", req_->host_, req_->vhost_, req_->app_, req_->port_);
 
-    // replace the tcUrl in request,
-    // which will replace the tc_url in client.connect_app().
+    // SrsRtmpClient::connect_app() sends the request's tcUrl when it is set, not its tcUrl argument.
     req_->tcUrl_ = tc_url;
 
-    // upnode server identity will show in the connect_app of client.
-    // the debug_srs_upnode is config in vhost and default to true.
+    // The connect_app() sends the identity args only when debug is set; SrsSimpleRtmpClient
+    // sets it from the vhost debug_srs_upnode config, default true.
     SrsServerInfo si;
     if ((err = client_->connect_app(req_->app_, tc_url, req_, debug, &si)) != srs_success) {
         return srs_error_wrap(err, "connect app tcUrl=%s, debug=%d", tc_url.c_str(), debug);
@@ -144,12 +139,10 @@ srs_error_t SrsBasicRtmpClient::publish(int chunk_size, bool with_vhost, std::st
     // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
     string stream = srs_net_url_encode_stream(req_->host_, req_->vhost_, req_->stream_, req_->param_, with_vhost);
 
-    // Return the generated stream.
     if (pstream) {
         *pstream = stream;
     }
 
-    // publish.
     if ((err = client_->publish(stream, stream_id_, chunk_size)) != srs_success) {
         return srs_error_wrap(err, "publish failed, stream=%s, stream_id=%d", stream.c_str(), stream_id_);
     }
@@ -164,7 +157,6 @@ srs_error_t SrsBasicRtmpClient::play(int chunk_size, bool with_vhost, std::strin
     // Pass params in stream, @see https://github.com/ossrs/srs/issues/1031#issuecomment-409745733
     string stream = srs_net_url_encode_stream(req_->host_, req_->vhost_, req_->stream_, req_->param_, with_vhost);
 
-    // Return the generated stream.
     if (pstream) {
         *pstream = stream;
     }

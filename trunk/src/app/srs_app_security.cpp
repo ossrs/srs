@@ -34,12 +34,10 @@ srs_error_t SrsSecurity::check(SrsRtmpConnType type, string ip, ISrsRequest *req
 {
     srs_error_t err = srs_success;
 
-    // allow all if security disabled.
     if (!config_->get_security_enabled(req->vhost_)) {
-        return err; // OK
+        return err;
     }
 
-    // rules to apply
     SrsConfDirective *rules = config_->get_security_rules(req->vhost_);
     return do_check(rules, type, ip, req);
 }
@@ -52,12 +50,10 @@ srs_error_t SrsSecurity::do_check(SrsConfDirective *rules, SrsRtmpConnType type,
         return srs_error_new(ERROR_SYSTEM_SECURITY, "default deny for %s", ip.c_str());
     }
 
-    // deny if matches deny strategy.
     if ((err = deny_check(rules, type, ip)) != srs_success) {
         return srs_error_wrap(err, "for %s", ip.c_str());
     }
 
-    // allow if matches allow strategy.
     if ((err = allow_check(rules, type, ip)) != srs_success) {
         return srs_error_wrap(err, "for %s", ip.c_str());
     }
@@ -98,10 +94,10 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective *rules, SrsRtmpConnType ty
                 break;
             }
             if (rule->arg1() == "all" || rule->arg1() == ip) {
-                return srs_success; // OK
+                return srs_success;
             }
             if (srs_net_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_net_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
-                return srs_success; // OK
+                return srs_success;
             }
             break;
         case SrsRtmpConnFMLEPublish:
@@ -113,10 +109,10 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective *rules, SrsRtmpConnType ty
                 break;
             }
             if (rule->arg1() == "all" || rule->arg1() == ip) {
-                return srs_success; // OK
+                return srs_success;
             }
             if (srs_net_is_ipv4(cidr_ipv4) && cidr_mask != "" && srs_net_ipv4_within_mask(ip, cidr_ipv4, cidr_mask)) {
-                return srs_success; // OK
+                return srs_success;
             }
             break;
         case SrsRtmpConnUnknown:
@@ -128,7 +124,7 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective *rules, SrsRtmpConnType ty
     if (allow_rules > 0 || (deny_rules + allow_rules) == 0) {
         return srs_error_new(ERROR_SYSTEM_SECURITY_ALLOW, "not allowed by any of %d/%d rules", allow_rules, deny_rules);
     }
-    return srs_success; // OK
+    return srs_success;
 }
 
 srs_error_t SrsSecurity::deny_check(SrsConfDirective *rules, SrsRtmpConnType type, std::string ip)
@@ -184,7 +180,7 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective *rules, SrsRtmpConnType typ
         }
     }
 
-    return srs_success; // OK
+    return srs_success;
 }
 
 SrsEnhancedSecurity::SrsEnhancedSecurity()

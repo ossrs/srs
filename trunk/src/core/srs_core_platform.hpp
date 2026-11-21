@@ -7,29 +7,25 @@
 #ifndef SRS_CORE_PLATFORM_HPP
 #define SRS_CORE_PLATFORM_HPP
 
-// The platform layer: the system headers, types and calls SRS uses, so the rest of SRS builds on Linux,
-// macOS and Windows without an #ifdef. The file has three parts:
-//   1. Common: the headers and macros of every platform.
-//   2. Platform: the system headers of each platform, and on Windows the POSIX types and macros it lacks.
-//   3. Calls: the srs_ functions, the same on every platform. On Linux and macOS each is the POSIX call;
-//      on Windows it is built from Win32 and the CRT. The comments say where Windows differs.
+// The system headers, types and calls SRS uses, so the rest of SRS builds on Linux, macOS and Windows
+// without an #ifdef. On Linux and macOS each srs_ call is the POSIX call; on Windows it is built from
+// Win32 and the CRT, and the comments say where Windows differs.
 
 ///////////////////////////////////////////////////////////
 // 1. Common
 ///////////////////////////////////////////////////////////
 
-// For 32bit os, 2G big file limit for unistd io,
-// ie. read/write/lseek to use 64bits size for huge file.
+// On a 32-bit OS, read, write and lseek use 64-bit offsets, for files over 2 GB.
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
 #endif
 
-// For int64_t print using PRId64 format.
+// For the PRId64 format of int64_t.
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
 
-// For RTC/FFMPEG build.
+// For the RTC and FFmpeg build.
 #if !defined(__STDC_CONSTANT_MACROS)
 #define __STDC_CONSTANT_MACROS
 #endif
@@ -98,7 +94,6 @@ typedef off_t srs_off_t;
 typedef SOCKET srs_socket_t;
 #define SRS_INVALID_SOCKET INVALID_SOCKET
 
-// The shutdown directions by their POSIX names.
 #define SHUT_RD SD_RECEIVE
 #define SHUT_WR SD_SEND
 #define SHUT_RDWR SD_BOTH
@@ -110,10 +105,8 @@ typedef int64_t srs_off_t;
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-// The mode of access that checks only that the file exists.
 #define F_OK 0
 
-// Strings: the case-insensitive compare by its POSIX name.
 #define strcasecmp _stricmp
 
 #ifndef S_ISDIR
@@ -151,8 +144,8 @@ struct timezone {
     int tz_dsttime;
 };
 
-// The interface list of srs_getifaddrs, with the fields SRS reads. ws2ipdef.h already defines IFF_UP and
-// IFF_LOOPBACK, with other values than Linux.
+// Only the fields SRS reads. ws2ipdef.h already defines IFF_UP and IFF_LOOPBACK, with other values than
+// Linux.
 struct ifaddrs {
     struct ifaddrs *ifa_next;
     char *ifa_name;
@@ -169,7 +162,6 @@ struct ifaddrs {
 #define IFF_PROMISC 0x100
 #endif
 
-// The system names of srs_uname.
 struct utsname {
     char sysname[65];
     char nodename[65];
@@ -221,29 +213,21 @@ extern int srs_socket_refuse_fast(srs_socket_t fd, const sockaddr *addr);
 // Keep a UDP socket receiving after an ICMP port unreachable from a peer that went away. Windows fails the
 // next receive with it even on an unconnected socket, which serves many peers; Unix only on a connected one.
 extern int srs_socket_ignore_unreachable(srs_socket_t fd);
-// Keep a child process from inheriting the socket.
 extern int srs_socket_cloexec(srs_socket_t fd);
-// Let a listener bind its port again while old connections are in TIME_WAIT.
 extern int srs_socket_reuseaddr(srs_socket_t fd);
-// Let several processes listen on one port.
 extern int srs_socket_reuseport(srs_socket_t fd);
-// The most iovecs one writev takes.
 extern int srs_iov_max();
 
 ///////////////////////////////////////////////////////////
 // 3. Calls: system and resources
 ///////////////////////////////////////////////////////////
 
-// The local interface addresses; free them with srs_freeifaddrs.
 extern int srs_getifaddrs(struct ifaddrs **ifap);
 extern void srs_freeifaddrs(struct ifaddrs *ifa);
 extern int srs_uname(struct utsname *name);
 
-// The resource usage of this process.
 extern int srs_getrusage(struct rusage *usage);
-// The most files and sockets this process may open.
 extern int srs_fd_limit();
-// The number of CPUs, configured or online.
 extern int srs_cpu_count(bool online);
 // The clock ticks per second of the /proc CPU times.
 extern int srs_clock_ticks();
@@ -252,28 +236,19 @@ extern int srs_clock_ticks();
 // 3. Calls: processes
 ///////////////////////////////////////////////////////////
 
-// Send a signal to a child process, and reap it.
 extern int srs_kill(pid_t pid, int signo);
 extern pid_t srs_waitpid(pid_t pid, int *status, int options);
-// The parent of this process.
 extern pid_t srs_getppid();
-// Start a child process; Windows has no fork.
+// Windows has no fork.
 extern pid_t srs_fork();
-// Whether SRS can run as a daemon, which forks.
+// A daemon forks.
 extern bool srs_daemon_supported();
 
-// Start bin as a child process with argv, ended by a NULL, which waits for it with srs_waitpid.
-// - Its stdout and stderr append to the files, or go to SRS's own when a file is empty; its stdin is the
-//   null device.
-// - Before the child runs, its stdout gets a banner with the cid, the pids and the info text.
-// - It ignores the Ctrl+C and SIGTERM sent to SRS.
-// - Windows has no fork: there the child is a process group of its own, which srs_kill sends SIGTERM to
-//   as Ctrl+Break, in a job that ends it when SRS quits.
+// The argv ends with a NULL. Windows has no fork: there the child is a process group of its own, which
+// srs_kill sends SIGTERM to as Ctrl+Break, in a job that ends it when SRS quits.
 extern pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *stdout_file,
                                const char *stderr_file, const char *cid, const char *info);
 #ifndef _WIN32
-// Open the file to append, creating it, and make to_fd a copy of it; the spawned child uses it for its stdout,
-// stderr and stdin. Does nothing for a NULL or empty file. Returns -1 when the open or the dup2 fails.
 extern int srs_redirect_output(const char *file, int to_fd);
 #endif
 
@@ -291,7 +266,6 @@ extern int srs_self_pipe_close(int fd);
 // Install the handler of a signal. Windows has console control events instead:
 // - Ctrl+C is SIGINT.
 // - Ctrl+Break, closing the console and the system shutdown are SIGTERM.
-// - Any other signal fails with ENOSYS.
 extern int srs_signal_install(int signo, void (*handler)(int));
 
 ///////////////////////////////////////////////////////////
@@ -305,8 +279,7 @@ extern struct tm *srs_gmtime_r(const time_t *t, struct tm *result);
 // Windows has no srandom and random, and its rand gives only 15 bits.
 extern void srs_srandom(unsigned int seed);
 extern long srs_random();
-// Switch srs_random to a sequence of its own, kept in state, as initstate and setstate do; both return
-// the state they replace. Windows has neither.
+// Windows has no initstate and setstate either.
 extern char *srs_initstate(unsigned int seed, char *state, size_t size);
 extern char *srs_setstate(char *state);
 
@@ -314,7 +287,7 @@ extern char *srs_setstate(char *state);
 // 3. Calls: files
 ///////////////////////////////////////////////////////////
 
-// File IO by descriptor, in binary mode on Windows.
+// Binary mode on Windows.
 extern int srs_file_open(const char *path, int oflag, ...);
 extern ssize_t srs_file_read(int fd, void *buf, size_t count);
 extern ssize_t srs_file_write(int fd, const void *buf, size_t count);
@@ -324,11 +297,10 @@ extern int srs_file_close(int fd);
 // rotation tool moves away; Windows refuses that for a file the CRT opens.
 extern int srs_file_open_renamable(const char *path, int oflag, int mode);
 
-// The fseek and ftell of a FILE, with 64-bit offsets.
 extern int srs_fseek(FILE *stream, srs_off_t offset, int whence);
 extern srs_off_t srs_ftell(FILE *stream);
 
-// Create a directory with mode 0775; Windows has no mode.
+// Windows has no directory mode.
 extern int srs_mkdir(const char *path);
 // Rename a file, replacing the target, which Windows rename does not do.
 extern int srs_rename(const char *from, const char *to);
@@ -337,7 +309,6 @@ extern int srs_rename(const char *from, const char *to);
 // the lock, which is released when the file is closed.
 extern int srs_file_lock(int fd);
 extern int srs_file_truncate(int fd, srs_off_t size);
-// Keep a child process from inheriting the file.
 extern int srs_file_cloexec(int fd);
 
 #endif

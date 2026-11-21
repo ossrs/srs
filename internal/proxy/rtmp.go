@@ -21,45 +21,32 @@ import (
 	"srsx/internal/version"
 )
 
-// RTMPProxyServer is the proxy for SRS RTMP server, to proxy the RTMP stream to backend SRS
-// server. It will figure out the backend server to proxy to. Unlike the edge server, it will
-// not cache the stream, but just proxy the stream to backend.
+// Unlike an SRS edge server, it does not cache the stream.
 type RTMPProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 }
 
 type rtmpProxyServer struct {
-	// The environment interface.
-	environment env.ProxyEnvironment
-	// The load balancer for origin servers.
+	environment  env.ProxyEnvironment
 	loadBalancer lb.OriginLoadBalancer
-	// The listener for RTMP server. Stored as net.Listener so tests can inject
-	// a fake listener by overriding listen.
+	// An interface, so a test listen can return a fake.
 	listener net.Listener
-	// The wait group for all goroutines.
-	wg sync.WaitGroup
-	// listen opens a listener on the given address. Defaults to a real TCP listener;
-	// tests may override via a functional option to supply a fake listener.
-	listen func(ctx context.Context, addr string) (net.Listener, error)
-	// newConnection creates a fresh rtmpConnection wired up with this server's
-	// load balancer. Defaults to a real rtmpConnection; tests may override via
-	// a functional option to supply a fake.
+	wg       sync.WaitGroup
+	// Tests replace listen and newConnection.
+	listen        func(ctx context.Context, addr string) (net.Listener, error)
 	newConnection func() *rtmpConnection
 }
 
 func NewRTMPProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*rtmpProxyServer)) RTMPProxyServer {
 	v := &rtmpProxyServer{environment: environment, loadBalancer: loadBalancer}
 
-	// Default listen: a real TCP listener. Uses ListenConfig.Listen so ctx is
-	// consulted during setup (mainly address resolution); the listener itself
-	// is still torn down via Close(), not ctx cancellation.
+	// ctx bounds only the setup, such as address resolution; Close, not ctx,
+	// stops the listener.
 	v.listen = func(ctx context.Context, addr string) (net.Listener, error) {
 		var lc net.ListenConfig
 		return lc.Listen(ctx, "tcp", addr)
 	}
-	// Default connection factory: a real rtmpConnection wired up with the
-	// server's load balancer.
 	v.newConnection = func() *rtmpConnection {
 		return newRTMPConnection(func(c *rtmpConnection) {
 			c.loadBalancer = v.loadBalancer
@@ -101,7 +88,6 @@ func (v *rtmpProxyServer) Run(ctx context.Context) error {
 		for {
 			conn, err := v.listener.Accept()
 			if err != nil {
-				// If context is canceled or connection is closed, exit gracefully without logging error.
 				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
 					logger.Debug(ctx, "RTMP server done")
 				} else {
@@ -137,36 +123,20 @@ func (v *rtmpProxyServer) Run(ctx context.Context) error {
 	return nil
 }
 
-// rtmpConnection is an RTMP streaming connection. There is no state need to be sync between
-// proxy servers.
-//
-// When we got an RTMP request, we will parse the stream URL from the RTMP publish or play request,
-// then proxy to the corresponding backend server. All state is in the RTMP request, so this
-// connection is stateless.
+// The publish or play request holds all the state, so nothing is shared between proxy servers.
 type rtmpConnection struct {
-	// The load balancer for origin servers.
 	loadBalancer lb.OriginLoadBalancer
-	// newHandshake creates a fresh RTMP handshake instance. Defaults to a real handshake;
-	// tests may override via a functional option to supply a fake.
+	// Tests replace these funcs.
 	newHandshake func() rtmp.Handshake
-	// newProtocol creates a fresh RTMP protocol instance over the given stream. Defaults to
-	// a real protocol; tests may override via a functional option to supply a fake.
-	newProtocol func(rw io.ReadWriter) rtmp.Protocol
-	// newBackend creates a fresh backend client wired up with the given clientType and the
-	// connection's load balancer. Defaults to a real rtmpClientToBackend; tests may override
-	// via a functional option to supply a fake.
-	newBackend func(clientType RTMPClientType) *rtmpClientToBackend
+	newProtocol  func(rw io.ReadWriter) rtmp.Protocol
+	newBackend   func(clientType RTMPClientType) *rtmpClientToBackend
 }
 
 func newRTMPConnection(opts ...func(*rtmpConnection)) *rtmpConnection {
 	v := &rtmpConnection{}
 
-	// Default handshake factory: a real RTMP handshake.
 	v.newHandshake = rtmp.NewHandshake
-	// Default protocol factory: a real RTMP protocol.
 	v.newProtocol = rtmp.NewProtocol
-	// Default backend factory: a real rtmpClientToBackend wired up with the connection's
-	// load balancer and the given clientType.
 	v.newBackend = func(clientType RTMPClientType) *rtmpClientToBackend {
 		return newRTMPClientToBackend(func(client *rtmpClientToBackend) {
 			client.typ = clientType
@@ -183,7 +153,6 @@ func newRTMPConnection(opts ...func(*rtmpConnection)) *rtmpConnection {
 func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 	logger.Debug(ctx, "Got RTMP client from %v", conn.RemoteAddr())
 
-	// If any goroutine quit, cancel another one.
 	parentCtx := ctx
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -199,7 +168,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		}()
 	}
 
-	// Simple handshake with client.
 	hs := v.newHandshake()
 	if _, err := hs.ReadC0S0(conn); err != nil {
 		return errors.Wrapf(err, "read c0")
@@ -223,7 +191,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 	client := v.newProtocol(conn)
 	logger.Debug(ctx, "RTMP simple handshake done")
 
-	// Expect RTMP connect command with tcUrl.
 	var connectReq *rtmp.ConnectAppPacket
 	if _, err := rtmp.ExpectPacket(ctx, client, &connectReq); err != nil {
 		return errors.Wrapf(err, "expect connect req")
@@ -264,7 +231,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 	tcUrl := connectReq.TcUrl()
 	logger.Debug(ctx, "RTMP connect app %v", tcUrl)
 
-	// Expect RTMP command to identify the client, a publisher or viewer.
 	var currentStreamID, nextStreamID int
 	var streamName string
 	var clientType RTMPClientType
@@ -285,9 +251,8 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 				nextStreamID = 1
 				identifyRes.SetStreamID(nextStreamID)
 			case "getStreamLength":
-				// Ignore and do not reply these packets.
 			default:
-				// For releaseStream, FCPublish, etc.
+				// Such as releaseStream and FCPublish.
 				identifyRes := rtmp.NewCallPacket()
 				response = identifyRes
 
@@ -336,13 +301,11 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 			}
 		}
 
-		// Update the stream ID for next request.
 		currentStreamID = nextStreamID
 	}
 	logger.Debug(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",
 		tcUrl, streamName, currentStreamID, clientType)
 
-	// Find a backend SRS server to proxy the RTMP stream.
 	backend = v.newBackend(clientType)
 	defer backend.Close()
 
@@ -350,7 +313,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		return errors.Wrapf(err, "connect backend, tcUrl=%v, stream=%v", tcUrl, streamName)
 	}
 
-	// Start the streaming.
 	switch clientType {
 	case RTMPClientTypePublisher:
 		identifyRes := rtmp.NewCallPacket()
@@ -388,11 +350,9 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 	}
 	logger.Debug(ctx, "RTMP start streaming")
 
-	// For all proxy goroutines.
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	// Proxy all message from backend to client.
 	wg.Add(1)
 	var r0 error
 	go func() {
@@ -415,7 +375,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		}()
 	}()
 
-	// Proxy all messages from client to backend.
 	wg.Add(1)
 	var r1 error
 	go func() {
@@ -438,12 +397,9 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		}()
 	}()
 
-	// Wait until all goroutine quit.
 	wg.Wait()
 
-	// Reset the error if caused by another goroutine.
 	if r0 != nil {
-		// If backend connection closed normally, treat as normal disconnection
 		if utils.IsClosedNetworkError(r0) || utils.IsPeerClosedError(r0) {
 			logger.Debug(ctx, "RTMP backend disconnected")
 			return nil
@@ -451,7 +407,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		return errors.Wrapf(r0, "proxy backend->client")
 	}
 	if r1 != nil {
-		// If client connection closed normally, treat as normal disconnection
 		if utils.IsClosedNetworkError(r1) || utils.IsPeerClosedError(r1) {
 			logger.Debug(ctx, "RTMP client disconnected")
 			return nil
@@ -469,40 +424,27 @@ const (
 	RTMPClientTypeViewer    RTMPClientType = "viewer"
 )
 
-// rtmpClientToBackend is an RTMP client to proxy the RTMP stream to backend.
 type rtmpClientToBackend struct {
-	// The underlayer connection to backend. Stored as io.ReadWriteCloser so tests
-	// can inject a fake connection by overriding dial.
-	tcpConn io.ReadWriteCloser
-	// The RTMP protocol client.
-	client rtmp.Protocol
-	// The stream type.
-	typ RTMPClientType
-	// The load balancer for origin servers.
+	// An interface, so a test dial can return a fake.
+	tcpConn      io.ReadWriteCloser
+	client       rtmp.Protocol
+	typ          RTMPClientType
 	loadBalancer lb.OriginLoadBalancer
-	// dial opens a connection to a backend SRS server. Defaults to a real TCP dial;
-	// tests may override via a functional option to supply a fake connection.
-	dial func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error)
-	// newHandshake creates a fresh RTMP handshake instance. Defaults to a real handshake;
-	// tests may override via a functional option to supply a fake.
+	// Tests replace these funcs.
+	dial         func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error)
 	newHandshake func() rtmp.Handshake
-	// newProtocol creates a fresh RTMP protocol instance over the given stream. Defaults to
-	// a real protocol; tests may override via a functional option to supply a fake.
-	newProtocol func(rw io.ReadWriter) rtmp.Protocol
+	newProtocol  func(rw io.ReadWriter) rtmp.Protocol
 }
 
 func newRTMPClientToBackend(opts ...func(*rtmpClientToBackend)) *rtmpClientToBackend {
 	v := &rtmpClientToBackend{}
 
-	// Default dial: a real TCP connection to the backend. Uses Dialer.DialContext
-	// so ctx cancellation/deadline aborts the connect (net.DialTCP ignores ctx).
+	// net.DialTCP ignores ctx; DialContext lets ctx abort the connect.
 	v.dial = func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error) {
 		var d net.Dialer
 		return d.DialContext(ctx, "tcp", net.JoinHostPort(ip, strconv.Itoa(port)))
 	}
-	// Default handshake factory: a real RTMP handshake.
 	v.newHandshake = rtmp.NewHandshake
-	// Default protocol factory: a real RTMP protocol.
 	v.newProtocol = rtmp.NewProtocol
 
 	for _, opt := range opts {
@@ -519,19 +461,16 @@ func (v *rtmpClientToBackend) Close() error {
 }
 
 func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName string) error {
-	// Build the stream URL in vhost/app/stream schema.
 	streamURL, err := utils.BuildStreamURL(fmt.Sprintf("%v/%v", tcUrl, streamName))
 	if err != nil {
 		return errors.Wrapf(err, "build stream url %v/%v", tcUrl, streamName)
 	}
 
-	// Pick a backend SRS server to proxy the RTMP stream.
 	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
 
-	// Parse RTMP port from backend.
 	if len(backend.RTMP) == 0 {
 		return errors.Errorf("no rtmp server %+v for %v", backend, streamURL)
 	}
@@ -543,7 +482,6 @@ func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 		rtmpPort = int(iv)
 	}
 
-	// Connect to backend SRS server.
 	c, err := v.dial(ctx, backend.IP, rtmpPort)
 	if err != nil {
 		return errors.Wrapf(err, "dial backend ip=%v, port=%v, srs=%v", backend.IP, rtmpPort, backend)
@@ -554,7 +492,6 @@ func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 	client := v.newProtocol(c)
 	v.client = client
 
-	// Simple RTMP handshake with server.
 	if err := hs.WriteC0S0(c); err != nil {
 		return errors.Wrapf(err, "write c0")
 	}
@@ -577,7 +514,6 @@ func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 		return errors.Wrapf(err, "write c2")
 	}
 
-	// Connect RTMP app on tcUrl with server.
 	if true {
 		connectApp := rtmp.NewConnectAppPacket()
 		connectApp.CommandObject.Set("tcUrl", rtmp.NewAmf0String(tcUrl))
@@ -594,12 +530,10 @@ func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 		logger.Debug(ctx, "backend connect RTMP app, tcUrl=%v, id=%v", tcUrl, connectAppRes.SrsID())
 	}
 
-	// Play or view RTMP stream with server.
 	if v.typ == RTMPClientTypeViewer {
 		return v.play(ctx, client, streamName)
 	}
 
-	// Publish RTMP stream with server.
 	return v.publish(ctx, client, streamName)
 }
 
@@ -679,7 +613,7 @@ func (v *rtmpClientToBackend) publish(ctx context.Context, client rtmp.Protocol,
 		if _, err := rtmp.ExpectPacket(ctx, client, &identifyRes); err != nil {
 			return errors.Wrapf(err, "expect publish res")
 		}
-		// Ignore onFCPublish, expect onStatus(NetStream.Publish.Start).
+		// The backend may send onFCPublish before onStatus.
 		if identifyRes.CommandName == "onStatus" {
 			if data := rtmp.NewAmf0Converter(identifyRes.Args).ToObject(); data == nil {
 				return errors.Errorf("onStatus args not object")

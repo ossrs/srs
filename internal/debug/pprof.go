@@ -16,7 +16,7 @@ import (
 	"srsx/internal/logger"
 )
 
-// blockRate is the last block profile rate set, since the runtime has no getter.
+// The runtime has no getter for the block profile rate.
 var blockRate atomic.Int64
 
 func HandleGoPprof(ctx context.Context, environment env.ProxyEnvironment) {
@@ -30,11 +30,9 @@ func HandleGoPprof(ctx context.Context, environment env.ProxyEnvironment) {
 	}
 }
 
-// RegisterProfileRates adds /debug/pprof/rates, which sets the mutex profile
-// fraction (mutex=<n>, one in n contention events) and the block profile rate
-// (block=<ns>, one sample per ns blocked), 0 for off, and answers both as JSON.
-// Both are off by default, so a profiler turns them on only while it records,
-// since sampling costs the measured process.
+// The runtime samples one in n mutex contention events and one blocking event
+// per ns blocked, 0 for off. Both are off by default, so a profiler turns them
+// on only while it records, since sampling costs the measured process.
 func RegisterProfileRates(mux *http.ServeMux) {
 	// GET like net/http/pprof's "GET /debug/pprof/", or the mux refuses the
 	// pair as conflicting.
@@ -61,9 +59,8 @@ func RegisterProfileRates(mux *http.ServeMux) {
 	})
 }
 
-// RegisterGCStats adds /debug/pprof/gc, the GC count and the total GC pause
-// so far as JSON, so a profiler takes them before and after it records. The
-// text heap profile has the count but no pause total.
+// A profiler reads the GC count and pause total before and after it records.
+// The text heap profile has the count but no pause total.
 func RegisterGCStats(mux *http.ServeMux) {
 	mux.HandleFunc("GET /debug/pprof/gc", func(w http.ResponseWriter, r *http.Request) {
 		var stats runtime.MemStats
@@ -77,7 +74,6 @@ func RegisterGCStats(mux *http.ServeMux) {
 	})
 }
 
-// parseRate returns the rate in the query, or -1 when it is not given.
 func parseRate(r *http.Request, name string) (int, bool) {
 	value := r.URL.Query().Get(name)
 	if value == "" {

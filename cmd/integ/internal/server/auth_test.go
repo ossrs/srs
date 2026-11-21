@@ -171,6 +171,53 @@ func TestOneHTTPPortErrors(t *testing.T) {
 	}
 }
 
+// TestRTCOnHTTPPort checks that RTCOnHTTPPort puts WebRTC over TCP on the
+// HTTP server's port, also when that port is the API's, and needs both on.
+func TestRTCOnHTTPPort(t *testing.T) {
+	cfg := Config{Listeners: []Listener{HTTPAPI, RTCTCP, HTTPServer, RTCUDP}, RTCOnHTTPPort: true}
+	ports, err := listenerPorts(cfg, counter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ports[RTCTCP] != ports[HTTPServer] || ports[HTTPServer] == ports[HTTPAPI] || ports[RTCUDP] == ports[HTTPServer] {
+		t.Errorf("ports %v, want WebRTC over TCP on the HTTP server's port and the rest apart", ports)
+	}
+	env, err := BuildEnv(cfg, ports, "/w", TLSFiles{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := envMap(env); m["SRS_RTC_SERVER_TCP_LISTEN"] != m["SRS_HTTP_SERVER_LISTEN"] {
+		t.Errorf("env %v, want the WebRTC TCP and HTTP server listens the same", env)
+	}
+
+	cfg.OneHTTPPort = true
+	if ports, err = listenerPorts(cfg, counter()); err != nil {
+		t.Fatal(err)
+	}
+	if ports[RTCTCP] != ports[HTTPAPI] || ports[HTTPServer] != ports[HTTPAPI] {
+		t.Errorf("ports %v, want the API, the HTTP server and WebRTC over TCP on one port", ports)
+	}
+
+	tests := []struct {
+		name  string
+		ls    []Listener
+		ports map[Listener]int
+		want  string
+	}{
+		{"NoServer", []Listener{HTTPAPI, RTCUDP, RTCTCP}, map[Listener]int{HTTPAPI: 14000, RTCUDP: 14001, RTCTCP: 14002}, "needs"},
+		{"NoTCP", []Listener{HTTPAPI, HTTPServer}, map[Listener]int{HTTPAPI: 14000, HTTPServer: 14001}, "needs"},
+		{"OtherPorts", []Listener{HTTPAPI, HTTPServer, RTCUDP, RTCTCP}, map[Listener]int{HTTPAPI: 14000, HTTPServer: 14001, RTCUDP: 14002, RTCTCP: 14003}, "port"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{Listeners: tt.ls, RTCOnHTTPPort: true}
+			if _, err := BuildEnv(cfg, tt.ports, "/w", TLSFiles{}); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error %v, want one about %s", err, tt.want)
+			}
+		})
+	}
+}
+
 // TestExitError checks that a server that exits before it is ready is told
 // by its exit code.
 func TestExitError(t *testing.T) {

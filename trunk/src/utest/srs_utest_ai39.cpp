@@ -1039,7 +1039,7 @@ VOID TEST(KernelHevcSpsTest, NaluHeaderChecks)
         SrsFormat format;
         HELPER_EXPECT_SUCCESS(format.initialize());
         err = format.hevc_demux_sps(&stream);
-        EXPECT_NE(std::string::npos, srs_error_desc(err).find("decode hevc sps requires 1"));
+        EXPECT_NE(std::string::npos, srs_error_desc(err).find("decode hevc sps requires 2"));
         srs_freep(err);
     }
 
@@ -1272,7 +1272,7 @@ VOID TEST(KernelHevcPpsTest, NaluHeaderChecks)
         SrsFormat format;
         HELPER_EXPECT_SUCCESS(format.initialize());
         err = format.hevc_demux_pps(&stream);
-        EXPECT_NE(std::string::npos, srs_error_desc(err).find("decode hevc pps requires 1"));
+        EXPECT_NE(std::string::npos, srs_error_desc(err).find("decode hevc pps requires 2"));
         srs_freep(err);
     }
 

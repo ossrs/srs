@@ -17,7 +17,6 @@
 #include <string>
 using namespace std;
 
-// The minimum required bytes to parse a PS packet.
 #define SRS_PS_MIN_REQUIRED 32
 
 SrsPsDecodeHelper::SrsPsDecodeHelper()
@@ -98,9 +97,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
 {
     srs_error_t err = srs_success;
 
-    // Decode PS packet one by one.
     while (!stream->empty()) {
-        // If new PS packet but not enough packet, ignore.
         if (detect_ps_integrity_ && stream->left() >= 4) {
             uint8_t *p = (uint8_t *)stream->head();
             if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x01 && stream->left() <= SRS_PS_MIN_REQUIRED) {
@@ -108,7 +105,7 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
             }
         }
 
-        // If the packet ends 1 to 3 bytes into the start code of a new PS packet, ignore them too.
+        // The packet may end 1 to 3 bytes into the start code of the next PS packet.
         if (detect_ps_integrity_ && stream->left() < 4 && last()->fresh()) {
             uint8_t *p = (uint8_t *)stream->head();
             int left = stream->left();
@@ -117,19 +114,17 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
             }
         }
 
-        // Try to decode the stream by one PS packet.
         // See Table 2-32 – Program Stream pack, hls-mpeg-ts-iso13818-1.pdf, page 73
         if ((err = do_decode(stream, handler)) != srs_success) {
             return srs_error_wrap(err, "decode");
         }
 
-        // Use unit start as 1, however it has no effect because PES_packet_length should never be 0 for PS packet.
+        // The unit start has no effect, because PES_packet_length is never 0 in a PS stream.
         const int payload_unit_start_indicator = 1;
         if (!last()->completed(payload_unit_start_indicator)) {
-            continue; // Ignore if message not completed.
+            continue;
         }
 
-        // Reap the last completed PS message.
         SrsUniquePtr<SrsTsMessage> msg(reap());
 
         if (msg->sid_ == SrsTsPESStreamIdProgramStreamMap) {
@@ -137,7 +132,6 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
                 return srs_error_new(ERROR_GB_PS_HEADER, "empty PSM payload");
             }
 
-            // Decode PSM(Program Stream map) from PES packet payload.
             SrsBuffer buf(msg->payload_->bytes(), msg->payload_->length());
 
             SrsPsPsmPacket psm;
@@ -153,7 +147,6 @@ srs_error_t SrsPsContext::decode(SrsBuffer *stream, ISrsPsMessageHandler *handle
             video_stream_type_ = (SrsTsStream)psm.video_stream_type_;
             audio_stream_type_ = (SrsTsStream)psm.audio_stream_type_;
         } else if (msg->is_video() || msg->is_audio()) {
-            // Update the total messages in pack.
             helper_.pack_pre_msg_last_seq_ = helper_.rtp_seq_;
             helper_.pack_nn_msgs_++;
 
@@ -173,7 +166,6 @@ srs_error_t SrsPsContext::do_decode(SrsBuffer *stream, ISrsPsMessageHandler *han
 {
     srs_error_t err = srs_success;
 
-    // If last message not completed, the bytes in stream must be payload.
     if (!last()->fresh()) {
         if ((err = last()->dump(stream, NULL)) != srs_success) {
             return srs_error_wrap(err, "dump pes");
@@ -181,33 +173,28 @@ srs_error_t SrsPsContext::do_decode(SrsBuffer *stream, ISrsPsMessageHandler *han
         return err;
     }
 
-    // For PS pack, must always start with 00 00 01 XX.
     // See Table 2-32 – Program Stream pack, hls-mpeg-ts-iso13818-1.pdf, page 73
     if (!stream->require(4)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     }
     uint8_t *p = (uint8_t *)stream->head();
 
-    // For normal mode, should start with 00 00 01, for pack or system header or PES packet.
     if (p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01) {
         return srs_error_new(ERROR_GB_PS_HEADER, "Invalid PS stream %#x %#x %#x", p[0], p[1], p[2]);
     }
 
-    // If pack start code, it's a net PS pack stream.
     if (p[0] == 0x00 && p[1] == 0x00 && p[2] == 0x01 && p[3] == 0xba) {
         srs_freep(current_);
     }
     if (!current_) {
         current_ = new SrsPsPacket(this);
-        current_->id_ |= helper_.rtp_seq_; // The low 16 bits is reserved for RTP seq.
+        current_->id_ |= helper_.rtp_seq_;
         helper_.pack_id_ = current_->id_;
         helper_.pack_first_seq_ = helper_.rtp_seq_;
-        // Set the helper for decoder, pass-by values.
         helper_.ps_ = current_;
         helper_.pack_nn_msgs_ = 0;
     }
 
-    // Try to decode the PS pack stream.
     int pos = stream->pos();
     if ((err = current_->decode(stream)) != srs_success) {
         err = srs_error_wrap(err, "decode start=%d, pos=%d, left=%d", pos, stream->pos(), stream->left());
@@ -257,7 +244,6 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // Program Stream pack header.
     if (!stream->require(4))
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     uint8_t *p = (uint8_t *)stream->head();
@@ -268,9 +254,8 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
         has_pack_header_ = true;
     }
 
-    // Program stream system header.
     if (stream->empty())
-        return err; // Parsed done, OK.
+        return err;
     if (!stream->require(4))
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     p = (uint8_t *)stream->head();
@@ -281,7 +266,6 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
         has_system_header_ = true;
     }
 
-    // Packet start code prefix.
     while (!stream->empty()) {
         if (!stream->require(4))
             return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
@@ -289,7 +273,7 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
         if (p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01)
             break;
         if (p[3] == 0xba || p[3] == 0xbb)
-            break; // Reparse for pack or system header.
+            break; // Reparse as a pack or system header.
 
         SrsMpegPES pes;
         if ((err = pes.decode(stream)) != srs_success) {
@@ -298,7 +282,6 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
 
         SrsTsMessage *lm = context_->last();
 
-        // The stream id should never change for PS stream.
         if (lm->sid_ != (SrsTsPESStreamId)0 && lm->sid_ != (SrsTsPESStreamId)pes.stream_id_) {
             return srs_error_new(ERROR_GB_PS_PSE, "PS stream id change from %#x to %#x", lm->sid_, pes.stream_id_);
         }
@@ -309,17 +292,16 @@ srs_error_t SrsPsPacket::decode(SrsBuffer *stream)
             lm->pts_ = pes.pts_;
         }
         if (pes.has_payload_) {
-            // The size of PS message, should be always a positive value.
             lm->PES_packet_length_ = pes.nb_payload_;
             if ((err = lm->dump(stream, &pes.nb_bytes_)) != srs_success) {
                 return srs_error_wrap(err, "dump pes");
             }
         }
 
-        // Use unit start as 1, however it has no effect because PES_packet_length should never be 0 for PS packet.
+        // The unit start has no effect, because PES_packet_length is never 0 in a PS stream.
         const int payload_unit_start_indicator = 1;
         if (lm->completed(payload_unit_start_indicator)) {
-            return err; // OK, got one message, let PS context handle it.
+            return err;
         }
     }
 
@@ -330,7 +312,6 @@ srs_error_t SrsPsPacket::decode_pack(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 14 bytes fixed header.
     if (!stream->require(14)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "ps requires 14 only %d bytes", stream->left());
     }
@@ -377,6 +358,11 @@ srs_error_t SrsPsPacket::decode_system(SrsBuffer *stream)
         return srs_error_new(ERROR_GB_PS_HEADER, "requires %d only %d bytes", header_length_, stream->left());
     }
 
+    // The fixed fields from rate_bound to the reserved bits are 6 bytes.
+    if (header_length_ < 6) {
+        return srs_error_new(ERROR_GB_PS_HEADER, "system header length %d less than 6", header_length_);
+    }
+
     SrsBuffer b(stream->head(), header_length_);
     stream->skip(header_length_);
 
@@ -396,7 +382,6 @@ srs_error_t SrsPsPacket::decode_system(SrsBuffer *stream)
     packet_rate_restriction_flag_ = (packet_rate_restriction_flag_ >> 5) & 0x01;
     // srs_warn("PS: New system header rate_bound=%d, video_bound=%d, audio_bound=%d", rate_bound_, video_bound_, audio_bound_);
 
-    // Parse stream_id and buffer information.
     while (!b.empty()) {
         uint8_t r2 = (uint8_t)b.head()[0];
         if ((r2 & 0x80) != 0x80)
@@ -450,7 +435,6 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // From first util program_stream_info_length field, at least 4 bytes.
     if (!stream->require(4)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     }
@@ -473,7 +457,6 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer *stream)
     }
     stream->skip(program_stream_info_length_);
 
-    // The number of ES map count, 2 bytes.
     if (!stream->require(2)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 2 only %d bytes", stream->left());
     }
@@ -496,7 +479,7 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer *stream)
         if (!b.require(elementary_stream_info_length)) {
             return srs_error_new(ERROR_GB_PS_HEADER, "requires %d only %d bytes", elementary_stream_info_length, b.left());
         }
-        // Descriptor defined as bellow section, but we ignore it:
+        // The descriptors are skipped, see:
         // Table 2-40 – Video stream descriptor, hls-mpeg-ts-iso13818-1.pdf, page 82
         // Table 2-42 – Audio stream descriptor, hls-mpeg-ts-iso13818-1.pdf, page 83
         b.skip(elementary_stream_info_length);
@@ -515,7 +498,6 @@ srs_error_t SrsPsPsmPacket::decode(SrsBuffer *stream)
         }
     }
 
-    // The last CRC32.
     if (!stream->require(4)) {
         return srs_error_new(ERROR_GB_PS_HEADER, "requires 4 only %d bytes", stream->left());
     }

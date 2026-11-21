@@ -147,7 +147,7 @@ static string mounted_dir(MockHttpServeMuxForHttpStaticServer *mux, string patte
 }
 
 // A vhost that is disabled is not mounted at all.
-VOID TEST(HttpStaticServerTest, MountVhostSkipsDisabledVhost)
+VOID TEST(HttpStaticServerTest, MountVhostSkipsVhostOff)
 {
     srs_error_t err = srs_success;
 
@@ -168,7 +168,7 @@ VOID TEST(HttpStaticServerTest, MountVhostSkipsDisabledVhost)
 }
 
 // A vhost with http static disabled is not mounted either.
-VOID TEST(HttpStaticServerTest, MountVhostSkipsVhostWithHttpDisabled)
+VOID TEST(HttpStaticServerTest, MountVhostSkipsVhostWithHttpOff)
 {
     srs_error_t err = srs_success;
 

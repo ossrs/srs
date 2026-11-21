@@ -13,7 +13,6 @@ class ISrsAppConfig;
 class ISrsAppFactory;
 class ISrsStatistic;
 
-// The interface of the http heartbeat.
 class ISrsHttpHeartbeat
 {
 public:
@@ -24,7 +23,6 @@ public:
     virtual void heartbeat() = 0;
 };
 
-// The http heartbeat to api-server to notice api that the information of SRS.
 class SrsHttpHeartbeat : public ISrsHttpHeartbeat
 {
 // clang-format off

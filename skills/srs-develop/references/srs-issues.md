@@ -2,6 +2,38 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4777 [USAGE] SRS: srt_to_rtmp warns for every PES of an unsupported audio codec
+
+- Issue: https://github.com/ossrs/srs/issues/4777
+- Truth Record: https://github.com/ossrs/srs/issues/4777#issuecomment-7051969331
+- Status: Closed as not planned, 2026-11-20
+
+The SRT bridge converts only H.264, HEVC and AAC to RTMP. With other audio, such as MP2, RTMP gets video only, and SRS warns `ts: unsupported stream codec=N` for every PES. SRT players still get the full stream.
+
+- The fix is on the publisher: send AAC, for example FFmpeg `-c:a aac`.
+- A change to warn once per PID was made and rejected: the publisher fix is enough, so SRS stays as it is.
+- Answer a similar issue or PR the same way, with the publisher fix and no change in SRS.
+
+## #4775 [USAGE] SRS: SRT to RTMP plays at half the frame rate with FFmpeg's default AAC PES
+
+- Issue: https://github.com/ossrs/srs/issues/4775
+- Truth Record: https://github.com/ossrs/srs/issues/4775#issuecomment-7050956862
+- Status: Closed as not planned, 2026-11-20
+
+FFmpeg's mpegts muxer packs about 15 AAC frames into one PES and writes it about 300 ms after the video of its time. SRS passes the frames on in arrival order, and `time_jitter full` takes each step back of more than 250 ms as a jump, so RTMP plays at about half the frame rate. No frame is lost.
+
+- The fix is `-pes_payload_size 0` on FFmpeg, as the SRT doc and SRS's runtime warning say. On the server side, `mix_correct on` also works.
+- Reordering the frames in the SRT bridge was tried and rejected. It added about 350 ms of latency to every SRT stream with audio and video, and froze one kind for up to 1 s when the other paused.
+- Answer a similar issue or PR the same way, with the workaround and no change in SRS.
+
+## #4801 [UNCONFIRMED] SRS: OBS AV1 over WHIP plays only keyframes over WHEP
+
+- Issue: https://github.com/ossrs/srs/issues/4801
+- Truth Record: https://github.com/ossrs/srs/issues/4801#issuecomment-6906278598
+- Status: Closed as not reproduced, 2026-11-15
+
+The report says SRS `8.0.63` drops every predicted frame of OBS SVT-AV1. Not reproduced on `8.0.76`: OBS AOM AV1 with a 1 s keyframe interval plays in Chrome at 30 fps with no loss, and SRS relays the AV1 payload unchanged. With the encoder's default keyframe interval a new player decoded nothing in 15 s, since OBS sent no keyframe after the PLI; that is the likely cause. Not tested: SVT-AV1, `8.0.63`, the reporter's player. Reopen needs logs, the keyframe interval, and the player's `inbound-rtp` stats.
+
 ## #4739 [BUG] SRT multi-level stream IDs could not play over HTTP-FLV/TS
 
 - Issue: https://github.com/ossrs/srs/issues/4739

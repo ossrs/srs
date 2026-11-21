@@ -15,10 +15,7 @@
 
 class ISrsProtocolStatistic;
 
-/**
- * Interface for clock abstraction to provide wall clock time.
- * This interface enables dependency injection and testability.
- */
+// An interface so the utest can mock the wall clock.
 class ISrsClock
 {
 public:
@@ -26,15 +23,9 @@ public:
     virtual ~ISrsClock();
 
 public:
-    /**
-     * Current time in srs_utime_t.
-     */
     virtual srs_utime_t now() = 0;
 };
 
-/**
- * A time source to provide wall clock.
- */
 class SrsWallClock : public ISrsClock
 {
 public:
@@ -42,22 +33,17 @@ public:
     virtual ~SrsWallClock();
 
 public:
-    /**
-     * Current time in srs_utime_t.
-     */
     virtual srs_utime_t now();
 };
 
-// The global clock.
 extern SrsWallClock *_srs_clock;
 
-// A sample for rate-based stat, such as kbps or kps.
 class SrsRateSample
 {
 public:
     int64_t total_;
     srs_utime_t time_;
-    // kbps or kps
+    // Kbps for SrsKbpsSlice, or count per second for SrsPps.
     int rate_;
 
 public:
@@ -68,7 +54,6 @@ public:
     virtual SrsRateSample *update(int64_t nn, srs_utime_t t, int k);
 };
 
-// A pps manager every some duration.
 class SrsPps
 {
 // clang-format off
@@ -77,7 +62,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // samples
     SrsRateSample sample_10s_;
     SrsRateSample sample_30s_;
     SrsRateSample sample_1m_;
@@ -85,7 +69,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRateSample sample_60m_;
 
 public:
-    // Sugar for target to stat.
     int64_t sugar_;
 
 public:
@@ -93,18 +76,12 @@ public:
     virtual ~SrsPps();
 
 public:
-    // Update with the nn which is target.
     void update();
-    // Update with the nn.
     void update(int64_t nn);
-    // Get the 10s average stat.
     int r10s();
-    // Get the 30s average stat.
     int r30s();
 };
 
-// Global SrsPps statistics variables
-// I/O operations statistics
 extern SrsPps *_srs_pps_recvfrom;
 extern SrsPps *_srs_pps_recvfrom_eagain;
 extern SrsPps *_srs_pps_sendto;
@@ -122,7 +99,6 @@ extern SrsPps *_srs_pps_recvmsg_eagain;
 extern SrsPps *_srs_pps_sendmsg;
 extern SrsPps *_srs_pps_sendmsg_eagain;
 
-// Clock and timing statistics
 extern SrsPps *_srs_pps_clock_15ms;
 extern SrsPps *_srs_pps_clock_20ms;
 extern SrsPps *_srs_pps_clock_25ms;
@@ -133,7 +109,7 @@ extern SrsPps *_srs_pps_clock_80ms;
 extern SrsPps *_srs_pps_clock_160ms;
 extern SrsPps *_srs_pps_timer_s;
 
-// WebRTC packet statistics
+// WebRTC packets.
 extern SrsPps *_srs_pps_rpkts;
 extern SrsPps *_srs_pps_rstuns;
 extern SrsPps *_srs_pps_rrtps;
@@ -146,7 +122,7 @@ extern SrsPps *_srs_pps_sstuns;
 extern SrsPps *_srs_pps_srtcps;
 extern SrsPps *_srs_pps_srtps;
 
-// Object and resource statistics
+// Objects and resources.
 extern SrsPps *_srs_pps_ids;
 extern SrsPps *_srs_pps_fids;
 extern SrsPps *_srs_pps_fids_level0;
@@ -159,7 +135,7 @@ extern SrsPps *_srs_pps_conn;
 extern SrsPps *_srs_pps_cids_get;
 extern SrsPps *_srs_pps_cids_set;
 
-// NACK and loss statistics
+// NACK and loss.
 extern SrsPps *_srs_pps_snack;
 extern SrsPps *_srs_pps_snack2;
 extern SrsPps *_srs_pps_snack3;
@@ -173,18 +149,17 @@ extern SrsPps *_srs_pps_rnack2;
 extern SrsPps *_srs_pps_rhnack;
 extern SrsPps *_srs_pps_rmnack;
 
-// RFC 4588 RTX statistics: sent, received, unwrapped, and padding-only dropped.
+// RFC 4588 RTX: sent, received, unwrapped, and padding-only dropped.
 extern SrsPps *_srs_pps_srtx;
 extern SrsPps *_srs_pps_rrtx;
 extern SrsPps *_srs_pps_rrtx_unwrap;
 extern SrsPps *_srs_pps_rrtx_padding;
 
-// WebRTC control statistics
+// WebRTC control.
 extern SrsPps *_srs_pps_pli;
 extern SrsPps *_srs_pps_twcc;
 extern SrsPps *_srs_pps_rr;
 
-// Object statistics
 extern SrsPps *_srs_pps_objs_rtps;
 extern SrsPps *_srs_pps_objs_rraw;
 extern SrsPps *_srs_pps_objs_rfua;
@@ -195,19 +170,16 @@ extern SrsPps *_srs_pps_objs_rothers;
 extern SrsPps *_srs_pps_objs_msgs;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
-// Debug thread statistics
 extern SrsPps *_srs_pps_thread_run;
 extern SrsPps *_srs_pps_thread_idle;
 extern SrsPps *_srs_pps_thread_yield;
 extern SrsPps *_srs_pps_thread_yield2;
 
-// Debug epoll statistics
 extern SrsPps *_srs_pps_epoll;
 extern SrsPps *_srs_pps_epoll_zero;
 extern SrsPps *_srs_pps_epoll_shake;
 extern SrsPps *_srs_pps_epoll_spin;
 
-// Debug scheduler statistics
 extern SrsPps *_srs_pps_sched_15ms;
 extern SrsPps *_srs_pps_sched_20ms;
 extern SrsPps *_srs_pps_sched_25ms;
@@ -219,7 +191,6 @@ extern SrsPps *_srs_pps_sched_160ms;
 extern SrsPps *_srs_pps_sched_s;
 #endif
 
-// Initialize the global kbps statistics variables
 srs_error_t srs_global_kbps_initialize();
 
 class SrsKbpsStats
@@ -238,7 +209,6 @@ public:
     std::string objs_desc_;
 };
 
-// Update the global kbps statistics variables
 void srs_global_kbps_update(SrsKbpsStats *stats);
 
 class SrsKbsRtcStats
@@ -253,12 +223,8 @@ public:
     std::string fid_desc_;
 };
 
-// Update the global rtc statistics variables
 void srs_global_rtc_update(SrsKbsRtcStats *stats);
 
-/**
- * The slice of kbps statistic, for input or output.
- */
 class SrsKbpsSlice
 {
 // clang-format off
@@ -266,12 +232,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsClock *clk_;
 
 public:
-    // session startup bytes
-    // @remark, use total_bytes() to get the total bytes of slice.
     int64_t bytes_;
-    // slice starttime, the first time to record bytes.
     srs_utime_t starttime_;
-    // samples
     SrsRateSample sample_30s_;
     SrsRateSample sample_1m_;
     SrsRateSample sample_5m_;
@@ -282,22 +244,9 @@ public:
     virtual ~SrsKbpsSlice();
 
 public:
-    // Resample the slice to calculate the kbps.
     virtual void sample();
 };
 
-/**
- * The interface which provices delta of bytes. For example, we got a delta from a TCP client:
- *       ISrsKbpsDelta* delta = ...;
- * Now, we can add delta simple to a kbps:
- *      kbps->add_delta(delta);
- * Or by multiple kbps:
- *       int64_t in, out;
- *       delta->remark(&in, &out);
- *       kbps1->add_delta(in, out);
- *       kbpsN->add_delta(in, out);
- * Then you're able to use the kbps object.
- */
 class ISrsKbpsDelta
 {
 public:
@@ -305,12 +254,10 @@ public:
     virtual ~ISrsKbpsDelta();
 
 public:
-    // Resample to get the value of delta bytes.
-    // @remark If no delta bytes, both in and out will be set to 0.
+    // Gets the bytes since the last call, 0 if none.
     virtual void remark(int64_t *in, int64_t *out) = 0;
 };
 
-// The interface which provices delta of bytes. For example, we got a delta from a UDP client:
 class ISrsEphemeralDelta : public ISrsKbpsDelta
 {
 public:
@@ -321,8 +268,7 @@ public:
     virtual void add_delta(int64_t in, int64_t out) = 0;
 };
 
-// A delta data source for SrsKbps, used in ephemeral case, for example, UDP server to increase stat when received or
-// sent out each UDP packet.
+// For example, a UDP server adds each packet it receives or sends.
 class SrsEphemeralDelta : public ISrsEphemeralDelta
 {
 // clang-format off
@@ -336,12 +282,11 @@ public:
 
 public:
     virtual void add_delta(int64_t in, int64_t out);
-    // Interface ISrsKbpsDelta.
+
 public:
     virtual void remark(int64_t *in, int64_t *out);
 };
 
-// The interface which provices delta of bytes. For example, we got a delta from a TCP client:
 class ISrsNetworkDelta : public ISrsKbpsDelta
 {
 public:
@@ -352,7 +297,6 @@ public:
     virtual void set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out) = 0;
 };
 
-// A network delta data source for SrsKbps.
 class SrsNetworkDelta : public ISrsNetworkDelta
 {
 // clang-format off
@@ -369,22 +313,13 @@ public:
     virtual ~SrsNetworkDelta();
 
 public:
-    // Switch the under-layer network io, we use the bytes as a fresh delta.
+    // Bytes the new io has already counted are added as a delta too.
     virtual void set_io(ISrsProtocolStatistic *in, ISrsProtocolStatistic *out);
-    // Interface ISrsKbpsDelta.
+
 public:
     virtual void remark(int64_t *in, int64_t *out);
 };
 
-/**
- * To statistic the kbps. For example, we got a set of connections and add the total delta:
- *       SrsKbps* kbps = ...;
- *       for conn in connections:
- *           kbps->add_delta(conn->delta()) // Which return an ISrsKbpsDelta object.
- * Then we sample and got the total kbps:
- *       kbps->sample()
- *       kbps->get_xxx_kbps().
- */
 class SrsKbps
 {
 // clang-format off
@@ -394,26 +329,21 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsClock *clk_;
 
 public:
-    // Note that we won't free the clock c.
     SrsKbps(ISrsClock *c = NULL);
     virtual ~SrsKbps();
 
 public:
-    // Get total average kbps.
     virtual int get_send_kbps();
     virtual int get_recv_kbps();
-    // Get the average kbps in 30s.
     virtual int get_send_kbps_30s();
     virtual int get_recv_kbps_30s();
-    // Get the average kbps in 5m or 300s.
     virtual int get_send_kbps_5m();
     virtual int get_recv_kbps_5m();
 
 public:
-    // Add delta to kbps. Please call sample() after all deltas are added to kbps.
+    // The rates change only in sample(), so call it after adding all deltas.
     virtual void add_delta(int64_t in, int64_t out);
     virtual void add_delta(ISrsKbpsDelta *delta);
-    // Sample the kbps to get the kbps in N seconds.
     virtual void sample();
 
 public:
@@ -421,7 +351,6 @@ public:
     virtual int64_t get_recv_bytes();
 };
 
-// A sugar to use SrsNetworkDelta and SrsKbps.
 class SrsNetworkKbps
 {
 // clang-format off

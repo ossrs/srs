@@ -28,9 +28,6 @@ using namespace std;
 #include <climits>
 #include <cmath>
 
-// this value must:
-// equals to (SRS_SYS_CYCLE_INTERVAL*SRS_SYS_TIME_RESOLUTION_MS_TIMES)*1000
-// @see SRS_SYS_TIME_RESOLUTION_MS_TIMES
 #define SYS_TIME_RESOLUTION_US 300 * 1000
 
 srs_utime_t _srs_system_time_us_cache = 0;
@@ -71,21 +68,15 @@ srs_utime_t srs_time_now_realtime()
         return -1;
     }
 
-    // we must convert the tv_sec/tv_usec to int64_t.
     int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
 
-    // for some ARM os, the starttime maybe invalid,
-    // for example, on the cubieboard2, the srs_startup_time is 1262304014640,
-    // while now is 1403842979210 in ms, diff is 141538964570 ms, 1638 days
-    // it's impossible, and maybe the problem of startup time is invalid.
-    // use date +%s to get system time is 1403844851.
-    // so we use relative time.
+    // On some ARM OSes the startup time may be invalid. On the cubieboard2 it was 1262304014640 ms while now was
+    // 1403842979210 ms, 1638 days later, and date +%s gave 1403844851. So relative time is used.
     if (_srs_system_time_us_cache <= 0) {
         _srs_system_time_startup_time = _srs_system_time_us_cache = now_us;
         return _srs_system_time_us_cache;
     }
 
-    // use relative time.
     int64_t diff = now_us - _srs_system_time_us_cache;
     diff = srs_max(0, diff);
     if (diff < 0 || diff > 1000 * SYS_TIME_RESOLUTION_US) {
@@ -101,8 +92,6 @@ srs_utime_t srs_time_now_realtime()
 
 bool srs_is_little_endian()
 {
-    // convert to network(big-endian) order, if not equals,
-    // the system is little-endian, so need to convert the int64
     static int little_endian_check = -1;
 
     if (little_endian_check == -1) {
@@ -125,7 +114,7 @@ string srs_strconv_format_int(int64_t value)
 
 string srs_strconv_format_float(double value)
 {
-    // len(max int64_t) is 20, plus one "+-."
+    // The longest int64_t is 20 chars, plus one for the sign or the dot.
     char tmp[21 + 1];
     snprintf(tmp, sizeof(tmp), "%.2f", value);
     return tmp;
@@ -163,7 +152,6 @@ string srs_strings_trim_end(string str, string trim_chars)
         while (!ret.empty() && ret.at(ret.length() - 1) == ch) {
             ret.erase(ret.end() - 1);
 
-            // ok, matched, should reset the search
             i = -1;
         }
     }
@@ -181,7 +169,6 @@ string srs_strings_trim_start(string str, string trim_chars)
         while (!ret.empty() && ret.at(0) == ch) {
             ret.erase(ret.begin());
 
-            // ok, matched, should reset the search
             i = -1;
         }
     }
@@ -200,7 +187,6 @@ string srs_strings_remove(string str, string remove_chars)
             if (ch == *it) {
                 it = ret.erase(it);
 
-                // ok, matched, should reset the search
                 i = -1;
             } else {
                 ++it;
@@ -315,10 +301,9 @@ vector<string> srs_strings_split(string s, string seperator)
     size_t posSeperator = s.find(seperator);
     while (posSeperator != string::npos) {
         result.push_back(s.substr(posBegin, posSeperator - posBegin));
-        posBegin = posSeperator + seperator.length(); // next byte of seperator
+        posBegin = posSeperator + seperator.length();
         posSeperator = s.find(seperator, posBegin);
     }
-    // push the last element
     result.push_back(s.substr(posBegin));
     return result;
 }
@@ -398,26 +383,33 @@ int srs_do_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
 
-    // stat current dir, if exists, return error.
     SrsPath path;
     if (path.exists(dir)) {
         return ERROR_SYSTEM_DIR_EXISTS;
     }
 
-    // create parent first. The parent of a dir under the root, such as /a, is empty, which is the root.
-    size_t pos;
-    if ((pos = dir.rfind("/")) != std::string::npos && pos > 0) {
-        std::string parent = dir.substr(0, pos);
-        ret = srs_do_create_dir_recursively(parent);
-        // return for error.
-        if (ret != ERROR_SUCCESS && ret != ERROR_SYSTEM_DIR_EXISTS) {
-            return ret;
+    // Stop at the deepest parent that exists: a Windows drive such as C: fails stat, and its mkdir fails with an
+    // errno other than EEXIST on some hosts. Loop instead of recursing, because the dir holds the client's app and
+    // stream, which may have thousands of levels, too deep for a coroutine stack.
+    std::vector<size_t> missing;
+    for (size_t pos = dir.rfind("/"); pos != std::string::npos && pos > 0; pos = dir.rfind("/", pos - 1)) {
+        if (path.exists(dir.substr(0, pos))) {
+            break;
         }
-        // parent exists, set to ok.
-        ret = ERROR_SUCCESS;
+        missing.push_back(pos);
     }
 
-    // create curren dir.
+    for (int i = (int)missing.size() - 1; i >= 0; i--) {
+        std::string parent = dir.substr(0, missing[i]);
+
+        // Another process may create the parent between the stat and the mkdir, which is ok.
+        if (_srs_mkdir_fn(parent.c_str()) < 0 && errno != EEXIST) {
+            ret = ERROR_SYSTEM_CREATE_DIR;
+            srs_error("create dir %s failed. ret=%d", parent.c_str(), ret);
+            return ret;
+        }
+    }
+
     if (_srs_mkdir_fn(dir.c_str()) < 0) {
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
@@ -450,7 +442,7 @@ string srs_strings_dumps_hex(const char *str, int length, int limit)
 
 string srs_strings_dumps_hex(const char *str, int length, int limit, char seperator, int line_limit, char newline)
 {
-    // 1 byte trailing '\0'.
+    // One more byte for the trailing '\0'.
     const int LIMIT = 1024 * 16 + 1;
     static char buf[LIMIT];
 
@@ -462,7 +454,6 @@ string srs_strings_dumps_hex(const char *str, int length, int limit, char sepera
         }
         len += nb;
 
-        // Only append seperator and newline when not last byte.
         if (i < length - 1 && i < limit - 1 && len < LIMIT) {
             if (seperator) {
                 buf[len++] = seperator;
@@ -474,7 +465,6 @@ string srs_strings_dumps_hex(const char *str, int length, int limit, char sepera
         }
     }
 
-    // Empty string.
     if (len <= 0) {
         return "";
     }
@@ -484,7 +474,7 @@ string srs_strings_dumps_hex(const char *str, int length, int limit, char sepera
         len--;
     }
 
-    // If overflow, cut the trailing seperator.
+    // If overflow, cut the trailing separator.
     if (seperator && len >= LIMIT - 3 && buf[len - 1] == seperator) {
         len--;
     }
@@ -526,7 +516,6 @@ bool SrsPath::exists(std::string path)
 {
     struct stat st;
 
-    // stat current dir, if exists, return error.
     if (stat(path.c_str(), &st) == 0) {
         return true;
     }
@@ -547,7 +536,6 @@ bool SrsPath::is_dir(std::string path)
 
 srs_error_t SrsPath::unlink(std::string path)
 {
-    // Define the directories that are forbidden to delete.
     std::string forbidden[] = {
         "./",
         "../",
@@ -592,18 +580,15 @@ std::string SrsPath::filepath_dir(std::string path)
 {
     std::string dirname = path;
 
-    // No slash, it must be current dir.
     size_t pos = string::npos;
     if ((pos = dirname.rfind("/")) == string::npos) {
         return "./";
     }
 
-    // Path under root.
     if (pos == 0) {
         return "/";
     }
 
-    // Fetch the directory.
     dirname = dirname.substr(0, pos);
     return dirname;
 }
@@ -614,7 +599,6 @@ string SrsPath::filepath_base(string path)
     size_t pos = string::npos;
 
     if ((pos = dirname.rfind("/")) != string::npos) {
-        // the basename("/") is "/"
         if (dirname.length() == 1) {
             return dirname;
         }
@@ -658,7 +642,6 @@ srs_error_t SrsPath::mkdir_all(string dir)
     return srs_error_new(ret, "create dir %s", dir.c_str());
 }
 
-// fromHexChar converts a hex character into its value and a success flag.
 int srs_from_hex_char(uint8_t c, uint8_t *out)
 {
     if ('0' <= c && c <= '9') {
@@ -751,7 +734,6 @@ SrsRand::~SrsRand()
 void SrsRand::gen_bytes(char *bytes, int size)
 {
     for (int i = 0; i < size; i++) {
-        // the common value in [0x0f, 0xf0]
         bytes[i] = 0x0f + (integer() % (256 - 0x0f - 0x0f));
     }
 }
@@ -813,10 +795,9 @@ srs_error_t srs_io_readall(ISrsReader *in, std::string &content)
 
     const int SRS_HTTP_READ_CACHE_BYTES = 4096;
 
-    // Cache to read, it might cause coroutine switch, so we use local cache here.
+    // The read may switch coroutines, so the buffer is local, not static.
     SrsUniquePtr<char[]> buf(new char[SRS_HTTP_READ_CACHE_BYTES]);
 
-    // Whatever, read util EOF.
     while (true) {
         ssize_t nb_read = 0;
         if ((err = in->read(buf.get(), SRS_HTTP_READ_CACHE_BYTES, &nb_read)) != srs_success) {
@@ -838,20 +819,17 @@ srs_error_t srs_io_readall(ISrsReader *in, std::string &content)
 
 void srs_net_split_hostport(string hostport, string &host, int &port)
 {
-    // No host or port.
     if (hostport.empty()) {
         return;
     }
 
     size_t pos = string::npos;
 
-    // Host only for ipv4.
     if ((pos = hostport.rfind(":")) == string::npos) {
         host = hostport;
         return;
     }
 
-    // For ipv4(only one colon), host:port.
     if (hostport.find(":") == pos) {
         host = hostport.substr(0, pos);
         string p = hostport.substr(pos + 1);
@@ -861,13 +839,11 @@ void srs_net_split_hostport(string hostport, string &host, int &port)
         return;
     }
 
-    // Host only for ipv6.
     if (hostport.at(0) != '[' || (pos = hostport.rfind("]:")) == string::npos) {
         host = hostport;
         return;
     }
 
-    // For ipv6, [host]:port.
     host = hostport.substr(1, pos - 1);
     string p = hostport.substr(pos + 2);
     if (!p.empty() && p != "0") {
@@ -877,13 +853,12 @@ void srs_net_split_hostport(string hostport, string &host, int &port)
 
 void srs_net_split_for_listener(string hostport, string &ip, int &port)
 {
-    const size_t pos = hostport.rfind(":"); // Look for ":" from the end, to work with IPv6.
+    const size_t pos = hostport.rfind(":"); // From the end, since an IPv6 address has colons.
     if (pos != std::string::npos) {
         if ((pos >= 1) && (hostport[0] == '[') && (hostport[pos - 1] == ']')) {
-            // Handle IPv6 in RFC 2732 format, e.g. [3ffe:dead:beef::1]:1935
+            // IPv6 in RFC 2732 format, such as [3ffe:dead:beef::1]:1935
             ip = hostport.substr(1, pos - 2);
         } else {
-            // Handle IP address
             ip = hostport.substr(0, pos);
         }
 
@@ -925,7 +900,6 @@ bool srs_net_is_valid_ip(string ip)
 {
     unsigned char buf[sizeof(struct in6_addr)];
 
-    // check ipv4
     int ret = inet_pton(AF_INET, ip.data(), buf);
     if (ret > 0) {
         return true;
@@ -1042,14 +1016,12 @@ string srs_net_get_cidr_mask(string network_address)
 
     size_t delimiter_position = network_address.find(delimiter);
     if (delimiter_position == string::npos) {
-        // Even if it does not have "/N", it can be a valid IP, by default "/32".
         if (srs_net_is_ipv4(network_address)) {
             return CIDR_VALUES[32 - 1].mask;
         }
         return "";
     }
 
-    // Change here to include IPv6 support.
     string is_ipv4_address = network_address.substr(0, delimiter_position);
     if (!srs_net_is_ipv4(is_ipv4_address)) {
         return "";
@@ -1079,14 +1051,12 @@ string srs_net_get_cidr_ipv4(string network_address)
 
     size_t delimiter_position = network_address.find(delimiter);
     if (delimiter_position == string::npos) {
-        // Even if it does not have "/N", it can be a valid IP, by default "/32".
         if (srs_net_is_ipv4(network_address)) {
             return network_address;
         }
         return "";
     }
 
-    // Change here to include IPv6 support.
     string ipv4_address = network_address.substr(0, delimiter_position);
     if (!srs_net_is_ipv4(ipv4_address)) {
         return "";

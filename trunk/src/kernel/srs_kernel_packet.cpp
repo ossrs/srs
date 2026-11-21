@@ -50,24 +50,21 @@ SrsMediaPacket::SrsMediaPacket()
 
 SrsMediaPacket::~SrsMediaPacket()
 {
-    // payload_ automatically cleaned up by SrsSharedPtr
 }
 
 void SrsMediaPacket::wrap(char *payload, int size)
 {
-    // Create new memory block and wrap the payload
     payload_ = SrsSharedPtr<SrsMemoryBlock>(new SrsMemoryBlock());
     payload_->attach(payload, size);
 }
 
 bool SrsMediaPacket::check(int stream_id)
 {
-    // Ignore error when message has no payload.
     if (!payload_.get()) {
         return true;
     }
 
-    // we assume that the stream_id in a group must be the same.
+    // Assume the stream_id in a group is the same.
     if (this->stream_id_ == stream_id) {
         return true;
     }
@@ -119,7 +116,15 @@ SrsParsedPacket::~SrsParsedPacket()
 srs_error_t SrsParsedPacket::initialize(SrsCodecConfig *c)
 {
     codec_ = c;
+
+    // Drop the last frame's samples, which point into its payload, freed once that frame is sent. A frame that adds
+    // no sample, such as an MP3 tag with no data, must not leave a reader the freed bytes in samples_[0].
+    for (int i = 0; i < nb_samples_; i++) {
+        samples_[i].bytes_ = NULL;
+        samples_[i].size_ = 0;
+    }
     nb_samples_ = 0;
+
     dts_ = 0;
     cts_ = 0;
     return srs_success;
@@ -129,7 +134,6 @@ srs_error_t SrsParsedPacket::add_sample(char *bytes, int size)
 {
     srs_error_t err = srs_success;
 
-    // Ignore empty sample.
     if (!bytes || size <= 0)
         return err;
 
@@ -218,15 +222,12 @@ srs_error_t SrsParsedVideoPacket::add_sample(char *bytes, int size)
     if (!bytes || size <= 0)
         return err;
 
-    // For HEVC(H.265), try to parse the IDR from NALUs.
     if (c && c->id_ == SrsVideoCodecIdHEVC) {
         SrsHevcNaluType nalu_type = SrsHevcNaluTypeParse(bytes[0]);
         has_idr_ = SrsIsIRAP(nalu_type);
         return err;
     }
 
-    // By default, use AVC(H.264) to parse NALU.
-    // For video, parse the nalu type, set the IDR flag.
     SrsAvcNaluType nal_unit_type = SrsAvcNaluTypeParse(bytes[0]);
 
     if (nal_unit_type == SrsAvcNaluTypeIDR) {
@@ -294,7 +295,7 @@ srs_error_t SrsParsedVideoPacket::parse_avc_bframe(const SrsNaluSample *sample, 
 
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(sample->bytes_, sample->size_));
 
-    // Skip nalu header.
+    // Skip the NALU header.
     stream->skip(1);
 
     SrsBitBuffer bitstream(stream.get());
@@ -424,8 +425,6 @@ srs_error_t SrsParsedVideoPacket::parse_hevc_bframe(const SrsNaluSample *sample,
         srs_verbose("nalu_type=%d, slice type=%d", nalu_type, slice_type);
     }
 
-    // no need to evaluate the rest
-
     return err;
 }
 
@@ -457,12 +456,8 @@ SrsFormat::~SrsFormat()
     srs_freep(vcodec_);
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after the source is added to the source pool by fetch_or_create (see PR 4449), so it must
+// not switch coroutines, or other coroutines may create a duplicate source for the same stream.
 srs_error_t SrsFormat::initialize()
 {
     if (!vcodec_) {
@@ -478,12 +473,18 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char *data, int size)
 
     if (!data || size <= 0) {
         srs_info("no audio present, ignore it.");
+
+        // Clear the last frame's samples and bytes, which point into its payload, freed once that frame is sent.
+        if (audio_ && (err = audio_->initialize(acodec_)) != srs_success) {
+            return srs_error_wrap(err, "init audio");
+        }
+        raw_ = NULL;
+        nb_raw_ = 0;
+
         return err;
     }
 
     SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
-
-    // We already checked the size is positive and data is not NULL.
     srs_assert(buffer->require(1));
 
     // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
@@ -506,7 +507,6 @@ srs_error_t SrsFormat::on_audio(int64_t timestamp, char *data, int size)
         return srs_error_wrap(err, "init audio");
     }
 
-    // Parse by specified codec.
     buffer->skip(-1 * buffer->pos());
 
     if (codec == SrsAudioCodecIdMP3) {
@@ -584,17 +584,14 @@ SrsVideoCodecConfig *SrsFormat::vcodec()
     return vcodec_;
 }
 
-// Remove the emulation bytes from stream, and return num of bytes of the rbsp.
 int srs_rbsp_remove_emulation_bytes(SrsBuffer *stream, std::vector<uint8_t> &rbsp)
 {
     int nb_rbsp = 0;
     while (!stream->empty()) {
         rbsp[nb_rbsp] = stream->read_1bytes();
 
-        // .. 00 00 03 xx, the 03 byte should be drop where xx represents any
-        // 2 bit pattern: 00, 01, 10, or 11.
+        // In 00 00 03 xx, the 03 byte is dropped, where xx is any 2-bit pattern: 00, 01, 10, or 11.
         if (nb_rbsp >= 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
-            // read 1byte more.
             if (stream->empty()) {
                 nb_rbsp++;
                 break;
@@ -630,7 +627,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "video avc demux shall atleast 1bytes");
     }
 
-    // Parse the frame type and the first bit indicates the ext header.
     uint8_t frame_type = stream->read_1bytes();
     bool is_ext_header = frame_type & 0x80;
 
@@ -670,10 +666,9 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
 
     video_->frame_type_ = (SrsVideoAvcFrameType)frame_type;
 
-    // ignore info frame without error,
+    // Ignore the info frame without error.
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (video_->frame_type_ == SrsVideoAvcFrameTypeVideoInfoFrame) {
-        // For non-ext header Video Info Frame, try to read packet type from stream if available
         if (!is_ext_header && stream->left() > 0) {
             packet_type = (SrsVideoAvcFrameTrait)stream->read_1bytes();
         }
@@ -683,7 +678,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
         return err;
     }
 
-    // Check codec for H.264 and H.265.
     bool codec_ok = (codec_id == SrsVideoCodecIdAVC);
     codec_ok = codec_ok ? true : (codec_id == SrsVideoCodecIdHEVC);
     if (!codec_ok) {
@@ -709,16 +703,13 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
         }
     }
 
-    // pts = dts + cts.
     video_->dts_ = timestamp;
     video_->cts_ = composition_time;
     video_->avc_packet_type_ = packet_type;
 
-    // Update the RAW AVC data.
     raw_ = stream->data() + stream->pos();
     nb_raw_ = stream->size() - stream->pos();
 
-    // Parse sequence header for H.265/HEVC.
     if (codec_id == SrsVideoCodecIdHEVC) {
         if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
             // TODO: demux vps/sps/pps for hevc
@@ -734,7 +725,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
         return err;
     }
 
-    // Parse sequence header for H.264/AVC.
     if (packet_type == SrsVideoAvcFrameTraitSequenceHeader) {
         // TODO: FIXME: Maybe we should ignore any error for parsing sps/pps.
         if ((err = avc_demux_sps_pps(stream)) != srs_success) {
@@ -745,15 +735,15 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
             return srs_error_wrap(err, "demux NALU");
         }
     } else {
-        // ignored.
+        // Ignored.
     }
 
     return err;
 }
 
-// For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
+// A media server does not need the codec details, so it only tries to parse the SPS and PPS, and could ignore
+// any error.
 
-// struct ptl
 SrsHevcProfileTierLevel::SrsHevcProfileTierLevel()
 {
     general_profile_space_ = 0;
@@ -789,7 +779,6 @@ SrsHevcProfileTierLevel::~SrsHevcProfileTierLevel()
 {
 }
 
-// Parse the hevc vps/sps/pps
 srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
@@ -854,7 +843,6 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
     dec_conf_rec_p->num_temporal_layers_ = (data_byte >> 3) & 0x07;
     dec_conf_rec_p->temporal_id_nested_ = (data_byte >> 2) & 0x01;
 
-    // Parse the NALU size.
     uint8_t length_size_minus_one = data_byte & 0x03;
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
@@ -862,8 +850,7 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
-    // Validate before assigning, so a rejected sequence header leaves no invalid state,
-    // neither in the codec config nor in the decoder configuration record.
+    // Validate before assigning, so a rejected sequence header leaves no invalid state.
     if (length_size_minus_one == 2) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
@@ -875,7 +862,6 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
              dec_conf_rec_p->avg_frame_rate, dec_conf_rec_p->constant_frame_rate, dec_conf_rec_p->num_temporal_layers,
              dec_conf_rec_p->temporal_id_nested, dec_conf_rec_p->length_size_minus_one, numOfArrays);
 
-    // parse vps/pps/sps
     dec_conf_rec_p->nalu_vec_.clear();
     for (int index = 0; index < numOfArrays; index++) {
         if (!stream->require(3)) {
@@ -900,7 +886,6 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
                 return srs_error_new(ERROR_HEVC_DECODE_ERROR, "requires %d only %d bytes",
                                      data_item.nal_unit_length_, stream->left());
             }
-            // copy vps/pps/sps data
             if (data_item.nal_unit_length_ > 0) {
                 data_item.nal_unit_data_.resize(data_item.nal_unit_length_);
                 stream->read_bytes((char *)(&data_item.nal_unit_data_[0]), data_item.nal_unit_length_);
@@ -911,7 +896,6 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
         }
         dec_conf_rec_p->nalu_vec_.push_back(hevc_unit);
 
-        // demux nalu
         if ((err = hevc_demux_vps_sps_pps(&hevc_unit)) != srs_success) {
             return srs_error_wrap(err, "hevc demux vps/sps/pps failed");
         }
@@ -933,7 +917,6 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu *nal)
     int nb_frame = nal->nal_data_vec_[0].nal_unit_length_;
     SrsBuffer stream(frame, nb_frame);
 
-    // nal data
     switch (nal->nal_unit_type_) {
     case SrsHevcNaluType_VPS:
         err = hevc_demux_vps(&stream);
@@ -957,12 +940,11 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
     // @see 7.3.1.2 NAL unit header syntax
     // @doc ITU-T-H.265-2021.pdf, page 53.
 
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc vps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
-    // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
@@ -979,8 +961,6 @@ srs_error_t SrsFormat::hevc_demux_vps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from vps.
-    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
     int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
@@ -992,7 +972,6 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char *rbsp, int nb_rbsp)
 {
     srs_error_t err = srs_success;
 
-    // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 VPS (video_parameter_set_rbsp()) NAL Unit.
@@ -1010,7 +989,6 @@ srs_error_t SrsFormat::hevc_demux_vps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "vps id out of range: %d", vps_video_parameter_set_id);
     }
 
-    // select table
     SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec_->hevc_dec_conf_record_);
     SrsHevcRbspVps *vps = &(dec_conf_rec->vps_table_[vps_video_parameter_set_id]);
 
@@ -1085,12 +1063,11 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
     // @see 7.3.2.2.1 General sequence parameter set RBSP syntax
     // @doc ITU-T-H.265-2021.pdf, page 55.
 
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc sps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
-    // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
@@ -1107,8 +1084,6 @@ srs_error_t SrsFormat::hevc_demux_sps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from sps.
-    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
     int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
@@ -1120,13 +1095,12 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 {
     srs_error_t err = srs_success;
 
-    // we donot parse the detail of sps.
+    // We may not parse the details of the SPS.
     // @see https://github.com/ossrs/srs/issues/474
     if (!avc_parse_sps_) {
         return err;
     }
 
-    // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 SPS Nal Unit (seq_parameter_set_rbsp()) parser.
@@ -1146,7 +1120,6 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 
     SrsBitBuffer bs(&stream);
 
-    // profile tier level...
     SrsHevcProfileTierLevel profile_tier_level;
     // profile_tier_level(1, sps_max_sub_layers_minus1)
     if ((err = hevc_demux_rbsp_ptl(&bs, &profile_tier_level, 1, sps_max_sub_layers_minus1)) != srs_success) {
@@ -1165,7 +1138,6 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps id out of range: %d", sps_seq_parameter_set_id);
     }
 
-    // for sps_table
     SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec_->hevc_dec_conf_record_);
     SrsHevcRbspSps *sps = &(dec_conf_rec->sps_table_[sps_seq_parameter_set_id]);
 
@@ -1230,7 +1202,6 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 
         // Table 6-1, 7.4.3.2.1
         // ITU-T-H.265-2021.pdf, page 42.
-        // Recalculate width and height
         // Note: 1 is added to the manual, but it is not actually used
         // https://gitlab.com/mbunkus/mkvtoolnix/-/issues/1152
         int sub_width_c = ((1 == sps->chroma_format_idc_) || (2 == sps->chroma_format_idc_)) && (0 == sps->separate_colour_plane_flag_) ? 2 : 1;
@@ -1248,7 +1219,6 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_wrap(err, "bit_depth_chroma_minus8");
     }
 
-    // bit depth
     dec_conf_rec->bit_depth_luma_minus8_ = sps->bit_depth_luma_minus8_ + 8;
     dec_conf_rec->bit_depth_chroma_minus8_ = sps->bit_depth_chroma_minus8_ + 8;
 
@@ -1315,12 +1285,11 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // for NALU, ITU-T H.265 7.3.2.3 Picture parameter set RBSP syntax
     // @see 7.3.2.3 Picture parameter set RBSP syntax
     // @doc ITU-T-H.265-2021.pdf, page 57.
-    if (!stream->require(1)) {
-        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 1 only %d bytes", stream->left());
+    if (!stream->require(2)) {
+        return srs_error_new(ERROR_HEVC_DECODE_ERROR, "decode hevc pps requires 2 only %d bytes", stream->left());
     }
     int8_t nutv = stream->read_1bytes();
 
-    // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "hevc forbidden_zero_bit=%d shall be equal to 0", forbidden_zero_bit);
@@ -1337,8 +1306,6 @@ srs_error_t SrsFormat::hevc_demux_pps(SrsBuffer *stream)
     // nuh_layer_id + nuh_temporal_id_plus1
     stream->skip(1);
 
-    // decode the rbsp from pps.
-    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(stream->size());
 
     int nb_rbsp = srs_rbsp_remove_emulation_bytes(stream, rbsp);
@@ -1350,7 +1317,6 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp)
 {
     srs_error_t err = srs_success;
 
-    // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // H265 PPS NAL Unit (pic_parameter_set_rbsp()) parser.
@@ -1367,7 +1333,6 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps id out of range: %d", pps_pic_parameter_set_id);
     }
 
-    // select table
     SrsHevcDecoderConfigurationRecord *dec_conf_rec = &(vcodec_->hevc_dec_conf_record_);
     SrsHevcRbspPps *pps = &(dec_conf_rec->pps_table_[pps_pic_parameter_set_id]);
     pps->pps_pic_parameter_set_id_ = pps_pic_parameter_set_id;
@@ -1458,6 +1423,10 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp)
         if ((err = bs.read_bits_ue(pps->num_tile_rows_minus1_)) != srs_success) {
             return srs_error_wrap(err, "num_tile_rows_minus1");
         }
+        // No level allows more than 20 tile columns or 22 tile rows, see MaxTileCols and MaxTileRows in Table A.8.
+        if (pps->num_tile_columns_minus1_ >= 20 || pps->num_tile_rows_minus1_ >= 22) {
+            return srs_error_new(ERROR_HEVC_DECODE_ERROR, "pps tiles columns=%u, rows=%u exceed 20x22", pps->num_tile_columns_minus1_ + 1, pps->num_tile_rows_minus1_ + 1);
+        }
 
         if (!bs.require_bits(1)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "uniform_spacing_flag requires 1 only %d bits", bs.left_bits());
@@ -1532,6 +1501,10 @@ srs_error_t SrsFormat::hevc_demux_pps_rbsp(char *rbsp, int nb_rbsp)
         SrsHevcScalingListData *sld = &pps->scaling_list_data_;
         for (int sizeId = 0; sizeId < 4; sizeId++) {
             for (int matrixId = 0; matrixId < 6; matrixId += (sizeId == 3) ? 3 : 1) {
+                if (!bs.require_bits(1)) {
+                    return srs_error_new(ERROR_HEVC_DECODE_ERROR, "scaling_list_pred_mode_flag requires 1 only %d bits", bs.left_bits());
+                }
+
                 // scaling_list_pred_mode_flag  u(1)
                 sld->scaling_list_pred_mode_flag_[sizeId][matrixId] = bs.read_bit();
                 if (!sld->scaling_list_pred_mode_flag_[sizeId][matrixId]) {
@@ -1648,7 +1621,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierL
             ptl->general_profile_idc_ == 9 || ptl->general_profile_compatibility_flag_[9] ||
             ptl->general_profile_idc_ == 10 || ptl->general_profile_compatibility_flag_[10] ||
             ptl->general_profile_idc_ == 11 || ptl->general_profile_compatibility_flag_[11]) {
-            // The number of bits in this syntax structure is not affected by this condition
+            // The number of bits in this syntax structure is not affected by this condition.
             // max_12bit_constraint_flag  u(1)
             ptl->general_max_12bit_constraint_flag_ = bs->read_bit();
             // max_10bit_constraint_flag  u(1)
@@ -1700,7 +1673,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierL
             ptl->general_reserved_zero_43bits_ = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
         }
 
-        // The number of bits in this syntax structure is not affected by this condition
+        // The number of bits in this syntax structure is not affected by this condition.
         if (ptl->general_profile_idc_ == 1 || ptl->general_profile_compatibility_flag_[1] ||
             ptl->general_profile_idc_ == 2 || ptl->general_profile_compatibility_flag_[2] ||
             ptl->general_profile_idc_ == 3 || ptl->general_profile_compatibility_flag_[3] ||
@@ -1858,7 +1831,7 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierL
                 ptl->sub_layer_reserved_zero_43bits_[i] = ((uint64_t)bits_tmp_hi << 32) | bits_tmp;
             }
 
-            // The number of bits in this syntax structure is not affected by this condition
+            // The number of bits in this syntax structure is not affected by this condition.
             if (ptl->sub_layer_profile_idc_[i] == 1 || ptl->sub_layer_profile_compatibility_flag_[i][1] ||
                 ptl->sub_layer_profile_idc_[i] == 2 || ptl->sub_layer_profile_compatibility_flag_[i][2] ||
                 ptl->sub_layer_profile_idc_[i] == 3 || ptl->sub_layer_profile_compatibility_flag_[i][3] ||
@@ -1908,7 +1881,6 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer *stream)
     // int8_t AVCLevelIndication = stream->read_1bytes();
     vcodec_->avc_level_ = (SrsAvcLevel)stream->read_1bytes();
 
-    // parse the NALU size.
     int8_t lengthSizeMinusOne = stream->read_1bytes();
     lengthSizeMinusOne &= 0x03;
 
@@ -1933,7 +1905,6 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer *stream)
     if (numOfSequenceParameterSets < 1) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
     }
-    // Support for multiple SPS, then pick the first non-empty one.
     for (int i = 0; i < numOfSequenceParameterSets; ++i) {
         if (!stream->require(2)) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS size");
@@ -1948,7 +1919,6 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer *stream)
         }
     }
 
-    // 1 pps
     if (!stream->require(1)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS");
     }
@@ -1957,7 +1927,6 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer *stream)
     if (numOfPictureParameterSets < 1) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode SPS");
     }
-    // Support for multiple PPS, then pick the first non-empty one.
     for (int i = 0; i < numOfPictureParameterSets; ++i) {
         if (!stream->require(2)) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "decode PPS size");
@@ -1994,7 +1963,6 @@ srs_error_t SrsFormat::avc_demux_sps()
     }
     int8_t nutv = stream.read_1bytes();
 
-    // forbidden_zero_bit shall be equal to 0.
     int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
     if (forbidden_zero_bit) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "forbidden_zero_bit shall be equal to 0");
@@ -2015,8 +1983,6 @@ srs_error_t SrsFormat::avc_demux_sps()
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "for sps, nal_unit_type shall be equal to 7");
     }
 
-    // decode the rbsp from sps.
-    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
     std::vector<uint8_t> rbsp(vcodec_->sequenceParameterSetNALUnit_.size());
 
     int nb_rbsp = srs_rbsp_remove_emulation_bytes(&stream, rbsp);
@@ -2028,13 +1994,12 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 {
     srs_error_t err = srs_success;
 
-    // we donot parse the detail of sps.
+    // We may not parse the details of the SPS.
     // @see https://github.com/ossrs/srs/issues/474
     if (!avc_parse_sps_) {
         return err;
     }
 
-    // reparse the rbsp.
     SrsBuffer stream(rbsp, nb_rbsp);
 
     // for SPS, 7.3.2.1.1 Sequence parameter set data syntax
@@ -2215,7 +2180,6 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         ;
     }
     if (!frame_mbs_only_flag) {
-        /* Skip mb_adaptive_frame_field_flag */
         int8_t mb_adaptive_frame_field_flag = -1;
         if ((err = srs_avc_nalu_read_bit(&bs, mb_adaptive_frame_field_flag)) != srs_success) {
             return srs_error_wrap(err, "read mb_adaptive_frame_field_flag");
@@ -2223,14 +2187,12 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         }
     }
 
-    /* Skip direct_8x8_inference_flag */
     int8_t direct_8x8_inference_flag = -1;
     if ((err = srs_avc_nalu_read_bit(&bs, direct_8x8_inference_flag)) != srs_success) {
         return srs_error_wrap(err, "read direct_8x8_inference_flag");
         ;
     }
 
-    /* We need the following value to evaluate offsets, if any */
     int8_t frame_cropping_flag = -1;
     if ((err = srs_avc_nalu_read_bit(&bs, frame_cropping_flag)) != srs_success) {
         return srs_error_wrap(err, "read frame_cropping_flag");
@@ -2257,7 +2219,6 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         }
     }
 
-    /* Skip vui_parameters_present_flag */
     int8_t vui_parameters_present_flag = -1;
     if ((err = srs_avc_nalu_read_bit(&bs, vui_parameters_present_flag)) != srs_success) {
         return srs_error_wrap(err, "read vui_parameters_present_flag");
@@ -2274,7 +2235,6 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // ensure the sequence header demuxed
     if (!vcodec_->is_avc_codec_ok()) {
         srs_warn("avc ignore type=%d for no sequence header", SrsVideoAvcFrameTraitNALU);
         return err;
@@ -2285,7 +2245,6 @@ srs_error_t SrsFormat::video_nalu_demux(SrsBuffer *stream)
         return do_avc_demux_ibmf_format(stream);
     }
 
-    // Parse the SPS/PPS in ANNEXB or IBMF format.
     if (vcodec_->payload_format_ == SrsAvcPayloadFormatIbmf) {
         if ((err = avc_demux_ibmf_format(stream)) != srs_success) {
             return srs_error_wrap(err, "avc demux ibmf");
@@ -2317,7 +2276,6 @@ srs_error_t SrsFormat::avc_demux_annexb_format(SrsBuffer *stream)
     int pos = stream->pos();
     err = do_avc_demux_annexb_format(stream);
 
-    // Restore the stream if error.
     if (err != srs_success) {
         stream->skip(pos - stream->pos());
     }
@@ -2329,7 +2287,6 @@ srs_error_t SrsFormat::do_avc_demux_annexb_format(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // not annexb, try others
     if (!srs_avc_startswith_annexb(stream, NULL)) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "not annexb");
     }
@@ -2338,21 +2295,17 @@ srs_error_t SrsFormat::do_avc_demux_annexb_format(SrsBuffer *stream)
     // B.1.1 Byte stream NAL unit syntax,
     // ISO_IEC_14496-10-AVC-2003.pdf, page 211.
     while (!stream->empty()) {
-        // find start code
         int nb_start_code = 0;
         if (!srs_avc_startswith_annexb(stream, &nb_start_code)) {
             return err;
         }
 
-        // skip the start code.
         if (nb_start_code > 0) {
             stream->skip(nb_start_code);
         }
 
-        // the NALU start bytes.
         char *p = stream->data() + stream->pos();
 
-        // get the last matched NALU
         while (!stream->empty()) {
             if (srs_avc_startswith_annexb(stream, NULL)) {
                 break;
@@ -2363,12 +2316,10 @@ srs_error_t SrsFormat::do_avc_demux_annexb_format(SrsBuffer *stream)
 
         char *pp = stream->data() + stream->pos();
 
-        // skip the empty.
         if (pp - p <= 0) {
             continue;
         }
 
-        // got the NALU.
         if ((err = video_->add_sample(p, (int)(pp - p))) != srs_success) {
             return srs_error_wrap(err, "add video frame");
         }
@@ -2384,7 +2335,6 @@ srs_error_t SrsFormat::avc_demux_ibmf_format(SrsBuffer *stream)
     int pos = stream->pos();
     err = do_avc_demux_ibmf_format(stream);
 
-    // Restore the stream if error.
     if (err != srs_success) {
         stream->skip(pos - stream->pos());
     }
@@ -2403,8 +2353,7 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer *stream)
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively. Both sequence header parsers
-    // reject 2 before assigning this field, so it is an invariant the server maintains,
-    // not untrusted input, and an assert is the right guard for it.
+    // reject 2, so it is not untrusted input here.
     srs_assert(vcodec_->NAL_unit_length_ != 2);
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
@@ -2424,13 +2373,12 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer *stream)
             NALUnitLength = stream->read_1bytes();
         }
 
-        // The stream format mighe be incorrect, see: https://github.com/ossrs/srs/issues/183
+        // The stream format might be incorrect, see: https://github.com/ossrs/srs/issues/183
         if (NALUnitLength < 0) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d, NALUnitLength:%d",
                                  PictureLength, i, vcodec_->NAL_unit_length_, stream->left(), NALUnitLength);
         }
 
-        // NALUnit
         if (!stream->require(NALUnitLength)) {
             return srs_error_new(ERROR_HLS_DECODE_ERROR, "PictureLength:%d, i:%d, NaluLength:%d, left:%d, NALUnitLength:%d",
                                  PictureLength, i, vcodec_->NAL_unit_length_, stream->left(), NALUnitLength);
@@ -2469,12 +2417,11 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer *stream, int64_t timestamp)
     acodec_->sound_rate_ = (SrsAudioSampleRate)sound_rate;
     acodec_->sound_size_ = (SrsAudioSampleBits)sound_size;
 
-    // we support h.264+mp3 for hls.
+    // H.264 with MP3 is supported for HLS.
     if (codec_id == SrsAudioCodecIdMP3) {
         return srs_error_new(ERROR_HLS_TRY_MP3, "try mp3");
     }
 
-    // only support aac
     if (codec_id != SrsAudioCodecIdAAC) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "not supported codec %d", codec_id);
     }
@@ -2486,7 +2433,6 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer *stream, int64_t timestamp)
     SrsAudioAacFrameTrait aac_packet_type = (SrsAudioAacFrameTrait)stream->read_1bytes();
     audio_->aac_packet_type_ = (SrsAudioAacFrameTrait)aac_packet_type;
 
-    // Update the RAW AAC data.
     raw_ = stream->data() + stream->pos();
     nb_raw_ = stream->size() - stream->pos();
 
@@ -2503,7 +2449,6 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer *stream, int64_t timestamp)
             }
         }
     } else if (aac_packet_type == SrsAudioAacFrameTraitRawData) {
-        // ensure the sequence header demuxed
         if (!acodec_->is_aac_codec_ok()) {
             srs_warn("aac ignore type=%d for no sequence header", aac_packet_type);
             return err;
@@ -2515,10 +2460,9 @@ srs_error_t SrsFormat::audio_aac_demux(SrsBuffer *stream, int64_t timestamp)
             return srs_error_wrap(err, "add audio frame");
         }
     } else {
-        // ignored.
+        // Ignored.
     }
 
-    // reset the sample rate by sequence header
     if (acodec_->aac_sample_rate_ != SrsAacSampleRateUnset) {
         static int srs_aac_srates[] = {
             96000, 88200, 64000, 48000,
@@ -2566,15 +2510,13 @@ srs_error_t SrsFormat::audio_mp3_demux(SrsBuffer *stream, int64_t timestamp, boo
     acodec_->sound_rate_ = (SrsAudioSampleRate)sound_rate;
     acodec_->sound_size_ = (SrsAudioSampleBits)sound_size;
 
-    // we always decode aac then mp3.
     srs_assert(acodec_->id_ == SrsAudioCodecIdMP3);
 
-    // Update the RAW MP3 data. Note the start is 12 bits syncword 0xFFF, so we should not skip any bytes, for detail
-    // please see ISO_IEC_11172-3-MP3-1993.pdf page 20 and 26.
+    // The MP3 data starts with the 12-bit syncword 0xFFF, so no byte is skipped, see
+    // ISO_IEC_11172-3-MP3-1993.pdf, pages 20 and 26.
     raw_ = stream->data() + stream->pos();
     nb_raw_ = stream->size() - stream->pos();
 
-    // mp3 payload.
     if ((err = audio_->add_sample(raw_, nb_raw_)) != srs_success) {
         return srs_error_wrap(err, "add audio frame");
     }
@@ -2588,7 +2530,7 @@ srs_error_t SrsFormat::audio_aac_sequence_header_demux(char *data, int size)
 
     SrsUniquePtr<SrsBuffer> buffer(new SrsBuffer(data, size));
 
-    // only need to decode the first 2bytes:
+    // Only the first 2 bytes are needed:
     //      audioObjectType, aac_profile, 5bits.
     //      samplingFrequencyIndex, aac_sample_rate, 4bits.
     //      channelConfiguration, aac_channels, 4bits
@@ -2602,10 +2544,8 @@ srs_error_t SrsFormat::audio_aac_sequence_header_demux(char *data, int size)
     samplingFrequencyIndex = ((profile_ObjectType << 1) & 0x0e) | ((samplingFrequencyIndex >> 7) & 0x01);
     profile_ObjectType = (profile_ObjectType >> 3) & 0x1f;
 
-    // set the aac sample rate.
     acodec_->aac_sample_rate_ = samplingFrequencyIndex;
 
-    // convert the object type in sequence header to aac profile of ADTS.
     acodec_->aac_object_ = (SrsAacObjectType)profile_ObjectType;
     if (acodec_->aac_object_ == SrsAacObjectTypeReserved) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "aac decode sh object %d", profile_ObjectType);

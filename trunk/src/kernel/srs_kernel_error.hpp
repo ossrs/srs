@@ -11,8 +11,6 @@
 
 #include <string>
 
-/**************************************************/
-/* The system error. */
 #define SRS_ERRNO_MAP_SYSTEM(XX)                                                                                       \
     XX(ERROR_SOCKET_CREATE, 1000, "SocketCreate", "Create socket fd failed")                                           \
     XX(ERROR_SOCKET_SETREUSE, 1001, "SocketReuse", "Setup socket reuse option failed")                                 \
@@ -107,10 +105,9 @@
     XX(ERROR_NOT_SUPPORTED, 1100, "NotSupported", "Feature is not supported")                                          \
     XX(ERROR_SYSTEM_FILE_UNLINK, 1101, "FileUnlink", "Failed to unlink file")                                          \
     XX(ERROR_SYSTEM_AUTH, 1102, "SystemAuth", "Failed to authenticate stream")                                         \
-    XX(ERROR_SYSTEM_SECURITY_NAME, 1103, "SecurityName", "Invalid app or stream name for system security")
+    XX(ERROR_SYSTEM_SECURITY_NAME, 1103, "SecurityName", "Invalid app or stream name for system security")             \
+    XX(ERROR_SYSTEM_PORT_INVALID, 1104, "PortInvalid", "Invalid TCP port")
 
-/**************************************************/
-/* RTMP protocol error. */
 #define SRS_ERRNO_MAP_RTMP(XX)                                                                                         \
     XX(ERROR_RTMP_PLAIN_REQUIRED, 2000, "RtmpPlainRequired", "RTMP handshake requires plain text")                     \
     XX(ERROR_RTMP_CHUNK_START, 2001, "RtmpChunkStart", "RTMP packet must be fresh chunk")                              \
@@ -168,8 +165,6 @@
     XX(ERROR_CONTROL_RTMP_CLOSE, 2998, "RtmpClose", "RTMP connection is closed")                                       \
     XX(ERROR_CONTROL_REPUBLISH, 2999, "RtmpRepublish", "RTMP stream is republished")
 
-/**************************************************/
-/* The application level errors. */
 #define SRS_ERRNO_MAP_APP(XX)                                                                               \
     XX(ERROR_HLS_METADATA, 3000, "HlsMetadata", "HLS metadata is invalid")                                  \
     XX(ERROR_HLS_DECODE_ERROR, 3001, "HlsDecode", "HLS decode av stream failed")                            \
@@ -270,8 +265,6 @@
     XX(ERROR_NALU_EMPTY, 3102, "NaluEmpty", "NALU is empty")                                                \
     XX(ERROR_AUDIO_CODEC_UNSUPPORTED, 3103, "AudioCodecUnsupported", "Unsupported audio codec")
 
-/**************************************************/
-/* HTTP/StreamConverter protocol error. */
 #define SRS_ERRNO_MAP_HTTP(XX)                                                                                               \
     XX(ERROR_HTTP_PATTERN_EMPTY, 4000, "HttpPatternEmpty", "Failed to handle HTTP request for no pattern")                   \
     XX(ERROR_HTTP_PATTERN_DUPLICATED, 4001, "HttpPatternDuplicated", "Failed to handle HTTP request for pattern duplicated") \
@@ -329,8 +322,6 @@
     XX(ERROR_GB_RTMP_CONNECTING, 4061, "GbRtmpConnecting", "Drop GB28181 media while connecting its RTMP output")            \
     XX(ERROR_GB_SESSION_ENDED, 4062, "GbSessionEnded", "Drop GB28181 media of a session that has ended")
 
-/**************************************************/
-/* RTC/RTSP protocol error. */
 #define SRS_ERRNO_MAP_RTC(XX)                                                                                                                         \
     XX(ERROR_RTC_PORT, 5000, "RtcPort", "Invalid RTC config for listen port")                                                                         \
     XX(ERROR_RTP_PACKET_CREATE, 5001, "RtcPacketCreate", "Failed to create RTP packet for RTC")                                                       \
@@ -377,8 +368,6 @@
     XX(ERROR_RTSP_NEED_MORE_DATA, 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing")                                          \
     XX(ERROR_RTC_INVALID_SDP, 5043, "RtcInvalidSdp", "Invalid SDP for RTC")
 
-/**************************************************/
-/* SRT protocol error. */
 #define SRS_ERRNO_MAP_SRT(XX)                                                                              \
     XX(ERROR_SRT_EPOLL, 6000, "SrtEpoll", "SRT epoll operation failed")                                    \
     XX(ERROR_SRT_IO, 6001, "SrtIo", "SRT read or write failed")                                            \
@@ -393,15 +382,12 @@
     XX(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, 6010, "SrtToRtmpEmptySpsPps", "SRT to rtmp have empty sps or pps") \
     XX(ERROR_SRT_SOURCE_DISCONNECTED, 6011, "SrtSourceDisconnected", "SRT source publisher disconnected")
 
-/**************************************************/
-/* For user-define error. */
 #define SRS_ERRNO_MAP_USER(XX)                                                                  \
     XX(ERROR_USER_START, 9000, "UserStart", "Start error code for user")                        \
     XX(ERROR_USER_DISCONNECT, 9001, "UserDisconnect", "User requires to disconnect connection") \
     XX(ERROR_SOURCE_NOT_FOUND, 9002, "UserNoSource", "Stream source not found")                 \
     XX(ERROR_USER_END, 9999, "UserEnd", "The last error code of user")
 
-// For human readable error generation. Generate integer error code.
 #define SRS_ERRNO_GEN(n, v, m, s) n = v,
 enum SrsErrorCode {
 #ifndef _WIN32
@@ -417,17 +403,13 @@ enum SrsErrorCode {
 };
 #undef SRS_ERRNO_GEN
 
-// Whether the error code is an system control error.
 // TODO: FIXME: Remove it from underlayer for confused with error and logger.
 extern bool srs_is_system_control_error(srs_error_t err);
-// It's closed by client.
 extern bool srs_is_client_gracefully_close(srs_error_t err);
-// It's closed by server, such as streaming EOF.
 extern bool srs_is_server_gracefully_close(srs_error_t err);
 
-// The complex error carries code, message, callstack and instant variables,
-// which is more strong and easy to locate problem by log,
-// please @read https://github.com/ossrs/srs/issues/913
+// Each error carries its call stack and context ID, so the log locates the problem,
+// see https://github.com/ossrs/srs/issues/913
 class SrsCplxError
 {
 // clang-format off
@@ -474,75 +456,15 @@ public:
     static void srs_assert(bool expression);
 };
 
-// Error helpers, should use these functions to new or wrap an error.
-#define srs_success NULL // SrsCplxError::success()
-
-// Create a new error with the specified error code and message.
-//
-// Example:
-//      if (fd < 0) {
-//          return srs_error_new(ERROR_SOCKET_CREATE, "create socket fd=%d", fd);
-//      }
+#define srs_success NULL
 #define srs_error_new(code, fmt, ...) SrsCplxError::create(__FUNCTION__, __FILE__, __LINE__, code, fmt, ##__VA_ARGS__)
-
-// Wrap an existing error with additional context. The error code is
-// preserved from the wrapped error.
-//
-// Example:
-//      if ((err = do_connect(host, port)) != srs_success) {
-//          return srs_error_wrap(err, "connect to %s:%d", host.c_str(), port);
-//      }
 #define srs_error_wrap(err, fmt, ...) SrsCplxError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
-
-// Transform an error by wrapping it and changing its error code. Useful
-// for converting internal errors to protocol-specific error codes (e.g.,
-// HTTP, RTMP). The wrapped error chain is preserved.
-//
-// Example:
-//      if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
-//          return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_publish");
-//      }
 #define srs_error_transform(code, err, fmt, ...) SrsCplxError::transform(__FUNCTION__, __FILE__, __LINE__, code, err, fmt, ##__VA_ARGS__)
-
-// Copy an error object. Returns a new error object with the same content.
-//
-// Example:
-//      srs_error_t err_copy = srs_error_copy(err);
 #define srs_error_copy(err) SrsCplxError::copy(err)
-
-// Get the full description of an error including the entire error chain.
-//
-// Example:
-//      srs_error_t err = do_something();
-//      srs_warn("error: %s", srs_error_desc(err).c_str());
 #define srs_error_desc(err) SrsCplxError::description(err)
-
-// Get a brief summary of an error (only the top-level message).
-//
-// Example:
-//      srs_error_t err = do_something();
-//      srs_trace("error summary: %s", srs_error_summary(err).c_str());
 #define srs_error_summary(err) SrsCplxError::summary(err)
-
-// Get the error code as an integer.
-//
-// Example:
-//      int code = srs_error_code(err);
-//      if (code == ERROR_SOCKET_TIMEOUT) { ... }
 #define srs_error_code(err) SrsCplxError::error_code(err)
-
-// Get the error code as a short string (e.g., "SocketTimeout").
-//
-// Example:
-//      string code_str = srs_error_code_str(err);
-//      srs_trace("error code: %s", code_str.c_str());
 #define srs_error_code_str(err) SrsCplxError::error_code_str(err)
-
-// Get the error code description (e.g., "Socket io timeout").
-//
-// Example:
-//      string desc = srs_error_code_strlong(err);
-//      srs_warn("error description: %s", desc.c_str());
 #define srs_error_code_strlong(err) SrsCplxError::error_code_strlong(err)
 
 #ifndef srs_assert

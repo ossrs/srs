@@ -18,7 +18,7 @@
 
 const std::string kTWCCExt = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01";
 
-// TDOO: FIXME: Rename it, and add utest.
+// TODO: FIXME: Rename it, and add utest.
 extern std::vector<std::string> split_str(const std::string &str, const std::string &delim);
 
 class SrsSessionConfig
@@ -40,7 +40,6 @@ public:
     srs_error_t encode(std::ostringstream &os);
 
     bool operator==(const SrsSessionInfo &rhs);
-    // user-defined copy assignment (copy-and-swap idiom)
     SrsSessionInfo &operator=(SrsSessionInfo other);
 
 public:
@@ -65,18 +64,14 @@ public:
 public:
     // See https://webrtchacks.com/sdp-anatomy/
     uint32_t ssrc_;
-    // See https://webrtchacks.com/sdp-anatomy/
     // a=ssrc:3570614608 cname:4TOk42mSjXCkVIa6
     std::string cname_;
-    // See https://webrtchacks.com/sdp-anatomy/
     // a=ssrc:3570614608 msid:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS 35429d94-5637-4686-9ecd-7d0622261ce8
     // a=ssrc:3570614608 msid:{msid_} {msid_tracker_}
     std::string msid_;
     std::string msid_tracker_;
-    // See https://webrtchacks.com/sdp-anatomy/
     // a=ssrc:3570614608 mslabel:lgsCFqt9kN2fVKw5wg3NKqGdATQoltEwOdMS
     std::string mslabel_;
-    // See https://webrtchacks.com/sdp-anatomy/
     // a=ssrc:3570614608 label:35429d94-5637-4686-9ecd-7d0622261ce8
     std::string label_;
 };
@@ -92,9 +87,8 @@ public:
     srs_error_t encode(std::ostringstream &os);
 
 public:
-    // e.g FIX, FEC, SIM.
+    // Such as FID, FEC or SIM.
     std::string semantic_;
-    // SSRCs of this type.
     std::vector<uint32_t> ssrcs_;
 };
 
@@ -186,7 +180,7 @@ public:
     bool sendrecv_;
     bool inactive_;
 
-    // Control URL, ONLY for RTSP, media control.
+    // The RTSP a=control URL of the media.
     // @see rfc2326-1998-rtsp.pdf, page 159
     std::string control_;
 
@@ -250,10 +244,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool in_media_session_;
 
 public:
-    // version
     std::string version_;
 
-    // origin
+    // The o= line.
     std::string username_;
     std::string session_id_;
     std::string session_version_;
@@ -261,10 +254,9 @@ public:
     std::string addrtype_;
     std::string unicast_address_;
 
-    // session_name
     std::string session_name_;
 
-    // timing
+    // The t= line.
     int64_t start_time_;
     int64_t end_time_;
 
@@ -282,11 +274,11 @@ public:
     std::string msid_semantic_;
     std::vector<std::string> msids_;
 
-    // Control URL, ONLY for RTSP.
+    // The RTSP a=control URL of the session.
     // @see rfc2326-1998-rtsp.pdf, page 159
     std::string control_;
 
-    // m-line, media sessions
+    // One per m= line.
     std::vector<SrsMediaDesc> media_descs_;
 
     bool is_unified() const;

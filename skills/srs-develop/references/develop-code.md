@@ -40,7 +40,7 @@ The proxy server is a complex, growing product — not a small app. It has many 
    - Which modules might be affected as dependencies?
    - Which docs cover the design/architecture of this area?
    - Is this a new module or a change to an existing one?
-5. **Present your reasoning to the user — both the module(s) and document(s) you identified — and ask for confirmation.** Even if you are confident, you MUST ask. Do not proceed without confirmation.
+5. Present your reasoning to the user, both the module(s) and document(s) you identified, and wait for their confirmation before Step 2, also when you are confident.
 6. If you are unsure, stop and ask the user to clarify. Do not guess.
 
 Only after the user confirms the routing do you proceed to Step 2.
@@ -177,7 +177,7 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 2. Run every command in `references/integration-tests.md`. These scripts are mandatory cross-component verification for C++ media-server changes, despite their `proxy-*` names, and supplement rather than replace C++ unit, black-box, protocol E2E, and benchmark tests.
 3. Build the C++ server with the affected feature enabled and run `git diff --check`.
 4. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
-5. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
+5. Check the change against `references/cpp-memory-safety.md`, and run its sanitizer checks: the macOS utest run for use-after-free and overflow, and the Linux LeakSanitizer run when the change allocates, frees or owns memory.
 6. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
 
 ### Step 4: Verify on Windows

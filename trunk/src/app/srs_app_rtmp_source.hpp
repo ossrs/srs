@@ -59,10 +59,10 @@ class ISrsStreamPublishTokenManager;
 class ISrsLiveConsumer;
 class ISrsClock;
 
-// The time jitter algorithm:
-// 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
-// 2. zero, only ensure sttream start at zero, ignore timestamp jitter.
-// 3. off, disable the time jitter algorithm, like atc.
+// The time_jitter config:
+// full: the stream starts at zero and its timestamps always increase.
+// zero: the stream starts at zero; jitter is kept.
+// off: timestamps are kept, as for atc.
 enum SrsRtmpJitterAlgorithm {
     SrsRtmpJitterAlgorithmFULL = 0x01,
     SrsRtmpJitterAlgorithmZERO,
@@ -70,7 +70,6 @@ enum SrsRtmpJitterAlgorithm {
 };
 int srs_time_jitter_string2int(std::string time_jitter);
 
-// Time jitter detect and correct, to ensure the rtmp stream is monotonically.
 class SrsRtmpJitter
 {
 // clang-format off
@@ -83,15 +82,11 @@ public:
     virtual ~SrsRtmpJitter();
 
 public:
-    // detect the time jitter and correct it.
-    // @param ag the algorithm to use for time jitter.
     virtual srs_error_t correct(SrsMediaPacket *msg, SrsRtmpJitterAlgorithm ag);
-    // Get current client time, the last packet time.
     virtual int64_t get_time();
 };
 
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
-// To alloc and increase fixed space, fast remove and insert for msgs sender.
 class SrsFastVector
 {
 // clang-format off
@@ -117,7 +112,6 @@ public:
 };
 #endif
 
-// The message queue interface.
 class ISrsMessageQueue
 {
 public:
@@ -134,21 +128,17 @@ public:
     // virtual void clear() = 0;
 };
 
-// The message queue for the consumer(client), forwarder.
-// We limit the size in seconds, drop old messages(the whole gop) if full.
 class SrsMessageQueue : public ISrsMessageQueue
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The start and end time.
     srs_utime_t av_start_time_;
     srs_utime_t av_end_time_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Whether do logging when shrinking.
+    // Whether to skip the log on shrink.
     bool ignore_shrink_;
-    // The max queue size, shrink if exceed it.
     srs_utime_t max_queue_size_;
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
     SrsFastVector msgs_;
@@ -160,41 +150,25 @@ public:
     virtual ~SrsMessageQueue();
 
 public:
-    // Get the size of queue.
     virtual int size();
-    // Get the duration of queue.
     virtual srs_utime_t duration();
-    // Set the queue size
-    // @param queue_size the queue size in srs_utime_t.
     virtual void set_queue_size(srs_utime_t queue_size);
 
 public:
-    // Enqueue the message, the timestamp always monotonically.
-    // @param msg, the msg to enqueue, user never free it whatever the return code.
-    // @param is_overflow, whether overflow and shrinked. NULL to ignore.
+    // The queue owns msg, even on error.
     virtual srs_error_t enqueue(SrsMediaPacket *msg, bool *is_overflow = NULL);
-    // Get packets in consumer queue.
-    // @pmsgs SrsMediaPacket*[], used to store the msgs, user must alloc it.
-    // @count the count in array, output param.
-    // @max_count the max count to dequeue, must be positive.
+    // The caller allocates pmsgs with room for max_count messages.
     virtual srs_error_t dump_packets(int max_count, SrsMediaPacket **pmsgs, int &count);
-    // Dumps packets to consumer, use specified args.
-    // @remark the atc/tba/tbv/ag are same to SrsLiveConsumer.enqueue().
     virtual srs_error_t dump_packets(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm ag);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Remove a gop from the front.
-    // if no iframe found, clear it.
     virtual void shrink();
 
 public:
-    // clear all messages in queue.
     virtual void clear();
 };
 
-// The wakable used for some object
-// which is waiting on cond.
 class ISrsWakable
 {
 public:
@@ -202,13 +176,11 @@ public:
     virtual ~ISrsWakable();
 
 public:
-    // when the consumer(for player) got msg from recv thread,
-    // it must be processed for maybe it's a close msg, so the cond
-    // wait must be wakeup.
+    // A message from the play client may be a close, so the recv thread wakes the
+    // consumer that waits on its cond to handle it.
     virtual void wakeup() = 0;
 };
 
-// The consumer interface.
 class ISrsLiveConsumer
 {
 public:
@@ -222,12 +194,11 @@ public:
     virtual int64_t get_time() = 0;
 };
 
-// The consumer for SrsLiveSource, that is a play client.
 class SrsLiveConsumer : public ISrsWakable, public ISrsLiveConsumer
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Because source references to this object, so we should directly use the source ptr.
+    // A raw pointer, since the source holds this consumer.
     ISrsLiveSource *source_;
 
 // clang-format off
@@ -235,10 +206,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtmpJitter *jitter_;
     SrsMessageQueue *queue_;
     bool paused_;
-    // when source id changed, notice all consumers
     bool should_update_source_id_;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // The cond wait for mw.
+    // mw is merged write.
     srs_cond_t mw_wait_;
     bool mw_waiting_;
     int mw_min_msgs_;
@@ -249,72 +219,43 @@ public:
     virtual ~SrsLiveConsumer();
 
 public:
-    // Set the size of queue.
     virtual void set_queue_size(srs_utime_t queue_size);
-    // when source id changed, notice client to print.
     virtual void update_source_id();
 
 public:
-    // Get current client time, the last packet time.
     virtual int64_t get_time();
-    // Enqueue an shared ptr message.
-    // @param shared_msg, directly ptr, copy it if need to save it.
-    // @param whether atc, donot use jitter correct if true.
-    // @param ag the algorithm of time jitter.
+    // The consumer copies shared_msg; the caller keeps it.
     virtual srs_error_t enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRtmpJitterAlgorithm ag);
-    // Get packets in consumer queue.
-    // @param msgs the msgs array to dump packets to send.
-    // @param count the count in array, intput and output param.
-    // @remark user can specifies the count to get specified msgs; 0 to get all if possible.
+    // On input, a positive count caps the messages to dump, and 0 means no cap. On output, it
+    // is the number dumped.
     virtual srs_error_t dump_packets(SrsMessageArray *msgs, int &count);
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // wait for messages incomming, atleast nb_msgs and in duration.
-    // @param nb_msgs the messages count to wait.
-    // @param msgs_duration the messages duration to wait.
     virtual void wait(int nb_msgs, srs_utime_t msgs_duration);
 #endif
-    // when client send the pause message.
     virtual srs_error_t on_play_client_pause(bool is_pause);
-    // Interface ISrsWakable
+
 public:
-    // when the consumer(for player) got msg from recv thread,
-    // it must be processed for maybe it's a close msg, so the cond
-    // wait must be wakeup.
     virtual void wakeup();
 };
 
-// cache a gop of video/audio data,
-// delivery at the connect of flash player,
-// To enable it to fast startup.
+// A new player gets the cached GOP, so it starts fast.
 class SrsGopCache
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // if disabled the gop cache,
-    // The client will wait for the next keyframe for h264,
-    // and will be black-screen.
+    // When disabled, a new player waits for the next keyframe, with a black screen until then.
     bool enable_gop_cache_;
-    // to limit the max gop cache frames
-    // without this limit, if ingest stream always has no IDR frame
-    // it will cause srs run out of memory
+    // A stream with no IDR frame would grow the cache until SRS runs out of memory.
     int gop_cache_max_frames_;
     // Whether the max frames cleared the cache mid-GOP, so it caches nothing
     // until the next keyframe, since a player can't decode the frames before it.
     bool wait_keyframe_;
-    // The video frame count, avoid cache for pure audio stream.
     int cached_video_count_;
-    // when user disabled video when publishing, and gop cache enalbed,
-    // We will cache the audio/video for we already got video, but we never
-    // know when to clear the gop cache, for there is no video in future,
-    // so we must guess whether user disabled the video.
-    // when we got some audios after laster video, for instance, 600 audio packets,
-    // about 3s(26ms per packet) 115 audio packets, clear gop cache.
-    //
-    // @remark, it is ok for performance, for when we clear the gop cache,
-    //       gop cache is disabled for pure audio stream.
+    // When the publisher disables video, no keyframe comes to clear the cache, so it is
+    // cleared after SRS_PURE_AUDIO_GUESS_COUNT audio packets with no video, about 3s, and
+    // stays empty until the next video.
     // @see: https://github.com/ossrs/srs/issues/124
     int audio_after_last_video_count_;
-    // cached gop.
     std::vector<SrsMediaPacket *> gop_cache_;
 
 public:
@@ -322,35 +263,21 @@ public:
     virtual ~SrsGopCache();
 
 public:
-    // cleanup when system quit.
     virtual void dispose();
-    // To enable or disable the gop cache.
     virtual void set(bool v);
     virtual void set_gop_cache_max_frames(int v);
     virtual bool enabled();
-    // only for h264 codec
-    // 1. cache the gop when got h264 video packet.
-    // 2. clear gop when got keyframe.
-    // @param shared_msg, directly ptr, copy it if need to save it.
+    // The cache copies shared_msg; the caller keeps it.
     virtual srs_error_t cache(SrsMediaPacket *shared_msg);
-    // clear the gop cache.
     virtual void clear();
-    // dump the cached gop to consumer.
     virtual srs_error_t dump(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm);
-    // used for atc to get the time of gop cache,
-    // The atc will adjust the sequence header timestamp to gop cache.
+    // For atc, the sequence headers take the timestamp of the cached GOP.
     virtual bool empty();
-    // Get the start time of gop cache, in srs_utime_t.
-    // @return 0 if no packets.
     virtual srs_utime_t start_time();
-    // whether current stream is pure audio,
-    // when no video in gop cache, the stream is pure audio right now.
     virtual bool pure_audio();
 };
 
-// The handler to handle the event of srs source.
-// For example, the http flv streaming module handle the event and
-// mount http when rtmp start publishing.
+// The server implements it, to mount the HTTP stream when RTMP publishing starts.
 class ISrsLiveSourceHandler
 {
 public:
@@ -358,13 +285,11 @@ public:
     virtual ~ISrsLiveSourceHandler();
 
 public:
-    // when stream start publish, mount stream.
     virtual srs_error_t on_publish(ISrsRequest *r) = 0;
-    // when stream stop publish, unmount stream.
     virtual void on_unpublish(ISrsRequest *r) = 0;
 };
 
-// The mix queue to correct the timestamp for mix_correct algorithm.
+// For the mix_correct config.
 class SrsMixQueue
 {
 // clang-format off
@@ -383,7 +308,6 @@ public:
     virtual SrsMediaPacket *pop();
 };
 
-// The interface for origin hub.
 class ISrsOriginHub
 {
 public:
@@ -398,31 +322,21 @@ public:
     virtual srs_utime_t cleanup_delay() = 0;
 
 public:
-    // When got a parsed metadata.
     virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMetaDataPacket *packet) = 0;
-    // When got a parsed audio packet.
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio) = 0;
-    // When got a parsed video packet.
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, bool is_sequence_header) = 0;
 
 public:
-    // When start publish stream.
     virtual srs_error_t on_publish() = 0;
-    // When stop publish stream.
     virtual void on_unpublish() = 0;
-    // When DVR requests sequence header.
     virtual srs_error_t on_dvr_request_sh() = 0;
-    // When HLS requests sequence header.
     virtual srs_error_t on_hls_request_sh() = 0;
-    // When DASH requests sequence header.
     virtual srs_error_t on_dash_request_sh() = 0;
-    // When forwarder requests sequence header.
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder) = 0;
 };
 
-// The hub for origin is a collection of utilities for origin only,
-// For example, DVR, HLS, Forward and Transcode are only available for origin,
-// they are meanless for edge server.
+// The features that run only on an origin, such as DVR, HLS, forward and transcode; an
+// edge does not use them.
 class SrsOriginHub : public ISrsReloadHandler, public ISrsOriginHub
 {
 // clang-format off
@@ -433,7 +347,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Because source references to this object, so we should directly use the source ptr.
+    // A raw pointer, since the source holds this hub.
     ISrsLiveSource *source_;
 
 // clang-format off
@@ -443,17 +357,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // hls handler.
     ISrsHls *hls_;
-    // The DASH encoder.
     ISrsDash *dash_;
-    // dvr handler.
     ISrsDvr *dvr_;
-    // transcoding handler.
     ISrsMediaEncoder *encoder_;
-    // nginx-rtmp exec feature.
+    // The exec feature of nginx-rtmp.
     ISrsNgExec *ng_exec_;
-    // To forward stream to other servers
     std::vector<ISrsForwarder *> forwarders_;
 
 public:
@@ -462,42 +371,26 @@ public:
     virtual ~SrsOriginHub();
 
 public:
-    // Initialize the hub with source and request.
-    // @param r The request object, managed by source.
+    // The source owns r.
     virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> s, ISrsRequest *r);
-    // Dispose the hub, release utilities resource,
-    // For example, delete all HLS pieces.
     virtual void dispose();
-    // Cycle the hub, process some regular events,
-    // For example, dispose hls in cycle.
     virtual srs_error_t cycle();
-    // Whether the stream hub is active, or stream is publishing.
     virtual bool active();
-    // The delay cleanup time.
     srs_utime_t cleanup_delay();
 
 public:
-    // When got a parsed metadata.
     virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMetaDataPacket *packet);
-    // When got a parsed audio packet.
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
-    // When got a parsed video packet.
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, bool is_sequence_header);
 
 public:
-    // When start publish stream.
     virtual srs_error_t on_publish();
-    // When stop publish stream.
     virtual void on_unpublish();
-    // Internal callback.
+
 public:
-    // For the SrsForwarder to callback to request the sequence headers.
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder);
-    // For the SrsDvr to callback to request the sequence headers.
     virtual srs_error_t on_dvr_request_sh();
-    // For the SrsHls to callback to request the sequence headers.
     virtual srs_error_t on_hls_request_sh();
-    // For the SrsDash to callback to request the sequence headers.
     virtual srs_error_t on_dash_request_sh();
 
 // clang-format off
@@ -507,22 +400,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual void destroy_forwarders();
 };
 
-// Each stream have optional meta(sps/pps in sequence header and metadata).
-// This class cache and update the meta.
 class SrsMetaCache
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The cached metadata, FLV script data tag.
+    // The FLV script data tag.
     SrsMediaPacket *meta_;
     SrsMediaPacket *previous_meta_;
-    // The cached video sequence header, for example, sps/pps for h.264.
+    // For example, the SPS and PPS of H.264.
     SrsMediaPacket *video_;
     SrsMediaPacket *previous_video_;
-    // The cached audio sequence header, for example, asc for aac.
+    // For example, the AudioSpecificConfig of AAC.
     SrsMediaPacket *audio_;
     SrsMediaPacket *previous_audio_;
-    // The format for sequence header.
     SrsRtmpFormat *vformat_;
     SrsRtmpFormat *aformat_;
 
@@ -531,47 +421,34 @@ public:
     virtual ~SrsMetaCache();
 
 public:
-    // Dispose the metadata cache.
     virtual void dispose();
-    // For each publishing, clear the metadata cache.
     virtual void clear();
 
 public:
-    // Get the cached metadata.
     virtual SrsMediaPacket *data();
-    // Get the cached vsh(video sequence header).
+    // vsh is the video sequence header.
     virtual SrsMediaPacket *vsh();
     virtual SrsFormat *vsh_format();
-    // Get the cached ash(audio sequence header).
+    // ash is the audio sequence header.
     virtual SrsMediaPacket *ash();
     virtual SrsFormat *ash_format();
-    // Dumps cached metadata to consumer.
-    // @param dm Whether dumps the metadata.
-    // @param ds Whether dumps the sequence header.
+    // dm dumps the metadata, and ds the sequence headers.
     virtual srs_error_t dumps(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm ag, bool dm, bool ds);
 
 public:
-    // Previous exists metadata.
     virtual SrsMediaPacket *previous_data();
-    // Update previous metadata, drop old one, set to new metadata.
     virtual void update_previous_data();
-    // Previous exists sequence header.
     virtual SrsMediaPacket *previous_vsh();
     virtual SrsMediaPacket *previous_ash();
-    // Update previous sequence header, drop old one, set to new sequence header.
     virtual void update_previous_vsh();
     virtual void update_previous_ash();
 
 public:
-    // Update the cached metadata by packet.
     virtual srs_error_t update_data(SrsMessageHeader *header, SrsOnMetaDataPacket *metadata, bool &updated);
-    // Update the cached audio sequence header.
     virtual srs_error_t update_ash(SrsMediaPacket *msg);
-    // Update the cached video sequence header.
     virtual srs_error_t update_vsh(SrsMediaPacket *msg);
 };
 
-// The live source manager interface.
 class ISrsLiveSourceManager
 {
 public:
@@ -579,12 +456,9 @@ public:
     virtual ~ISrsLiveSourceManager();
 
 public:
-    //  create source when fetch from cache failed.
-    // @param r the client request.
-    // @param h the event handler for source.
-    // @param pps the matched source, if success never be NULL.
+    // On success, pps is never NULL.
     virtual srs_error_t fetch_or_create(ISrsRequest *r, SrsSharedPtr<SrsLiveSource> &pps) = 0;
-    // Get the exists source, NULL when not exists.
+    // Returns NULL when the stream has no source.
     virtual SrsSharedPtr<SrsLiveSource> fetch(ISrsRequest *r) = 0;
 
 public:
@@ -592,7 +466,6 @@ public:
     virtual srs_error_t initialize() = 0;
 };
 
-// The source manager to create and refresh all stream sources.
 class SrsLiveSourceManager : public ISrsHourGlassHandler, public ISrsLiveSourceManager
 {
 // clang-format off
@@ -608,40 +481,30 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsLiveSourceManager();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsLiveSourceManager();
 
 public:
     virtual srs_error_t initialize();
-    //  create source when fetch from cache failed.
-    // @param r the client request.
-    // @param h the event handler for source.
-    // @param pps the matched source, if success never be NULL.
     virtual srs_error_t fetch_or_create(ISrsRequest *r, SrsSharedPtr<SrsLiveSource> &pps);
 
 public:
-    // Get the exists source, NULL when not exists.
     virtual SrsSharedPtr<SrsLiveSource> fetch(ISrsRequest *r);
 
 public:
-    // dispose and cycle all sources.
     virtual void dispose();
-    // interface ISrsHourGlassHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t setup_ticks();
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 
 public:
-    // when system exit, destroy th`e sources,
-    // For gmc to analysis mem leaks.
+    // At exit, so gmc can find memory leaks.
     virtual void destroy();
 };
 
-// Global singleton instance.
 extern SrsLiveSourceManager *_srs_sources;
 
-// The live source interface.
 class ISrsLiveSource
 {
 public:
@@ -654,19 +517,15 @@ public:
     virtual SrsContextId pre_source_id() = 0;
     virtual SrsMetaCache *meta() = 0;
     virtual SrsRtmpFormat *format() = 0;
-    // The source id changed.
     virtual srs_error_t on_source_id_changed(SrsContextId id) = 0;
-    // Publish stream event notify.
     virtual srs_error_t on_publish() = 0;
     virtual void on_unpublish() = 0;
-    // Handle media messages.
     virtual srs_error_t on_audio(SrsRtmpCommonMessage *audio) = 0;
     virtual srs_error_t on_video(SrsRtmpCommonMessage *video) = 0;
     virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg) = 0;
     virtual srs_error_t on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata) = 0;
 };
 
-// The live streaming source.
 class SrsLiveSource : public ISrsReloadHandler, public ISrsFrameTarget, public ISrsLiveSource
 {
 // clang-format off
@@ -679,86 +538,59 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // For publish, it's the publish client id.
-    // For edge, it's the edge ingest id.
-    // when source id changed, for example, the edge reconnect,
-    // invoke the on_source_id_changed() to let all clients know.
+    // The publisher's context id, or on an edge, the edge ingest's. When it changes, such as
+    // on an edge reconnect, on_source_id_changed tells the consumers.
     SrsContextId source_id_;
-    // previous source id.
     SrsContextId pre_source_id_;
-    // deep copy of client request.
     ISrsRequest *req_;
-    // To delivery stream to clients.
     std::vector<SrsLiveConsumer *> consumers_;
-    // The time jitter algorithm for vhost.
     SrsRtmpJitterAlgorithm jitter_algorithm_;
-    // For play, whether use interlaced/mixed algorithm to correct timestamp.
     bool mix_correct_;
-    // The mix queue to implements the mix correct algorithm.
     SrsMixQueue *mix_queue_;
-    // For play, whether enabled atc.
-    // The atc(use absolute time and donot adjust time),
-    // directly use msg time and donot adjust if atc is true,
-    // otherwise, adjust msg time to start from 0 to make flash happy.
+    // ATC keeps the absolute time of each message. Without it, timestamps start from 0, as
+    // Flash needs.
     bool atc_;
-    // whether stream is monotonically increase.
     bool is_monotonically_increase_;
-    // The time of the packet we just got.
     int64_t last_packet_time_;
-    // The source bridge for other source.
     ISrsRtmpBridge *rtmp_bridge_;
-    // The edge control service
     SrsPlayEdge *play_edge_;
     SrsPublishEdge *publish_edge_;
-    // The gop cache for client fast startup.
     SrsGopCache *gop_cache_;
-    // The hub for origin server.
     ISrsOriginHub *hub_;
-    // The metadata cache.
     SrsMetaCache *meta_;
-    // The format, codec information.
     SrsRtmpFormat *format_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Whether source is avaiable for publishing.
     bool can_publish_;
-    // The last die time, while die means neither publishers nor players.
+    // Dead means no publisher and no player.
     srs_utime_t stream_die_at_;
-    // The last idle time, while idle means no players.
+    // Idle means no player.
     srs_utime_t publisher_idle_at_;
 
 public:
     SrsLiveSource();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsLiveSource();
 
 public:
     virtual void dispose();
     virtual srs_error_t cycle();
-    // Whether stream is dead, which is no publisher or player.
     virtual bool stream_is_dead();
-    // Whether publisher is idle for a period of timeout.
     bool publisher_is_idle_for(srs_utime_t timeout);
     virtual SrsMetaCache *meta();
     virtual SrsRtmpFormat *format();
 
 public:
-    // Initialize the hls with handlers.
     virtual srs_error_t initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsRequest *r);
-    // Bridge to other source, forward packets to it.
     void set_bridge(ISrsRtmpBridge *v);
 
 public:
-    // The source id changed.
     virtual srs_error_t on_source_id_changed(SrsContextId id);
-    // Get current source id.
     virtual SrsContextId source_id();
     virtual SrsContextId pre_source_id();
-    // Whether source is inactive, which means there is no publishing stream source.
-    // @remark For edge, it's inactive util stream has been pulled from origin.
+    // On an edge, the source stays inactive until the stream is pulled from the origin.
     virtual bool inactive();
-    // Update the authentication information in request.
     virtual void update_auth(ISrsRequest *r);
 
 public:
@@ -784,20 +616,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg);
-    // Publish stream event notify.
-    // @param req the request from client, the source will deep copy it,
-    //         for when reload the request of client maybe invalid.
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
 
 public:
-    // Create consumer
-    // @param consumer, output the create consumer.
     virtual srs_error_t create_consumer(SrsLiveConsumer *&consumer);
-    // Dumps packets in cache to consumer.
-    // @param ds, whether dumps the sequence header.
-    // @param dm, whether dumps the metadata.
-    // @param dg, whether dumps the gop cache.
+    // ds dumps the sequence headers, dm the metadata, and dg the GOP cache.
     virtual srs_error_t consumer_dumps(ISrsLiveConsumer *consumer, bool ds = true, bool dm = true, bool dg = true);
     virtual void on_consumer_destroy(SrsLiveConsumer *consumer);
     virtual void set_cache(bool enabled);
@@ -805,11 +629,8 @@ public:
     virtual SrsRtmpJitterAlgorithm jitter();
 
 public:
-    // For edge, when publish edge stream, check the state
     virtual srs_error_t on_edge_start_publish();
-    // For edge, proxy the publish
     virtual srs_error_t on_edge_proxy_publish(SrsRtmpCommonMessage *msg);
-    // For edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
 };
 

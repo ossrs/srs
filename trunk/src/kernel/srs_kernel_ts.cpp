@@ -22,7 +22,6 @@ using namespace std;
 
 #define HLS_AES_ENCRYPT_BLOCK_LENGTH SRS_TS_PACKET_SIZE * 4
 
-// the mpegts header specifed the video/audio pid.
 #define TS_PMT_NUMBER 1
 #define TS_PMT_PID 0x1001
 #define TS_VIDEO_AVC_PID 0x100
@@ -45,12 +44,12 @@ uint64_t __crc32_reflect(uint64_t data, int width)
 // @see pycrc gen_table at https://github.com/winlinvip/pycrc/blob/master/pycrc/algorithms.py#L178
 void __crc32_make_table(uint32_t t[256], uint32_t poly, bool reflect_in)
 {
-    int width = 32; // 32bits checksum.
+    int width = 32;
     uint64_t msb_mask = (uint32_t)(0x01 << (width - 1));
     uint64_t mask = (uint32_t)(((msb_mask - 1) << 1) | 1);
 
-    int tbl_idx_width = 8;                 // table index size.
-    int tbl_width = 0x01 << tbl_idx_width; // table size: 256
+    int tbl_idx_width = 8;
+    int tbl_width = 0x01 << tbl_idx_width;
 
     for (int i = 0; i < (int)tbl_width; i++) {
         uint64_t reg = uint64_t(i);
@@ -79,11 +78,11 @@ void __crc32_make_table(uint32_t t[256], uint32_t poly, bool reflect_in)
 // @see pycrc table_driven at https://github.com/winlinvip/pycrc/blob/master/pycrc/algorithms.py#L207
 uint32_t __crc32_table_driven(uint32_t *t, const void *buf, int size, uint32_t previous, bool reflect_in, uint32_t xor_in, bool reflect_out, uint32_t xor_out)
 {
-    int width = 32; // 32bits checksum.
+    int width = 32;
     uint64_t msb_mask = (uint32_t)(0x01 << (width - 1));
     uint64_t mask = (uint32_t)(((msb_mask - 1) << 1) | 1);
 
-    int tbl_idx_width = 8; // table index size.
+    int tbl_idx_width = 8;
 
     uint8_t *p = (uint8_t *)buf;
     uint64_t reg = 0;
@@ -115,28 +114,15 @@ uint32_t __crc32_table_driven(uint32_t *t, const void *buf, int size, uint32_t p
 }
 
 // @see pycrc https://github.com/winlinvip/pycrc/blob/master/pycrc/algorithms.py#L238
-// IEEETable is the table for the MPEG polynomial.
 static uint32_t __crc32_MPEG_table[256];
 static bool __crc32_MPEG_table_initialized = false;
 
 // @see pycrc https://github.com/winlinvip/pycrc/blob/master/pycrc/models.py#L238
 //      crc32('123456789') = 0x0376e6e7
-// where it's defined as model:
-//      'name':         'crc-32',
-//      'width':         32,
-//      'poly':          0x4c11db7,
-//      'reflect_in':    False,
-//      'xor_in':        0xffffffff,
-//      'reflect_out':   False,
-//      'xor_out':       0x0,
-//      'check':         0x0376e6e7,
 uint32_t srs_crc32_mpegts(const void *buf, int size)
 {
-    // @see golang IEEE of hash/crc32/crc32.go
-    // IEEE is by far and away the most common CRC-32 polynomial.
-    // Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, ...
-    // @remark The poly of CRC32 IEEE is 0x04C11DB7, its reverse is 0xEDB88320,
-    //      please read https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+    // The IEEE CRC-32 polynomial, as in Go hash/crc32/crc32.go, used by ethernet, gzip, zip and png. Its
+    // reverse is 0xEDB88320, see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
     uint32_t poly = 0x04C11DB7;
 
     bool reflect_in = false;
@@ -223,7 +209,6 @@ srs_error_t SrsTsMessage::dump(SrsBuffer *stream, int *pnb_bytes)
         return err;
     }
 
-    // xB
     int nb_bytes = stream->size() - stream->pos();
     if (PES_packet_length_ > 0) {
         nb_bytes = srs_min(nb_bytes, PES_packet_length_ - payload_->length());
@@ -281,7 +266,7 @@ int SrsTsMessage::stream_number()
 
 SrsTsMessage *SrsTsMessage::detach()
 {
-    // @remark the packet cannot be used, but channel is ok.
+    // The packet is freed after each decode, but the channel lives with the context.
     SrsTsMessage *cp = new SrsTsMessage(channel_, NULL);
     cp->ps_helper_ = ps_helper_;
     cp->start_pts_ = start_pts_;
@@ -320,7 +305,7 @@ SrsTsContext::SrsTsContext()
 {
     ready_ = false;
     pure_audio_ = false;
-    sync_byte_ = 0x47; // ts default sync byte.
+    sync_byte_ = 0x47;
     vcodec_ = SrsVideoCodecIdReserved;
     acodec_ = SrsAudioCodecIdReserved1;
     pmt_version_ = 0;
@@ -391,8 +376,6 @@ srs_error_t SrsTsContext::decode(SrsBuffer *stream, ISrsTsHandler *handler)
 {
     srs_error_t err = srs_success;
 
-    // parse util EOF of stream.
-    // for example, parse multiple times for the PES_packet_length(0) packet.
     while (!stream->empty()) {
         SrsUniquePtr<SrsTsPacket> packet(new SrsTsPacket(this));
 
@@ -480,7 +463,6 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter *writer, SrsTsMessage *msg, Sr
         return srs_error_new(ERROR_HLS_NO_STREAM, "ts: no a/v stream, vcodec=%d, acodec=%d", vc, ac);
     }
 
-    // When any codec changed, write PAT/PMT table.
     if (vcodec_ != vc || acodec_ != ac) {
         if (vcodec_ != SrsVideoCodecIdReserved || acodec_ != SrsAudioCodecIdReserved1) {
             srs_trace("TS: Refresh PMT when vcodec=%d=>%d, acodec=%d=>%d", vcodec_, vc, acodec_, ac);
@@ -493,7 +475,6 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter *writer, SrsTsMessage *msg, Sr
         }
     }
 
-    // encode the media frame to PES packets over TS.
     if (msg->is_audio()) {
         return encode_pes(writer, msg, audio_pid, as, vs == SrsTsStreamReserved);
     } else {
@@ -513,10 +494,6 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
 
     int16_t pmt_number = TS_PMT_NUMBER;
     int16_t pmt_pid = TS_PMT_PID;
-    // The PMT for this announcement uses the current version. We increment after a
-    // successful write so the first PMT is version 0 and every subsequent PMT (e.g.
-    // when AAC audio appears after the initial video-only PMT) carries a new version,
-    // which is required by ISO/IEC 13818-1 for demuxers to accept the update.
     uint8_t pmt_version = pmt_version_;
     if (true) {
         SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pat(this, pmt_number, pmt_pid));
@@ -525,7 +502,6 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
 
         SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
 
-        // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
@@ -545,7 +521,6 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
 
         SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
 
-        // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
         memset(buf.get() + nb_buf, 0xFF, SRS_TS_PACKET_SIZE - nb_buf);
@@ -559,12 +534,8 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
         }
     }
 
-    // Advance the PMT version (modulo 32) so the next announcement, if its content
-    // changes, is recognized as a new version by strict demuxers. Only advance after
-    // the PMT has been written successfully.
     pmt_version_ = (pmt_version_ + 1) & 0x1F;
 
-    // When PAT and PMT are writen, the context is ready now.
     ready_ = true;
 
     return err;
@@ -574,7 +545,7 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter *writer, SrsTsMessage *msg
 {
     srs_error_t err = srs_success;
 
-    // Sometimes, the context is not ready(PAT/PMT write failed), error in this situation.
+    // Such as when writing the PAT or PMT failed.
     if (!ready_) {
         return srs_error_new(ERROR_TS_CONTEXT_NOT_READY, "ts: not ready");
     }
@@ -600,25 +571,18 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter *writer, SrsTsMessage *msg
     while (p < end) {
         SrsTsPacket *pkt_raw = NULL;
         if (p == start) {
-            // write pcr according to message.
             bool write_pcr = msg->write_pcr_;
 
-            // for pure audio, always write pcr.
             // TODO: FIXME: maybe only need to write at begin and end of ts.
             if (pure_audio && msg->is_audio()) {
                 write_pcr = true;
             }
 
-            // it's ok to set pcr equals to dts,
+            // A PCR equal to the DTS works.
             // @see https://github.com/ossrs/srs/issues/311
             // Fig. 3.18. Program Clock Reference of Digital-Video-and-Audio-Broadcasting-Technology, page 65
-            // In MPEG-2, these are the "Program Clock Refer- ence" (PCR) values which are
-            // nothing else than an up-to-date copy of the STC counter fed into the transport
-            // stream at a certain time. The data stream thus carries an accurate internal
-            // "clock time". All coding and de- coding processes are controlled by this clock
-            // time. To do this, the receiver, i.e. the MPEG decoder, must read out the
-            // "clock time", namely the PCR values, and compare them with its own internal
-            // system clock, that is to say its own 42 bit counter.
+            // The PCR is a copy of the encoder's STC counter; the decoder compares it with its own 42-bit
+            // system clock.
             int64_t pcr = write_pcr ? msg->dts_ : -1;
 
             // TODO: FIXME: finger it why use discontinuity of msg.
@@ -634,20 +598,16 @@ srs_error_t SrsTsContext::encode_pes(ISrsStreamWriter *writer, SrsTsMessage *msg
 
         SrsUniquePtr<char[]> buf(new char[SRS_TS_PACKET_SIZE]);
 
-        // set the left bytes with 0xFF.
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
 
         int left = (int)srs_min(end - p, SRS_TS_PACKET_SIZE - nb_buf);
         int nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
         if (nb_stuffings > 0) {
-            // set all bytes to stuffings.
             memset(buf.get(), 0xFF, SRS_TS_PACKET_SIZE);
 
-            // padding with stuffings.
             pkt->padding(nb_stuffings);
 
-            // size changed, recalc it.
             nb_buf = pkt->size();
             srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
 
@@ -698,7 +658,6 @@ srs_error_t SrsTsPacket::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
 
     int pos = stream->pos();
 
-    // 4B ts packet header.
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_HEADER, "ts: decode packet");
     }
@@ -725,7 +684,6 @@ srs_error_t SrsTsPacket::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
              sync_byte, transport_error_indicator, payload_unit_start_indicator, transport_priority, pid,
              transport_scrambling_control, adaption_field_control, continuity_counter);
 
-    // optional: adaptation field
     if (adaption_field_control_ == SrsTsAdaptationFieldTypeAdaptionOnly || adaption_field_control_ == SrsTsAdaptationFieldTypeBoth) {
         srs_freep(adaptation_field_);
         adaptation_field_ = new SrsTsAdaptationField(this);
@@ -736,27 +694,21 @@ srs_error_t SrsTsPacket::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
         srs_verbose("ts: demux af ok.");
     }
 
-    // calc the user defined data size for payload.
     int nb_payload = SRS_TS_PACKET_SIZE - (stream->pos() - pos);
 
-    // optional: payload.
     if (adaption_field_control_ == SrsTsAdaptationFieldTypePayloadOnly || adaption_field_control_ == SrsTsAdaptationFieldTypeBoth) {
         if (pid_ == SrsTsPidPAT) {
-            // 2.4.4.3 Program association Table
             srs_freep(payload_);
             payload_ = new SrsTsPayloadPAT(this);
         } else {
             SrsTsChannel *channel = context_->get(pid_);
             if (channel && channel->apply_ == SrsTsPidApplyPMT) {
-                // 2.4.4.8 Program Map Table
                 srs_freep(payload_);
                 payload_ = new SrsTsPayloadPMT(this);
             } else if (channel && (channel->apply_ == SrsTsPidApplyVideo || channel->apply_ == SrsTsPidApplyAudio)) {
-                // 2.4.3.6 PES packet
                 srs_freep(payload_);
                 payload_ = new SrsTsPayloadPES(this);
             } else {
-                // left bytes as reserved.
                 stream->skip(srs_min(stream->left(), nb_payload));
             }
         }
@@ -783,7 +735,6 @@ srs_error_t SrsTsPacket::encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 4B ts packet header.
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_HEADER, "ts: requires 4+ bytes");
     }
@@ -805,7 +756,6 @@ srs_error_t SrsTsPacket::encode(SrsBuffer *stream)
              sync_byte, transport_error_indicator, payload_unit_start_indicator, transport_priority, pid,
              transport_scrambling_control, adaption_field_control, continuity_counter);
 
-    // optional: adaptation field
     if (adaptation_field_) {
         if ((err = adaptation_field_->encode(stream)) != srs_success) {
             return srs_error_wrap(err, "ts: mux af field");
@@ -813,7 +763,6 @@ srs_error_t SrsTsPacket::encode(SrsBuffer *stream)
         srs_verbose("ts: mux af ok.");
     }
 
-    // optional: payload.
     if (payload_) {
         if ((err = payload_->encode(stream)) != srs_success) {
             return srs_error_wrap(err, "ts: mux payload");
@@ -840,13 +789,11 @@ void SrsTsPacket::padding(int nb_stuffings)
         af->transport_private_data_flag_ = 0;
         af->adaptation_field_extension_flag_ = 0;
 
-        // consume the af size if possible.
         nb_stuffings = srs_max(0, nb_stuffings - af->size());
     }
 
     adaptation_field_->nb_af_reserved_ = nb_stuffings;
 
-    // set payload with af.
     if (adaption_field_control_ == SrsTsAdaptationFieldTypePayloadOnly) {
         adaption_field_control_ = SrsTsAdaptationFieldTypeBoth;
     }
@@ -908,20 +855,15 @@ SrsTsPacket *SrsTsPacket::create_pmt(ISrsTsContext *context,
     pmt->section_number = 0;
     pmt->last_section_number = 0;
 
-    // Here we must get the correct codec.
     bool codec_ok = (vs == SrsTsStreamVideoH264 || as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3);
     codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
     srs_assert(codec_ok);
 
-    // if mp3 or aac specified, use audio to carry pcr.
     if (as == SrsTsStreamAudioAAC || as == SrsTsStreamAudioMp3) {
-        // use audio to carray pcr by default.
-        // for hls, there must be atleast one audio channel.
         pmt->PCR_PID = apid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
     }
 
-    // If h.264/h.265 specified, use video to carry pcr.
     codec_ok = (vs == SrsTsStreamVideoH264);
     codec_ok = codec_ok ? true : (vs == SrsTsStreamVideoHEVC);
     if (codec_ok) {
@@ -1059,24 +1001,18 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
     }
     adaption_field_length_ = stream->read_1bytes();
 
-    // When the adaptation_field_control value is '11', the value of the adaptation_field_length shall
-    // be in the range 0 to 182.
     if (packet_->adaption_field_control_ == SrsTsAdaptationFieldTypeBoth && adaption_field_length_ > 182) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af length failed, must in [0, 182], actual=%d", adaption_field_length_);
     }
-    // When the adaptation_field_control value is '10', the value of the adaptation_field_length shall
-    // be 183.
     if (packet_->adaption_field_control_ == SrsTsAdaptationFieldTypeAdaptionOnly && adaption_field_length_ != 183) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af length failed, must be 183, actual=%d", adaption_field_length_);
     }
 
-    // no adaptation field.
     if (adaption_field_length_ == 0) {
         srs_info("ts: demux af empty.");
         return err;
     }
 
-    // the adaptation field start at here.
     int pos_af = stream->pos();
     int8_t tmpv = stream->read_1bytes();
 
@@ -1107,7 +1043,7 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
         pp[1] = *p++;
         pp[0] = *p++;
 
-        // @remark, use pcr base and ignore the extension
+        // Only the PCR base is used, and the extension is ignored.
         // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         program_clock_reference_extension_ = pcrv & 0x1ff;
         const1_value0_ = (pcrv >> 9) & 0x3F;
@@ -1132,7 +1068,7 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
         pp[1] = *p++;
         pp[0] = *p++;
 
-        // @remark, use pcr base and ignore the extension
+        // Only the PCR base is used, and the extension is ignored.
         // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         original_program_clock_reference_extension_ = opcrv & 0x1ff;
         const1_value2_ = (opcrv >> 9) & 0x3F;
@@ -1150,11 +1086,7 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
         if (!stream->require(1)) {
             return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af transport_private_data_flag");
         }
-        /**
-         * The transport_private_data_length is an 8-bit field specifying the number of
-         * private_data bytes immediately following the transport private_data_length field. The number of private_data bytes shall
-         * not be such that private data extends beyond the adaptation field.
-         */
+        // The private data must not extend beyond the adaptation field.
         uint8_t transport_private_data_length = (uint8_t)stream->read_1bytes();
 
         if (transport_private_data_length > 0) {
@@ -1266,18 +1198,13 @@ srs_error_t SrsTsAdaptationField::encode(SrsBuffer *stream)
     }
     stream->write_1bytes(adaption_field_length_);
 
-    // When the adaptation_field_control value is '11', the value of the adaptation_field_length shall
-    // be in the range 0 to 182.
     if (packet_->adaption_field_control_ == SrsTsAdaptationFieldTypeBoth && adaption_field_length_ > 182) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af length failed, must in [0, 182], actual=%d", adaption_field_length_);
     }
-    // When the adaptation_field_control value is '10', the value of the adaptation_field_length shall
-    // be 183.
     if (packet_->adaption_field_control_ == SrsTsAdaptationFieldTypeAdaptionOnly && adaption_field_length_ != 183) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af length failed, must be 183, actual=%d", adaption_field_length_);
     }
 
-    // no adaptation field.
     if (adaption_field_length_ == 0) {
         srs_info("ts: mux af empty.");
         return err;
@@ -1301,7 +1228,7 @@ srs_error_t SrsTsAdaptationField::encode(SrsBuffer *stream)
         char *p = stream->data() + stream->pos();
         stream->skip(6);
 
-        // @remark, use pcr base and ignore the extension
+        // Only the PCR base is used, and the extension is ignored.
         // @see https://github.com/ossrs/srs/issues/250#issuecomment-71349370
         int64_t pcrv = program_clock_reference_extension_ & 0x1ff;
         pcrv |= (const1_value0_ << 9) & 0x7E00;
@@ -1461,39 +1388,27 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 6B fixed header.
     if (!stream->require(6)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE");
     }
-    // 3B
     packet_start_code_prefix_ = stream->read_3bytes();
-    // 1B
     stream_id_ = stream->read_1bytes();
-    // 2B
     PES_packet_length_ = stream->read_2bytes();
 
-    // check the packet start prefix.
     packet_start_code_prefix_ &= 0xFFFFFF;
     if (packet_start_code_prefix_ != 0x01) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PES start code failed, expect=0x01, actual=%#x", packet_start_code_prefix_);
     }
     int pos_packet = stream->pos();
 
-    // @remark the sid indicates the elementary stream format.
-    //      the SrsTsPESStreamIdAudio and SrsTsPESStreamIdVideo is start by 0b110 or 0b1110
     SrsTsPESStreamId sid = (SrsTsPESStreamId)stream_id_;
     if (sid != SrsTsPESStreamIdProgramStreamMap && sid != SrsTsPESStreamIdPaddingStream && sid != SrsTsPESStreamIdPrivateStream2 && sid != SrsTsPESStreamIdEcmStream && sid != SrsTsPESStreamIdEmmStream && sid != SrsTsPESStreamIdProgramStreamDirectory && sid != SrsTsPESStreamIdDsmccStream && sid != SrsTsPESStreamIdH2221TypeE) {
-        // 3B flags.
         if (!stream->require(3)) {
             return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE flags");
         }
-        // 1B
         int8_t oocv = stream->read_1bytes();
-        // 1B
         int8_t pefv = stream->read_1bytes();
-        // 1B
         PES_header_data_length_ = stream->read_1bytes();
-        // position of header start.
         int pos_header = stream->pos();
 
         const2bits_ = (oocv >> 6) & 0x03;
@@ -1511,7 +1426,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
         PES_CRC_flag_ = (pefv >> 1) & 0x01;
         PES_extension_flag_ = pefv & 0x01;
 
-        // check required together.
         int nb_required = 0;
         nb_required += (PTS_DTS_flags_ == 0x2) ? 5 : 0;
         nb_required += (PTS_DTS_flags_ == 0x3) ? 10 : 0;
@@ -1542,7 +1456,7 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
                 return srs_error_wrap(err, "dts/pts");
             }
 
-            // check sync, the diff of dts and pts should never greater than 1s.
+            // The DTS and PTS should never differ by more than 1s.
             if (dts_ - pts_ > 90000 || pts_ - dts_ > 90000) {
                 srs_warn("ts: sync dts=%" PRId64 ", pts=%" PRId64, dts_, pts_);
             }
@@ -1614,11 +1528,10 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
 
             // (1+x)B
             if (pack_header_field_flag_) {
-                // This is an 8-bit field which indicates the length, in bytes, of the pack_header_field()
                 uint8_t pack_field_length = stream->read_1bytes();
                 if (pack_field_length > 0) {
-                    // the adjust required bytes.
-                    nb_required = nb_required - 16 - 1 + pack_field_length;
+                    // The private data and the length byte are already read.
+                    nb_required = nb_required - (PES_private_data_flag_ ? 16 : 0) - 1 + pack_field_length;
                     if (!stream->require(nb_required)) {
                         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE ext pack");
                     }
@@ -1650,10 +1563,7 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
 
             // (1+x)B
             if (PES_extension_flag_2_) {
-                /**
-                 * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
-                 * the PES extension field up to and including any reserved bytes.
-                 */
+                // The bytes after this field in the PES extension, with the reserved bytes.
                 uint8_t PES_extension_field_length = stream->read_1bytes();
                 PES_extension_field_length &= 0x7F;
 
@@ -1667,7 +1577,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
             }
         }
 
-        // stuffing_byte
         nb_stuffings_ = PES_header_data_length_ - (stream->pos() - pos_header);
         if (nb_stuffings_ > 0) {
             if (!stream->require(nb_stuffings_)) {
@@ -1677,17 +1586,8 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
         }
 
         // PES_packet_data_byte, page58.
-        // the packet size contains the header size.
-        // The number of PES_packet_data_bytes, N, is specified by the
-        // PES_packet_length field. N shall be equal to the value
-        // indicated in the PES_packet_length minus the number of bytes
-        // between the last byte of the PES_packet_length field and the
-        // first PES_packet_data_byte.
-        //
-        // If the actual size > uin16_t, which exceed the PES_packet_length, then PES_packet_length is 0, and we
-        // should dump all left bytes in stream to message util next unit start packet.
-        // Otherwise, the PES_packet_length should greater than 0, which is a specified length, then we also dump
-        // the left bytes in stream, in such case, the nb_payload_ is the actual size of payload.
+        // PES_packet_length counts the header bytes after it too. It is 0 when the size does not fit in
+        // uint16_t, and then the message takes the bytes until the next unit start.
         if (PES_packet_length_ > 0) {
             int nb_packet = PES_packet_length_ - (stream->pos() - pos_packet);
             if (nb_packet < 0) {
@@ -1696,9 +1596,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
             nb_payload_ = nb_packet;
         }
 
-        // Now, it has payload. The size is specified by PES_packet_length, which might be:
-        //      0, Dump all bytes in stream util next unit start packet.
-        //      nb_payload_, Dump specified bytes in stream.
         has_payload_ = true;
 
     } else if (sid == SrsTsPESStreamIdProgramStreamMap || sid == SrsTsPESStreamIdPrivateStream2 || sid == SrsTsPESStreamIdEcmStream || sid == SrsTsPESStreamIdEmmStream || sid == SrsTsPESStreamIdProgramStreamDirectory || sid == SrsTsPESStreamIdDsmccStream || sid == SrsTsPESStreamIdH2221TypeE) {
@@ -1711,7 +1608,7 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
             return srs_error_new(ERROR_GB_PS_PSE, "ts: Invalid PES_packet_length=%d for PS", PES_packet_length_);
         }
 
-        // The pos_packet equals to stream pos, so the PES_packet_length is actually the payload length.
+        // No header follows PES_packet_length here, so it is the payload length.
         nb_payload_ = PES_packet_length_;
         has_payload_ = true;
     } else if (sid == SrsTsPESStreamIdPaddingStream) {
@@ -1762,8 +1659,6 @@ int SrsMpegPES::size()
         PES_header_data_length_ = sz - PES_header_data_length_;
 
         sz += nb_stuffings_;
-
-        // packet bytes
     } else if (sid == SrsTsPESStreamIdProgramStreamMap || sid == SrsTsPESStreamIdPrivateStream2 || sid == SrsTsPESStreamIdEcmStream || sid == SrsTsPESStreamIdEmmStream || sid == SrsTsPESStreamIdProgramStreamDirectory || sid == SrsTsPESStreamIdDsmccStream || sid == SrsTsPESStreamIdH2221TypeE) {
         // packet bytes
     } else {
@@ -1777,18 +1672,13 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 6B fixed header.
     if (!stream->require(6)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE");
     }
 
-    // 3B
     stream->write_3bytes(packet_start_code_prefix_);
-    // 1B
     stream->write_1bytes(stream_id_);
-    // 2B
-    // the PES_packet_length is the actual bytes size, the pplv write to ts
-    // is the actual bytes plus the header size.
+    // PES_packet_length_ holds the payload size, but the field on the wire counts the header too.
     int32_t pplv = 0;
     if (PES_packet_length_ > 0) {
         pplv = PES_packet_length_ + 3 + PES_header_data_length_;
@@ -1796,17 +1686,14 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
     }
     stream->write_2bytes(pplv);
 
-    // check the packet start prefix.
     packet_start_code_prefix_ &= 0xFFFFFF;
     if (packet_start_code_prefix_ != 0x01) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE start code failed, expect=0x01, actual=%#x", packet_start_code_prefix_);
     }
 
-    // 3B flags.
     if (!stream->require(3)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: mux PSE flags");
     }
-    // 1B
     int8_t oocv = original_or_copy_ & 0x01;
     oocv |= (const2bits_ << 6) & 0xC0;
     oocv |= (PES_scrambling_control_ << 4) & 0x30;
@@ -1814,7 +1701,6 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
     oocv |= (data_alignment_indicator_ << 2) & 0x04;
     oocv |= (copyright_ << 1) & 0x02;
     stream->write_1bytes(oocv);
-    // 1B
     int8_t pefv = PES_extension_flag_ & 0x01;
     pefv |= (PTS_DTS_flags_ << 6) & 0xC0;
     pefv |= (ESCR_flag_ << 5) & 0x20;
@@ -1823,10 +1709,8 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
     pefv |= (additional_copy_info_flag_ << 2) & 0x04;
     pefv |= (PES_CRC_flag_ << 1) & 0x02;
     stream->write_1bytes(pefv);
-    // 1B
     stream->write_1bytes(PES_header_data_length_);
 
-    // check required together.
     int nb_required = 0;
     nb_required += (PTS_DTS_flags_ == 0x2) ? 5 : 0;
     nb_required += (PTS_DTS_flags_ == 0x3) ? 10 : 0;
@@ -1856,7 +1740,7 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
             return srs_error_wrap(err, "dts/pts");
         }
 
-        // check sync, the diff of dts and pts should never greater than 1s.
+        // The DTS and PTS should never differ by more than 1s.
         if (dts_ - pts_ > 90000 || pts_ - dts_ > 90000) {
             srs_warn("ts: sync dts=%" PRId64 ", pts=%" PRId64, dts_, pts_);
         }
@@ -1915,7 +1799,6 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
         srs_warn("ts: demux PES, ignore the PES_extension.");
     }
 
-    // stuffing_byte
     if (nb_stuffings_) {
         stream->skip(nb_stuffings_);
         srs_warn("ts: demux PES, ignore the stuffings.");
@@ -1932,7 +1815,6 @@ srs_error_t SrsMpegPES::decode_33bits_dts_pts(SrsBuffer *stream, int64_t *pv)
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts");
     }
 
-    // decode the 33bits schema.
     // --------------1B
     // 4bits const maybe '0001', '0010' or '0011'.
     // 3bits DTS/PTS [32..30]
@@ -1941,8 +1823,6 @@ srs_error_t SrsMpegPES::decode_33bits_dts_pts(SrsBuffer *stream, int64_t *pv)
     if ((dts_pts_30_32 & 0x01) != 0x01) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 30-32");
     }
-    // @remark, we donot check the high 4bits, maybe '0001', '0010' or '0011'.
-    //      so we just ensure the high 4bits is not 0x00.
     if (((dts_pts_30_32 >> 4) & 0x0f) == 0x00) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PSE dts/pts 30-32");
     }
@@ -2014,26 +1894,22 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
 {
     srs_error_t err = srs_success;
 
-    // find the channel from chunk.
     SrsTsChannel *channel = packet_->context_->get(packet_->pid_);
     if (!channel) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSE, "ts: demux PES no channel for pid=%#x", packet_->pid_);
     }
 
-    // init msg.
     SrsTsMessage *msg = channel->msg_;
     if (!msg) {
         msg = new SrsTsMessage(channel, packet_);
         channel->msg_ = msg;
     }
 
-    // we must cache the fresh state of msg,
-    // for the PES_packet_length is 0, the first payload_unit_start_indicator always 1,
-    // so should check for the fresh and not completed it.
+    // Kept before dumping: with PES_packet_length 0, the unit start of the first packet would
+    // otherwise complete the fresh message.
     bool is_fresh_msg = msg->fresh();
 
-    // check when fresh, the payload_unit_start_indicator
-    // should be 1 for the fresh msg.
+    // A message must start with payload_unit_start_indicator 1.
     if (is_fresh_msg && !packet_->payload_unit_start_indicator_) {
         srs_warn("ts: PES fresh packet length=%d, us=%d, cc=%d",
                  msg->PES_packet_length_, packet_->payload_unit_start_indicator_, packet_->continuity_counter_);
@@ -2044,34 +1920,30 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
         return err;
     }
 
-    // check when not fresh and PES_packet_length>0,
-    // the payload_unit_start_indicator should never be 1 when not completed.
     if (!is_fresh_msg && msg->PES_packet_length_ > 0 && !msg->completed(packet_->payload_unit_start_indicator_) && packet_->payload_unit_start_indicator_) {
         srs_warn("ts: ignore PES packet length=%d, payload=%d, us=%d, cc=%d",
                  msg->PES_packet_length_, msg->payload_->length(), packet_->payload_unit_start_indicator_, packet_->continuity_counter_);
 
-        // reparse current msg.
+        // Parse this packet again, as a new message.
         stream->skip(stream->pos() * -1);
         srs_freep(msg);
         channel->msg_ = NULL;
         return err;
     }
 
-    // check the continuity counter
     if (!is_fresh_msg) {
-        // late-incoming or duplicated continuity, drop message.
-        // @remark check overflow, the counter plus 1 should greater when invalid.
+        // A late or duplicate packet, which is dropped. The 4-bit counter wraps, hence the + 1.
         if (msg->continuity_counter_ >= packet_->continuity_counter_ && ((msg->continuity_counter_ + 1) & 0x0f) > packet_->continuity_counter_) {
             srs_warn("ts: drop PES %dB for duplicated cc=%#x", msg->continuity_counter_);
             stream->skip(stream->size() - stream->pos());
             return err;
         }
 
-        // when got partially message, the continous count must be continuous, or drop it.
+        // A packet is lost, so the partial message is dropped.
         if (((msg->continuity_counter_ + 1) & 0x0f) != packet_->continuity_counter_) {
             srs_warn("ts: ignore continuity must be continous, msg=%#x, packet=%#x", msg->continuity_counter_, packet_->continuity_counter_);
 
-            // reparse current msg.
+            // Parse this packet again, as a new message.
             stream->skip(stream->pos() * -1);
             srs_freep(msg);
             channel->msg_ = NULL;
@@ -2080,58 +1952,49 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
     }
     msg->continuity_counter_ = packet_->continuity_counter_;
 
-    // for the PES_packet_length(0), reap when completed.
+    // With PES_packet_length 0, the next unit start completes the message.
     if (!is_fresh_msg && msg->completed(packet_->payload_unit_start_indicator_)) {
-        // reap previous PES packet.
         // The packet that started the message is freed by now, so reference this one, which lives while the
         // caller handles the message.
         msg->packet_ = packet_;
         *ppmsg = msg;
         channel->msg_ = NULL;
 
-        // reparse current msg.
+        // Parse this packet again, as the next message.
         stream->skip(stream->pos() * -1);
         return err;
     }
 
-    // contious packet, append bytes for unit start is 0
     if (!packet_->payload_unit_start_indicator_) {
         if ((err = msg->dump(stream, &pes_.nb_bytes_)) != srs_success) {
             return srs_error_wrap(err, "ts: pes dump");
         }
     }
 
-    // when unit start, parse the fresh msg.
     if (packet_->payload_unit_start_indicator_) {
         if ((err = pes_.decode(stream)) != srs_success) {
             return srs_error_wrap(err, "header");
         }
 
-        // Update message when decode the first PES packet.
         msg->sid_ = (SrsTsPESStreamId)pes_.stream_id_;
         if (pes_.PTS_DTS_flags_ == 0x02 || pes_.PTS_DTS_flags_ == 0x03) {
             msg->dts_ = pes_.dts_;
             msg->pts_ = pes_.pts_;
         }
         if (pes_.has_payload_) {
-            // The size of message, might be 0 or a positive value.
             msg->PES_packet_length_ = pes_.nb_payload_;
 
-            // xB
             if ((err = msg->dump(stream, &pes_.nb_bytes_)) != srs_success) {
                 return srs_error_wrap(err, "dump pes");
             }
         }
     }
 
-    // when fresh and the PES_packet_length is 0,
-    // the payload_unit_start_indicator always be 1,
-    // the message should never EOF for the first packet.
+    // With PES_packet_length 0, the unit start of the first packet does not complete the message.
     if (is_fresh_msg && msg->PES_packet_length_ == 0) {
         return err;
     }
 
-    // check msg, reap when completed.
     if (msg->completed(packet_->payload_unit_start_indicator_)) {
         msg->packet_ = packet_;
         *ppmsg = msg;
@@ -2171,14 +2034,6 @@ srs_error_t SrsTsPayloadPSI::decode(SrsBuffer *stream, SrsTsMessage ** /*ppmsg*/
 {
     srs_error_t err = srs_success;
 
-    /**
-     * When the payload of the Transport Stream packet contains PSI data, the payload_unit_start_indicator has the following
-     * significance: if the Transport Stream packet carries the first byte of a PSI section, the payload_unit_start_indicator value
-     * shall be '1', indicating that the first byte of the payload of this Transport Stream packet carries the pointer_field. If the
-     * Transport Stream packet does not carry the first byte of a PSI section, the payload_unit_start_indicator value shall be '0',
-     * indicating that there is no pointer_field in the payload. Refer to 2.4.4.1 and 2.4.4.2. This also applies to private streams of
-     * stream_type 5 (refer to Table 2-29).
-     */
     if (packet_->payload_unit_start_indicator_) {
         if (!stream->require(1)) {
             return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI");
@@ -2186,18 +2041,15 @@ srs_error_t SrsTsPayloadPSI::decode(SrsBuffer *stream, SrsTsMessage ** /*ppmsg*/
         pointer_field = stream->read_1bytes();
     }
 
-    // to calc the crc32
+    // For the CRC32.
     char *ppat = stream->data() + stream->pos();
     int pat_pos = stream->pos();
 
-    // atleast 3B for all psi.
     if (!stream->require(3)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI");
     }
-    // 1B
     table_id = (SrsTsPsiId)stream->read_1bytes();
 
-    // 2B
     int16_t slv = stream->read_2bytes();
 
     section_syntax_indicator = (slv >> 15) & 0x01;
@@ -2205,7 +2057,6 @@ srs_error_t SrsTsPayloadPSI::decode(SrsBuffer *stream, SrsTsMessage ** /*ppmsg*/
     const1_value = (slv >> 12) & 0x03;
     section_length = slv & 0x0FFF;
 
-    // no section, ignore.
     if (section_length == 0) {
         srs_warn("ts: demux PAT ignore empty section");
         return err;
@@ -2215,29 +2066,25 @@ srs_error_t SrsTsPayloadPSI::decode(SrsBuffer *stream, SrsTsMessage ** /*ppmsg*/
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI section");
     }
 
-    // call the virtual method of actual PSI.
     if ((err = psi_decode(stream)) != srs_success) {
         return srs_error_wrap(err, "demux PSI");
     }
 
-    // 4B
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: demux PSI crc32");
     }
     CRC_32 = stream->read_4bytes();
 
-    // verify crc32.
     int32_t crc32 = srs_crc32_mpegts(ppat, stream->pos() - pat_pos - 4);
     if (crc32 != CRC_32) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: verify PSI crc32");
     }
 
-    // consume left stuffings
     if (!stream->empty()) {
         int nb_stuffings = stream->size() - stream->pos();
         char *stuffing = stream->data() + stream->pos();
 
-        // all stuffing must be 0xff.
+        // Stuffing bytes should be 0xff.
         // TODO: FIXME: maybe need to remove the following.
         for (int i = 0; i < nb_stuffings; i++) {
             if ((uint8_t)stuffing[i] != 0xff) {
@@ -2256,7 +2103,6 @@ int SrsTsPayloadPSI::size()
 {
     int sz = 0;
 
-    // section size is the sl plus the crc32
     section_length = psi_size() + 4;
 
     sz += packet_->payload_unit_start_indicator_ ? 1 : 0;
@@ -2277,25 +2123,21 @@ srs_error_t SrsTsPayloadPSI::encode(SrsBuffer *stream)
         stream->write_1bytes(pointer_field);
     }
 
-    // to calc the crc32
+    // For the CRC32.
     char *ppat = stream->data() + stream->pos();
     int pat_pos = stream->pos();
 
-    // atleast 3B for all psi.
     if (!stream->require(3)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI");
     }
-    // 1B
     stream->write_1bytes(table_id);
 
-    // 2B
     int16_t slv = section_length & 0x0FFF;
     slv |= (section_syntax_indicator << 15) & 0x8000;
     slv |= (const0_value << 14) & 0x4000;
     slv |= (const1_value << 12) & 0x3000;
     stream->write_2bytes(slv);
 
-    // no section, ignore.
     if (section_length == 0) {
         srs_warn("ts: mux PAT ignore empty section");
         return err;
@@ -2305,12 +2147,10 @@ srs_error_t SrsTsPayloadPSI::encode(SrsBuffer *stream)
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI section");
     }
 
-    // call the virtual method of actual PSI.
     if ((err = psi_encode(stream)) != srs_success) {
         return srs_error_wrap(err, "mux PSI");
     }
 
-    // 4B
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PSI, "ts: mux PSI crc32");
     }
@@ -2335,7 +2175,6 @@ srs_error_t SrsTsPayloadPATProgram::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 4B for PAT program specified
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: demux PAT");
     }
@@ -2357,7 +2196,6 @@ srs_error_t SrsTsPayloadPATProgram::encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 4B for PAT program specified
     if (!stream->require(4)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: mux PAT");
     }
@@ -2394,17 +2232,14 @@ srs_error_t SrsTsPayloadPAT::psi_decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 5B for PAT specified
     if (!stream->require(5)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: demux PAT");
     }
 
     int pos = stream->pos();
 
-    // 2B
     transport_stream_id = stream->read_2bytes();
 
-    // 1B
     int8_t cniv = stream->read_1bytes();
 
     const3_value = (cniv >> 6) & 0x03;
@@ -2413,12 +2248,9 @@ srs_error_t SrsTsPayloadPAT::psi_decode(SrsBuffer *stream)
 
     // TODO: FIXME: check the indicator.
 
-    // 1B
     section_number = stream->read_1bytes();
-    // 1B
     last_section_number = stream->read_1bytes();
 
-    // multiple 4B program data.
     int program_bytes = section_length - 4 - (stream->pos() - pos);
     for (int i = 0; i < program_bytes; i += 4) {
         SrsTsPayloadPATProgram *program = new SrsTsPayloadPATProgram();
@@ -2427,13 +2259,11 @@ srs_error_t SrsTsPayloadPAT::psi_decode(SrsBuffer *stream)
             return srs_error_wrap(err, "demux PAT program");
         }
 
-        // update the apply pid table.
         packet_->context_->set(program->pid, SrsTsPidApplyPMT);
 
         programs.push_back(program);
     }
 
-    // update the apply pid table.
     packet_->context_->set(packet_->pid_, SrsTsPidApplyPAT);
     packet_->context_->on_pmt_parsed();
 
@@ -2454,37 +2284,29 @@ srs_error_t SrsTsPayloadPAT::psi_encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 5B for PAT specified
     if (!stream->require(5)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PAT, "ts: mux PAT");
     }
 
-    // 2B
     stream->write_2bytes(transport_stream_id);
 
-    // 1B
     int8_t cniv = current_next_indicator & 0x01;
     cniv |= (version_number << 1) & 0x3E;
     cniv |= (const1_value << 6) & 0xC0;
     stream->write_1bytes(cniv);
 
-    // 1B
     stream->write_1bytes(section_number);
-    // 1B
     stream->write_1bytes(last_section_number);
 
-    // multiple 4B program data.
     for (int i = 0; i < (int)programs.size(); i++) {
         SrsTsPayloadPATProgram *program = programs.at(i);
         if ((err = program->encode(stream)) != srs_success) {
             return srs_error_wrap(err, "mux PAT program");
         }
 
-        // update the apply pid table.
         packet_->context_->set(program->pid, SrsTsPidApplyPMT);
     }
 
-    // update the apply pid table.
     packet_->context_->set(packet_->pid_, SrsTsPidApplyPAT);
 
     return err;
@@ -2507,7 +2329,6 @@ srs_error_t SrsTsPayloadPMTESInfo::decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 5B
     if (!stream->require(5)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT");
     }
@@ -2520,10 +2341,7 @@ srs_error_t SrsTsPayloadPMTESInfo::decode(SrsBuffer *stream)
 
     int16_t eilv = stream->read_2bytes();
     const1_value1 = (eilv >> 12) & 0x0f;
-    /**
-     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
-     * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
-     */
+    // The first 2 bits are '00'.
     int16_t ES_info_length = eilv & 0x0FFF;
 
     if (ES_info_length > 0) {
@@ -2546,7 +2364,6 @@ srs_error_t SrsTsPayloadPMTESInfo::encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // 5B
     if (!stream->require(5)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT");
     }
@@ -2598,39 +2415,29 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 9B for PMT specified
     if (!stream->require(9)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: demux PMT");
     }
 
-    // 2B
     program_number = stream->read_2bytes();
 
-    // 1B
     int8_t cniv = stream->read_1bytes();
 
     const1_value0 = (cniv >> 6) & 0x03;
     version_number = (cniv >> 1) & 0x1F;
     current_next_indicator = cniv & 0x01;
 
-    // 1B
     section_number = stream->read_1bytes();
 
-    // 1B
     last_section_number = stream->read_1bytes();
 
-    // 2B
     int16_t ppv = stream->read_2bytes();
     const1_value1 = (ppv >> 13) & 0x07;
     PCR_PID = ppv & 0x1FFF;
 
-    // 2B
     int16_t pilv = stream->read_2bytes();
     const1_value2 = (pilv >> 12) & 0x0F;
-    /**
-     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
-     * number of bytes of the descriptors immediately following the program_info_length field.
-     */
+    // The first 2 bits are '00'.
     uint16_t program_info_length = pilv & 0xFFF;
 
     if (program_info_length > 0) {
@@ -2652,7 +2459,6 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer *stream)
             return srs_error_wrap(err, "demux PMT program info");
         }
 
-        // update the apply pid table
         switch (info->stream_type) {
         case SrsTsStreamVideoH264:
         case SrsTsStreamVideoHEVC:
@@ -2671,7 +2477,6 @@ srs_error_t SrsTsPayloadPMT::psi_decode(SrsBuffer *stream)
         }
     }
 
-    // update the apply pid table.
     packet_->context_->set(packet_->pid_, SrsTsPidApplyPMT);
 
     return err;
@@ -2692,32 +2497,25 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // atleast 9B for PMT specified
     if (!stream->require(9)) {
         return srs_error_new(ERROR_STREAM_CASTER_TS_PMT, "ts: mux PMT");
     }
 
-    // 2B
     stream->write_2bytes(program_number);
 
-    // 1B
     int8_t cniv = current_next_indicator & 0x01;
     cniv |= (const1_value0 << 6) & 0xC0;
     cniv |= (version_number << 1) & 0xFE;
     stream->write_1bytes(cniv);
 
-    // 1B
     stream->write_1bytes(section_number);
 
-    // 1B
     stream->write_1bytes(last_section_number);
 
-    // 2B
     int16_t ppv = PCR_PID & 0x1FFF;
     ppv |= (const1_value1 << 13) & 0xE000;
     stream->write_2bytes(ppv);
 
-    // 2B
     int16_t pilv = program_info_desc.size() & 0xFFF;
     pilv |= (const1_value2 << 12) & 0xF000;
     stream->write_2bytes(pilv);
@@ -2736,7 +2534,6 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer *stream)
             return srs_error_wrap(err, "mux PMT program info");
         }
 
-        // update the apply pid table
         switch (info->stream_type) {
         case SrsTsStreamVideoH264:
         case SrsTsStreamVideoHEVC:
@@ -2755,7 +2552,6 @@ srs_error_t SrsTsPayloadPMT::psi_encode(SrsBuffer *stream)
         }
     }
 
-    // update the apply pid table.
     packet_->context_->set(packet_->pid_, SrsTsPidApplyPMT);
 
     return err;
@@ -2942,7 +2738,6 @@ srs_error_t SrsTsMessageCache::cache_audio(SrsParsedAudioPacket *frame, int64_t 
 {
     srs_error_t err = srs_success;
 
-    // create the ts audio message.
     if (!audio_) {
         audio_ = new SrsTsMessage();
         audio_->write_pcr_ = false;
@@ -2954,11 +2749,9 @@ srs_error_t SrsTsMessageCache::cache_audio(SrsParsedAudioPacket *frame, int64_t 
     // audio->pts = audio->dts;
     audio_->sid_ = SrsTsPESStreamIdAudioCommon;
 
-    // must be aac or mp3
     SrsAudioCodecConfig *acodec = frame->acodec();
     srs_assert(acodec->id_ == SrsAudioCodecIdAAC || acodec->id_ == SrsAudioCodecIdMP3);
 
-    // write video to cache.
     if (acodec->id_ == SrsAudioCodecIdAAC) {
         if ((err = do_cache_aac(frame)) != srs_success) {
             return srs_error_wrap(err, "ts: cache aac");
@@ -2976,7 +2769,6 @@ srs_error_t SrsTsMessageCache::cache_video(SrsParsedVideoPacket *frame, int64_t 
 {
     srs_error_t err = srs_success;
 
-    // create the ts video message.
     if (!video_) {
         video_ = new SrsTsMessage();
         video_->write_pcr_ = (frame->frame_type_ == SrsVideoAvcFrameTypeKeyFrame);
@@ -2987,12 +2779,10 @@ srs_error_t SrsTsMessageCache::cache_video(SrsParsedVideoPacket *frame, int64_t 
     video_->pts_ = video_->dts_ + frame->cts_ * 90;
     video_->sid_ = SrsTsPESStreamIdVideoCommon;
 
-    // Write H.265 video frame to cache.
     if (frame && frame->vcodec()->id_ == SrsVideoCodecIdHEVC) {
         return do_cache_hevc(frame);
     }
 
-    // Write H.264 video frame to cache.
     if ((err = do_cache_avc(frame)) != srs_success) {
         return srs_error_wrap(err, "ts: cache avc");
     }
@@ -3024,7 +2814,6 @@ srs_error_t SrsTsMessageCache::do_cache_mp3(SrsParsedAudioPacket *frame)
 {
     srs_error_t err = srs_success;
 
-    // for mp3, directly write to cache.
     // TODO: FIXME: implements the ts jitter.
     for (int i = 0; i < frame->nb_samples_; i++) {
         SrsNaluSample *sample = &frame->samples_[i];
@@ -3049,13 +2838,11 @@ srs_error_t SrsTsMessageCache::do_cache_aac(SrsParsedAudioPacket *frame)
             return srs_error_new(ERROR_HLS_AAC_FRAME_LENGTH, "ts: invalid aac frame length=%d", size);
         }
 
-        // the frame length is the AAC raw data plus the adts header size.
         int32_t frame_length = size + 7;
 
-        // AAC-ADTS
         // 6.2 Audio Data Transport Stream, ADTS
         // in ISO_IEC_13818-7-AAC-2004.pdf, page 26.
-        // fixed 7bytes header
+        // A fixed 7-byte header, without CRC.
         uint8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
          // adts_fixed_header
@@ -3095,7 +2882,6 @@ srs_error_t SrsTsMessageCache::do_cache_aac(SrsParsedAudioPacket *frame)
         // adts_buffer_fullness; //11bits
         adts_header[5] |= 0x1f;
 
-        // copy to audio buffer
         audio_->payload_->append((const char *)adts_header, sizeof(adts_header));
         audio_->payload_->append(sample->bytes_, sample->size_);
     }
@@ -3105,48 +2891,23 @@ srs_error_t SrsTsMessageCache::do_cache_aac(SrsParsedAudioPacket *frame)
 
 void srs_avc_insert_aud(SrsSimpleStream *payload, bool aud_inserted)
 {
-    // mux the samples in annexb format,
-    // ISO_IEC_14496-10-AVC-2012.pdf, page 324.
+    // AnnexB, ISO_IEC_14496-10-AVC-2012.pdf, page 324: each NALU follows a 4-byte start code
+    // 00 00 00 01 or a 3-byte one 00 00 01.
     /**
-     * 00 00 00 01 // header
-     *       xxxxxxx // data bytes
-     * 00 00 01 // continue header
-     *       xxxxxxx // data bytes.
-     *
-     * nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-     * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
-     * ISO_IEC_14496-10-AVC-2012.pdf, page 83.
-     *      1, Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
-     *      2, Coded slice data partition A slice_data_partition_a_layer_rbsp( )
-     *      3, Coded slice data partition B slice_data_partition_b_layer_rbsp( )
-     *      4, Coded slice data partition C slice_data_partition_c_layer_rbsp( )
-     *      5, Coded slice of an IDR picture slice_layer_without_partitioning_rbsp( )
-     *      6, Supplemental enhancement information (SEI) sei_rbsp( )
-     *      7, Sequence parameter set seq_parameter_set_rbsp( )
-     *      8, Picture parameter set pic_parameter_set_rbsp( )
-     *      9, Access unit delimiter access_unit_delimiter_rbsp( )
-     *      10, End of sequence end_of_seq_rbsp( )
-     *      11, End of stream end_of_stream_rbsp( )
-     *      12, Filler data filler_data_rbsp( )
-     *      13, Sequence parameter set extension seq_parameter_set_extension_rbsp( )
-     *      14, Prefix NAL unit prefix_nal_unit_rbsp( )
-     *      15, Subset sequence parameter set subset_seq_parameter_set_rbsp( )
-     *      19, Coded slice of an auxiliary coded picture without partitioning slice_layer_without_partitioning_rbsp( )
-     *      20, Coded slice extension slice_layer_extension_rbsp( )
-     * the first ts message of apple sample:
-     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)(AUD)
+     * The first ts message of the Apple sample:
+     *      annexb 4B header, 2B aud(nal_unit_type:9)(0x09 0xf0)(AUD)
      *      annexb 4B header, 19B sps(nal_unit_type:7)(SPS)
      *      annexb 3B header, 4B pps(nal_unit_type:8)(PPS)
      *      annexb 3B header, 12B nalu(nal_unit_type:6)(SEI)
      *      annexb 3B header, 21B nalu(nal_unit_type:6)(SEI)
      *      annexb 3B header, 2762B nalu(nal_unit_type:5)(IDR)
      *      annexb 3B header, 3535B nalu(nal_unit_type:5)(IDR)
-     * the second ts message of apple ts sample:
-     *      annexb 4B header, 2B aud(nal_unit_type:6)(0x09 0xf0)(AUD)
+     * The second ts message of the Apple sample:
+     *      annexb 4B header, 2B aud(nal_unit_type:9)(0x09 0xf0)(AUD)
      *      annexb 3B header, 21B nalu(nal_unit_type:6)(SEI)
      *      annexb 3B header, 379B nalu(nal_unit_type:1)(non-IDR,P/B)
      *      annexb 3B header, 406B nalu(nal_unit_type:1)(non-IDR,P/B)
-     * @remark we use the sequence of apple samples http://ossrs.net/apple-sample/bipbopall.m3u8
+     * @remark The order follows the Apple sample http://ossrs.net/apple-sample/bipbopall.m3u8
      */
     static uint8_t fresh_nalu_header[] = {0x00, 0x00, 0x00, 0x01};
     static uint8_t cont_nalu_header[] = {0x00, 0x00, 0x01};
@@ -3163,41 +2924,15 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsParsedVideoPacket *frame)
 {
     srs_error_t err = srs_success;
 
-    // Whether aud inserted.
     bool aud_inserted = false;
 
-    // Insert a default AUD NALU when no AUD in samples.
     if (!frame->has_aud_) {
-        // the aud(access unit delimiter) before each frame.
         // 7.3.2.4 Access unit delimiter RBSP syntax
         // ISO_IEC_14496-10-AVC-2012.pdf, page 66.
-        //
-        // primary_pic_type u(3), the first 3bits, primary_pic_type indicates that the slice_type values
-        //      for all slices of the primary coded picture are members of the set listed in Table 7-5 for
-        //      the given value of primary_pic_type.
-        //      0, slice_type 2, 7
-        //      1, slice_type 0, 2, 5, 7
-        //      2, slice_type 0, 1, 2, 5, 6, 7
-        //      3, slice_type 4, 9
-        //      4, slice_type 3, 4, 8, 9
-        //      5, slice_type 2, 4, 7, 9
-        //      6, slice_type 0, 2, 3, 4, 5, 7, 8, 9
-        //      7, slice_type 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
         // 7.4.2.4 Access unit delimiter RBSP semantics
         // ISO_IEC_14496-10-AVC-2012.pdf, page 102.
-        //
-        // slice_type specifies the coding type of the slice according to Table 7-6.
-        //      0, P (P slice)
-        //      1, B (B slice)
-        //      2, I (I slice)
-        //      3, SP (SP slice)
-        //      4, SI (SI slice)
-        //      5, P (P slice)
-        //      6, B (B slice)
-        //      7, I (I slice)
-        //      8, SP (SP slice)
-        //      9, SI (SI slice)
-        // ISO_IEC_14496-10-AVC-2012.pdf, page 105.
+        // Table 7-6 slice_type, ISO_IEC_14496-10-AVC-2012.pdf, page 105.
+        // 0xf0 sets primary_pic_type u(3) to 7, which allows every slice_type, 0 to 9.
         static uint8_t default_aud_nalu[] = {0x09, 0xf0};
         srs_avc_insert_aud(video_->payload_, aud_inserted);
         video_->payload_->append((const char *)default_aud_nalu, 2);
@@ -3208,7 +2943,6 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsParsedVideoPacket *frame)
 
     bool is_sps_pps_appended = false;
 
-    // all sample use cont nalu header, except the sps-pps before IDR frame.
     for (int i = 0; i < frame->nb_samples_; i++) {
         SrsNaluSample *sample = &frame->samples_[i];
         int32_t size = sample->size_;
@@ -3221,8 +2955,7 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsParsedVideoPacket *frame)
         // ISO_IEC_14496-10-AVC-2012.pdf, page 83.
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(sample->bytes_[0] & 0x1f);
 
-        // Insert sps/pps before IDR when there is no sps/pps in samples.
-        // The sps/pps is parsed from sequence header(generally the first flv packet).
+        // The SPS and PPS come from the sequence header, usually the first FLV packet.
         if (nal_unit_type == SrsAvcNaluTypeIDR && !frame->has_sps_pps_ && !is_sps_pps_appended) {
             if (!codec->sequenceParameterSetNALUnit_.empty()) {
                 srs_avc_insert_aud(video_->payload_, aud_inserted);
@@ -3235,7 +2968,6 @@ srs_error_t SrsTsMessageCache::do_cache_avc(SrsParsedVideoPacket *frame)
             is_sps_pps_appended = true;
         }
 
-        // Insert the NALU to video in annexb.
         srs_avc_insert_aud(video_->payload_, aud_inserted);
         video_->payload_->append(sample->bytes_, sample->size_);
     }
@@ -3247,7 +2979,6 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
 {
     srs_error_t err = srs_success;
 
-    // Whether aud inserted.
     bool aud_inserted = false;
 
     SrsVideoCodecConfig *codec = frame->vcodec();
@@ -3255,7 +2986,6 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
 
     bool is_sps_pps_appended = false;
 
-    // all sample use cont nalu header, except the sps-pps before IDR frame.
     for (int i = 0; i < frame->nb_samples_; i++) {
         SrsNaluSample *sample = &frame->samples_[i];
         int32_t size = sample->size_;
@@ -3264,7 +2994,6 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
             return srs_error_new(ERROR_HLS_AVC_SAMPLE_SIZE, "ts: invalid avc sample length=%d", size);
         }
 
-        // Insert aud before NALU for HEVC.
         SrsHevcNaluType nalu_type = (SrsHevcNaluType)SrsHevcNaluTypeParse(sample->bytes_[0]);
         if (SrsIsIRAP(nalu_type) && !frame->has_sps_pps_ && !is_sps_pps_appended) {
             for (size_t i = 0; i < codec->hevc_dec_conf_record_.nalu_vec_.size(); i++) {
@@ -3279,7 +3008,6 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
             }
         }
 
-        // Insert the NALU to video in annexb.
         srs_avc_insert_aud(video_->payload_, aud_inserted);
         video_->payload_->append(sample->bytes_, sample->size_);
     }
@@ -3383,37 +3111,31 @@ srs_error_t SrsTsTransmuxer::write_audio(int64_t timestamp, char *data, int size
         return err;
     }
 
-    // ts support audio codec: aac/mp3
     srs_assert(format_->acodec() && format_->audio());
     if (format_->acodec()->id_ != SrsAudioCodecIdAAC && format_->acodec()->id_ != SrsAudioCodecIdMP3) {
         return err;
     }
 
-    // for aac: ignore sequence header
     if (format_->acodec()->id_ == SrsAudioCodecIdAAC && format_->audio()->aac_packet_type_ == SrsAudioAacFrameTraitSequenceHeader) {
         return err;
     }
 
-    // Switch audio codec if not AAC.
     if (tscw_->acodec() != format_->acodec()->id_) {
         srs_trace("TS: Switch audio codec %d(%s) to %d(%s)", tscw_->acodec(), srs_audio_codec_id2str(tscw_->acodec()).c_str(),
                   format_->acodec()->id_, srs_audio_codec_id2str(format_->acodec()->id_).c_str());
         tscw_->set_acodec(format_->acodec()->id_);
     }
 
-    // the dts calc from rtmp/flv header.
-    // @remark for http ts stream, the timestamp is always monotonically increase,
-    //      for the packet is filtered by consumer.
+    // For HTTP-TS, the timestamps always increase, since the consumer filters the packets.
     int64_t dts = timestamp * 90;
 
-    // write audio to cache.
     if ((err = tsmc_->cache_audio(format_->audio(), dts)) != srs_success) {
         return srs_error_wrap(err, "ts: cache audio");
     }
 
     // TODO: FIXME: for pure audio, aggregate some frame to one.
 
-    // always flush audio frame by frame.
+    // Each audio frame is flushed alone.
     // @see https://github.com/ossrs/srs/issues/512
     return flush_audio();
 }
@@ -3430,7 +3152,7 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char *data, int size
         return err;
     }
 
-    // ignore info frame,
+    // Ignore the video info frame.
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     srs_assert(format_->video() && format_->vcodec());
     if (format_->video()->frame_type_ == SrsVideoAvcFrameTypeVideoInfoFrame) {
@@ -3446,14 +3168,12 @@ srs_error_t SrsTsTransmuxer::write_video(int64_t timestamp, char *data, int size
     // The video codec might change during streaming.
     tscw_->set_vcodec(format_->vcodec()->id_);
 
-    // ignore sequence header
     if (format_->video()->frame_type_ == SrsVideoAvcFrameTypeKeyFrame && format_->video()->avc_packet_type_ == SrsVideoAvcFrameTraitSequenceHeader) {
         return err;
     }
 
     int64_t dts = timestamp * 90;
 
-    // write video to cache.
     if ((err = tsmc_->cache_video(format_->video(), dts)) != srs_success) {
         return srs_error_wrap(err, "ts: cache video");
     }
@@ -3469,7 +3189,6 @@ srs_error_t SrsTsTransmuxer::flush_audio()
         return srs_error_wrap(err, "ts: write audio");
     }
 
-    // write success, clear and free the ts message.
     SrsTsMessage *audio_msg = tsmc_->audio();
     srs_freep(audio_msg);
     tsmc_->set_audio(NULL);
@@ -3485,7 +3204,6 @@ srs_error_t SrsTsTransmuxer::flush_video()
         return srs_error_wrap(err, "ts: write video");
     }
 
-    // write success, clear and free the ts message.
     SrsTsMessage *video_msg = tsmc_->video();
     srs_freep(video_msg);
     tsmc_->set_video(NULL);

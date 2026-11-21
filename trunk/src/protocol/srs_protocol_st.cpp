@@ -19,7 +19,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 
-// nginx also set to 512
+// nginx also uses 512.
 #define SERVER_LISTEN_BACKLOG 512
 
 #ifdef __linux__
@@ -58,19 +58,18 @@ void srs_set_primordial_stack(void *stack_top)
 srs_error_t srs_st_init()
 {
 #ifdef __linux__
-    // check epoll, some old linux donot support epoll.
+    // Some old Linux kernels do not support epoll.
     if (!srs_st_epoll_is_supported()) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "linux epoll disabled");
     }
 #endif
 
-    // Select the best event system available on the OS. In Linux this is
-    // epoll(). On BSD it will be kqueue.
+    // ST_EVENTSYS_ALT is epoll on Linux and kqueue on BSD.
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
 
-    // Before ST init, we might have already initialized the background cid.
+    // The background cid may be set before ST init.
     SrsContextId cid = _srs_context->get_id();
     if (cid.empty()) {
         cid = _srs_context->generate_id();
@@ -81,7 +80,6 @@ srs_error_t srs_st_init()
         return srs_error_new(ERROR_ST_INITIALIZE, "st initialize failed, r0=%d", r0);
     }
 
-    // Switch to the background cid.
     _srs_context->set_id(cid);
     srs_info("st_init success, use %s", st_get_eventsys_name());
 
@@ -96,7 +94,6 @@ void srs_st_destroy(void)
 void srs_close_stfd(srs_netfd_t &stfd)
 {
     if (stfd) {
-        // we must ensure the close is ok.
         int r0 = st_netfd_close((st_netfd_t)stfd);
         if (r0) {
             // By _st_epoll_fd_close or _st_kq_fd_close
@@ -109,7 +106,6 @@ void srs_close_stfd(srs_netfd_t &stfd)
                 srs_assert(!r0);
             if (errno == EIO)
                 srs_assert(!r0);
-            // Others
             srs_assert(!r0);
         }
         stfd = NULL;
@@ -199,6 +195,11 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     *pstfd = NULL;
     srs_netfd_t stfd = NULL;
 
+    // The port comes from config or an origin's redirect, so refuse one that is not a TCP port.
+    if (port < 0 || port > 65535) {
+        return srs_error_new(ERROR_SYSTEM_PORT_INVALID, "invalid port=%d", port);
+    }
+
     char sport[8];
     int r0 = snprintf(sport, sizeof(sport), "%d", port);
     srs_assert(r0 > 0 && r0 < (int)sizeof(sport));
@@ -244,7 +245,6 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
 {
     srs_error_t err = srs_success;
 
-    // Detect alive for TCP connection.
     // @see https://github.com/ossrs/srs/issues/1044
     if ((err = srs_fd_keepalive(fd)) != srs_success) {
         return srs_error_wrap(err, "set keepalive");
@@ -638,9 +638,7 @@ srs_error_t SrsStSocket::read(void *buf, size_t size, ssize_t *nread)
         *nread = nb_read;
     }
 
-    // On success a non-negative integer indicating the number of bytes actually read is returned
-    // (a value of 0 means the network connection is closed or end of file is reached).
-    // Otherwise, a value of -1 is returned and errno is set to indicate the error.
+    // st_read returns 0 when the connection is closed, and -1 with errno on error.
     if (nb_read <= 0) {
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm_));
@@ -675,9 +673,7 @@ srs_error_t SrsStSocket::read_fully(void *buf, size_t size, ssize_t *nread)
         *nread = nb_read;
     }
 
-    // On success a non-negative integer indicating the number of bytes actually read is returned
-    // (a value less than nbyte means the network connection is closed or end of file is reached)
-    // Otherwise, a value of -1 is returned and errno is set to indicate the error.
+    // st_read_fully returns less than size when the connection is closed, and -1 with errno on error.
     if (nb_read != (ssize_t)size) {
         if (nb_read < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout %d ms", srsu2msi(rtm_));
@@ -712,8 +708,7 @@ srs_error_t SrsStSocket::write(void *buf, size_t size, ssize_t *nwrite)
         *nwrite = nb_write;
     }
 
-    // On success a non-negative integer equal to nbyte is returned.
-    // Otherwise, a value of -1 is returned and errno is set to indicate the error.
+    // st_write returns size on success, and -1 with errno on error.
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "write timeout %d ms", srsu2msi(stm_));
@@ -744,8 +739,7 @@ srs_error_t SrsStSocket::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
         *nwrite = nb_write;
     }
 
-    // On success a non-negative integer equal to nbyte is returned.
-    // Otherwise, a value of -1 is returned and errno is set to indicate the error.
+    // st_writev returns the total size on success, and -1 with errno on error.
     if (nb_write <= 0) {
         if (nb_write < 0 && errno == ETIME) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "writev timeout %d ms", srsu2msi(stm_));
@@ -784,7 +778,7 @@ srs_error_t SrsTcpClient::connect()
         return srs_error_wrap(err, "tcp: connect %s:%d to=%dms", host_.c_str(), port_, srsu2msi(timeout_));
     }
 
-    // TODO: FIMXE: The timeout set on io need to be set to new object.
+    // TODO: FIXME: Set the timeouts of the old io_ on the new object.
     srs_freep(io_);
     io_ = new SrsStSocket(stfd);
 

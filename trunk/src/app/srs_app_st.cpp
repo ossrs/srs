@@ -111,7 +111,7 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler *h)
     started_ = interrupted_ = disposed_ = cycle_done_ = false;
     stopping_ = false;
 
-    //  0 use default, default is 64K.
+    // 0 uses the ST default, 128KB.
     stack_size_ = 0;
 }
 
@@ -125,7 +125,7 @@ SrsFastCoroutine::SrsFastCoroutine(string n, ISrsCoroutineHandler *h, SrsContext
     started_ = interrupted_ = disposed_ = cycle_done_ = false;
     stopping_ = false;
 
-    //  0 use default, default is 64K.
+    // 0 uses the ST default, 128KB.
     stack_size_ = 0;
 }
 
@@ -190,7 +190,6 @@ void SrsFastCoroutine::stop()
 
     interrupt();
 
-    // When not started, the trd is NULL.
     if (trd_) {
         void *res = NULL;
         // The join fails with EINTR when the caller is interrupted while it joins, or was interrupted
@@ -213,24 +212,19 @@ void SrsFastCoroutine::stop()
             // By st_cond_timedwait
             if (errno == ETIME)
                 srs_assert(!r0);
-            // Others
             srs_assert(!r0);
         }
 
         srs_error_t err_res = (srs_error_t)res;
         if (err_res != srs_success) {
-            // When worker cycle done, the error has already been overrided,
-            // so the trd_err should be equal to err_res.
             srs_assert(trd_err_ == err_res);
         }
     }
 
-    // If there's no error occur from worker, try to set to terminated error.
     if (trd_err_ == srs_success && !cycle_done_) {
         trd_err_ = srs_error_new(ERROR_THREAD_TERMINATED, "terminated");
     }
 
-    // Now, we'are stopped.
     stopping_ = false;
 
     return;
@@ -277,7 +271,6 @@ srs_error_t SrsFastCoroutine::cycle()
         return srs_error_wrap(err, "coroutine cycle");
     }
 
-    // Set cycle done, no need to interrupt it.
     cycle_done_ = true;
 
     return err;
@@ -289,11 +282,10 @@ void *SrsFastCoroutine::pfn(void *arg)
 
     srs_error_t err = p->cycle();
 
-    // Set the err for function pull to fetch it.
     // @see https://github.com/ossrs/srs/pull/1304#issuecomment-480484151
     if (err != srs_success) {
         srs_freep(p->trd_err_);
-        // It's ok to directly use it, because it's returned by st_thread_join.
+        // No copy, because st_thread_join returns the same error.
         p->trd_err_ = err;
     }
 
@@ -308,12 +300,9 @@ SrsWaitGroup::SrsWaitGroup()
 
 SrsWaitGroup::~SrsWaitGroup()
 {
-    // In the destructor, we should NOT wait for all coroutines to be done, because user should decide
-    // to wait or not. Similar to the Go's sync.WaitGroup, it also requires user to wait explicitly. For
-    // some special use scenarios, such as error handling, for example, if we started three servers with
-    // wait group, and one of them failed, user may want to return error and quit directly, without wait
-    // for other running servers to be done. If we wait in the destructor, it will continue to run without
-    // some servers, in unknown behaviors.
+    // Do not wait here: as with Go's sync.WaitGroup, the user decides whether to wait. For example, when
+    // one of three servers started with the wait group fails, the user may return the error at once
+    // instead of waiting for the others; waiting here would keep running without some servers.
     srs_cond_destroy(done_);
 }
 

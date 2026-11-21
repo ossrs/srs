@@ -37,17 +37,11 @@ extern srs_error_t srs_api_response(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code);
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code);
 
-// Parse pagination parameters from HTTP request query string.
-// @param r The HTTP request message.
-// @param start Output parameter for start index, defaults to 0, minimum 0.
-// @param count Output parameter for count, defaults to 10, minimum 1.
 extern void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count);
 
-// Escape a label value of the Prometheus text format: a backslash, a double quote and a
-// line feed become \\, \" and \n, so the value can be written between double quotes.
+// The Prometheus text format writes a label value between double quotes, so it needs these escapes.
 extern std::string srs_api_metrics_label_escape(const std::string &v);
 
-// For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {
 // clang-format off
@@ -259,7 +253,6 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
-// The read-only API of the forwards of the publishing streams, /api/v1/forwards/[id].
 class SrsGoApiForwards : public ISrsHttpHandler
 {
 // clang-format off
@@ -358,7 +351,7 @@ public:
 
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
-    // Interface ISrsCoroutineHandler
+
 public:
     virtual srs_error_t cycle();
 };

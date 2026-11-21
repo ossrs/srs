@@ -518,7 +518,9 @@ VOID TEST(DtlsHandshakeTest, ApplicationDataAndCloseNotifyAfterHandshake)
     HELPER_ASSERT_SUCCESS(client.start_active_handshake());
     HELPER_ASSERT_SUCCESS(dtls_exchange(&client, &ccb, &server, &scb));
 
+    // OpenSSL queues the records it writes; the flush sends them, as the server does after each OpenSSL call.
     ASSERT_EQ(5, SSL_write(client.impl_->dtls_, "hello", 5));
+    client.impl_->flush_dtls_data();
     ASSERT_EQ(1, (int)ccb.packets_.size());
     // An application_data record(23).
     EXPECT_EQ(23, (uint8_t)ccb.packets_[0][0]);
@@ -529,12 +531,14 @@ VOID TEST(DtlsHandshakeTest, ApplicationDataAndCloseNotifyAfterHandshake)
     // The connection fails the record its handler rejects.
     scb.app_data_error_ = srs_error_new(ERROR_RTC_DTLS, "mock app data error");
     ASSERT_EQ(5, SSL_write(client.impl_->dtls_, "world", 5));
+    client.impl_->flush_dtls_data();
     HELPER_EXPECT_FAILED(dtls_exchange(&client, &ccb, &server, &scb));
     ASSERT_EQ(2, (int)scb.app_data_.size());
     EXPECT_STREQ("world", scb.app_data_[1].c_str());
 
     // The client closes the DTLS session.
     SSL_shutdown(client.impl_->dtls_);
+    client.impl_->flush_dtls_data();
     ASSERT_EQ(1, (int)ccb.alerts_.size());
     EXPECT_STREQ("warning", ccb.alerts_[0].first.c_str());
     EXPECT_STREQ("CN", ccb.alerts_[0].second.c_str());

@@ -18,7 +18,7 @@ using namespace std;
 
 #include <srt/srt.h>
 
-// TODO: FIXME: protocol could no include app's header file, so define TAG_SRT in this file.
+// TODO: FIXME: Protocol cannot include app's header file, so TAG_SRT is defined in this file.
 #define TAG_SRT "SRT"
 
 #define SET_SRT_OPT_STR(srtfd, optname, buf, size)                       \
@@ -56,10 +56,9 @@ static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo *r)
         return srs_error_wrap(err, "nonblock");
     }
 
-    // Set IPv6 options for IPv6 addresses
     if (r->ai_family == AF_INET6) {
-        // Set SRTO_IPV6ONLY to 1 for IPv6-only behavior to avoid conflicts with IPv4 wildcard binding
-        int ipv6only = 1; // IPv6-only to avoid conflicts
+        // IPv6-only, to avoid conflicts with the IPv4 wildcard binding.
+        int ipv6only = 1;
         if (srt_setsockflag(srt_fd, SRTO_IPV6ONLY, &ipv6only, sizeof(ipv6only)) == SRT_ERROR) {
             return srs_error_new(ERROR_SOCKET_BIND, "srt set SRTO_IPV6ONLY=%d failed, err=%s", ipv6only, srt_getlasterror_str());
         }
@@ -78,7 +77,7 @@ static srs_error_t do_srs_srt_listen(srs_srt_t srt_fd, addrinfo *r)
 
 static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string &streamid)
 {
-    // SRT max streamid length is 512.
+    // SRT limits the stream id to 512 bytes.
     char sid[512];
     GET_SRT_OPT(srt_fd, SRTO_STREAMID, sid);
 
@@ -433,7 +432,6 @@ srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string &ip, int &po
 {
     srs_error_t err = srs_success;
 
-    // discovery client information
     sockaddr_storage addr;
     int addrlen = sizeof(addr);
     if (srt_getsockname(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -465,7 +463,6 @@ srs_error_t srs_srt_get_remote_ip_port(srs_srt_t srt_fd, std::string &ip, int &p
 {
     srs_error_t err = srs_success;
 
-    // discovery client information
     sockaddr_storage addr;
     int addrlen = sizeof(addr);
     if (srt_getpeername(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
@@ -573,7 +570,6 @@ public:
     virtual int size();
 
 private:
-    // Find SrsSrtSocket* context by srs_srt_t.
     std::map<srs_srt_t, SrsSrtSocket *> fd_sockets_;
     int srt_epoller_fd_;
     std::vector<SRT_EPOLL_EVENT> events_;
@@ -598,7 +594,7 @@ srs_error_t SrsSrtPoller::initialize()
     srt_epoller_fd_ = srt_epoll_create();
     events_.resize(1024);
 
-    // Enable srt empty poller, avoid warning.
+    // Without it, libsrt fails srt_epoll_uwait on a poller with no socket.
     srt_epoll_set(srt_epoller_fd_, SRT_EPOLL_ENABLE_EMPTY);
 
     return err;
@@ -618,7 +614,6 @@ srs_error_t SrsSrtPoller::add_socket(SrsSrtSocket *srt_skt)
         return srs_error_new(ERROR_SRT_EPOLL, "srt epoll add socket=%lu failed, err=%s", srtfd, srt_getlasterror_str());
     }
 
-    // record srtfd to SrsSrtSocket*
     fd_sockets_[srtfd] = srt_skt;
 
     return err;
@@ -645,7 +640,6 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int *pn_fds)
 {
     srs_error_t err = srs_success;
 
-    // wait srt event fired, will timeout after `timeout_ms` milliseconds.
     int ret = srt_epoll_uwait(srt_epoller_fd_, events_.data(), events_.size(), timeout_ms);
     *pn_fds = ret;
 
@@ -663,7 +657,6 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int *pn_fds)
         SrsSrtSocket *srt_skt = iter->second;
         srs_assert(srt_skt != NULL);
 
-        // notify error, don't notify read/write event.
         if (event.events & SRT_EPOLL_ERR) {
             srt_skt->notify_error();
         } else {
@@ -856,20 +849,17 @@ srs_error_t SrsSrtSocket::connect(const string &ip, int port)
         return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
     }
 
-    // Connect succeed, in async mode, means SRT API succeed and return directly,
-    // and the connection is in progress, like tcp socket API connect errno EINPROGRESS,
-    // and the SRT IO threads will do the real handshake step to finish srt connect.
+    // In non-blocking mode, srt_connect returns at once, like TCP connect with EINPROGRESS,
+    // and the libsrt threads finish the handshake.
     SRT_SOCKSTATUS srt_status = srt_getsockstate(srt_fd_);
     if (srt_status == SRTS_CONNECTED) {
         return err;
     }
 
-    // Connect is in progress, wait until it finish or error.
     if ((err = wait_writeable()) != srs_success) {
         return srs_error_wrap(err, "wait writeable");
     }
 
-    // Double check if connect is established.
     srt_status = srt_getsockstate(srt_fd_);
     if (srt_status != SRTS_CONNECTED) {
         return srs_error_new(ERROR_SRT_IO, "srt_connect, err=%s", srt_getlasterror_str());
@@ -883,23 +873,20 @@ srs_error_t SrsSrtSocket::accept(srs_srt_t *client_srt_fd)
     srs_error_t err = srs_success;
 
     while (true) {
-        sockaddr_storage inaddr; // Use sockaddr_storage to support both IPv4 and IPv6
+        sockaddr_storage inaddr;
         int addrlen = sizeof(inaddr);
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_accept
         srs_srt_t srt_fd = srt_accept(srt_fd_, (sockaddr *)&inaddr, &addrlen);
 
-        // Accept ok, return with the SRT client fd.
         if (srt_fd != srs_srt_socket_invalid()) {
             *client_srt_fd = srt_fd;
             return err;
         }
 
-        // Got something error, return immediately.
         if (srt_getlasterror(NULL) != SRT_EASYNCRCV) {
             return srs_error_new(ERROR_SRT_IO, "srt_accept, err=%s", srt_getlasterror_str());
         }
 
-        // Accept would block, wait until new client connect or error.
         if ((err = wait_readable()) != srs_success) {
             return srs_error_wrap(err, "wait readable");
         }
@@ -916,19 +903,16 @@ srs_error_t SrsSrtSocket::recvmsg(void *buf, size_t size, ssize_t *nread)
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_recvmsg
         int ret = srt_recvmsg(srt_fd_, (char *)buf, size);
 
-        // Receive message ok.
         if (ret >= 0) {
             recv_bytes_ += ret;
             *nread = ret;
             return err;
         }
 
-        // Got something error, return immediately.
         if (srt_getlasterror(NULL) != SRT_EASYNCRCV) {
             return srs_error_new(ERROR_SRT_IO, "srt_recvmsg, err=%s", srt_getlasterror_str());
         }
 
-        // Wait for the fd ready or error, switch to other coroutines.
         if ((err = wait_readable()) != srs_success) {
             return srs_error_wrap(err, "wait readable");
         }
@@ -945,19 +929,16 @@ srs_error_t SrsSrtSocket::sendmsg(void *buf, size_t size, ssize_t *nwrite)
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_sendmsg
         int ret = srt_sendmsg(srt_fd_, (const char *)buf, size, -1, 1);
 
-        // Send message ok.
         if (ret >= 0) {
             send_bytes_ += ret;
             *nwrite = ret;
             return err;
         }
 
-        // Got something error, return immediately.
         if (srt_getlasterror(NULL) != SRT_EASYNCSND) {
             return srs_error_new(ERROR_SRT_IO, "srt_sendmsg, err=%s", srt_getlasterror_str());
         }
 
-        // Wait for the fd ready or error, switch to other coroutines.
         if ((err = wait_writeable()) != srs_success) {
             return srs_error_wrap(err, "wait writeable");
         }
@@ -970,17 +951,14 @@ srs_error_t SrsSrtSocket::wait_readable()
 {
     srs_error_t err = srs_success;
 
-    // Check if error occured.
     if ((err = check_error()) != srs_success) {
         return srs_error_wrap(err, "has error");
     }
 
-    // Subscribe in and error event
     if ((err = enable_read()) != srs_success) {
         return srs_error_wrap(err, "enable read");
     }
 
-    // Wait event fired or timeout.
     int ret = srs_cond_timedwait(read_cond_, recv_timeout_);
     // TODO: FIXME: need to disable it?
     if ((err = disable_read()) != srs_success) {
@@ -988,18 +966,16 @@ srs_error_t SrsSrtSocket::wait_readable()
     }
 
     if (ret != 0) {
-        // Timeout and events no fired.
         if (errno == ETIME) {
             return srs_error_new(ERROR_SRT_TIMEOUT, "srt socket %d timeout", srt_fd_);
         }
-        // Interrupted, maybe coroutine terminated.
+        // Interrupted, maybe because the coroutine is terminating.
         if (errno == EINTR) {
             return srs_error_new(ERROR_SRT_INTERRUPT, "srt socket %d interrupted", srt_fd_);
         }
         return srs_error_new(ERROR_SRT_IO, "srt socket %d wait read", srt_fd_);
     }
 
-    // Check if we are notify with error event.
     if ((err = check_error()) != srs_success) {
         return srs_error_wrap(err, "has error");
     }
@@ -1053,7 +1029,6 @@ void SrsSrtSocket::notify_writeable()
 
 void SrsSrtSocket::notify_error()
 {
-    // mark error, and check when read/write
     has_error_ = true;
     srs_cond_signal(read_cond_);
     srs_cond_signal(write_cond_);
@@ -1083,7 +1058,6 @@ srs_error_t SrsSrtSocket::enable_event(int event)
 {
     srs_error_t err = srs_success;
 
-    // Event has been subscribed.
     if ((events_ & event) == event) {
         return err;
     }
@@ -1104,7 +1078,6 @@ srs_error_t SrsSrtSocket::disable_event(int event)
 {
     srs_error_t err = srs_success;
 
-    // Event has been unsubscribed.
     if ((events_ & event) == 0) {
         return err;
     }

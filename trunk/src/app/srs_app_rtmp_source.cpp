@@ -41,14 +41,11 @@ using namespace std;
 #define CONST_MAX_JITTER_MS_NEG -250
 #define DEFAULT_FRAME_TIME_MS 10
 
-// for 26ms per audio packet,
-// 115 packets is 3s.
+// At 26ms per audio packet, 115 packets is 3s.
 #define SRS_PURE_AUDIO_GUESS_COUNT 115
 
-// when got these videos or audios, pure audio or video, mix ok.
 #define SRS_MIX_CORRECT_PURE_AV 10
 
-// the time to cleanup source.
 #define SRS_SOURCE_CLEANUP (3 * SRS_UTIME_SECONDS)
 
 int srs_time_jitter_string2int(std::string time_jitter)
@@ -76,16 +73,12 @@ srs_error_t SrsRtmpJitter::correct(SrsMediaPacket *msg, SrsRtmpJitterAlgorithm a
 {
     srs_error_t err = srs_success;
 
-    // for performance issue
     if (ag != SrsRtmpJitterAlgorithmFULL) {
-        // all jitter correct features is disabled, ignore.
         if (ag == SrsRtmpJitterAlgorithmOFF) {
             return err;
         }
 
-        // start at zero, but donot ensure monotonically increasing.
         if (ag == SrsRtmpJitterAlgorithmZERO) {
-            // for the first time, last_pkt_correct_time_ is -1.
             if (last_pkt_correct_time_ == -1) {
                 last_pkt_correct_time_ = msg->timestamp_;
             }
@@ -93,33 +86,19 @@ srs_error_t SrsRtmpJitter::correct(SrsMediaPacket *msg, SrsRtmpJitterAlgorithm a
             return err;
         }
 
-        // other algorithm, ignore.
         return err;
     }
 
-    // full jitter algorithm, do jitter correct.
-    // set to 0 for metadata.
     if (!msg->is_av()) {
         msg->timestamp_ = 0;
         return err;
     }
 
-    /**
-     * we use a very simple time jitter detect/correct algorithm:
-     * 1. delta: ensure the delta is positive and valid,
-     *     we set the delta to DEFAULT_FRAME_TIME_MS,
-     *     if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
-     * 2. last_pkt_time_: specifies the original packet time,
-     *     is used to detect next jitter.
-     * 3. last_pkt_correct_time_: simply add the positive delta,
-     *     and enforce the time monotonically.
-     */
     int64_t time = msg->timestamp_;
     int64_t delta = time - last_pkt_time_;
 
-    // if jitter detected, reset the delta.
     if (delta < CONST_MAX_JITTER_MS_NEG || delta > CONST_MAX_JITTER_MS) {
-        // use default 10ms to notice the problem of stream.
+        // Use 10ms, so the problem of the stream can be noticed.
         // @see https://github.com/ossrs/srs/issues/425
         delta = DEFAULT_FRAME_TIME_MS;
     }
@@ -186,18 +165,15 @@ void SrsFastVector::erase(int begin, int end)
 {
     srs_assert(begin < end);
 
-    // move all erased to previous.
     for (int i = 0; i < count_ - end; i++) {
         msgs_[begin + i] = msgs_[end + i];
     }
 
-    // update the count.
     count_ -= end - begin;
 }
 
 void SrsFastVector::push_back(SrsMediaPacket *msg)
 {
-    // increase vector.
     if (count_ >= nb_msgs_) {
         int size = srs_max(SRS_PERF_MW_MSGS * 8, nb_msgs_ * 2);
         SrsMediaPacket **buf = msgs_;
@@ -207,7 +183,6 @@ void SrsFastVector::push_back(SrsMediaPacket *msg)
         }
         srs_info("fast vector incrase %d=>%d", nb_msgs_, size);
 
-        // use new array.
         srs_freepa(buf);
         nb_msgs_ = size;
     }
@@ -266,8 +241,8 @@ srs_error_t SrsMessageQueue::enqueue(SrsMediaPacket *msg, bool *is_overflow)
 
     msgs_.push_back(msg);
 
-    // If jitter is off, the timestamp of first sequence header is zero, which wll cause SRS to shrink and drop the
-    // keyframes even if there is not overflow packets in queue, so we must ignore the zero timestamps, please
+    // With jitter off, the first sequence header has timestamp zero, which made SRS shrink and drop the
+    // keyframes with no overflow, so zero timestamps are ignored.
     // @see https://github.com/ossrs/srs/pull/2186#issuecomment-953383063
     if (msg->is_av() && (msg->timestamp_ != 0 || av_end_time_ == -1)) {
         if (av_start_time_ == -1) {
@@ -282,7 +257,6 @@ srs_error_t SrsMessageQueue::enqueue(SrsMediaPacket *msg, bool *is_overflow)
     }
 
     while (av_end_time_ - av_start_time_ > max_queue_size_) {
-        // notice the caller queue already overflow and shrinked.
         if (is_overflow) {
             *is_overflow = true;
         }
@@ -312,13 +286,10 @@ srs_error_t SrsMessageQueue::dump_packets(int max_count, SrsMediaPacket **pmsgs,
     av_start_time_ = srs_utime_t(last->timestamp_ * SRS_UTIME_MILLISECONDS);
 
     if (count >= nb_msgs) {
-        // the pmsgs is big enough and clear msgs at most time.
         msgs_.clear();
     } else {
-        // erase some vector elements may cause memory copy,
-        // maybe can use more efficient vector.swap to avoid copy.
-        // @remark for the pmsgs is big enough, for instance, SRS_PERF_MW_MSGS 128,
-        //      the rtmp play client will get 128msgs once, so this branch rarely execute.
+        // Erasing from the front copies the rest. With SRS_PERF_MW_MSGS 128, an RTMP player
+        // takes 128 messages at once, so this branch is rare.
         msgs_.erase(msgs_.begin(), msgs_.begin() + count);
     }
 
@@ -351,7 +322,6 @@ void SrsMessageQueue::shrink()
     SrsMediaPacket *audio_sh = NULL;
     int msgs_size = (int)msgs_.size();
 
-    // Remove all msgs, mark the sequence headers.
     for (int i = 0; i < (int)msgs_.size(); i++) {
         SrsMediaPacket *msg = msgs_.at(i);
 
@@ -369,10 +339,8 @@ void SrsMessageQueue::shrink()
     }
     msgs_.clear();
 
-    // Update av_start_time_, the start time of queue.
     av_start_time_ = av_end_time_;
 
-    // Push back sequence headers and update their timestamps.
     if (video_sh) {
         video_sh->timestamp_ = srsu2ms(av_end_time_);
         msgs_.push_back(video_sh);
@@ -480,9 +448,7 @@ srs_error_t SrsLiveConsumer::enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRt
     }
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // fire the mw when msgs is enough.
     if (mw_waiting_) {
-        // For RTMP, we wait for messages and duration.
         srs_utime_t duration = queue_->duration();
         bool match_min_msgs = queue_->size() > mw_min_msgs_;
 
@@ -496,7 +462,6 @@ srs_error_t SrsLiveConsumer::enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRt
             return err;
         }
 
-        // when duration ok, signal to flush.
         if (match_min_msgs && duration >= mw_duration_) {
             srs_cond_signal(mw_wait_);
             mw_waiting_ = false;
@@ -515,11 +480,8 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray *msgs, int &count)
     srs_assert(count >= 0);
     srs_assert(msgs->max_ > 0);
 
-    // the count used as input to reset the max if positive.
     int max = count ? srs_min(count, msgs->max_) : msgs->max_;
 
-    // the count specifies the max acceptable count,
-    // here maybe 1+, and we must set to 0 when got nothing.
     count = 0;
 
     if (should_update_source_id_) {
@@ -527,12 +489,10 @@ srs_error_t SrsLiveConsumer::dump_packets(SrsMessageArray *msgs, int &count)
         should_update_source_id_ = false;
     }
 
-    // paused, return nothing.
     if (paused_) {
         return err;
     }
 
-    // pump msgs from queue.
     if ((err = queue_->dump_packets(max, msgs->msgs_, count)) != srs_success) {
         return srs_error_wrap(err, "dump packets");
     }
@@ -554,15 +514,13 @@ void SrsLiveConsumer::wait(int nb_msgs, srs_utime_t msgs_duration)
     srs_utime_t duration = queue_->duration();
     bool match_min_msgs = queue_->size() > mw_min_msgs_;
 
-    // when duration ok, signal to flush.
     if (match_min_msgs && duration > mw_duration_) {
         return;
     }
 
-    // the enqueue will notify this cond.
+    // The enqueue signals this cond.
     mw_waiting_ = true;
 
-    // use cond block wait for high performance mode.
     srs_cond_wait(mw_wait_);
 }
 #endif
@@ -634,12 +592,9 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         return err;
     }
 
-    // the gop cache know when to gop it.
     SrsMediaPacket *msg = shared_msg;
 
-    // got video, update the video count if acceptable
     if (msg->is_video()) {
-        // Drop video when not h.264 or h.265.
         bool codec_ok = SrsFlvVideo::h264(msg->payload(), msg->size());
         codec_ok = codec_ok ? true : SrsFlvVideo::hevc(msg->payload(), msg->size());
         if (!codec_ok)
@@ -654,35 +609,28 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         audio_after_last_video_count_ = 0;
     }
 
-    // no acceptable video or pure audio, disable the cache.
     if (pure_audio()) {
         return err;
     }
 
-    // ok, gop cache enabled, and got an audio.
     if (msg->is_audio()) {
         audio_after_last_video_count_++;
     }
 
-    // clear gop cache when pure audio count overflow
     if (audio_after_last_video_count_ > SRS_PURE_AUDIO_GUESS_COUNT) {
         srs_warn("clear gop cache for guess pure audio overflow");
         clear();
         return err;
     }
 
-    // clear gop cache when got key frame
     if (msg->is_video() && SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
         clear();
 
-        // curent msg is video frame, so we set to 1.
         cached_video_count_ = 1;
     }
 
-    // cache the frame.
     gop_cache_.push_back(msg->copy());
 
-    // Clear gop cache if exceed the max frames.
     if (gop_cache_max_frames_ > 0 && gop_cache_.size() > (size_t)gop_cache_max_frames_) {
         srs_warn("Gop cache exceed max frames=%d, total=%d, videos=%d, aalvc=%d",
                  gop_cache_max_frames_, (int)gop_cache_.size(), cached_video_count_, audio_after_last_video_count_);
@@ -756,14 +704,12 @@ ISrsLiveSourceHandler::~ISrsLiveSourceHandler()
 // TODO: FIXME: Remove it?
 bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 {
-    // only continue for decode error.
     if (ret != ERROR_HLS_DECODE_ERROR) {
         return false;
     }
 
-    // when video size equals to sequence header,
-    // the video actually maybe a sequence header,
-    // continue to make ffmpeg happy.
+    // A packet of the size of the sequence header may be a sequence header; continue, for
+    // FFmpeg.
     if (sh && sh->size() == msg->size()) {
         srs_warn("the msg is actually a sequence header, ignore this packet.");
         return true;
@@ -811,17 +757,14 @@ SrsMediaPacket *SrsMixQueue::pop()
 {
     bool mix_ok = false;
 
-    // pure video
     if (nb_videos_ >= SRS_MIX_CORRECT_PURE_AV && nb_audios_ == 0) {
         mix_ok = true;
     }
 
-    // pure audio
     if (nb_audios_ >= SRS_MIX_CORRECT_PURE_AV && nb_videos_ == 0) {
         mix_ok = true;
     }
 
-    // got 1 video and 1 audio, mix ok.
     if (nb_videos_ >= 1 && nb_audios_ >= 1) {
         mix_ok = true;
     }
@@ -830,7 +773,6 @@ SrsMediaPacket *SrsMixQueue::pop()
         return NULL;
     }
 
-    // pop the first msg.
     std::multimap<int64_t, SrsMediaPacket *>::iterator it = msgs_.begin();
     SrsMediaPacket *msg = it->second;
     msgs_.erase(it);
@@ -904,18 +846,13 @@ SrsOriginHub::~SrsOriginHub()
     hooks_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create puts the source in the pool (see PR 4449), so it must not switch
+// coroutines, or other coroutines could create a duplicate source for the stream.
 srs_error_t SrsOriginHub::initialize(SrsSharedPtr<SrsLiveSource> s, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
 
     req_ = r;
-    // Because source references to this object, so we should directly use the source ptr.
     source_ = s.get();
 
     if ((err = hls_->initialize(this, req_)) != srs_success) {
@@ -970,7 +907,6 @@ srs_error_t SrsOriginHub::on_meta_data(SrsMediaPacket *shared_metadata, SrsOnMet
 {
     srs_error_t err = srs_success;
 
-    // copy to all forwarders
     if (true) {
         std::vector<ISrsForwarder *>::iterator it;
         for (it = forwarders_.begin(); it != forwarders_.end(); ++it) {
@@ -996,7 +932,6 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
     SrsMediaPacket *msg = shared_audio;
     SrsRtmpFormat *format = source_->format();
 
-    // Handle the metadata when got sequence header.
     if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         srs_assert(format->acodec_);
         SrsAudioCodecConfig *c = format->acodec_;
@@ -1004,20 +939,17 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
         static int flv_sample_sizes[] = {8, 16, 0};
         static int flv_sound_types[] = {1, 2, 0};
 
-        // when got audio stream info.
-        // For AAC, convert aac_sample_rate_ index to SrsAudioSampleRate enum
-        // For MP3 and other codecs, use sound_rate_ directly (FLV enum)
+        // sound_rate_ is the FLV enum, while the AAC aac_sample_rate_ is an index.
         SrsAudioSampleRate sample_rate = c->sound_rate_;
         if (format->acodec_->id_ == SrsAudioCodecIdAAC && c->aac_sample_rate_ < SrsAAcSampleRateNumbers) {
             sample_rate = srs_audio_sample_rate_from_number(srs_aac_srates[c->aac_sample_rate_]);
         }
 
-        // The FLV specification force to be 1(stereo) for AAC codec, see E.4.2 Audio Tags,
+        // The FLV specification fixes SoundType to 1 (stereo) for AAC, see E.4.2 Audio Tags,
         // video_file_format_spec_v10_1.pdf, page 77.
         //      If the SoundFormat indicates AAC, the SoundType should be 1 (stereo) and the
         //      SoundRate should be 3 (44 kHz).
-        // FFmpeg also follows this specification, that is why it always send fixed channels
-        // and sample rate to SRS.
+        // FFmpeg follows it, so it always sends these fixed channels and sample rate.
         SrsAudioChannels channels = c->sound_type_;
         if (format->acodec_->id_ == SrsAudioCodecIdAAC) {
             channels = (c->aac_channels_ == 1) ? SrsAudioChannelsMono : SrsAudioChannelsStereo;
@@ -1041,7 +973,6 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
     }
 
     if ((err = hls_->on_audio(msg, format)) != srs_success) {
-        // apply the error strategy for hls.
         std::string hls_error_strategy = config_->get_hls_on_error(req_->vhost_);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore audio error %s", srs_error_desc(err).c_str());
@@ -1070,7 +1001,6 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
         dvr_->on_unpublish();
     }
 
-    // copy to all forwarders.
     if (true) {
         std::vector<ISrsForwarder *>::iterator it;
         for (it = forwarders_.begin(); it != forwarders_.end(); ++it) {
@@ -1091,13 +1021,10 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
     SrsMediaPacket *msg = shared_video;
     SrsRtmpFormat *format = source_->format();
 
-    // cache the sequence header if h264
-    // donot cache the sequence header to gop_cache, return here.
     if (format->is_avc_sequence_header()) {
         SrsVideoCodecConfig *c = format->vcodec_;
         srs_assert(c);
 
-        // when got video stream info.
         if (c->id_ == SrsVideoCodecIdAVC) {
             err = stat_->on_video_info(req_, c->id_, c->avc_profile_, c->avc_level_, c->width_, c->height_);
             srs_trace("%dB video sh, codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %.1ffps, %.1fs)",
@@ -1122,7 +1049,6 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
 
     if ((err = hls_->on_video(msg, format)) != srs_success) {
         // TODO: We should support more strategies.
-        // apply the error strategy for hls.
         std::string hls_error_strategy = config_->get_hls_on_error(req_->vhost_);
         if (srs_config_hls_is_on_error_ignore(hls_error_strategy)) {
             srs_warn("hls: ignore video error %s", srs_error_desc(err).c_str());
@@ -1151,7 +1077,6 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
         dvr_->on_unpublish();
     }
 
-    // copy to all forwarders.
     if (!forwarders_.empty()) {
         std::vector<ISrsForwarder *>::iterator it;
         for (it = forwarders_.begin(); it != forwarders_.end(); ++it) {
@@ -1169,7 +1094,6 @@ srs_error_t SrsOriginHub::on_publish()
 {
     srs_error_t err = srs_success;
 
-    // create forwarders
     if ((err = create_forwarders()) != srs_success) {
         return srs_error_wrap(err, "create forwarders");
     }
@@ -1206,7 +1130,6 @@ void SrsOriginHub::on_unpublish()
 {
     is_active_ = false;
 
-    // destroy all forwarders
     destroy_forwarders();
 
     encoder_->on_unpublish();
@@ -1225,8 +1148,7 @@ srs_error_t SrsOriginHub::on_forwarder_start(SrsForwarder *forwarder)
     SrsMediaPacket *cache_sh_video = source_->meta()->vsh();
     SrsMediaPacket *cache_sh_audio = source_->meta()->ash();
 
-    // feed the forwarder the metadata/sequence header,
-    // when reload to enable the forwarder.
+    // A forwarder enabled by reload never gets the metadata and sequence headers in the stream.
     if (cache_metadata && (err = forwarder->on_meta_data(cache_metadata)) != srs_success) {
         return srs_error_wrap(err, "forward metadata");
     }
@@ -1248,9 +1170,7 @@ srs_error_t SrsOriginHub::on_dvr_request_sh()
     SrsMediaPacket *cache_sh_video = source_->meta()->vsh();
     SrsMediaPacket *cache_sh_audio = source_->meta()->ash();
 
-    // feed the dvr the metadata/sequence header,
-    // when reload to start dvr, dvr will never get the sequence header in stream,
-    // use the SrsLiveSource.on_dvr_request_sh to push the sequence header to DVR.
+    // A DVR started by reload never gets the metadata and sequence headers in the stream.
     if (cache_metadata && (err = dvr_->on_meta_data(cache_metadata)) != srs_success) {
         return srs_error_wrap(err, "dvr metadata");
     }
@@ -1320,19 +1240,15 @@ srs_error_t SrsOriginHub::create_forwarders()
         return err;
     }
 
-    // For backend config
-    // If backend is enabled and applied, ignore destination.
     bool applied_backend_server = false;
     if ((err = create_backend_forwarders(applied_backend_server)) != srs_success) {
         return srs_error_wrap(err, "create backend applied=%d", applied_backend_server);
     }
 
-    // Already applied backend server, ignore destination.
     if (applied_backend_server) {
         return err;
     }
 
-    // For destanition config
     SrsConfDirective *conf = config_->get_forwards(req_->vhost_);
     for (int i = 0; conf && i < (int)conf->args_.size(); i++) {
         std::string forward_server = conf->args_.at(i);
@@ -1340,7 +1256,6 @@ srs_error_t SrsOriginHub::create_forwarders()
         ISrsForwarder *forwarder = new SrsForwarder(this, req_);
         forwarders_.push_back(forwarder);
 
-        // initialize the forwarder with request.
         if ((err = forwarder->initialize(req_, forward_server)) != srs_success) {
             return srs_error_wrap(err, "init forwarder");
         }
@@ -1361,7 +1276,6 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
 {
     srs_error_t err = srs_success;
 
-    // default not configure backend service
     applied = false;
 
     SrsConfDirective *conf = config_->get_forward_backend(req_->vhost_);
@@ -1369,36 +1283,30 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
         return err;
     }
 
-    // configure backend service
     applied = true;
 
-    // only get first backend url
     std::string backend_url = conf->arg0();
 
-    // get urls on forward backend
     std::vector<std::string> urls;
     if ((err = hooks_->on_forward_backend(backend_url, req_, urls)) != srs_success) {
         return srs_error_wrap(err, "get forward backend failed, backend=%s", backend_url.c_str());
     }
 
-    // create forwarders by urls
     std::vector<std::string>::iterator it;
     for (it = urls.begin(); it != urls.end(); ++it) {
         std::string url = *it;
 
-        // create temp Request by url
         SrsUniquePtr<ISrsRequest> req(new SrsRequest());
         srs_net_url_parse_rtmp_url(url, req->tcUrl_, req->stream_);
         srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
-        // create forwarder, which belongs to the publishing stream, not to the app and stream of the url.
+        // The forwarder belongs to the publishing stream, not to the app and stream of the url.
         ISrsForwarder *forwarder = new SrsForwarder(this, req_);
         forwarders_.push_back(forwarder);
 
         std::stringstream forward_server;
         forward_server << req->host_ << ":" << req->port_;
 
-        // initialize the forwarder with request.
         if ((err = forwarder->initialize(req.get(), forward_server.str())) != srs_success) {
             return srs_error_wrap(err, "init backend forwarder failed, forward-to=%s", forward_server.str().c_str());
         }
@@ -1485,13 +1393,11 @@ srs_error_t SrsMetaCache::dumps(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJit
 {
     srs_error_t err = srs_success;
 
-    // copy metadata.
     if (dm && meta_ && (err = consumer->enqueue(meta_, atc, ag)) != srs_success) {
         return srs_error_wrap(err, "enqueue metadata");
     }
 
-    // copy sequence header
-    // copy audio sequence first, for hls to fast parse the "right" audio codec.
+    // The audio sequence header goes first, for HLS to find the right audio codec fast.
     if (aformat_ && aformat_->acodec_ && aformat_->acodec_->id_ != SrsAudioCodecIdMP3) {
         if (ds && audio_ && (err = consumer->enqueue(audio_, atc, ag)) != srs_success) {
             return srs_error_wrap(err, "enqueue audio sh");
@@ -1546,12 +1452,11 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader *header, SrsOnMetaDataPac
 
     SrsAmf0Any *prop = NULL;
 
-    // when exists the duration, remove it to make ExoPlayer happy.
+    // Remove the duration, for ExoPlayer.
     if (metadata->metadata_->get_property("duration") != NULL) {
         metadata->metadata_->remove("duration");
     }
 
-    // generate metadata info to print
     std::stringstream ss;
     if ((prop = metadata->metadata_->ensure_property_number("width")) != NULL) {
         ss << ", width=" << (int)prop->to_number();
@@ -1567,14 +1472,11 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader *header, SrsOnMetaDataPac
     }
     srs_trace("got metadata%s", ss.str().c_str());
 
-    // add server info to metadata
     metadata->metadata_->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
 
-    // version, for example, 1.0.0
-    // add version to metadata, please donot remove it, for debug.
+    // Do not remove the version, for debugging.
     metadata->metadata_->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
 
-    // encode the metadata to payload
     int size = 0;
     char *payload = NULL;
     if ((err = metadata->encode(size, payload)) != srs_success) {
@@ -1586,13 +1488,11 @@ srs_error_t SrsMetaCache::update_data(SrsMessageHeader *header, SrsOnMetaDataPac
         return err;
     }
 
-    // create a shared ptr message.
     srs_freep(meta_);
     meta_ = new SrsMediaPacket();
     updated = true;
 
-    // dump message to shared ptr message.
-    // the payload/size managed by cache_metadata, user should not free it.
+    // The payload goes to meta_, so do not free it.
     SrsRtmpCommonMessage common_msg;
     if ((err = common_msg.create(header, payload, size)) != srs_success) {
         return srs_error_wrap(err, "create metadata");
@@ -1661,9 +1561,8 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
     srs_error_t err = srs_success;
 
     bool created = false;
-    // Should never invoke any function during the locking.
     if (true) {
-        // Use lock to protect coroutine switch.
+        // The lock guards against coroutine switches.
         // @bug https://github.com/ossrs/srs/issues/1230
         // TODO: FIXME: Use smaller scope lock.
         SrsLocker(&lock_);
@@ -1679,7 +1578,6 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
             srs_trace("new live source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
-            // Callback to notify request of source creation
             r->on_source_created();
 
             pool_[stream_url] = source;
@@ -1687,7 +1585,6 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
         }
     }
 
-    // Initialize source with the wrapper of itself.
     if (created && (err = pps->initialize(pps, r)) != srs_success) {
         // Drop the half built source, or the next client gets it without initialize.
         std::map<std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool_.find(r->get_stream_url());
@@ -1697,9 +1594,7 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
-    // we always update the request of resource,
-    // for origin auth is on, the token in request maybe invalid,
-    // and we only need to update the token of request, it's simple.
+    // With origin auth on, the token in the source's request may be stale.
     if (!created) {
         pps->update_auth(r);
     }
@@ -1709,7 +1604,7 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
 
 SrsSharedPtr<SrsLiveSource> SrsLiveSourceManager::fetch(ISrsRequest *r)
 {
-    // Use lock to protect coroutine switch.
+    // The lock guards against coroutine switches.
     // @bug https://github.com/ossrs/srs/issues/1230
     // TODO: FIXME: Use smaller scope lock.
     SrsLocker(&lock_);
@@ -1758,7 +1653,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
     for (it = pool_.begin(); it != pool_.end();) {
         SrsSharedPtr<SrsLiveSource> &source = it->second;
 
-        // Do cycle source to cleanup components, such as hls dispose.
         if ((err = source->cycle()) != srs_success) {
             SrsContextId cid = source->source_id();
             if (cid.empty())
@@ -1771,7 +1665,6 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         const string &stream_url = it->first;
         bool is_stream_acquired = stream_publish_tokens_->is_acquired(stream_url);
 
-        // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713
         if (source->stream_is_dead() && !is_stream_acquired) {
             SrsContextId cid = source->source_id();
@@ -1836,8 +1729,7 @@ void SrsLiveSource::assemble()
 {
     config_->subscribe(this);
 
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
+    // So a new source is not dead at once.
     // @see https://github.com/ossrs/srs/issues/4449
     stream_die_at_ = clk_->now();
 }
@@ -1846,8 +1738,7 @@ SrsLiveSource::~SrsLiveSource()
 {
     config_->unsubscribe(this);
 
-    // never free the consumers,
-    // for all consumers are auto free.
+    // Never free the consumers; they free themselves.
     consumers_.clear();
 
     srs_freep(format_);
@@ -1896,23 +1787,19 @@ srs_error_t SrsLiveSource::cycle()
 
 bool SrsLiveSource::stream_is_dead()
 {
-    // still publishing?
     if (!can_publish_ || !publish_edge_->can_publish()) {
         return false;
     }
 
-    // has any consumers?
     if (!consumers_.empty()) {
         return false;
     }
 
-    // Delay cleanup source.
     srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return false;
     }
 
-    // Origin hub delay cleanup.
     if (hub_ && now < stream_die_at_ + hub_->cleanup_delay()) {
         return false;
     }
@@ -1943,18 +1830,9 @@ SrsRtmpFormat *SrsLiveSource::format()
     return format_;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches
-// before completing the basic field setup.
-//
-// If context switches occur before all fields are properly initialized, other coroutines
-// accessing this source from the pool may encounter uninitialized state, leading to crashes
-// or undefined behavior.
-//
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create puts the source in the pool (see PR 4449), so it must not switch
+// coroutines before the fields are set: other coroutines may use the source from the pool, or
+// create a duplicate source for the stream.
 srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -1971,7 +1849,6 @@ srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsR
         return srs_error_wrap(err, "format initialize");
     }
 
-    // Setup the SPS/PPS parsing strategy.
     format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
 
     if ((err = play_edge_->initialize(wrapper, req_)) != srs_success) {
@@ -1984,7 +1861,6 @@ srs_error_t SrsLiveSource::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsR
     srs_utime_t queue_size = config_->get_queue_length(req_->vhost_);
     publish_edge_->set_queue_size(queue_size);
 
-    // Create and initialize origin hub only for origin servers, not edge servers
     bool edge = config_->get_vhost_is_edge(req_->vhost_);
     if (!edge) {
         srs_freep(hub_);
@@ -2019,7 +1895,6 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
     }
     source_id_ = id;
 
-    // notice all consumer
     std::vector<SrsLiveConsumer *>::iterator it;
     for (it = consumers_.begin(); it != consumers_.end(); ++it) {
         SrsLiveConsumer *consumer = *it;
@@ -2070,7 +1945,6 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
 
     atc_ = config_->get_atc(req_->vhost_);
 
-    // Update the meta cache.
     bool updated = false;
     if ((err = meta_->update_data(&msg->header_, metadata, updated)) != srs_success) {
         return srs_error_wrap(err, "update metadata");
@@ -2079,7 +1953,6 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
         return err;
     }
 
-    // whether consumer should drop for the duplicated metadata.
     bool drop_for_reduce = false;
     SrsMediaPacket *previous = meta_->previous_data();
     SrsMediaPacket *data = meta_->data();
@@ -2093,7 +1966,6 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
     }
     meta_->update_previous_data();
 
-    // copy to all consumer
     if (!drop_for_reduce) {
         std::vector<SrsLiveConsumer *>::iterator it;
         for (it = consumers_.begin(); it != consumers_.end(); ++it) {
@@ -2104,7 +1976,6 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
         }
     }
 
-    // Copy to hub to all utilities.
     if (hub_ && (err = hub_->on_meta_data(meta_->data(), metadata)) != srs_success) {
         return srs_error_wrap(err, "hub consume metadata");
     }
@@ -2114,7 +1985,6 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
 
 srs_error_t SrsLiveSource::on_audio(SrsRtmpCommonMessage *shared_audio)
 {
-    // Detect where stream is monotonically increasing.
     if (!mix_correct_ && is_monotonically_increase_) {
         if (last_packet_time_ > 0 && shared_audio->header_.timestamp_ < last_packet_time_) {
             is_monotonically_increase_ = false;
@@ -2124,8 +1994,12 @@ srs_error_t SrsLiveSource::on_audio(SrsRtmpCommonMessage *shared_audio)
     }
     last_packet_time_ = shared_audio->header_.timestamp_;
 
-    // convert shared_audio to msg, user should not use shared_audio again.
-    // the payload is transfer to msg, and set to NULL in shared_audio.
+    // Drop the empty audio, as an edge pulling HTTP-FLV may get from its origin, like the protocol and on_video do.
+    if (shared_audio->size() <= 0) {
+        srs_warn("drop empty audio");
+        return srs_success;
+    }
+
     SrsMediaPacket msg;
     shared_audio->to_msg(&msg);
 
@@ -2136,7 +2010,6 @@ srs_error_t SrsLiveSource::on_frame(SrsMediaPacket *msg)
 {
     srs_error_t err = srs_success;
 
-    // directly process the audio message.
     if (!mix_correct_) {
         if (msg->is_audio()) {
             return on_audio_imp(msg);
@@ -2145,16 +2018,13 @@ srs_error_t SrsLiveSource::on_frame(SrsMediaPacket *msg)
         }
     }
 
-    // insert msg to the queue.
     mix_queue_->push(msg->copy());
 
-    // fetch someone from mix queue.
     SrsMediaPacket *m = mix_queue_->pop();
     if (!m) {
         return err;
     }
 
-    // consume the monotonically increase message.
     if (m->is_audio()) {
         err = on_audio_imp(m);
     } else {
@@ -2174,16 +2044,14 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsMediaPacket *msg)
         return srs_error_wrap(err, "format consume audio");
     }
 
-    // Ignore if no format->acodec, it means the codec is not parsed, or unsupport/unknown codec
-    // such as G.711 codec
+    // No acodec_ for an unsupported codec, such as G.711.
     if (!format_->acodec_) {
         return err;
     }
 
-    // Whether current packet is sequence header. Note that MP3 does not have one, but we use the first packet as it.
+    // MP3 has no sequence header, so its first packet is used as one.
     bool is_sequence_header = format_->is_aac_sequence_header() || format_->is_mp3_sequence_header();
 
-    // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
     if (is_sequence_header && meta_->previous_ash() && config_->get_reduce_sequence_header(req_->vhost_)) {
         if (meta_->previous_ash()->size() == msg->size()) {
@@ -2192,17 +2060,14 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsMediaPacket *msg)
         }
     }
 
-    // Copy to hub to all utilities.
     if (hub_ && (err = hub_->on_audio(msg)) != srs_success) {
         return srs_error_wrap(err, "consume audio");
     }
 
-    // For bridge to consume the message.
     if (rtmp_bridge_ && (err = rtmp_bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume audio");
     }
 
-    // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers_.size(); i++) {
             SrsLiveConsumer *consumer = consumers_.at(i);
@@ -2212,24 +2077,20 @@ srs_error_t SrsLiveSource::on_audio_imp(SrsMediaPacket *msg)
         }
     }
 
-    // Refresh the sequence header in metadata.
     if (is_sequence_header || !meta_->ash()) {
         if ((err = meta_->update_ash(msg)) != srs_success) {
             return srs_error_wrap(err, "meta consume audio");
         }
     }
 
-    // when sequence header, donot push to gop cache and adjust the timestamp.
     if (is_sequence_header) {
         return err;
     }
 
-    // cache the last gop packets
     if ((err = gop_cache_->cache(msg)) != srs_success) {
         return srs_error_wrap(err, "gop cache consume audio");
     }
 
-    // if atc, update the sequence header to abs time.
     if (atc_) {
         if (meta_->ash()) {
             meta_->ash()->timestamp_ = msg->timestamp_;
@@ -2246,7 +2107,6 @@ srs_error_t SrsLiveSource::on_video(SrsRtmpCommonMessage *shared_video)
 {
     srs_error_t err = srs_success;
 
-    // Detect where stream is monotonically increasing.
     if (!mix_correct_ && is_monotonically_increase_) {
         if (last_packet_time_ > 0 && shared_video->header_.timestamp_ < last_packet_time_) {
             is_monotonically_increase_ = false;
@@ -2256,7 +2116,6 @@ srs_error_t SrsLiveSource::on_video(SrsRtmpCommonMessage *shared_video)
     }
     last_packet_time_ = shared_video->header_.timestamp_;
 
-    // drop any unknown header video.
     // @see https://github.com/ossrs/srs/issues/421
     if (!SrsFlvVideo::acceptable(shared_video->payload(), shared_video->size())) {
         char b0 = 0x00;
@@ -2268,8 +2127,6 @@ srs_error_t SrsLiveSource::on_video(SrsRtmpCommonMessage *shared_video)
         return err;
     }
 
-    // convert shared_video to msg, user should not use shared_video again.
-    // the payload is transfer to msg, and set to NULL in shared_video.
     SrsMediaPacket msg;
     shared_video->to_msg(&msg);
 
@@ -2282,7 +2139,7 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
 
     bool is_sequence_header = SrsFlvVideo::sh(msg->payload(), msg->size());
 
-    // user can disable the sps parse to workaround when parse sps failed.
+    // The parse_sps config works around SPS that fail to parse.
     // @see https://github.com/ossrs/srs/issues/474
     if (is_sequence_header) {
         format_->avc_parse_sps_ = config_->get_parse_sps(req_->vhost_);
@@ -2293,13 +2150,11 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
         return srs_error_wrap(err, "format consume video");
     }
 
-    // Ignore if no format->vcodec, it means the codec is not parsed, or unsupport/unknown codec
-    // such as H.263 codec
+    // No vcodec_ for an unsupported codec, such as H.263.
     if (!format_->vcodec_) {
         return err;
     }
 
-    // whether consumer should drop for the duplicated sequence header.
     bool drop_for_reduce = false;
     if (is_sequence_header && meta_->previous_vsh() && config_->get_reduce_sequence_header(req_->vhost_)) {
         if (meta_->previous_vsh()->size() == msg->size()) {
@@ -2308,23 +2163,18 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
         }
     }
 
-    // cache the sequence header if h264
-    // donot cache the sequence header to gop_cache, return here.
     if (is_sequence_header && (err = meta_->update_vsh(msg)) != srs_success) {
         return srs_error_wrap(err, "meta update video");
     }
 
-    // Copy to hub to all utilities.
     if (hub_ && (err = hub_->on_video(msg, is_sequence_header)) != srs_success) {
         return srs_error_wrap(err, "hub consume video");
     }
 
-    // For bridge to consume the message.
     if (rtmp_bridge_ && (err = rtmp_bridge_->on_frame(msg)) != srs_success) {
         return srs_error_wrap(err, "bridge consume video");
     }
 
-    // copy to all consumer
     if (!drop_for_reduce) {
         for (int i = 0; i < (int)consumers_.size(); i++) {
             SrsLiveConsumer *consumer = consumers_.at(i);
@@ -2334,17 +2184,14 @@ srs_error_t SrsLiveSource::on_video_imp(SrsMediaPacket *msg)
         }
     }
 
-    // when sequence header, donot push to gop cache and adjust the timestamp.
     if (is_sequence_header) {
         return err;
     }
 
-    // cache the last gop packets
     if ((err = gop_cache_->cache(msg)) != srs_success) {
         return srs_error_wrap(err, "gop cache consume vdieo");
     }
 
-    // if atc, update the sequence header to abs time.
     if (atc_) {
         if (meta_->vsh()) {
             meta_->vsh()->timestamp_ = msg->timestamp_;
@@ -2363,7 +2210,7 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
 
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(msg->payload(), msg->size()));
 
-    // the aggregate message always use abs time.
+    // Aggregate messages use absolute time.
     int delta = -1;
 
     while (!stream->empty()) {
@@ -2394,8 +2241,6 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
         timestamp |= time_h << 24;
         timestamp &= 0x7FFFFFFF;
 
-        // adjust abs timestamp in aggregate msg.
-        // only -1 means uninitialized delta.
         if (delta == -1) {
             delta = (int)msg->header_.timestamp_ - (int)timestamp;
         }
@@ -2410,7 +2255,6 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
             return srs_error_new(ERROR_RTMP_AGGREGATE, "aggregate data");
         }
 
-        // to common message.
         SrsRtmpCommonMessage o;
 
         o.header_.message_type_ = type;
@@ -2434,7 +2278,6 @@ srs_error_t SrsLiveSource::on_aggregate(SrsRtmpCommonMessage *msg)
             continue;
         }
 
-        // process parsed message
         if (o.header_.is_audio()) {
             if ((err = on_audio(&o)) != srs_success) {
                 return srs_error_wrap(err, "consume audio");
@@ -2453,34 +2296,27 @@ srs_error_t SrsLiveSource::on_publish()
 {
     srs_error_t err = srs_success;
 
-    // update the request object.
     srs_assert(req_);
 
     can_publish_ = false;
 
-    // whatever, the publish thread is the source or edge source,
-    // save its id to srouce id.
     if ((err = on_source_id_changed(_srs_context->get_id())) != srs_success) {
         return srs_error_wrap(err, "source id change");
     }
 
-    // reset the mix queue.
     mix_queue_->clear();
 
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
+    // Reset the metadata cache, for VLC when the stream is disabled and enabled.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta_->clear();
 
-    // detect the monotonically again.
     is_monotonically_increase_ = true;
     last_packet_time_ = 0;
 
-    // Notify the hub about the publish event.
     if (hub_ && (err = hub_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "hub publish");
     }
 
-    // notify the handler.
     srs_assert(handler_);
     if ((err = handler_->on_publish(req_)) != srs_success) {
         return srs_error_wrap(err, "handle publish");
@@ -2492,7 +2328,6 @@ srs_error_t SrsLiveSource::on_publish()
 
     stat_->on_stream_publish(req_, source_id_.c_str());
 
-    // When no players, the publisher is idle now.
     if (consumers_.empty()) {
         publisher_idle_at_ = clk_->now();
     }
@@ -2502,22 +2337,18 @@ srs_error_t SrsLiveSource::on_publish()
 
 void SrsLiveSource::on_unpublish()
 {
-    // ignore when already unpublished.
     if (can_publish_) {
         return;
     }
 
-    // Notify the hub about the unpublish event.
     if (hub_) {
         hub_->on_unpublish();
     }
 
-    // only clear the gop cache,
-    // donot clear the sequence header, for it maybe not changed,
-    // when drop dup sequence header, drop the metadata also.
+    // Only the GOP cache is cleared: the sequence headers may not change, and when a duplicate
+    // sequence header is dropped, so is the metadata.
     gop_cache_->clear();
 
-    // Reset the metadata cache, to make VLC happy when disable/enable stream.
     // @see https://github.com/ossrs/srs/issues/1630#issuecomment-597979448
     meta_->update_previous_data();
     meta_->update_previous_vsh();
@@ -2530,7 +2361,6 @@ void SrsLiveSource::on_unpublish()
     }
     source_id_ = SrsContextId();
 
-    // notify the handler.
     stat_->on_stream_close(req_);
 
     srs_assert(handler_);
@@ -2541,14 +2371,12 @@ void SrsLiveSource::on_unpublish()
         srs_freep(rtmp_bridge_);
     }
 
-    // no consumer, stream is die.
     if (consumers_.empty()) {
         stream_die_at_ = clk_->now();
     }
 
-    // Note that we should never set to unpublish before any other handler is done, especially the handler
-    // which is actually an http stream that unmounts the HTTP path for streaming, because there maybe some
-    // coroutine switch in these handlers.
+    // Set it only after every handler is done, especially the HTTP stream that unmounts its path,
+    // since the handlers may switch coroutines.
     can_publish_ = true;
 }
 
@@ -2556,9 +2384,7 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer *&consumer)
 {
     srs_error_t err = srs_success;
 
-    // for edge, when play edge stream, check the state
     if (config_->get_vhost_is_edge(req_->vhost_)) {
-        // notice edge to start for the first client.
         if ((err = play_edge_->on_client_play()) != srs_success) {
             return srs_error_wrap(err, "play edge");
         }
@@ -2567,7 +2393,6 @@ srs_error_t SrsLiveSource::create_consumer(SrsLiveConsumer *&consumer)
     consumer = new SrsLiveConsumer(this);
     consumers_.push_back(consumer);
 
-    // There are more than one consumer, so reset the timeout.
     stream_die_at_ = 0;
     publisher_idle_at_ = 0;
 
@@ -2581,7 +2406,6 @@ srs_error_t SrsLiveSource::consumer_dumps(ISrsLiveConsumer *consumer, bool ds, b
     srs_utime_t queue_size = config_->get_queue_length(req_->vhost_);
     consumer->set_queue_size(queue_size);
 
-    // if atc, update the sequence header to gop cache time.
     if (atc_ && !gop_cache_->empty()) {
         if (meta_->data()) {
             meta_->data()->timestamp_ = srsu2ms(gop_cache_->start_time());
@@ -2594,24 +2418,19 @@ srs_error_t SrsLiveSource::consumer_dumps(ISrsLiveConsumer *consumer, bool ds, b
         }
     }
 
-    // If stream is publishing, dumps the sequence header and gop cache.
-    // On edge, hub_ is NULL; the source is "publishing" once the edge-pull has
-    // populated the meta cache. Late-joining consumers must still receive the
-    // cached metadata + sequence headers + GOP via this path.
+    // An edge has no hub; its source is publishing once the edge pull fills the meta cache, and
+    // late players still need the metadata, sequence headers and GOP.
     bool hub_active = hub_ ? hub_->active() : (meta_->data() || meta_->vsh() || meta_->ash());
     if (hub_active) {
-        // Copy metadata and sequence header to consumer.
         if ((err = meta_->dumps(consumer, atc_, jitter_algorithm_, dm, ds)) != srs_success) {
             return srs_error_wrap(err, "meta dumps");
         }
 
-        // copy gop cache to client.
         if (dg && (err = gop_cache_->dump(consumer, atc_, jitter_algorithm_)) != srs_success) {
             return srs_error_wrap(err, "gop cache dumps");
         }
     }
 
-    // print status.
     if (dg) {
         srs_trace("create consumer, active=%d, queue_size=%dms, jitter=%d", hub_active, srsu2msi(queue_size), jitter_algorithm_);
     } else {
@@ -2632,18 +2451,15 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer *consumer)
     if (consumers_.empty()) {
         play_edge_->on_all_client_stop();
 
-        // If no publishers, the stream is die.
         if (can_publish_) {
             stream_die_at_ = clk_->now();
         }
 
-        // For edge server, the stream die when the last player quit, because the edge stream is created by player
-        // activities, so it should die when all players quit.
+        // Players create an edge stream, so it dies when the last player quits.
         if (config_->get_vhost_is_edge(req_->vhost_)) {
             stream_die_at_ = clk_->now();
         }
 
-        // When no players, the publisher is idle now.
         publisher_idle_at_ = clk_->now();
     }
 }

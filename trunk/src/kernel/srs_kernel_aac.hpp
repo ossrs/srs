@@ -27,7 +27,6 @@ public:
     virtual srs_error_t write_audio(int64_t timestamp, char *data, int size) = 0;
 };
 
-// Transmux the RTMP packets to AAC stream.
 class SrsAacTransmuxer : public ISrsAacTransmuxer
 {
 // clang-format off
@@ -46,14 +45,9 @@ public:
     virtual ~SrsAacTransmuxer();
 
 public:
-    // Initialize the underlayer file stream.
-    // @remark User can initialize multiple times to encode multiple aac files.
-    // @remark User must free the fs, aac encoder never close/free it.
     virtual srs_error_t initialize(ISrsStreamWriter *fs);
 
 public:
-    // Write audio/video packet.
-    // @remark The assert data should not be NULL.
     virtual srs_error_t write_audio(int64_t timestamp, char *data, int size);
 };
 

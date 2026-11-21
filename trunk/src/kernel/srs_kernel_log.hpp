@@ -18,7 +18,6 @@
 
 #include <srs_kernel_consts.hpp>
 
-// For log TAGs.
 #define TAG_MAIN "MAIN"
 #define TAG_MAYBE "MAYBE"
 #define TAG_DTLS_ALERT "DTLS_ALERT"
@@ -26,13 +25,12 @@
 #define TAG_RESOURCE_UNSUB "RESOURCE_UNSUB"
 #define TAG_LARGE_TIMER "LARGE_TIMER"
 
-// The log level, see https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java
-// Please note that the enum name might not be the string, to keep compatible with previous definition.
+// See https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java
+// The enum names do not always match the level strings, to stay compatible with older versions.
 enum SrsLogLevel {
     SrsLogLevelForbidden = 0x00,
 
-    // Only used for very verbose debug, generally,
-    // we compile without this level for high performance.
+    // Usually compiled out, for performance.
     SrsLogLevelVerbose = 0x01,
     SrsLogLevelInfo = 0x02,
     SrsLogLevelTrace = 0x04,
@@ -42,12 +40,8 @@ enum SrsLogLevel {
     SrsLogLevelDisabled = 0x20,
 };
 
-// Get the level in string.
 extern const char *srs_log_level_strings[];
 
-// The log interface provides method to write log.
-// but we provides some macro, which enable us to disable the log when compile.
-// @see also SmtDebug/SmtTrace/SmtWarn/SmtError which is corresponding to Debug/Trace/Warn/Fatal.
 class ISrsLog
 {
 public:
@@ -55,22 +49,16 @@ public:
     virtual ~ISrsLog();
 
 public:
-    // Initialize log utilities.
     virtual srs_error_t initialize() = 0;
-    // Reopen the log file for log rotate.
+    // For log rotation.
     virtual void reopen() = 0;
 
 public:
-    // Write a application level log. All parameters are required except the tag.
+    // The tag may be NULL.
     virtual void log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args) = 0;
 };
 
-// The logic context, for example, a RTMP connection, or RTC Session, etc.
-// We can grep the context id to identify the logic unit, for debugging.
-// For example:
-//      SrsContextId cid = _srs_context->get_id(); // Get current context id.
-//      SrsContextId new_cid = _srs_context->generate_id(); // Generate a new context id.
-//      SrsContextId old_cid = _srs_context->set_id(new_cid); // Change the context id.
+// The context ID of a logic unit, such as an RTMP connection or an RTC session, to grep its logs for debugging.
 class ISrsContext
 {
 public:
@@ -78,19 +66,14 @@ public:
     virtual ~ISrsContext();
 
 public:
-    // Generate a new context id.
-    // @remark We do not set to current thread, user should do this.
+    // Does not set the ID of the current thread; call set_id for that.
     virtual SrsContextId generate_id() = 0;
-    // Get the context id of current thread.
+    // Of the current thread.
     virtual const SrsContextId &get_id() = 0;
-    // Set the context id of current thread.
-    // @return the current context id.
+    // Of the current thread. Returns the new ID, not the old one.
     virtual const SrsContextId &set_id(const SrsContextId &v) = 0;
 };
 
-// The context restore stores the context and restore it when done.
-// Usage:
-//      SrsContextRestore(_srs_context->get_id());
 #define SrsContextRestore(cid) impl_SrsContextRestore _context_restore_instance(cid)
 class impl_SrsContextRestore
 {
@@ -103,24 +86,16 @@ public:
     virtual ~impl_SrsContextRestore();
 };
 
-// @global User must implements the LogContext and define a global instance.
 extern ISrsContext *_srs_context;
-
-// @global User must provides a log object
 extern ISrsLog *_srs_log;
 
-// Global log function implementation. Please use helper macros, for example, srs_trace or srs_error.
 extern void srs_logger_impl(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, ...);
 
-// Log style.
-// Use __FUNCTION__ to print c method
-// Use __PRETTY_FUNCTION__ to print c++ class:method
 #define srs_verbose(msg, ...) srs_logger_impl(SrsLogLevelVerbose, NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_info(msg, ...) srs_logger_impl(SrsLogLevelInfo, NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_trace(msg, ...) srs_logger_impl(SrsLogLevelTrace, NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_warn(msg, ...) srs_logger_impl(SrsLogLevelWarn, NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_error(msg, ...) srs_logger_impl(SrsLogLevelError, NULL, _srs_context->get_id(), msg, ##__VA_ARGS__)
-// With tag.
 #define srs_verbose2(tag, msg, ...) srs_logger_impl(SrsLogLevelVerbose, tag, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_info2(tag, msg, ...) srs_logger_impl(SrsLogLevelInfo, tag, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #define srs_trace2(tag, msg, ...) srs_logger_impl(SrsLogLevelTrace, tag, _srs_context->get_id(), msg, ##__VA_ARGS__)

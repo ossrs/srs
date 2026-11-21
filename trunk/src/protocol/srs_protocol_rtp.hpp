@@ -21,7 +21,6 @@ class SrsNaluSample;
 class SrsRtpPacket;
 class SrsFormat;
 
-// RTP video builder for packaging video NALUs into RTP packets
 class SrsRtpVideoBuilder
 {
 // clang-format off

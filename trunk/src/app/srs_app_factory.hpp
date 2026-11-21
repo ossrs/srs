@@ -64,7 +64,6 @@ class ISrsSrtClientHandler;
 class ISrsUdpMuxListener;
 class ISrsUdpMuxHandler;
 
-// The factory to create app objects.
 class ISrsAppFactory : public ISrsKernelFactory
 {
 public:
@@ -120,7 +119,6 @@ public:
 #endif
 };
 
-// The factory to create app objects.
 class SrsAppFactory : public ISrsAppFactory
 {
 // clang-format off
@@ -189,7 +187,6 @@ public:
 
 extern ISrsAppFactory *_srs_app_factory;
 
-// The factory to create kernel objects.
 class SrsFinalFactory : public ISrsKernelFactory
 {
 public:
@@ -204,7 +201,6 @@ public:
     virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval);
 };
 
-// The proxy for config.
 class SrsConfigProxy : public ISrsConfig
 {
 public:
@@ -217,7 +213,6 @@ public:
     virtual std::string get_srt_default_mode();
 };
 
-// The time to use system time.
 class SrsTrueTime : public ISrsTime
 {
 public:

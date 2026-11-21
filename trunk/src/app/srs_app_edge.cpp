@@ -33,10 +33,8 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 
-// when edge timeout, retry next.
 #define SRS_EDGE_INGESTER_TIMEOUT (5 * SRS_UTIME_SECONDS)
 
-// when edge error, wait for quit
 #define SRS_EDGE_FORWARDER_TIMEOUT (150 * SRS_UTIME_MILLISECONDS)
 
 ISrsEdgeUpstream::ISrsEdgeUpstream()
@@ -75,29 +73,24 @@ srs_error_t SrsEdgeRtmpUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
     if (true) {
         SrsConfDirective *conf = config_->get_vhost_edge_origin(req->vhost_);
 
-        // when origin is error, for instance, server is shutdown,
-        // then user remove the vhost then reload, the conf is empty.
+        // A reload may remove the vhost while the edge retries, such as after the origin shuts down.
         if (!conf) {
             return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost_.c_str());
         }
 
-        // select the origin.
         std::string server = lb->select(conf->args_);
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_net_split_hostport(server, server, port);
 
-        // override the origin info by redirect.
         if (!redirect_.empty()) {
             string schema, vhost, app, stream, param, host;
             srs_net_url_parse_tcurl(redirect_, schema, host, vhost, app, stream, port, param);
             server = host;
         }
 
-        // Remember the current selected server.
         selected_ip_ = server;
         selected_port_ = port;
 
-        // support vhost tranform for edge,
         std::string vhost = config_->get_vhost_edge_transform_vhost(req->vhost_);
         vhost = srs_strings_replace(vhost, "[vhost]", req->vhost_);
 
@@ -107,15 +100,13 @@ srs_error_t SrsEdgeRtmpUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
     srs_freep(sdk_);
     srs_utime_t cto = SRS_EDGE_INGESTER_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
-    // Use factory to create client.
     sdk_ = app_factory_->create_rtmp_client(url, cto, sto);
 
     if ((err = sdk_->connect()) != srs_success) {
         return srs_error_wrap(err, "edge pull %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
 
-    // For RTMP client, we pass the vhost in tcUrl when connecting,
-    // so we publish without vhost in stream.
+    // The vhost went in the tcUrl at connect, so the stream name goes without it.
     string stream;
     if ((err = sdk_->play(config_->get_chunk_size(req->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "edge pull %s stream failed", url.c_str());
@@ -182,10 +173,9 @@ SrsEdgeFlvUpstream::~SrsEdgeFlvUpstream()
 
 srs_error_t SrsEdgeFlvUpstream::connect(ISrsRequest *r, ISrsLbRoundRobin *lb)
 {
-    // Because we might modify the r, which cause retry fail, so we must copy it.
+    // An HTTP redirect changes the request, so use a copy and keep the original for a retry.
     ISrsRequest *cp = r->copy();
 
-    // Free the request when close upstream.
     srs_freep(req_);
     req_ = cp;
 
@@ -201,13 +191,11 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
     if (redirect_depth == 0) {
         SrsConfDirective *conf = config_->get_vhost_edge_origin(req->vhost_);
 
-        // when origin is error, for instance, server is shutdown,
-        // then user remove the vhost then reload, the conf is empty.
+        // A reload may remove the vhost while the edge retries, such as after the origin shuts down.
         if (!conf) {
             return srs_error_new(ERROR_EDGE_VHOST_REMOVED, "vhost %s removed", req->vhost_.c_str());
         }
 
-        // select the origin.
         std::string server = lb->select(conf->args_);
         int port = SRS_DEFAULT_HTTP_PORT;
         if (schema_ == "https") {
@@ -215,11 +203,9 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
         }
         srs_net_split_hostport(server, server, port);
 
-        // Remember the current selected server.
         selected_ip_ = server;
         selected_port_ = port;
     } else {
-        // If HTTP redirect, use the server in location.
         schema_ = req->schema_;
         selected_ip_ = req->host_;
         selected_port_ = req->port_;
@@ -270,9 +256,14 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
             string tcUrl;
             srs_net_url_parse_rtmp_url(location, tcUrl, stream_name);
 
-            int port;
+            int port = 0;
             string schema, host, vhost, param;
             srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream_name, port, param);
+
+            // The parser leaves the host empty when it refuses the location.
+            if (host.empty()) {
+                return srs_error_new(ERROR_HTTP_302_INVALID, "redirect to %s fail, invalid location", location.c_str());
+            }
 
             r->schema_ = schema;
             r->host_ = host;
@@ -326,6 +317,7 @@ srs_error_t SrsEdgeFlvUpstream::recv_message(SrsRtmpCommonMessage **pmsg)
 
     char pps[4];
     if ((err = decoder_->read_previous_tag_size(pps)) != srs_success) {
+        srs_freepa(data);
         return srs_error_wrap(err, "read pts");
     }
 
@@ -356,12 +348,16 @@ srs_error_t SrsEdgeFlvUpstream::decode_message(SrsRtmpCommonMessage *msg, SrsRtm
 
         stream.skip(-1 * stream.pos());
 
-        if (command == SRS_CONSTS_RTMP_SET_DATAFRAME) {
-            *ppacket = packet = new SrsOnMetaDataPacket();
-            return packet->decode(&stream);
-        } else if (command == SRS_CONSTS_RTMP_ON_METADATA) {
-            *ppacket = packet = new SrsOnMetaDataPacket();
-            return packet->decode(&stream);
+        // The caller owns the packet only on success, so free it when the decode fails.
+        if (command == SRS_CONSTS_RTMP_SET_DATAFRAME || command == SRS_CONSTS_RTMP_ON_METADATA) {
+            packet = new SrsOnMetaDataPacket();
+            if ((err = packet->decode(&stream)) != srs_success) {
+                srs_freep(packet);
+                return srs_error_wrap(err, "decode metadata");
+            }
+
+            *ppacket = packet;
+            return err;
         }
     }
 
@@ -427,15 +423,10 @@ SrsEdgeIngester::~SrsEdgeIngester()
     app_factory_ = NULL;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsEdgeIngester::initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPlayEdge *e, ISrsRequest *r)
 {
-    // Because source references to this object, so we should directly use the source ptr.
     source_ = s.get();
 
     edge_ = e;
@@ -468,13 +459,11 @@ void SrsEdgeIngester::stop()
     trd_->stop();
     upstream_->close();
 
-    // Notify source to un-publish if exists.
     if (source_) {
         source_->on_unpublish();
     }
 }
 
-// when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEdgeIngester::cycle()
@@ -482,7 +471,6 @@ srs_error_t SrsEdgeIngester::cycle()
     srs_error_t err = srs_success;
 
     while (true) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "edge ingester");
@@ -514,16 +502,13 @@ srs_error_t SrsEdgeIngester::do_cycle()
             return srs_error_wrap(err, "do cycle pull");
         }
 
-        // Use protocol in config.
         string edge_protocol = config_->get_vhost_edge_protocol(req_->vhost_);
 
-        // If follow client protocol, change to protocol of client.
         bool follow_client = config_->get_vhost_edge_follow_client(req_->vhost_);
         if (follow_client && !req_->protocol_.empty()) {
             edge_protocol = req_->protocol_;
         }
 
-        // Create object by protocol.
         srs_freep(upstream_);
         if (edge_protocol == "flv" || edge_protocol == "flvs") {
             upstream_ = app_factory_->create_edge_flv_upstream(edge_protocol == "flv" ? "http" : "https");
@@ -543,12 +528,10 @@ srs_error_t SrsEdgeIngester::do_cycle()
             return srs_error_wrap(err, "notify edge play");
         }
 
-        // set to larger timeout to read av data from origin.
         upstream_->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT);
 
         err = ingest(redirect);
 
-        // retry for rtmp 302 immediately.
         if (srs_error_code(err) == ERROR_CONTROL_REDIRECT) {
             int port;
             string server;
@@ -577,8 +560,7 @@ srs_error_t SrsEdgeIngester::ingest(string &redirect)
 
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_edge());
 
-    // we only use the redict once.
-    // reset the redirect to empty, for maybe the origin changed.
+    // A redirect serves one connect only, since the origin may change.
     redirect = "";
 
     while (true) {
@@ -588,12 +570,10 @@ srs_error_t SrsEdgeIngester::ingest(string &redirect)
 
         pprint->elapse();
 
-        // pithy print
         if (pprint->can_print()) {
             upstream_->kbps_sample(SRS_CONSTS_LOG_EDGE_PLAY, pprint->age());
         }
 
-        // read from client.
         SrsRtmpCommonMessage *msg_raw = NULL;
         if ((err = upstream_->recv_message(&msg_raw)) != srs_success) {
             return srs_error_wrap(err, "recv message");
@@ -614,21 +594,18 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
 {
     srs_error_t err = srs_success;
 
-    // process audio packet
     if (msg->header_.is_audio()) {
         if ((err = source_->on_audio(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume audio");
         }
     }
 
-    // process video packet
     if (msg->header_.is_video()) {
         if ((err = source_->on_video(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume video");
         }
     }
 
-    // process aggregate packet
     if (msg->header_.is_aggregate()) {
         if ((err = source_->on_aggregate(msg)) != srs_success) {
             return srs_error_wrap(err, "source consume aggregate");
@@ -636,7 +613,6 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         return err;
     }
 
-    // process onMetaData
     if (msg->header_.is_amf0_data() || msg->header_.is_amf3_data()) {
         SrsRtmpCommand *pkt_raw = NULL;
         if ((err = upstream_->decode_message(msg, &pkt_raw)) != srs_success) {
@@ -655,7 +631,6 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         return err;
     }
 
-    // call messages, for example, reject, redirect.
     if (msg->header_.is_amf0_command() || msg->header_.is_amf3_command()) {
         SrsRtmpCommand *pkt_raw = NULL;
         if ((err = upstream_->decode_message(msg, &pkt_raw)) != srs_success) {
@@ -663,10 +638,10 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         }
         SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
 
-        // RTMP 302 redirect
         if (dynamic_cast<SrsCallPacket *>(pkt.get())) {
             SrsCallPacket *call = dynamic_cast<SrsCallPacket *>(pkt.get());
-            if (!call->arguments_->is_object()) {
+            // A call without arguments, such as onBWDone(0, null), is no redirect.
+            if (!call->arguments_ || !call->arguments_->is_object()) {
                 return err;
             }
 
@@ -742,15 +717,10 @@ void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
     return queue_->set_queue_size(queue_size);
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsEdgeForwarder::initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPublishEdge *e, ISrsRequest *r)
 {
-    // Because source references to this object, so we should directly use the source ptr.
     source_ = s.get();
 
     edge_ = e;
@@ -763,7 +733,6 @@ srs_error_t SrsEdgeForwarder::start()
 {
     srs_error_t err = srs_success;
 
-    // reset the error code.
     send_error_code_ = ERROR_SUCCESS;
 
     // Copy the origins, for a reload may change the config while we connect.
@@ -772,7 +741,6 @@ srs_error_t SrsEdgeForwarder::start()
     std::vector<std::string> origins = conf->args_;
     srs_assert(!origins.empty());
 
-    // support vhost tranform for edge,
     std::string vhost = config_->get_vhost_edge_transform_vhost(req_->vhost_);
     vhost = srs_strings_replace(vhost, "[vhost]", req_->vhost_);
 
@@ -792,14 +760,12 @@ srs_error_t SrsEdgeForwarder::start()
             srs_freep(err);
         }
 
-        // select the origin.
         std::string server = lb_->select(origins);
         int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
         srs_net_split_hostport(server, server, port);
 
         url = srs_net_url_encode_rtmp_url(server, port, req_->host_, vhost, req_->app_, req_->stream_, req_->param_);
 
-        // open socket.
         srs_freep(sdk_);
         sdk_ = app_factory_->create_rtmp_client(url, cto, sto);
 
@@ -812,14 +778,12 @@ srs_error_t SrsEdgeForwarder::start()
         return srs_error_wrap(err, "sdk connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
 
-    // For RTMP client, we pass the vhost in tcUrl when connecting,
-    // so we publish without vhost in stream.
+    // The vhost went in the tcUrl at connect, so the stream name goes without it.
     string stream;
     if ((err = sdk_->publish(config_->get_chunk_size(req_->vhost_), false, &stream)) != srs_success) {
         return srs_error_wrap(err, "sdk publish");
     }
 
-    // Start the forwarding coroutine.
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
     }
@@ -831,15 +795,13 @@ srs_error_t SrsEdgeForwarder::start()
 
 void SrsEdgeForwarder::stop()
 {
-    // Make sure the coroutine is stopped before disposing the sdk,
-    // for sdk is used by coroutine.
+    // Stop the coroutine before freeing the sdk, which it uses.
     trd_->stop();
     srs_freep(sdk_);
 
     queue_->clear();
 }
 
-// when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_FORWARDER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEdgeForwarder::cycle()
@@ -847,14 +809,13 @@ srs_error_t SrsEdgeForwarder::cycle()
     srs_error_t err = srs_success;
 
     while (true) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "thread pull");
         }
 
         if ((err = do_cycle()) != srs_success) {
-            // If cycle stopping, we should always set the quit error code.
+            // Keep the first error, so proxy() fails the publish.
             if (send_error_code_ == 0) {
                 send_error_code_ = srs_error_code(err);
             }
@@ -889,7 +850,6 @@ srs_error_t SrsEdgeForwarder::do_cycle()
             continue;
         }
 
-        // read from client.
         if (true) {
             SrsRtmpCommonMessage *msg = NULL;
             err = sdk_->recv_message(&msg);
@@ -905,8 +865,7 @@ srs_error_t SrsEdgeForwarder::do_cycle()
             srs_freep(msg);
         }
 
-        // forward all messages.
-        // each msg in msgs.msgs_ must be free, for the SrsMessageArray never free them.
+        // SrsMessageArray does not free its messages; send_and_free_messages() does.
         int count = 0;
         if ((err = queue_->dump_packets(msgs.max_, msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "queue dumps packets");
@@ -914,18 +873,15 @@ srs_error_t SrsEdgeForwarder::do_cycle()
 
         pprint->elapse();
 
-        // pithy print
         if (pprint->can_print()) {
             sdk_->kbps_sample(SRS_CONSTS_LOG_EDGE_PUBLISH, pprint->age(), count);
         }
 
-        // ignore when no messages.
         if (count <= 0) {
             srs_verbose("edge no packets to push.");
             continue;
         }
 
-        // sendout messages, all messages are freed by send_and_free_messages().
         if ((err = sdk_->send_and_free_messages(msgs.msgs_, count)) != srs_success) {
             return srs_error_wrap(err, "send messages");
         }
@@ -942,12 +898,11 @@ srs_error_t SrsEdgeForwarder::proxy(SrsRtmpCommonMessage *msg)
         return srs_error_new(send_error_code_, "edge forwarder");
     }
 
-    // the msg is auto free by source,
-    // so we just ignore, or copy then send it.
     if (msg->size() <= 0 || msg->header_.is_set_chunk_size() || msg->header_.is_window_ackledgement_size() || msg->header_.is_ackledgement()) {
         return err;
     }
 
+    // The source frees msg, so queue a copy.
     SrsMediaPacket copy;
     msg->to_msg(&copy);
 
@@ -978,12 +933,8 @@ SrsPlayEdge::~SrsPlayEdge()
     srs_freep(ingester_);
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsPlayEdge::initialize(SrsSharedPtr<SrsLiveSource> source, ISrsRequest *req)
 {
     srs_error_t err = srs_success;
@@ -999,7 +950,6 @@ srs_error_t SrsPlayEdge::on_client_play()
 {
     srs_error_t err = srs_success;
 
-    // start ingest when init state.
     if (state_ == SrsEdgeStateInit) {
         state_ = SrsEdgeStatePlay;
         err = ingester_->start();
@@ -1012,8 +962,6 @@ srs_error_t SrsPlayEdge::on_client_play()
 
 void SrsPlayEdge::on_all_client_stop()
 {
-    // when all client disconnected,
-    // and edge is ingesting origin stream, abort it.
     if (state_ == SrsEdgeStatePlay || state_ == SrsEdgeStateIngestConnected) {
         SrsEdgeState pstate = state_;
         state_ = SrsEdgeStateIngestStopping;
@@ -1031,7 +979,7 @@ srs_error_t SrsPlayEdge::on_ingest_play()
 {
     srs_error_t err = srs_success;
 
-    // when already connected(for instance, reconnect for error), ignore.
+    // A reconnect after an error calls this again.
     if (state_ == SrsEdgeStateIngestConnected) {
         return err;
     }
@@ -1069,12 +1017,8 @@ void SrsPublishEdge::set_queue_size(srs_utime_t queue_size)
     return forwarder_->set_queue_size(queue_size);
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsPublishEdge::initialize(SrsSharedPtr<SrsLiveSource> source, ISrsRequest *req)
 {
     srs_error_t err = srs_success;
@@ -1095,23 +1039,20 @@ srs_error_t SrsPublishEdge::on_client_publish()
 {
     srs_error_t err = srs_success;
 
-    // error when not init state.
     if (state_ != SrsEdgeStateInit) {
         return srs_error_new(ERROR_RTMP_EDGE_PUBLISH_STATE, "invalid state");
     }
 
-    // to avoid multiple publish the same stream on the same edge,
-    // directly enter the publish stage.
+    // Enter the publish state before start(), so no other client publishes the same stream on
+    // this edge meanwhile.
     if (true) {
         SrsEdgeState pstate = state_;
         state_ = SrsEdgeStatePublish;
         srs_trace("edge change from %d to state %d (push).", pstate, state_);
     }
 
-    // start to forward stream to origin.
     err = forwarder_->start();
 
-    // when failed, revert to init
     if (err != srs_success) {
         SrsEdgeState pstate = state_;
         state_ = SrsEdgeStateInit;

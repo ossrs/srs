@@ -22,18 +22,15 @@ using namespace std;
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
-// @see ISrsHttpMessage._http_ts_send_buffer
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 #define SRS_HTTP_AUTH_SCHEME_BASIC "Basic"
 #define SRS_HTTP_AUTH_SCHEME_BEARER "Bearer"
 
-// Calculate the output size needed to base64-encode x bytes to a null-terminated string.
+// The output size to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
 
-// We use the standard encoding:
-//      var StdEncoding = NewEncoding(encodeStd)
-// StdEncoding is the standard base64 encoding, as defined in RFC 4648.
+// The standard base64 encoding of RFC 4648, StdEncoding in Go.
 namespace
 {
 char padding = '=';
@@ -51,17 +48,13 @@ srs_error_t srs_av_base64_decode(string cipher, string &plaintext)
         decodeMap[(uint8_t)encoder.at(i)] = uint8_t(i);
     }
 
-    // decode is like Decode but returns an additional 'end' value, which
-    // indicates if end-of-message padding or a partial quantum was encountered
-    // and thus any additional data is an error.
     int si = 0;
 
-    // skip over newlines
     for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
     }
 
+    // After the padding or a partial quantum, any more data is an error.
     for (bool end = false; si < (int)cipher.length() && !end;) {
-        // Decode quantum using the base64 alphabet
         uint8_t dbuf[4];
         memset(dbuf, 0x00, sizeof(dbuf));
 
@@ -84,16 +77,13 @@ srs_error_t srs_av_base64_decode(string cipher, string &plaintext)
             char in = cipher.at(si);
 
             si++;
-            // skip over newlines
             for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
             }
 
             if (in == padding) {
-                // We've reached the end and there's padding
                 switch (j) {
                 case 0:
                 case 1:
-                    // incorrect padding
                     return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                 case 2:
                     // "==" is expected, the first "=" is already consumed.
@@ -101,18 +91,15 @@ srs_error_t srs_av_base64_decode(string cipher, string &plaintext)
                         return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                     }
                     if (cipher.at(si) != padding) {
-                        // incorrect padding
                         return srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                     }
 
                     si++;
-                    // skip over newlines
                     for (; si < (int)cipher.length() && (cipher.at(si) == '\n' || cipher.at(si) == '\r'); si++) {
                     }
                 }
 
                 if (si < (int)cipher.length()) {
-                    // trailing garbage
                     err = srs_error_new(ERROR_BASE64_DECODE, "corrupt input at %d", si);
                 }
                 dinc = 3;
@@ -127,7 +114,6 @@ srs_error_t srs_av_base64_decode(string cipher, string &plaintext)
             }
         }
 
-        // Convert 4x 6bit source bytes into 3 bytes
         uint32_t val = uint32_t(dbuf[0]) << 18 | uint32_t(dbuf[1]) << 12 | uint32_t(dbuf[2]) << 6 | uint32_t(dbuf[3]);
         if (dlen >= 2) {
             plaintext.append(1, char(val >> 16));
@@ -160,7 +146,6 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string &cipher)
     int n = (plaintext.length() / 3) * 3;
     uint8_t *p = (uint8_t *)plaintext.c_str();
     while (si < n) {
-        // Convert 3x 8bit source bytes into 4 bytes
         val = (uint32_t(p[si + 0]) << 16) | (uint32_t(p[si + 1]) << 8) | uint32_t(p[si + 2]);
 
         cipher += encoder[val >> 18 & 0x3f];
@@ -198,7 +183,6 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string &cipher)
     return err;
 }
 
-// get the status text of code.
 string srs_generate_http_status_text(int status)
 {
     static std::map<int, std::string> status_map;
@@ -255,8 +239,6 @@ string srs_generate_http_status_text(int status)
     return status_text;
 }
 
-// bodyAllowedForStatus reports whether a given response status code
-// permits a body.  See RFC2616, section 4.4.
 bool srs_go_http_body_allowd(int status)
 {
     if (status >= SRS_CONSTS_HTTP_Continue && status < SRS_CONSTS_HTTP_OK) {
@@ -268,12 +250,7 @@ bool srs_go_http_body_allowd(int status)
     return true;
 }
 
-// DetectContentType implements the algorithm described
-// at http://mimesniff.spec.whatwg.org/ to determine the
-// Content-Type of the given data.  It considers at most the
-// first 512 bytes of data.  DetectContentType always returns
-// a valid MIME type: if it cannot determine a more specific one, it
-// returns "application/octet-stream".
+// See http://mimesniff.spec.whatwg.org/
 string srs_go_http_detect(char *data, int size)
 {
     // TODO: Implement the request content-type detecting.
@@ -310,10 +287,6 @@ SrsHttpHeader::~SrsHttpHeader()
 
 void SrsHttpHeader::set(string key, string value)
 {
-    // Convert to UpperCamelCase, for example:
-    //      transfer-encoding
-    // transform to:
-    //      Transfer-Encoding
     char pchar = 0;
     for (int i = 0; i < (int)key.length(); i++) {
         char ch = key.at(i);
@@ -463,6 +436,8 @@ SrsHttpRedirectHandler::~SrsHttpRedirectHandler()
 
 srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = srs_success;
+
     string location = url;
     if (!r->query().empty()) {
         location += "?" + r->query();
@@ -475,11 +450,16 @@ srs_error_t SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter *w, ISrsHt
     w->header()->set("Location", location);
     w->write_header(code);
 
-    w->write((char *)msg.data(), (int)msg.length());
-    w->final_request();
+    if ((err = w->write((char *)msg.data(), (int)msg.length())) != srs_success) {
+        return srs_error_wrap(err, "write redirect");
+    }
+
+    if ((err = w->final_request()) != srs_success) {
+        return srs_error_wrap(err, "final request");
+    }
 
     srs_info("redirect to %s.", location.c_str());
-    return srs_success;
+    return err;
 }
 
 SrsHttpNotFoundHandler::SrsHttpNotFoundHandler()
@@ -502,18 +482,12 @@ srs_error_t SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter *w, ISrsHt
 
 string srs_http_fs_fullpath(string dir, string pattern, string upath)
 {
-    // add default pages.
     if (srs_strings_ends_with(upath, "/")) {
         upath += SRS_HTTP_DEFAULT_PAGE;
     }
 
-    // Remove the virtual directory.
-    // For example:
-    //      pattern=/api, the virtual directory is api, upath=/api/index.html, fullpath={dir}/index.html
-    //      pattern=/api, the virtual directory is api, upath=/api/views/index.html, fullpath={dir}/views/index.html
-    // The vhost prefix is ignored, for example:
-    //      pattern=ossrs.net/api, the vhost is ossrs.net, the pattern equals to /api under this vhost,
-    //      so the virtual directory is also api
+    // The virtual directory, the pattern without its vhost, is removed, for example:
+    //      pattern=ossrs.net/api, upath=/api/views/index.html, fullpath={dir}/views/index.html
     // The mux matches the pattern to the path as the URL encodes it, but upath is decoded, so the virtual directory is
     // decoded too, to remove as many bytes as it has in upath, for example:
     //      pattern=/a%20b/, the virtual directory is "a b", upath=/a b/index.html, fullpath={dir}/index.html
@@ -568,8 +542,7 @@ void SrsHttpFileServer::set_path(SrsPath *v)
     path_ = v;
 }
 
-// Whether a path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
-// a..b.dat, is not one.
+// A ".." segment would leave the served dir. A name with two dots in it, such as a..b.dat, is not one.
 static bool srs_http_path_has_dotdot(const string &path)
 {
     size_t start = 0;
@@ -592,7 +565,6 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
 
     srs_assert(entry_);
 
-    // For each HTTP session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
@@ -617,7 +589,6 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     SrsPath path;
     string basename = path.filepath_base(fpath);
 
-    // stat current dir, if exists, return error.
     if (!path_->exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s",
                  fullpath.c_str(), entry_->pattern.c_str(), upath.c_str());
@@ -638,8 +609,6 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
         return SrsHttpRedirectHandler(location, SRS_CONSTS_HTTP_MovedPermanently).serve_http(w, r);
     }
 
-    // handle file according to the extension of its decoded name.
-    // use vod stream for .flv/.fhv
     if (srs_strings_ends_with(fpath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
     } else if (srs_strings_ends_with(fpath, ".m3u8")) {
@@ -650,7 +619,6 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
         return serve_mp4_file(w, r, fullpath);
     }
 
-    // serve common static file.
     return serve_file(w, r, fullpath);
 }
 
@@ -664,10 +632,8 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter *w, ISrsHttpMes
         return srs_error_wrap(err, "open file %s", fullpath.c_str());
     }
 
-    // The length of bytes we could response to.
     int64_t length = fs->filesize() - fs->tellg();
 
-    // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
 
     static std::map<std::string, std::string> mime;
@@ -699,7 +665,6 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter *w, ISrsHttpMes
         mime[".jpeg"] = "image/jpeg";
         mime[".jpg"] = "image/jpeg";
         mime[".gif"] = "image/gif";
-        // For MPEG-DASH.
         mime[".mpd"] = "application/dash+xml";
         mime[".m4s"] = "video/iso.segment";
         mime[".mp4v"] = "video/mp4";
@@ -716,10 +681,8 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter *w, ISrsHttpMes
         }
     }
 
-    // Enter chunked mode, because we didn't set the content-length.
     w->write_header(SRS_CONSTS_HTTP_OK);
 
-    // write body.
     int64_t left = length;
     if ((err = copy(w, fs.get(), r, left)) != srs_success) {
         return srs_error_wrap(err, "copy file=%s size=%" PRId64, fullpath.c_str(), left);
@@ -749,14 +712,12 @@ srs_error_t SrsHttpFileServer::serve_flv_file(ISrsHttpResponseWriter *w, ISrsHtt
 
 srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath)
 {
-    // for flash to request mp4 range in query string.
+    // Flash requests the mp4 range in the query string.
     std::string range = r->query_get("range");
-    // or, use bytes to request range.
     if (range.empty()) {
         range = r->query_get("bytes");
     }
 
-    // Fetch range from header.
     SrsHttpHeader *h = r->header();
     if (range.empty() && h) {
         range = h->get("Range");
@@ -765,19 +726,16 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHtt
         }
     }
 
-    // rollback to serve whole file.
     size_t pos = string::npos;
     if (range.empty() || (pos = range.find("-")) == string::npos) {
         return serve_file(w, r, fullpath);
     }
 
-    // parse the start in query string
     int64_t start = 0;
     if (pos > 0) {
         start = ::atoll(range.substr(0, pos).c_str());
     }
 
-    // parse end in query string.
     int64_t end = -1;
     if (pos < range.length() - 1) {
         end = ::atoll(range.substr(pos + 1).c_str());
@@ -789,7 +747,6 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHtt
         start = -1;
     }
 
-    // invalid param, serve as whole mp4 file.
     if (start < -1 || (start >= 0 && end != -1 && start > end)) {
         return serve_file(w, r, fullpath);
     }
@@ -799,27 +756,27 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHtt
 
 srs_error_t SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
 {
-    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // The common file server does not support stream requests; SrsVodStream does.
     // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t start, int64_t end)
 {
-    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // The common file server does not support stream requests; SrsVodStream does.
     // TODO: FIXME: Support range in header https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Range_requests
     return serve_file(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath)
 {
-    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // The common file server does not support stream requests; SrsVodStream does.
     return serve_file(w, r, fullpath);
 }
 
 srs_error_t SrsHttpFileServer::serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath)
 {
-    // @remark For common http file server, we don't support stream request, please use SrsVodStream instead.
+    // The common file server does not support stream requests; SrsVodStream does.
     return serve_file(w, r, fullpath);
 }
 
@@ -965,19 +922,14 @@ srs_error_t SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler *handle
         static_matchers_[pattern] = entry;
     }
 
-    // Helpful behavior:
-    // If pattern is /tree/, insert an implicit permanent redirect for /tree.
-    // It can be overridden by an explicit registration.
     if (pattern != "/" && !pattern.empty() && pattern.at(pattern.length() - 1) == '/') {
         std::string rpattern = pattern.substr(0, pattern.length() - 1);
         SrsHttpMuxEntry *entry = NULL;
 
-        // free the exists implicit entry
         if (static_matchers_.find(rpattern) != static_matchers_.end()) {
             entry = static_matchers_[rpattern];
         }
 
-        // create implicit redirect.
         if (!entry || !entry->explicit_match) {
             srs_freep(entry);
 
@@ -1002,12 +954,11 @@ void SrsHttpServeMux::unhandle(std::string pattern, ISrsHttpHandler *handler)
             SrsHttpMuxEntry *entry = it->second;
             static_matchers_.erase(it);
 
-            // We don't free the handler, because user should free it.
+            // The caller frees the handler.
             if (entry->handler == handler) {
                 entry->handler = NULL;
             }
 
-            // Should always free the entry.
             srs_freep(entry);
         }
     }
@@ -1054,9 +1005,7 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage *r, ISrsHttpHandler **
         return srs_error_wrap(err, "http match");
     }
 
-    // always try to handle by dynamic matchers.
     if (!dynamic_matchers_.empty()) {
-        // notify all dynamic matchers unless matching failed.
         std::vector<ISrsHttpDynamicMatcher *>::iterator it;
         for (it = dynamic_matchers_.begin(); it != dynamic_matchers_.end(); ++it) {
             ISrsHttpDynamicMatcher *matcher = *it;
@@ -1078,7 +1027,7 @@ srs_error_t SrsHttpServeMux::match(ISrsHttpMessage *r, ISrsHttpHandler **ph)
 {
     std::string path = r->path();
 
-    // Host-specific pattern takes precedence over generic ones
+    // A host pattern takes precedence over a generic one.
     if (!vhosts_.empty() && vhosts_.find(r->host()) != vhosts_.end()) {
         path = r->host() + path;
     }
@@ -1118,13 +1067,10 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
 
     int n = (int)pattern.length();
 
-    // not endswith '/', exactly match.
     if (pattern.at(n - 1) != '/') {
         return pattern == path;
     }
 
-    // endswith '/', match any,
-    // for example, '/api/' match '/api/[N]'
     if ((int)path.length() >= n) {
         if (memcmp(pattern.data(), path.data(), n) == 0) {
             return true;
@@ -1161,13 +1107,12 @@ srs_error_t SrsHttpCorsMux::initialize(bool cros_enabled)
 
 srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
-    // If CORS enabled, and there is a "Origin" header, it's CORS.
+    // A request with an Origin header is a CORS request.
     if (enabled) {
         SrsHttpHeader *h = r->header();
         required = !h->get("Origin").empty();
     }
 
-    // When CORS required, set the CORS headers.
     if (required) {
         SrsHttpHeader *h = w->header();
         // SRS does not need cookie or credentials, so we disable CORS credentials, and use * for CORS origin,
@@ -1189,7 +1134,6 @@ srs_error_t SrsHttpCorsMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
         h->set("Access-Control-Request-Private-Network", "true");
     }
 
-    // handle the http options.
     if (r->is_http_options()) {
         w->header()->set_content_length(0);
         if (enabled) {
@@ -1418,25 +1362,22 @@ srs_error_t SrsHttpUri::initialize(string url)
     schema_ = host_ = path_ = query_ = fragment_ = "";
     url_ = url;
 
-    // Replace the default vhost to a domain like string, or parse failed.
+    // The default vhost is not a domain, so a domain takes its place, or the parse fails.
     string parsing_url = url;
     size_t pos_default_vhost = url.find("://__defaultVhost__");
     if (pos_default_vhost != string::npos) {
         parsing_url = srs_strings_replace(parsing_url, "://__defaultVhost__", "://safe.vhost.default.ossrs.io");
     }
 
-    // Simple URL parser to replace http-parser URL parsing
     srs_error_t err = srs_success;
     if ((err = parse_url_simple(parsing_url, schema_, host_, port_, path_, query_, fragment_, username_, password_)) != srs_success) {
         return srs_error_wrap(err, "parse url %s as %s failed", url.c_str(), parsing_url.c_str());
     }
 
-    // Restore the default vhost.
     if (pos_default_vhost != string::npos) {
         host_ = SRS_CONSTS_RTMP_DEFAULT_VHOST;
     }
 
-    // Set default ports if not specified
     if (port_ <= 0) {
         if (schema_ == "https") {
             port_ = SRS_DEFAULT_HTTPS_PORT;
@@ -1456,7 +1397,6 @@ void SrsHttpUri::set_schema(std::string v)
 {
     schema_ = v;
 
-    // Update url with new schema.
     size_t pos = url_.find("://");
     if (pos != string::npos) {
         url_ = schema_ + "://" + url_.substr(pos + 3);
@@ -1529,13 +1469,11 @@ std::string SrsHttpUri::password()
 srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, string &host, int &port,
                                          string &path, string &query, string &fragment, string &username, string &password)
 {
-    // Simple URL parser: scheme://[userinfo@]host[:port][/path][?query][#fragment]
     schema = host = path = query = fragment = username = password = "";
     port = 0;
 
     size_t pos = 0;
 
-    // Parse schema
     size_t schema_end = url.find("://", pos);
     if (schema_end == string::npos) {
         return srs_error_new(ERROR_HTTP_PARSE_URI, "invalid url, no schema: %s", url.c_str());
@@ -1543,7 +1481,6 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
     schema = url.substr(pos, schema_end);
     pos = schema_end + 3;
 
-    // Find the end of authority (host:port or userinfo@host:port)
     size_t authority_end = url.find_first_of("/?#", pos);
     if (authority_end == string::npos) {
         authority_end = url.length();
@@ -1551,7 +1488,6 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
     string authority = url.substr(pos, authority_end - pos);
     pos = authority_end;
 
-    // Parse userinfo if present
     size_t at_pos = authority.find('@');
     if (at_pos != string::npos) {
         string userinfo = authority.substr(0, at_pos);
@@ -1566,14 +1502,12 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
         }
     }
 
-    // Parse host and port
     if (authority.empty()) {
         return srs_error_new(ERROR_HTTP_PARSE_URI, "invalid url, no host: %s", url.c_str());
     }
 
     size_t colon_pos = authority.rfind(':');
     if (colon_pos != string::npos && colon_pos > 0) {
-        // Check if this is actually a port (all digits after colon)
         string port_str = authority.substr(colon_pos + 1);
         bool is_port = !port_str.empty();
         for (size_t i = 0; i < port_str.length(); i++) {
@@ -1593,7 +1527,6 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
         host = authority;
     }
 
-    // Parse path
     if (pos < url.length() && url[pos] == '/') {
         size_t path_end = url.find_first_of("?#", pos);
         if (path_end == string::npos) {
@@ -1603,9 +1536,8 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
         pos = path_end;
     }
 
-    // Parse query
     if (pos < url.length() && url[pos] == '?') {
-        pos++; // skip '?'
+        pos++;
         size_t query_end = url.find('#', pos);
         if (query_end == string::npos) {
             query_end = url.length();
@@ -1614,9 +1546,8 @@ srs_error_t SrsHttpUri::parse_url_simple(const string &url, string &schema, stri
         pos = query_end;
     }
 
-    // Parse fragment
     if (pos < url.length() && url[pos] == '#') {
-        pos++; // skip '#'
+        pos++;
         fragment = url.substr(pos);
     }
 
@@ -1762,7 +1693,6 @@ bool should_escape(uint8_t c, EncodeMode mode)
         }
     }
 
-    // Everything else must be escaped.
     return true;
 }
 
@@ -1796,7 +1726,6 @@ srs_error_t unescapse(string s, string &value, EncodeMode mode)
     int n = 0;
     bool has_plus = false;
     int i = 0;
-    // Count %, check that they're well-formed.
     while (i < (int)s.length()) {
         switch (s.at(i)) {
         case '%': {

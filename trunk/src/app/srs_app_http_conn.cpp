@@ -44,37 +44,35 @@ using namespace std;
 
 void srs_http_stream_serve_error(ISrsHttpResponseWriter *w, srs_error_t err)
 {
-    // Nothing to report when the viewer was served, or when the response is already on the wire, in
-    // which case the status can no longer be changed and writing again would corrupt the stream.
+    // Once the response is on the wire, writing a status would corrupt the stream.
     if (err == srs_success || w->header_wrote()) {
         return;
     }
 
-    // Map the error onto a status for the viewer. Add a new error here rather than at the place
-    // that raises it, so that every status of HTTP streaming is decided in one place.
+    // Add the status of a new error here rather than where it is raised, so that every status of
+    // HTTP streaming is decided in one place.
     int code = srs_error_code(err);
 
     int status = 0;
     if (code == ERROR_SYSTEM_AUTH) {
-        // Refused by the on_play HTTP callback, see the http_hooks_on_play of each streaming handler.
+        // Refused by the on_play HTTP callback.
         status = SRS_CONSTS_HTTP_Unauthorized;
     } else if (code == ERROR_SYSTEM_SECURITY_DENY || code == ERROR_SYSTEM_SECURITY_ALLOW || code == ERROR_SYSTEM_SECURITY) {
         // Refused by the security rules of the vhost, as RTSP answers its DESCRIBE.
         status = SRS_CONSTS_HTTP_Forbidden;
     }
 
-    // Keep closing the connection for an error we have no status for yet, which is what SRS has
-    // always done, rather than answering every failure with a misleading generic status.
+    // SRS has always closed the connection on an error, so it still does for an error with no status
+    // yet, rather than answering every failure with a misleading generic status.
     if (!status) {
         return;
     }
 
-    // Note that we send the error code and its short name, never srs_error_desc, which may carry the
-    // callback URL or the response of the callback backend.
+    // Never srs_error_desc, which may carry the callback URL or the response of the callback backend.
     string msg = srs_fmt_sprintf("%d: %s", code, srs_error_code_str(err).c_str());
 
-    // Ignore the write error, because the caller returns the error that explains the refusal, which
-    // matters more to the operator than a viewer that already went away.
+    // The caller returns the error that explains the refusal, which matters more to the operator than
+    // a viewer that already went away.
     srs_error_t r0 = srs_go_http_error(w, status, msg);
     srs_freep(r0);
 }
@@ -166,24 +164,19 @@ srs_error_t SrsHttpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Notify handler to handle it.
-    // @remark The error may be transformed by handler.
     err = handler_->on_conn_done(err);
 
-    // success.
     if (err == srs_success) {
         srs_trace("client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -201,21 +194,18 @@ srs_error_t SrsHttpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // set the recv timeout, for some clients never disconnect the connection.
+    // Some clients never close the connection.
     // @see https://github.com/ossrs/srs/issues/398
     skt_->set_recv_timeout(SRS_HTTP_RECV_TIMEOUT);
 
-    // initialize parser
     if ((err = parser_->initialize(HTTP_REQUEST)) != srs_success) {
         return srs_error_wrap(err, "init parser for %s", ip_.c_str());
     }
 
-    // Notify the handler that we are starting to process the connection.
     if ((err = handler_->on_start()) != srs_success) {
         return srs_error_wrap(err, "start");
     }
 
-    // process all http messages.
     ISrsRequest *last_req_raw = NULL;
     err = process_requests(&last_req_raw);
     SrsUniquePtr<ISrsRequest> last_req(last_req_raw);
@@ -238,12 +228,9 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
             return srs_error_wrap(err, "pull");
         }
 
-        // get a http message
         ISrsHttpMessage *req_raw = NULL;
         if ((err = parser_->parse_message(skt_, &req_raw)) != srs_success) {
-            // Tell the client why a JSONP callback is refused, then close as for any request that is not
-            // served. Send the error code and its short name only, never the callback, which must not be
-            // echoed back as script.
+            // Never send the refused callback, which must not be echoed back as script.
             if (srs_error_code(err) == ERROR_HTTP_JSONP) {
                 SrsUniquePtr<ISrsHttpResponseWriter> writer(app_factory_->create_http_response_writer(skt_));
                 writer->header()->set("Connection", "Close");
@@ -256,32 +243,24 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
             return srs_error_wrap(err, "parse message");
         }
 
-        // if SUCCESS, always NOT-NULL.
-        // always free it in this scope.
         srs_assert(req_raw);
         SrsUniquePtr<ISrsHttpMessage> req(req_raw);
 
-        // It must be a owner setter interface.
         ISrsHttpMessageOwnerSetter *hreq = dynamic_cast<ISrsHttpMessageOwnerSetter *>(req.get());
         srs_assert(hreq);
 
-        // Attach owner connection to message.
         hreq->set_connection(this);
 
-        // copy request to last request object.
         srs_freep(*preq);
         *preq = hreq->to_request(hreq->host());
 
-        // may should discard the body.
         SrsUniquePtr<ISrsHttpResponseWriter> writer(app_factory_->create_http_response_writer(skt_));
         if ((err = handler_->on_http_message(req.get(), writer.get())) != srs_success) {
             return srs_error_wrap(err, "on http message");
         }
 
-        // ok, handle http request.
         if ((err = process_request(writer.get(), req.get(), req_id)) != srs_success) {
-            // The mux refuses a URL with "..", before any handler, so tell the client why, then close as for
-            // any request that is not served. Send the error code and its short name only.
+            // The mux refuses a URL with ".." before any handler runs, so no handler sent a status.
             if (srs_error_code(err) == ERROR_HTTP_URL_NOT_CLEAN && !writer->header_wrote()) {
                 writer->header()->set("Connection", "Close");
 
@@ -293,12 +272,10 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
             return srs_error_wrap(err, "process request=%d", req_id);
         }
 
-        // After the request is processed.
         if ((err = handler_->on_message_done(req.get(), writer.get())) != srs_success) {
             return srs_error_wrap(err, "on message done");
         }
 
-        // donot keep alive, disconnect it.
         // @see https://github.com/ossrs/srs/issues/399
         if (!req->is_keep_alive()) {
             break;
@@ -315,7 +292,7 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter *w, ISrsHttpMess
     srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip_.c_str(), port_,
               r->method_str().c_str(), r->url().c_str(), r->content_length());
 
-    // proxy to cors-->auth-->http_remux.
+    // The CORS mux passes the request to the auth mux, which passes it to the HTTP mux.
     if ((err = cors_->serve_http(w, r)) != srs_success) {
         return srs_error_wrap(err, "cors serve");
     }
@@ -368,7 +345,7 @@ srs_error_t SrsHttpConn::set_auth_enabled(bool auth_enabled)
         }
     }
 
-    // Initialize the auth mux, which owns the authenticator.
+    // The auth mux owns the authenticator.
     if ((err = auth_->initialize(authenticator)) != srs_success) {
         srs_freep(authenticator);
         return srs_error_wrap(err, "init auth");
@@ -422,7 +399,6 @@ SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, 
 
 void SrsHttpxConn::assemble()
 {
-    // Create a identify for this client.
     context_->set_id(context_->generate_id());
 
     if (!ssl_key_file_.empty() &&
@@ -470,12 +446,11 @@ srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage **preq)
         io = ssl_;
     }
 
-    // Check user interrupt by interval.
+    // The read times out now and then, so the loop can check whether the connection coroutine stopped.
     io->set_recv_timeout(3 * SRS_UTIME_SECONDS);
 
-    // We start a socket to read the stfd, which is writing by conn.
-    // It's ok, because conn never read it after processing the HTTP request.
-    // drop all request body.
+    // The connection coroutine writes to the same fd, which is safe because it never reads the fd
+    // after it processes the HTTP request.
     static char body[SRS_HTTP_READ_CACHE_BYTES];
     while (true) {
         if ((err = conn_->pull()) != srs_success) {
@@ -483,7 +458,6 @@ srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage **preq)
         }
 
         if ((err = io->read(body, SRS_HTTP_READ_CACHE_BYTES, NULL)) != srs_success) {
-            // Because we use timeout to check trd state, so we should ignore any timeout.
             if (srs_error_code(err) == ERROR_SOCKET_TIMEOUT) {
                 srs_freep(err);
                 continue;
@@ -500,12 +474,10 @@ srs_error_t SrsHttpxConn::on_start()
 {
     srs_error_t err = srs_success;
 
-    // Enable JSONP for HTTP API.
     if ((err = conn_->set_jsonp(true)) != srs_success) {
         return srs_error_wrap(err, "set jsonp");
     }
 
-    // Do SSL handshake if HTTPS.
     if (ssl_) {
         srs_utime_t starttime = srs_time_now_realtime();
         if ((err = ssl_->handshake(ssl_key_file_, ssl_cert_file_)) != srs_success) {
@@ -524,13 +496,11 @@ srs_error_t SrsHttpxConn::on_http_message(ISrsHttpMessage *r, ISrsHttpResponseWr
 {
     srs_error_t err = srs_success;
 
-    // After parsed the message, set the schema to https.
     if (ssl_) {
         SrsHttpMessage *hm = dynamic_cast<SrsHttpMessage *>(r);
         hm->set_https(true);
     }
 
-    // For each session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
@@ -544,18 +514,15 @@ srs_error_t SrsHttpxConn::on_message_done(ISrsHttpMessage *r, ISrsHttpResponseWr
 
 srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
 {
-    // Only stat the HTTP streaming clients, ignore all API clients.
     if (enable_stat_) {
         stat_->on_disconnect(get_id().c_str(), r0);
         stat_->kbps_add_delta(get_id().c_str(), conn_->delta());
     }
 
-    // Because we use manager to manage this object,
-    // not the http connection object, so we must remove it here.
+    // The manager holds this object, not the HTTP connection, so it is removed here.
     manager_->remove(this);
 
-    // For HTTP-API timeout, we think it's done successfully,
-    // because there may be no request or response for HTTP-API.
+    // An HTTP API connection may carry no request or response, so a timeout is a normal end.
     if (srs_error_code(r0) == ERROR_SOCKET_TIMEOUT) {
         srs_freep(r0);
         return srs_success;
@@ -635,7 +602,7 @@ srs_error_t SrsHttpServer::initialize()
 {
     srs_error_t err = srs_success;
 
-    // for SRS go-sharp to detect the status of HTTP server of SRS HTTP FLV Cluster.
+    // SRS go-sharp reads it to detect the status of the HTTP server in an SRS HTTP-FLV cluster.
     if ((err = http_static_->mux()->handle("/api/v1/versions", new SrsGoApiVersion())) != srs_success) {
         return srs_error_wrap(err, "handle versions");
     }
@@ -663,7 +630,6 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
     string path = r->path();
     const char *p = path.data();
 
-    // For /api/ or /console/, try static only.
     if (path.length() > 4 && p[0] == '/') {
         bool is_api = memcmp(p, "/api/", 5) == 0;
         bool is_console = path.length() > 8 && memcmp(p, "/console/", 9) == 0;
@@ -672,7 +638,6 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
         }
     }
 
-    // Try http stream first, then http static if not found.
     ISrsHttpHandler *h = NULL;
     if ((err = http_stream_->mux()->find_handler(r, &h)) != srs_success) {
         return srs_error_wrap(err, "find handler");
@@ -681,7 +646,6 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
         return http_stream_->mux()->serve_http(w, r);
     }
 
-    // Use http static as default server.
     return http_static_->mux()->serve_http(w, r);
 }
 

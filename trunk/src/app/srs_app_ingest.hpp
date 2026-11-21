@@ -23,7 +23,6 @@ class ISrsAppFactory;
 class ISrsAppConfig;
 class ISrsRand;
 
-// The ingest ffmpeg interface.
 class ISrsIngesterFFMPEG
 {
 public:
@@ -32,9 +31,7 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsFFMPEG *ff, std::string v, std::string i) = 0;
-    // The ingest uri, [vhost]/[ingest id]
     virtual std::string uri() = 0;
-    // The alive in srs_utime_t.
     virtual srs_utime_t alive() = 0;
     virtual bool equals(std::string v, std::string i) = 0;
     virtual bool equals(std::string v) = 0;
@@ -47,7 +44,6 @@ public:
     virtual void fast_kill() = 0;
 };
 
-// Ingester ffmpeg object.
 class SrsIngesterFFMPEG : public ISrsIngesterFFMPEG
 {
 // clang-format off
@@ -63,9 +59,7 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsFFMPEG *ff, std::string v, std::string i);
-    // The ingest uri, [vhost]/[ingest id]
     virtual std::string uri();
-    // The alive in srs_utime_t.
     virtual srs_utime_t alive();
     virtual bool equals(std::string v, std::string i);
     virtual bool equals(std::string v);
@@ -78,7 +72,6 @@ public:
     virtual void fast_kill();
 };
 
-// The ingest interface.
 class ISrsIngester
 {
 public:
@@ -92,9 +85,8 @@ public:
     virtual void stop() = 0;
 };
 
-// Ingest file/stream/device,
-// encode with FFMPEG(optional),
-// push to SRS(or any RTMP server) over RTMP.
+// Pulls a file or stream with FFmpeg, transcoding it when an engine is enabled, and pushes it
+// over RTMP to SRS or any other RTMP server.
 class SrsIngester : public ISrsIngester, public ISrsCoroutineHandler
 {
 // clang-format off
@@ -111,15 +103,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     ISrsPithyPrint *pprint_;
     ISrsRand *rand_;
-    // Whether the ingesters are expired, for example, the listen port changed,
-    // all ingesters must be restart.
     bool expired_;
-    // Whether already disposed.
     bool disposed_;
 
 public:
     SrsIngester();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsIngester();
 
 public:
@@ -131,11 +120,9 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Notify FFMPEG to fast stop.
     virtual void fast_stop();
-    // When SRS quit, directly kill FFMPEG after fast stop.
     virtual void fast_kill();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 

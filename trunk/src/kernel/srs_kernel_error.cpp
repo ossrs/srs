@@ -34,7 +34,7 @@ void *parse_symbol_offset(char *frame)
     char *p_offset = NULL;
     int nn_offset = 0;
 
-    // Read symbol and offset, for example:
+    // A frame, for example:
     //      /tools/backtrace(foo+0x1820) [0x555555555820]
     for (p = frame; *p; p++) {
         if (*p == '(') {
@@ -52,7 +52,6 @@ void *parse_symbol_offset(char *frame)
         return NULL;
     }
 
-    // Convert offset(0x1820) to pointer, such as 0x1820.
     char tmp[128];
     if (!nn_offset || nn_offset >= (int)sizeof(tmp)) {
         return NULL;
@@ -65,7 +64,6 @@ void *parse_symbol_offset(char *frame)
         return NULL;
     }
 
-    // Covert symbol(foo) to offset, such as 0x2fba.
     if (!nn_symbol || nn_symbol >= (int)sizeof(tmp)) {
         return offset;
     }
@@ -113,11 +111,10 @@ char *addr2line_format(void *addr, char *symbol, char *buffer, int nn_buffer)
     if ((r0 = strlen(p)) == 0)
         return symbol;
 
-    // Trait the last newline if exists.
     if (p[r0 - 1] == '\n')
         p[r0 - 1] = '\0';
 
-    // Find symbol not match by addr2line, like
+    // addr2line prints ?? for a symbol it does not find, like
     //      0x0000000000021c87: ?? ??:0
     //      0x0000000000002ffa: _start at ??:?
     for (p = buffer; p < buffer + r0 - 1; p++) {
@@ -152,7 +149,7 @@ void asan_report_callback(const char *str)
 {
     static char buf[256];
 
-    // No error code for assert failed.
+    // srs_error appends strerror(errno) when errno is set, but no system call failed here.
     errno = 0;
 
     std::vector<std::string> asan_logs = srs_strings_split(string(str), "\n");
@@ -177,18 +174,17 @@ void asan_report_callback(const char *str)
 #endif
 
 #ifdef SRS_SANITIZER
-// This function return the default options for asan, before main() is called,
+// ASan reads its default options from this function before main() is called,
 // see https://github.com/google/sanitizers/wiki/AddressSanitizerFlags#run-time-flags
 //
-// Disable halt on errors by halt_on_error, only print messages, note that it still quit for fatal errors,
+// halt_on_error=0 only prints errors, but ASan still quits on fatal errors,
 // see https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
 //
-// Disable the memory leaking detect for daemon by detect_leaks,
-// see https://github.com/google/sanitizers/wiki/SanitizerCommonFlags
+// detect_leaks=0 for the daemon, see https://github.com/google/sanitizers/wiki/SanitizerCommonFlags
 //
-// Also disable alloc_dealloc_mismatch for gdb.
+// alloc_dealloc_mismatch=0 for gdb.
 //
-// Disable the container overflow detect by detect_container_overflow, because libsrt is built without ASan. Its
+// detect_container_overflow=0 because libsrt is built without ASan. Its
 // inline std::vector code shares the instantiations of the instrumented SRS code, so libsrt grows a vector without
 // updating the container annotations, and a valid copy of the vector is reported as a heap-buffer-overflow, see
 // https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow#false-positives
@@ -303,7 +299,6 @@ SrsCplxError *SrsCplxError::create(const char *func, const char *file, int line,
     int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
 
-    // Ensure buffer is null-terminated even if vsnprintf failed or truncated.
     if (r0 < 0) {
         buffer[0] = '\0';
     } else if (r0 >= maxLogBuf) {
@@ -336,7 +331,6 @@ SrsCplxError *SrsCplxError::wrap(const char *func, const char *file, int line, S
     int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
 
-    // Ensure buffer is null-terminated even if vsnprintf failed or truncated.
     if (r0 < 0) {
         buffer[0] = '\0';
     } else if (r0 >= maxLogBuf) {
@@ -367,14 +361,12 @@ SrsCplxError *SrsCplxError::transform(const char *func, const char *file, int li
     int r0 = vsnprintf(buffer, maxLogBuf, fmt, ap);
     va_end(ap);
 
-    // Ensure buffer is null-terminated even if vsnprintf failed or truncated.
     if (r0 < 0) {
         buffer[0] = '\0';
     } else if (r0 >= maxLogBuf) {
         buffer[maxLogBuf - 1] = '\0';
     }
 
-    // Wrap the error with additional context showing the code transformation.
     SrsCplxError *err = NULL;
     err = wrap(func, file, line, v, "code transformed (%d => %d): %s", srs_error_code(v), code, buffer);
     err->code_ = code;
@@ -446,7 +438,6 @@ std::string SrsCplxError::error_code_str(SrsCplxError *err)
     static string not_found = "";
     static std::map<SrsErrorCode, string> error_map;
 
-    // Build map if empty.
     if (error_map.empty()) {
         for (int i = 0; i < (int)(sizeof(_srs_strerror_tab) / sizeof(_srs_strerror_tab[0])); i++) {
             SrsErrorCode code = _srs_strerror_tab[i].code;
@@ -467,7 +458,6 @@ std::string SrsCplxError::error_code_strlong(SrsCplxError *err)
     static string not_found = "";
     static std::map<SrsErrorCode, string> error_map;
 
-    // Build map if empty.
     if (error_map.empty()) {
         for (int i = 0; i < (int)(sizeof(_srs_strerror_tab) / sizeof(_srs_strerror_tab[0])); i++) {
             SrsErrorCode code = _srs_strerror_tab[i].code;
@@ -484,14 +474,13 @@ std::string SrsCplxError::error_code_strlong(SrsCplxError *err)
 }
 
 #if defined(SRS_BACKTRACE) && defined(__linux)
-// Log the stack of the caller, one frame per line, with the function and source line when addr2line finds them.
 void srs_backtrace_log()
 {
     void *addresses[64];
     int nn_addresses = backtrace(addresses, sizeof(addresses) / sizeof(void *));
     char **symbols = backtrace_symbols(addresses, nn_addresses);
 
-    // No error code for assert failed.
+    // srs_error appends strerror(errno) when errno is set, but a failed assert is no system call error.
     errno = 0;
 
     char buffer[128];

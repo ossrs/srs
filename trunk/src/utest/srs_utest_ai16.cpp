@@ -769,13 +769,13 @@ srs_error_t MockWaitingHttpxConnForLiveStream::pop_message(ISrsHttpMessage **pre
     return srs_error_new(ERROR_SOCKET_TIMEOUT, "read timeout");
 }
 
-VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
+VOID TEST(SrsLiveStreamTest, ServeHttpWithEntryOff)
 {
     srs_error_t err;
 
-    // Test the major use scenario: serve_http_impl with entry_->enabled = false
-    // This covers the case where stream is disabled and should return error after
-    // security check and HTTP hooks
+    // Test the major use scenario: serve_http with entry_->enabled = false
+    // This covers the case where stream is disabled during its teardown, and the viewer is refused before it
+    // counts as alive, before the stat, the security check and the HTTP hooks
 
     // Create mock request
     SrsUniquePtr<MockRequest> mock_request(new MockRequest("test.vhost", "live", "stream1"));
@@ -804,7 +804,7 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     live_stream->entry_->enabled = false;
     live_stream->entry_->pattern = "/live/stream.flv";
 
-    // Call serve_http - should add viewer, call serve_http_impl, then remove viewer
+    // Call serve_http - should refuse the viewer before adding it
     err = live_stream->serve_http(&mock_writer, mock_message.get());
 
     // Verify that error was returned due to disabled entry
@@ -812,14 +812,11 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     EXPECT_EQ(ERROR_RTMP_STREAM_NOT_FOUND, srs_error_code(err));
     srs_freep(err);
 
-    // Verify that stat->on_client was called
-    EXPECT_EQ(1, mock_stat.on_client_count_);
-
-    // Verify that security->check was called
-    EXPECT_EQ(1, mock_security.check_count_);
+    // Verify that neither stat->on_client nor security->check was called
+    EXPECT_EQ(0, mock_stat.on_client_count_);
+    EXPECT_EQ(0, mock_security.check_count_);
 
     // Verify that viewers list is empty after serve_http returns
-    // This confirms that the viewer was added before serve_http_impl and removed after
     EXPECT_EQ(0, (int)live_stream->viewers_.size());
 
     // Clean up - set dependencies back to NULL before destruction
@@ -828,8 +825,8 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
-// Serve an HTTP-FLV viewer of a stream published with the given URLs, through a stream whose entry
-// is disabled, so serve_http() stops after the stat, and return the URLs the stat got.
+// Serve an HTTP-FLV viewer of a stream published with the given URLs, through a security that denies
+// it, so serve_http() stops after the stat, and return the URLs the stat got.
 static void mock_live_stream_viewer_urls(bool https, std::string host, std::string referer, MockStatisticForLiveStream *stat)
 {
     SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
@@ -841,11 +838,11 @@ static void mock_live_stream_viewer_urls(bool https, std::string host, std::stri
     SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
     SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
     MockSecurity security;
+    security.check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny");
     stream->stat_ = stat;
     srs_freep(stream->security_);
     stream->security_ = &security;
     stream->entry_ = new SrsHttpMuxEntry();
-    stream->entry_->enabled = false;
     stream->entry_->pattern = "/live/stream1.flv";
 
     SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
@@ -909,12 +906,13 @@ VOID TEST(SrsLiveStreamTest, ViewerTypeOfEachMount)
         SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
         SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
         MockStatisticForLiveStream stat;
+        // The security denies the viewer, so serve_http() stops after the stat and the check.
         MockSecurity security;
+        security.check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny");
         stream->stat_ = &stat;
         srs_freep(stream->security_);
         stream->security_ = &security;
         stream->entry_ = new SrsHttpMuxEntry();
-        stream->entry_->enabled = false;
         stream->entry_->pattern = url;
 
         SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
@@ -2205,7 +2203,7 @@ VOID TEST(SrsLiveStreamTest, StreamingSendMessagesWithMixedPackets)
     }
 }
 
-VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithDisabledEntry)
+VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithEntryOff)
 {
     srs_error_t err;
 

@@ -17,18 +17,11 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 
-// The return value of verify_callback controls the strategy of the further verification process. If verify_callback
-// returns 0, the verification process is immediately stopped with "verification failed" state. If SSL_VERIFY_PEER is
-// set, a verification failure alert is sent to the peer and the TLS/SSL handshake is terminated. If verify_callback
-// returns 1, the verification process is continued. If verify_callback always returns 1, the TLS/SSL handshake will
-// not be terminated with respect to verification failures and the connection will be established. The calling process
-// can however retrieve the error code of the last verification error using SSL_get_verify_result(3) or by maintaining
-// its own error storage managed by verify_callback.
+// When verify_callback always returns 1, OpenSSL does not end the handshake on a verification failure.
 // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
 int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
-    // Always OK, we don't check the certificate of client,
-    // because we allow client self-sign certificate.
+    // Accept any server certificate, so servers with a self-signed certificate work.
     return 1;
 }
 
@@ -42,7 +35,7 @@ SrsSslClient::SrsSslClient(ISrsProtocolReadWriter *transport)
 SrsSslClient::~SrsSslClient()
 {
     if (ssl_) {
-        // this function will free bio_in_ and bio_out_
+        // SSL_free also frees bio_in_ and bio_out_.
         SSL_free(ssl_);
         ssl_ = NULL;
     }
@@ -59,7 +52,6 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
 {
     srs_error_t err = srs_success;
 
-    // For HTTPS, try to connect over security transport.
 #if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
     ssl_ctx_ = SSL_CTX_new(TLS_method());
 #else
@@ -84,10 +76,8 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
 
     SSL_set_bio(ssl_, bio_in_, bio_out_);
 
-    // SSL setup active, as client role.
     SSL_set_connect_state(ssl_);
     SSL_set_mode(ssl_, SSL_MODE_ENABLE_PARTIAL_WRITE);
-    // If the server address is not in IP address format, set the host in the Server Name Indication (SNI) field.
     if (!srs_net_is_valid_ip(host)) {
         SSL_set_tlsext_host_name(ssl_, host.c_str());
     }
@@ -114,7 +104,7 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
 
     srs_info("tls: ClientHello done");
 
-    // Receive ServerHello, Certificate, Server Key Exchange, Server Hello Done
+    // Receive ServerHello, Certificate, Server Key Exchange, Server Hello Done.
     while (true) {
         char buf[512];
         ssize_t nn = 0;
@@ -135,7 +125,6 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
         }
 
         if ((size = BIO_get_mem_data(bio_out_, &data)) > 0) {
-            // OK, reset it for the next write.
             if ((r0 = BIO_reset(bio_in_)) != 1) {
                 return srs_error_new(ERROR_TLS_HANDSHAKE, "BIO_reset r0=%d", r0);
             }
@@ -145,7 +134,7 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
 
     srs_info("tls: ServerHello done");
 
-    // Send Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message
+    // Send Client Key Exchange, Change Cipher Spec, Encrypted Handshake Message.
     if ((err = transport_->write(data, size, NULL)) != srs_success) {
         return srs_error_wrap(err, "handshake: write data=%p, size=%d", data, size);
     }
@@ -155,7 +144,7 @@ srs_error_t SrsSslClient::handshake(const std::string &host)
 
     srs_info("tls: Client done");
 
-    // Receive New Session Ticket, Change Cipher Spec, Encrypted Handshake Message
+    // Receive New Session Ticket, Change Cipher Spec, Encrypted Handshake Message.
     while (true) {
         char buf[128];
         ssize_t nn = 0;
@@ -197,13 +186,12 @@ srs_error_t SrsSslClient::read(void *plaintext, size_t nn_plaintext, ssize_t *nr
         int r2 = BIO_ctrl_pending(bio_in_);
         int r3 = SSL_is_init_finished(ssl_);
 
-        // Peer gracefully close.
+        // The peer closed the TLS connection gracefully.
         if (r0 == 0 && r1 == SSL_ERROR_ZERO_RETURN) {
             return srs_error_new(ERROR_SOCKET_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                                  r0, r1, r2, r3);
         }
 
-        // OK, got data.
         if (r0 > 0) {
             srs_assert(r0 <= (int)nn_plaintext);
             if (nread) {
@@ -212,13 +200,11 @@ srs_error_t SrsSslClient::read(void *plaintext, size_t nn_plaintext, ssize_t *nr
             return err;
         }
 
-        // Need to read more data to feed SSL.
         if (r0 == -1 && r1 == SSL_ERROR_WANT_READ) {
             // TODO: Can we avoid copy?
             int nn_cipher = nn_plaintext;
             SrsUniquePtr<char[]> cipher(new char[nn_cipher]);
 
-            // Read the cipher from SSL.
             ssize_t nn = 0;
             if ((err = transport_->read(cipher.get(), nn_cipher, &nn)) != srs_success) {
                 return srs_error_wrap(err, "https: read");
@@ -232,7 +218,6 @@ srs_error_t SrsSslClient::read(void *plaintext, size_t nn_plaintext, ssize_t *nr
             continue;
         }
 
-        // Fail for error.
         if (r0 <= 0) {
             return srs_error_new(ERROR_TLS_READ, "SSL_read r0=%d, r1=%d, r2=%d, r3=%d",
                                  r0, r1, r2, r3);
@@ -253,7 +238,6 @@ srs_error_t SrsSslClient::write(void *plaintext, size_t nn_plaintext, ssize_t *n
             return srs_error_new(ERROR_TLS_WRITE, "tls: write data=%p, size=%d, r0=%d, r1=%d", p, left, r0, r1);
         }
 
-        // Move p to the next writing position.
         p += r0;
         if (nwrite) {
             *nwrite += (ssize_t)r0;
@@ -314,20 +298,17 @@ srs_error_t SrsHttpClient::initialize(string schema, string h, int p, srs_utime_
         return srs_error_wrap(err, "http: init parser");
     }
 
-    // Always disconnect the transport.
     schema_ = schema;
     host_ = h;
     port_ = p;
     recv_timeout_ = timeout_ = tm;
     disconnect();
 
-    // ep used for host in header.
     string ep = host_;
     if (port_ > 0 && port_ != SRS_CONSTS_HTTP_DEFAULT_PORT) {
         ep += ":" + srs_strconv_format_int(port_);
     }
 
-    // Set default value for headers.
     headers_["Host"] = ep;
     headers_["Connection"] = "Keep-Alive";
     headers_["User-Agent"] = RTMP_SIG_SRS_SERVER;
@@ -349,7 +330,6 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage **ppmsg
 
     srs_error_t err = srs_success;
 
-    // always set the content length.
     headers_["Content-Length"] = srs_strconv_format_int(req.length());
 
     if ((err = connect()) != srs_success) {
@@ -361,8 +341,6 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage **ppmsg
     }
 
     // TODO: FIXME: Use SrsHttpMessageWriter, never use stringstream and headers_.
-    // send POST request to uri
-    // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "POST " << path << " " << "HTTP/1.1" << SRS_HTTP_CRLF;
     for (map<string, string>::iterator it = headers_.begin(); it != headers_.end(); ++it) {
@@ -374,7 +352,6 @@ srs_error_t SrsHttpClient::post(string path, string req, ISrsHttpMessage **ppmsg
 
     std::string data = ss.str();
     if ((err = writer()->write((void *)data.c_str(), data.length(), NULL)) != srs_success) {
-        // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
         return srs_error_wrap(err, "http: write");
     }
@@ -400,15 +377,12 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage **ppmsg)
 
     srs_error_t err = srs_success;
 
-    // always set the content length.
     headers_["Content-Length"] = srs_strconv_format_int(req.length());
 
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "http: connect server");
     }
 
-    // send POST request to uri
-    // GET %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "GET " << path << " " << "HTTP/1.1" << SRS_HTTP_CRLF;
     for (map<string, string>::iterator it = headers_.begin(); it != headers_.end(); ++it) {
@@ -420,7 +394,6 @@ srs_error_t SrsHttpClient::get(string path, string req, ISrsHttpMessage **ppmsg)
 
     std::string data = ss.str();
     if ((err = writer()->write((void *)data.c_str(), data.length(), NULL)) != srs_success) {
-        // Disconnect the transport when channel error, reconnect for next operation.
         disconnect();
         return srs_error_wrap(err, "http: write");
     }
@@ -470,7 +443,6 @@ srs_error_t SrsHttpClient::connect()
 {
     srs_error_t err = srs_success;
 
-    // When transport connected, ignore.
     if (transport_) {
         return err;
     }
@@ -482,7 +454,6 @@ srs_error_t SrsHttpClient::connect()
                               schema_.c_str(), host_.c_str(), port_, srsu2msi(timeout_), srsu2msi(recv_timeout_));
     }
 
-    // Set the recv/send timeout in srs_utime_t.
     transport_->set_recv_timeout(recv_timeout_);
     transport_->set_send_timeout(timeout_);
 

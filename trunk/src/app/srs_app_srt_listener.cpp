@@ -12,7 +12,6 @@ using namespace std;
 #include <srs_app_srt_server.hpp>
 #include <srs_protocol_st.hpp>
 
-// How long the listener waits after an accept that fails, before it accepts again.
 #define SRS_SRT_LISTENER_ERROR_INTERVAL (10 * SRS_UTIME_MILLISECONDS)
 
 ISrsSrtHandler::ISrsSrtHandler()
@@ -80,7 +79,7 @@ srs_error_t SrsSrtListener::listen()
     }
 
     srt_skt_ = new SrsSrtSocket(srt_eventloop_->poller(), lfd_);
-    // Accept never timeout.
+    // Accept never times out.
     srt_skt_->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     srt_skt_->set_send_timeout(SRS_UTIME_NO_TIMEOUT);
 

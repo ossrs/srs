@@ -12,26 +12,6 @@
 #include <string>
 #include <vector>
 
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-// JSON decode
-// 1. SrsJsonAny: read any from str:char*
-//        SrsJsonAny* any = NULL;
-//        if ((any = SrsJsonAny::loads(str)) == NULL) {
-//            return -1;
-//         }
-//        srs_assert(pany); // if success, always valid object.
-// 2. SrsJsonAny: convert to specifid type, for instance, string
-//        SrsJsonAny* any = ...
-//        if (any->is_string()) {
-//            string v = any->to_str();
-//        }
-//
-// For detail usage, see interfaces of each object.
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
 // @see: https://github.com/udp/json-parser
 
 class SrsAmf0Any;
@@ -42,8 +22,6 @@ class SrsJsonAny
 {
 public:
     char marker_;
-    // Don't directly create this object,
-    // please use SrsJsonAny::str() to create a concreated one.
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     SrsJsonAny();
@@ -61,23 +39,11 @@ public:
     virtual bool is_null();
 
 public:
-    // Get the string of any when is_string() indicates true.
-    // user must ensure the type is a string, or assert failed.
     virtual std::string to_str();
-    // Get the boolean of any when is_boolean() indicates true.
-    // user must ensure the type is a boolean, or assert failed.
     virtual bool to_boolean();
-    // Get the integer of any when is_integer() indicates true.
-    // user must ensure the type is a integer, or assert failed.
     virtual int64_t to_integer();
-    // Get the number of any when is_number() indicates true.
-    // user must ensure the type is a number, or assert failed.
     virtual double to_number();
-    // Get the object of any when is_object() indicates true.
-    // user must ensure the type is a object, or assert failed.
     virtual SrsJsonObject *to_object();
-    // Get the ecma array of any when is_ecma_array() indicates true.
-    // user must ensure the type is a ecma array, or assert failed.
     virtual SrsJsonArray *to_array();
 
 public:
@@ -95,8 +61,7 @@ public:
     static SrsJsonArray *array();
 
 public:
-    // Read json tree from string.
-    // @return json object. NULL if error.
+    // Returns NULL on error.
     static SrsJsonAny *loads(std::string str);
 };
 
@@ -109,7 +74,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Use SrsJsonAny::object() to create it.
     friend class SrsJsonAny;
     SrsJsonObject();
 
@@ -118,9 +82,7 @@ public:
 
 public:
     virtual int count();
-    // @remark: max index is count().
     virtual std::string key_at(int index);
-    // @remark: max index is count().
     virtual SrsJsonAny *value_at(int index);
 
 public:
@@ -146,7 +108,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Use SrsJsonAny::array() to create it.
     friend class SrsJsonAny;
     SrsJsonArray();
 
@@ -155,20 +116,13 @@ public:
 
 public:
     virtual int count();
-    // @remark: max index is count().
     virtual SrsJsonAny *at(int index);
     virtual SrsJsonArray *add(SrsJsonAny *value);
-    // alias to add.
     virtual SrsJsonArray *append(SrsJsonAny *value);
 
 public:
     virtual std::string dumps();
     virtual SrsAmf0Any *to_amf0();
 };
-
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-// JSON encode, please use JSON.dumps() to encode json object.
 
 #endif

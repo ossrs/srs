@@ -20,7 +20,6 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 
 // @see pycrc https://github.com/winlinvip/pycrc/blob/master/pycrc/algorithms.py#L207
-// IEEETable is the table for the IEEE polynomial.
 static uint32_t __crc32_IEEE_table[256];
 static bool __crc32_IEEE_table_initialized = false;
 
@@ -28,23 +27,12 @@ extern void __crc32_make_table(uint32_t t[256], uint32_t poly, bool reflect_in);
 extern uint32_t __crc32_table_driven(uint32_t *t, const void *buf, int size, uint32_t previous, bool reflect_in, uint32_t xor_in, bool reflect_out, uint32_t xor_out);
 
 // @see pycrc https://github.com/winlinvip/pycrc/blob/master/pycrc/models.py#L220
-//      crc32('123456789') = 0xcbf43926
-// where it's defined as model:
-//      'name':         'crc-32',
-//      'width':         32,
-//      'poly':          0x4c11db7,
-//      'reflect_in':    True,
-//      'xor_in':        0xffffffff,
-//      'reflect_out':   True,
-//      'xor_out':       0xffffffff,
-//      'check':         0xcbf43926,
+// The check value of the crc-32 model is crc32('123456789') = 0xcbf43926.
 uint32_t srs_crc32_ieee(const void *buf, int size, uint32_t previous)
 {
     // @see golang IEEE of hash/crc32/crc32.go
-    // IEEE is by far and away the most common CRC-32 polynomial.
-    // Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, ...
-    // @remark The poly of CRC32 IEEE is 0x04C11DB7, its reverse is 0xEDB88320,
-    //      please read https://en.wikipedia.org/wiki/Cyclic_redundancy_check
+    // The most common CRC-32 polynomial, used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip and png. Its reversed
+    // form is 0xEDB88320, see https://en.wikipedia.org/wiki/Cyclic_redundancy_check
     uint32_t poly = 0x04C11DB7;
 
     bool reflect_in = true;
@@ -281,10 +269,8 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
         }
 
         // @see: https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis-00#section-5.1.2
-        // One agent full, one lite:  The full agent MUST take the controlling
-        // role, and the lite agent MUST take the controlled role.  The full
-        // agent will form check lists, run the ICE state machines, and
-        // generate connectivity checks.
+        // When one agent is full and one is lite, the full agent takes the controlling role and the lite agent the
+        // controlled role.
         case IceControlled: {
             ice_controlled_ = true;
             srs_verbose("stun ice-controlled");
@@ -350,6 +336,13 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
     string property_username = encode_username();
     string mapped_address = encode_mapped_address();
 
+    // The header, the username and mapped address, then the 24 bytes integrity and 8 bytes fingerprint. The username
+    // comes from the client, so a long one does not fit the caller's buffer.
+    int nb_response = 20 + (int)property_username.size() + (int)mapped_address.size() + 24 + 8;
+    if (!stream->require(nb_response)) {
+        return srs_error_new(ERROR_RTC_STUN, "stun response requires %d only %d bytes", nb_response, stream->left());
+    }
+
     stream->write_2bytes(BindingResponse);
     stream->write_2bytes(property_username.size() + mapped_address.size());
     stream->write_4bytes(kStunMagicCookie);
@@ -386,10 +379,11 @@ srs_error_t SrsStunPacket::encode_binding_response(const string &pwd, SrsBuffer 
 
 string SrsStunPacket::encode_username()
 {
-    char buf[1460];
-    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
-
     string username = remote_ufrag_ + ":" + local_ufrag_;
+
+    // The type, length, username and padding, sized for a username of any length.
+    vector<char> buf(4 + username.size() + 4);
+    SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(&buf[0], (int)buf.size()));
 
     stream->write_2bytes(Username);
     stream->write_2bytes(username.size());
@@ -410,8 +404,8 @@ string SrsStunPacket::encode_mapped_address()
 
     stream->write_2bytes(XorMappedAddress);
     stream->write_2bytes(8);
-    stream->write_1bytes(0); // ignore this bytes
-    stream->write_1bytes(1); // ipv4 family
+    stream->write_1bytes(0); // ignored by receivers
+    stream->write_1bytes(1); // IPv4 family
     stream->write_2bytes(mapped_port_ ^ (kStunMagicCookie >> 16));
     stream->write_4bytes(mapped_address_ ^ kStunMagicCookie);
 

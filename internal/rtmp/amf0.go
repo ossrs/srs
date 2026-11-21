@@ -14,7 +14,7 @@ import (
 	"srsx/internal/errors"
 )
 
-// Please read @doc amf0_spec_121207.pdf, @page 4, @section 2.1 Types Overview
+// See amf0_spec_121207.pdf, page 4, section 2.1 Types Overview.
 type amf0Marker uint8
 
 const (
@@ -83,28 +83,22 @@ func (v amf0Marker) String() string {
 	}
 }
 
-// For utest to mock it.
+// An interface, so a test can return a buffer whose writes fail.
 type amf0Buffer interface {
 	Bytes() []byte
 	WriteByte(c byte) error
 	Write(p []byte) (n int, err error)
 }
 
-// defaultBufFactory is the production amf0Buffer factory. Tests override the
-// per-instance bufFactory field on amf0ObjectBase instead of swapping a global.
 func defaultBufFactory() amf0Buffer {
 	return &bytes.Buffer{}
 }
 
-// All AMF0 things.
 type Amf0Any interface {
-	// Binary marshaler and unmarshaler.
 	encoding.BinaryUnmarshaler
 	encoding.BinaryMarshaler
-	// Get the size of bytes to marshal this object.
 	Size() int
 
-	// Get the Marker of any AMF0 stuff.
 	amf0Marker() amf0Marker
 }
 
@@ -183,7 +177,6 @@ func (v *amf0Converter) ToStrictArray() Amf0StrictArray {
 	return nil
 }
 
-// Discovery the amf0 object from the bytes b.
 func Amf0Discovery(p []byte) (a Amf0Any, err error) {
 	if len(p) < 1 {
 		return nil, errors.Errorf("require 1 bytes only %v", len(p))
@@ -218,7 +211,7 @@ func Amf0Discovery(p []byte) (a Amf0Any, err error) {
 	return nil, errors.Errorf("Marker %v is invalid", m)
 }
 
-// The UTF8 string, please read @doc amf0_spec_121207.pdf, @page 3, @section 1.3.1 Strings and UTF-8
+// See amf0_spec_121207.pdf, page 3, section 1.3.1 Strings and UTF-8.
 type amf0UTF8 string
 
 func (v *amf0UTF8) Size() int {
@@ -254,13 +247,12 @@ func (v *amf0UTF8) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Amf0Number is the AMF0 number type.
 type Amf0Number interface {
 	Amf0Any
 	Float64() float64
 }
 
-// The number object, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.2 Number Type
+// See amf0_spec_121207.pdf, page 5, section 2.2 Number Type.
 type amf0Number float64
 
 func NewAmf0Number(f float64) Amf0Number {
@@ -302,13 +294,12 @@ func (v *amf0Number) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// Amf0String is the AMF0 string type.
 type Amf0String interface {
 	Amf0Any
 	String() string
 }
 
-// The string objet, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.4 String Type
+// See amf0_spec_121207.pdf, page 5, section 2.4 String Type.
 type amf0String string
 
 func NewAmf0String(s string) Amf0String {
@@ -362,7 +353,7 @@ func (v *amf0String) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// The AMF0 object end type, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.11 Object End Type
+// See amf0_spec_121207.pdf, page 5, section 2.11 Object End Type.
 type amf0ObjectEOF struct {
 }
 
@@ -391,19 +382,17 @@ func (v *amf0ObjectEOF) MarshalBinary() (data []byte, err error) {
 	return []byte{0, 0, 9}, nil
 }
 
-// Use array for object and ecma array, to keep the original order.
+// A slice of properties, not a map, keeps the original order of an object or ECMA array.
 type amf0Property struct {
 	key   amf0UTF8
 	value Amf0Any
 }
 
-// The object-like AMF0 structure, like object and ecma array and strict array.
 type amf0ObjectBase struct {
 	properties []*amf0Property
 	lock       sync.Mutex
-	// bufFactory creates the amf0Buffer used by MarshalBinary. Held as a
-	// per-instance field (not a package global) so concurrent tests can each
-	// install their own buggy buffers without racing on shared state.
+	// A field, not a package global, so concurrent tests can each install
+	// their own failing buffer without sharing state.
 	bufFactory func() amf0Buffer
 }
 
@@ -456,11 +445,9 @@ func (v *amf0ObjectBase) Set(key string, value Amf0Any) *amf0ObjectBase {
 }
 
 func (v *amf0ObjectBase) unmarshal(p []byte, eof bool, maxElems int) (err error) {
-	// if no eof, elems specified by maxElems.
 	if !eof && maxElems < 0 {
 		return errors.Errorf("maxElems=%v without eof", maxElems)
 	}
-	// if eof, maxElems must be -1.
 	if eof && maxElems != -1 {
 		return errors.Errorf("maxElems=%v with eof", maxElems)
 	}
@@ -480,7 +467,6 @@ func (v *amf0ObjectBase) unmarshal(p []byte, eof bool, maxElems int) (err error)
 	}
 
 	pushOne := func(u amf0UTF8, a Amf0Any) error {
-		// For object property, consume the whole bytes.
 		if err = a.UnmarshalBinary(p); err != nil {
 			return errors.WithMessage(err, fmt.Sprintf("unmarshal prop %v", string(u)))
 		}
@@ -496,9 +482,9 @@ func (v *amf0ObjectBase) unmarshal(p []byte, eof bool, maxElems int) (err error)
 			return errors.WithMessage(err, "read")
 		}
 
-		// For object EOF, we should only consume total 3bytes.
+		// The object end is 3 bytes, an empty name and the 0x09 marker, and
+		// the name read took the first 2.
 		if u.Size() == 2 && a.amf0Marker() == amf0MarkerObjectEnd {
-			// 2 bytes is consumed by u(name), the a(eof) should only consume 1 byte.
 			p = p[1:]
 			return nil
 		}
@@ -548,14 +534,13 @@ func (v *amf0ObjectBase) marshal(b amf0Buffer) (err error) {
 	return
 }
 
-// Amf0Object is the AMF0 object type.
 type Amf0Object interface {
 	Amf0Any
 	Get(key string) Amf0Any
 	Set(key string, value Amf0Any) Amf0Object
 }
 
-// The AMF0 object, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.5 Object Type
+// See amf0_spec_121207.pdf, page 5, section 2.5 Object Type.
 type amf0Object struct {
 	amf0ObjectBase
 	eof amf0ObjectEOF
@@ -626,14 +611,13 @@ func (v *amf0Object) MarshalBinary() (data []byte, err error) {
 	return b.Bytes(), nil
 }
 
-// Amf0EcmaArray is the AMF0 ECMA array type.
 type Amf0EcmaArray interface {
 	Amf0Any
 	Get(key string) Amf0Any
 	Set(key string, value Amf0Any) Amf0EcmaArray
 }
 
-// The AMF0 ecma array, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.10 ECMA Array Type
+// See amf0_spec_121207.pdf, page 6, section 2.10 ECMA Array Type.
 type amf0EcmaArray struct {
 	amf0ObjectBase
 	count uint32
@@ -709,14 +693,13 @@ func (v *amf0EcmaArray) MarshalBinary() (data []byte, err error) {
 	return b.Bytes(), nil
 }
 
-// Amf0StrictArray is the AMF0 strict array type.
 type Amf0StrictArray interface {
 	Amf0Any
 	Get(key string) Amf0Any
 	Set(key string, value Amf0Any) Amf0StrictArray
 }
 
-// The AMF0 strict array, please read @doc amf0_spec_121207.pdf, @page 7, @section 2.12 Strict Array Type
+// See amf0_spec_121207.pdf, page 7, section 2.12 Strict Array Type.
 type amf0StrictArray struct {
 	amf0ObjectBase
 	count uint32
@@ -785,7 +768,6 @@ func (v *amf0StrictArray) MarshalBinary() (data []byte, err error) {
 	return b.Bytes(), nil
 }
 
-// The single amf0Marker object, for all AMF0 which only has the amf0Marker, like null and undefined.
 type amf0SingleMarkerObject struct {
 	target amf0Marker
 }
@@ -817,12 +799,11 @@ func (v *amf0SingleMarkerObject) MarshalBinary() (data []byte, err error) {
 	return []byte{byte(v.target)}, nil
 }
 
-// Amf0Null is the AMF0 null type.
 type Amf0Null interface {
 	Amf0Any
 }
 
-// The AMF0 null, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.7 null Type
+// See amf0_spec_121207.pdf, page 6, section 2.7 null Type.
 type amf0Null struct {
 	amf0SingleMarkerObject
 }
@@ -833,12 +814,11 @@ func NewAmf0Null() Amf0Null {
 	return &v
 }
 
-// Amf0Undefined is the AMF0 undefined type.
 type Amf0Undefined interface {
 	Amf0Any
 }
 
-// The AMF0 undefined, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.8 undefined Type
+// See amf0_spec_121207.pdf, page 6, section 2.8 undefined Type.
 type amf0Undefined struct {
 	amf0SingleMarkerObject
 }
@@ -849,13 +829,12 @@ func NewAmf0Undefined() Amf0Undefined {
 	return &v
 }
 
-// Amf0Boolean is the public typed view of an AMF0 boolean.
 type Amf0Boolean interface {
 	Amf0Any
 	Bool() bool
 }
 
-// The AMF0 boolean, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.3 Boolean Type
+// See amf0_spec_121207.pdf, page 5, section 2.3 Boolean Type.
 type amf0Boolean bool
 
 func NewAmf0Boolean(b bool) Amf0Boolean {

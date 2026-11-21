@@ -69,8 +69,6 @@ srs_error_t SrsCircuitBreaker::initialize()
     dying_threshold_ = config_->get_dying_threshold();
     dying_pulse_ = config_->get_dying_pulse();
 
-    // Update the water level for circuit breaker.
-    // @see SrsCircuitBreaker::on_timer()
     shared_timer_->timer1s()->subscribe(this);
 
     srs_trace("CircuitBreaker: enabled=%d, high=%dx%d, critical=%dx%d, dying=%dx%d", enabled_,
@@ -99,44 +97,38 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
 
-    // Update the CPU usage.
     srs_update_proc_stat();
     SrsProcSelfStat *stat = host_->self_proc_stat();
 
-    // Reset the high water-level when CPU is low for N times.
     if (stat->percent_ * 100 > high_threshold_) {
         hybrid_high_water_level_ = high_pulse_;
     } else if (hybrid_high_water_level_ > 0) {
         hybrid_high_water_level_--;
     }
 
-    // Reset the critical water-level when CPU is low for N times.
     if (stat->percent_ * 100 > critical_threshold_) {
         hybrid_critical_water_level_ = critical_pulse_;
     } else if (hybrid_critical_water_level_ > 0) {
         hybrid_critical_water_level_--;
     }
 
-    // Reset the dying water-level when CPU is low for N times.
     if (stat->percent_ * 100 > dying_threshold_) {
         hybrid_dying_water_level_ = srs_min(dying_pulse_ + 1, hybrid_dying_water_level_ + 1);
     } else if (hybrid_dying_water_level_ > 0) {
         hybrid_dying_water_level_ = 0;
     }
 
-    // Show statistics for RTC server.
     SrsProcSelfStat *u = host_->self_proc_stat();
-    // Resident Set Size: number of pages the process has in real memory.
+    // rss_ counts pages, taken as 4 KB each.
     int memory = (int)(u->rss_ * 4 / 1024);
 
-    // The hybrid thread cpu and memory.
     float thread_percent = stat->percent_ * 100;
 
     string snk_desc;
     static char buf[128];
     if (_srs_pps_snack2->r10s() || _srs_pps_snack4->r10s()) {
         snprintf(buf, sizeof(buf), ", snk=%d,%d,%d",
-                 _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packet,seqs sent, feedback skipped.
+                 _srs_pps_snack2->r10s(), _srs_pps_snack3->r10s(), _srs_pps_snack4->r10s() // NACK packets sent, sequence numbers in them, feedback skipped.
         );
         snk_desc = buf;
     }
@@ -144,8 +136,8 @@ srs_error_t SrsCircuitBreaker::on_timer(srs_utime_t interval)
     if (enabled_ && (hybrid_high_water_level() || hybrid_critical_water_level())) {
         srs_trace("CircuitBreaker: cpu=%.2f%%,%dMB, break=%d,%d,%d, cond=%.2f%%%s",
                   u->percent_ * 100, memory,
-                  hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(), // Whether Circuit-Break is enable.
-                  thread_percent,                                                                       // The conditions to enable Circuit-Breaker.
+                  hybrid_high_water_level(), hybrid_critical_water_level(), hybrid_dying_water_level(),
+                  thread_percent,
                   snk_desc.c_str());
     }
 

@@ -27,18 +27,19 @@ Environment-specific values belong to the user:
 
 ⚠️ **Never run `git push` unless the user explicitly asks to push.** Committing or picking to a branch means the local branch only.
 
-## Critical Rule: Minimal AI Skill Changes
+## Minimal AI Skill Changes
 
-⚠️ **Keep every AI skill change as minimal as possible.** The maintainer reviews every line and word, so change only what the task requires.
+**Keep every AI skill change as minimal as possible.** The maintainer reviews every line and word, so change only what the task requires.
 
-## Critical Rule: Comments Only for Hidden Context
+## Comments Only for Hidden Context
 
-⚠️ **Write a comment only when it gives background the code cannot show**, such as a protocol quirk, a past bug, a platform limitation, or why the obvious approach was not used.
+**Write a comment only when it gives background the code cannot show**, such as a protocol quirk, a past bug, a platform limitation, or why the obvious approach was not used.
 
 - Never write a comment that repeats what the code does or names.
 - New, self-explanatory code needs no comment.
 - No plan IDs, task step names, or process history in comments.
-- When unsure, leave the comment out.
+- Never describe the rule the code implements, or the case a fix handles; describe only the outside fact behind it, such as what a protocol or a client does.
+- Check each comment line: cover it and read the code of its function. When the code tells what the line says, delete the line.
 
 ## Independent Implementation from a Reference PR
 
@@ -48,7 +49,8 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
-- `skills/internal-audit-for-srs/SKILL.md` — Audit a change in a fresh subagent that reads the code before the commit message and the tests; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
+- `skills/internal-audit-for-srs/SKILL.md` — Audit a change and prove one P0 or P1 bug with a failing test. This skill remains responsible for the review and final result.
+- `skills/srs-autopilot/SKILL.md` — Fix a Bug keeps one task file per issue in `tasks/` and its row in the tracker, in the format of that skill's Track Task Files.
 - `skills/internal-obs-control/SKILL.md` — Drive isolated OBS instances for the OBS test scripts.
 - `skills/internal-chrome-control/SKILL.md` — Drive a headless Chrome or Edge for the Chrome test scripts: WHIP, WHEP, HTTP-FLV, HTTP-TS and HLS with `getStats()` samples.
 - `skills/internal-perf-for-srs/SKILL.md` — Run an SRS performance round: load tool, profiles, ranked bottlenecks and reports. This skill remains responsible for the code changes and their checks.
@@ -58,21 +60,13 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md`.
 
 - Run it in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification.
-- Apply it during development, bug fixing, and pull-request review.
 - Do not treat the `proxy-*` script names as limiting the suite to proxy changes.
-- Pick the tier in its Verification Tiers by trigger, never by expected runtime; "run all tests" and backports require Full.
 
 ## Test-Driven Development
 
 TDD is the principle for every task that touches code, in every workflow: bug fix, feature, enhancement, refactor, or review.
 
-Load `references/testable-code.md` and follow its three steps in order, never skipped or merged:
-
-1. Tests first.
-2. Refactor for testability.
-3. Implement and make every test pass.
-
-These rules override any default behavior.
+Load `references/testable-code.md` and follow its three steps in order, never skipped or merged.
 
 When a task only runs tests and changes no code, such as "run all ST tests", still load `references/testable-code.md` and follow its Test platforms and Run tests in a subagent sections.
 
@@ -113,7 +107,7 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 ## Git Worktree
 
-Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request.
+Create a git worktree only when the user asks, when Review a PR starts on an SRS pull request, or when Fix a Bug needs one for an issue or for the issue record. The audit's proof worktrees are the exception: `skills/internal-audit-for-srs/SKILL.md` creates them in the scratchpad and removes them when it ends.
 
 Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
 
@@ -158,25 +152,19 @@ Apply these rules whenever a task produces a commit:
 
 ## Task Router
 
-⚠️ **MANDATORY — Always execute this step first.** Never skip the Task Router. Never jump directly to a task. Every request must be routed through this router before any work begins.
+Route every request through this router before starting the work.
 
 Route the user's request to exactly ONE task type. Follow that task only. Do not combine tasks.
 
 Choose exactly one supported task:
 
-- **Develop Code** — Use for any planned SRS, Oryx, Dev Docker, project-documentation, or skill change. This workflow routes development to the supported Go proxy, SRS player, Dev Docker, or Oryx service and keeps unsupported server work out of scope. → [Develop Code workflow](references/develop-code.md)
-- **Scan Issues** — Use for a read-only scan of recently active open SRS or Oryx issues that may need attention. Select exactly one repository and compare issues with that project's latest authorized Truth Records without changing GitHub. → [Scan Issues workflow](references/scan-issues.md)
-- **Scan PRs** — Use for a read-only assessment of a specified SRS or Oryx pull request, or the single most recently updated open pull request in one selected repository. Examine the complete discussion, diff, reviews, and checks without modifying the pull request. → [Scan PRs workflow](references/scan-prs.md)
-- **Fix a Bug** — Use when an SRS or Oryx issue reports broken, unexpected, unsafe, or otherwise incorrect behavior and may require investigation or a maintenance fix. Verify the report, pause for maintainer approval at Truth Record boundaries, perform only the approved update, and record the final result in the selected project's record. → [Fix a Bug workflow](references/fix-a-bug.md)
-- **Learn Code** — Use when the user wants an explanation of existing SRS or Oryx implementation, architecture, control flow, or behavior without project changes. Route to the smallest relevant documentation and code map, reconcile them, and answer with focused source references. → [Learn Code workflow](references/learn-code.md)
-- **Review a PR** — Use for the maintainer's integration workflow after SRS or Oryx changes are already present locally. Select one repository, survey the branch relative to its actual base, correct stale navigation docs, then apply the selected project's version and changelog rules when required. → [Review a PR workflow](references/review-a-pr.md)
-- **Performance** — Use for an SRS or Go proxy performance, benchmark, load test or profile task: measure SRS or the proxy under many simulated clients, profile it, rank the bottlenecks, fix the top one, or write a performance report. A round is started by hand; an SRS version bump asks the user whether to run one. → [internal-perf-for-srs](../internal-perf-for-srs/SKILL.md)
-
-**If the routed task is not yet supported**, stop and tell the user:
-- What task type you routed to
-- That this task type is not supported yet
-- That support will be added in the future
-
-Do NOT attempt unsupported tasks.
+- **Develop Code** — Use for any planned SRS, Oryx, Dev Docker, State Threads, project-documentation, or skill change. Its Service Router lists the supported services and stops at the ones not yet supported, a new origin or edge server. → [Develop Code workflow](references/develop-code.md)
+- **Scan Issues** — Use for a read-only scan of recently active open SRS or Oryx issues that may need attention. → [Scan Issues workflow](references/scan-issues.md)
+- **Scan PRs** — Use for a read-only assessment of a specified SRS or Oryx pull request, or the single most recently updated open pull request in one selected repository. → [Scan PRs workflow](references/scan-prs.md)
+- **Fix a Bug** — Use when an SRS or Oryx issue reports broken, unexpected, unsafe, or otherwise incorrect behavior and may require investigation or a maintenance fix. → [Fix a Bug workflow](references/fix-a-bug.md)
+- **Handle Issues** — Use when the user asks to handle, fix, or work through several SRS or Oryx issues, or all of them, such as overnight. → [Handle Issues workflow](references/handle-issues.md)
+- **Learn Code** — Use when the user wants an explanation of existing SRS or Oryx implementation, architecture, control flow, or behavior without project changes. → [Learn Code workflow](references/learn-code.md)
+- **Review a PR** — Use for the maintainer's integration workflow after SRS or Oryx changes are already present locally. → [Review a PR workflow](references/review-a-pr.md)
+- **Performance** — Use for an SRS or Go proxy performance, benchmark, load test or profile task: measure SRS or the proxy under many simulated clients, profile it, rank the bottlenecks, fix the top one, or write a performance report. → [internal-perf-for-srs](../internal-perf-for-srs/SKILL.md)
 
 For every task, identify SRS or Oryx before loading a workflow. If the product is ambiguous and the choice changes the repository, issue tracker, code map, or verification, ask the user to clarify. Do not merge SRS and Oryx work unless evidence shows one task crosses the product boundary.

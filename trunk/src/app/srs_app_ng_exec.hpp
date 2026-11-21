@@ -20,7 +20,6 @@ class ISrsProcess;
 class ISrsAppFactory;
 class ISrsAppConfig;
 
-// The ng-exec interface.
 class ISrsNgExec
 {
 public:
@@ -34,7 +33,7 @@ public:
     virtual srs_error_t cycle() = 0;
 };
 
-// The ng-exec is the exec feature introduced by nginx-rtmp,
+// The exec feature introduced by nginx-rtmp.
 // @see https://github.com/arut/nginx-rtmp-module/wiki/Directives#exec_push
 // @see https://github.com/ossrs/srs/issues/367
 class SrsNgExec : public ISrsCoroutineHandler, public ISrsNgExec
@@ -53,13 +52,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsNgExec();
-    void assemble(); // Construct object, to avoid call function in constructor.
+    void assemble(); // Creates the members, to avoid calling functions in the constructor.
     virtual ~SrsNgExec();
 
 public:
     virtual srs_error_t on_publish(ISrsRequest *req);
     virtual void on_unpublish();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 

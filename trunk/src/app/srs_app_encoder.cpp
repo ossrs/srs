@@ -19,7 +19,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 
-// for encoder to detect the dead loop
 static std::vector<std::string> _srs_transcoded_url;
 
 ISrsMediaEncoder::ISrsMediaEncoder()
@@ -61,22 +60,17 @@ srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    // parse the transcode engines for vhost and app and stream.
     err = parse_scope_engines(req);
 
-    // ignore the loop encoder
-    // if got a loop, donot transcode the whole stream.
     if (srs_error_code(err) == ERROR_ENCODER_LOOP) {
         clear_engines();
         srs_freep(err);
     }
 
-    // return for error or no engine.
     if (err != srs_success || ffmpegs_.empty()) {
         return err;
     }
 
-    // start thread to run all encoding engines.
     srs_freep(trd_);
     trd_ = app_factory_->create_coroutine("encoder", this, _srs_context->get_id());
     if ((err = trd_->start()) != srs_success) {
@@ -92,7 +86,6 @@ void SrsEncoder::on_unpublish()
     clear_engines();
 }
 
-// when error, encoder sleep for a while and retry.
 #define SRS_RTMP_ENCODER_CIMS (3 * SRS_UTIME_SECONDS)
 
 srs_error_t SrsEncoder::cycle()
@@ -100,7 +93,6 @@ srs_error_t SrsEncoder::cycle()
     srs_error_t err = srs_success;
 
     while (true) {
-        // We always check status first.
         // @see https://github.com/ossrs/srs/issues/1634#issuecomment-597571561
         if ((err = trd_->pull()) != srs_success) {
             err = srs_error_wrap(err, "encoder");
@@ -115,7 +107,6 @@ srs_error_t SrsEncoder::cycle()
         srs_usleep(SRS_RTMP_ENCODER_CIMS);
     }
 
-    // kill ffmpeg when finished and it alive
     std::vector<ISrsFFMPEG *>::iterator it;
 
     for (it = ffmpegs_.begin(); it != ffmpegs_.end(); ++it) {
@@ -134,18 +125,15 @@ srs_error_t SrsEncoder::do_cycle()
     for (it = ffmpegs_.begin(); it != ffmpegs_.end(); ++it) {
         ISrsFFMPEG *ffmpeg = *it;
 
-        // start all ffmpegs.
         if ((err = ffmpeg->start()) != srs_success) {
             return srs_error_wrap(err, "ffmpeg start");
         }
 
-        // check ffmpeg status.
         if ((err = ffmpeg->cycle()) != srs_success) {
             return srs_error_wrap(err, "ffmpeg cycle");
         }
     }
 
-    // pithy print
     show_encode_log_message();
 
     return err;
@@ -181,24 +169,21 @@ srs_error_t SrsEncoder::parse_scope_engines(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
 
-    // parse all transcode engines.
     SrsConfDirective *conf = NULL;
 
-    // parse vhost scope engines
+    // An empty scope is the vhost scope.
     std::string scope = "";
     if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
     }
-    // parse app scope engines
     scope = req->app_;
     if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
         if ((err = parse_ffmpeg(req, conf)) != srs_success) {
             return srs_error_wrap(err, "parse ffmpeg");
         }
     }
-    // parse stream scope engines
     scope += "/";
     scope += req->stream_;
     if ((conf = config_->get_transcode(req->vhost_, scope)) != NULL) {
@@ -216,27 +201,23 @@ srs_error_t SrsEncoder::parse_ffmpeg(ISrsRequest *req, SrsConfDirective *conf)
 
     srs_assert(conf);
 
-    // enabled
     if (!config_->get_transcode_enabled(conf)) {
         srs_trace("ignore the disabled transcode: %s", conf->arg0().c_str());
         return err;
     }
 
-    // ffmpeg
     std::string ffmpeg_bin = config_->get_transcode_ffmpeg(conf);
     if (ffmpeg_bin.empty()) {
         srs_trace("ignore the empty ffmpeg transcode: %s", conf->arg0().c_str());
         return err;
     }
 
-    // get all engines.
     std::vector<SrsConfDirective *> engines = config_->get_transcode_engines(conf);
     if (engines.empty()) {
         srs_trace("ignore the empty transcode engine: %s", conf->arg0().c_str());
         return err;
     }
 
-    // create engine
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective *engine = engines[i];
         if (!config_->get_engine_enabled(engine)) {
@@ -261,8 +242,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     srs_error_t err = srs_success;
 
     std::string input;
-    // input stream, from local.
-    // ie. rtmp://localhost:1935/live/livestream
     input = "rtmp://";
     input += SRS_CONSTS_LOCALHOST;
     input += ":";
@@ -274,7 +253,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     input += "?vhost=";
     input += req->vhost_;
 
-    // stream name: vhost/app/stream for print
     input_stream_name_ = req->vhost_;
     input_stream_name_ += "/";
     input_stream_name_ += req->app_;
@@ -282,8 +260,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     input_stream_name_ += req->stream_;
 
     std::string output = config_->get_engine_output(engine);
-    // output stream, to other/self server
-    // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_strings_replace(output, "[vhost]", req->vhost_);
     output = srs_strings_replace(output, "[port]", srs_strconv_format_int(req->port_));
     output = srs_strings_replace(output, "[app]", req->app_);
@@ -292,8 +268,7 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     output = srs_strings_replace(output, "[engine]", engine->arg0());
     output = srs_path_build_timestamp(config_, output);
 
-    std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
-    // write ffmpeg info to log file.
+    std::string log_file = SRS_CONSTS_NULL_FILE;
     if (config_->get_ff_log_enabled()) {
         log_file = config_->get_ff_log_dir();
         log_file += "/";
@@ -311,7 +286,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
         log_file += ".log";
     }
 
-    // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
     it = std::find(transcoded_urls_->begin(), transcoded_urls_->end(), input);
     if (it != transcoded_urls_->end()) {
@@ -336,7 +310,6 @@ void SrsEncoder::show_encode_log_message()
 {
     pprint_->elapse();
 
-    // reportable
     if (pprint_->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> " SRS_CONSTS_LOG_ENCODER " time=%" PRId64 ", encoders=%d, input=%s",

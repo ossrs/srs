@@ -22,7 +22,6 @@ class SrsHttpResponseReader;
 class ISrsProtocolReadWriter;
 class SrsProtocolUtility;
 
-// The interface for HTTP parser.
 class ISrsHttpParser
 {
 public:
@@ -30,30 +29,20 @@ public:
     virtual ~ISrsHttpParser();
 
 public:
-    // initialize the llhttp parser with specified type,
-    // one parser can only parse request or response messages.
     virtual srs_error_t initialize(enum llhttp_type type) = 0;
-    // Whether allow jsonp parser, which indicates the method in query string.
+    // A JSONP request gives its HTTP method in the query string.
     virtual void set_jsonp(bool allow_jsonp) = 0;
-    // always parse a http message,
-    // that is, the *ppmsg always NOT-NULL when return success.
-    // or error and *ppmsg must be NULL.
-    // @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
-    // @remark user must free the ppmsg if not NULL.
+    // The caller frees *ppmsg.
     virtual srs_error_t parse_message(ISrsReader *reader, ISrsHttpMessage **ppmsg) = 0;
 };
 
-// A wrapper for llhttp,
-// provides HTTP message originted service.
 class SrsHttpParser : public ISrsHttpParser
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     llhttp_settings_t settings_;
     llhttp_t parser_;
-    // The global parse buffer.
     SrsFastStream *buffer_;
-    // Whether allow jsonp parse.
     bool jsonp_;
 
 // clang-format off
@@ -72,21 +61,12 @@ public:
     virtual ~SrsHttpParser();
 
 public:
-    // initialize the llhttp parser with specified type,
-    // one parser can only parse request or response messages.
     virtual srs_error_t initialize(enum llhttp_type type);
-    // Whether allow jsonp parser, which indicates the method in query string.
     virtual void set_jsonp(bool allow_jsonp);
-    // always parse a http message,
-    // that is, the *ppmsg always NOT-NULL when return success.
-    // or error and *ppmsg must be NULL.
-    // @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
-    // @remark user must free the ppmsg if not NULL.
     virtual srs_error_t parse_message(ISrsReader *reader, ISrsHttpMessage **ppmsg);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // parse the HTTP message to member field: msg.
     virtual srs_error_t parse_message_imp(ISrsReader *reader);
 
 // clang-format off
@@ -100,7 +80,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     static int on_body(llhttp_t *parser, const char *at, size_t length);
 };
 
-// The interface for setting the connection owner.
 class ISrsHttpMessageOwnerSetter : public ISrsHttpMessage
 {
 public:
@@ -112,59 +91,39 @@ public:
     virtual ISrsRequest *to_request(std::string vhost) = 0;
 };
 
-// A Request represents an HTTP request received by a server
-// or to be sent by a client.
-//
-// The field semantics differ slightly between client and server
-// usage. In addition to the notes on the fields below, see the
-// documentation for Request.Write and RoundTripper.
 class SrsHttpMessage : public ISrsHttpMessageOwnerSetter
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The body object, reader object.
-    // @remark, user can get body in string by get_body().
     SrsHttpResponseReader *body_;
-    // Use a buffer to read and send ts file.
-    // The transport connection, can be NULL.
     ISrsConnection *owner_conn_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The request type defined as
-    //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
+    // An llhttp_type value.
     uint8_t type_;
-    // The HTTP method defined by HTTP_METHOD_MAP
     llhttp_method_t method_;
     llhttp_status_t status_;
     int64_t content_length_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The http headers
     SrsHttpHeader header_;
-    // Whether the request indicates should keep alive for the http connection.
     bool keep_alive_;
-    // Whether the body is chunked.
     bool chunked_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     std::string schema_;
-    // The parsed url.
     std::string url_;
-    // The extension of file, for example, .flv
+    // Such as .flv.
     std::string ext_;
-    // The uri parser
     SrsHttpUri *uri_;
-    // The query map
     std::map<std::string, std::string> query_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Whether request is jsonp.
     bool jsonp_;
-    // The method in QueryString will override the HTTP method.
     std::string jsonp_method_;
 
 public:
@@ -172,69 +131,54 @@ public:
     virtual ~SrsHttpMessage();
 
 public:
-    // Set the basic information for HTTP request.
-    // @remark User must call set_basic before set_header, because the content_length will be overwrite by header.
+    // Call before set_header, which overwrites content_length from the header.
     virtual void set_basic(uint8_t type, llhttp_method_t method, llhttp_status_t status, int64_t content_length);
-    // Set HTTP header and whether the request require keep alive.
-    // @remark User must call set_header before set_url, because the Host in header is used for url.
+    // Call before set_url, which uses the Host header.
     virtual void set_header(SrsHttpHeader *header, bool keep_alive);
-    // set the original messages, then update the message.
     virtual srs_error_t set_url(std::string url, bool allow_jsonp);
-    // After parsed the message, set the schema to https.
+    // Call after parsing the message.
     virtual void set_https(bool v);
 
 public:
-    // Get the owner connection, maybe NULL.
+    // It can be NULL.
     virtual ISrsConnection *connection();
     virtual void set_connection(ISrsConnection *conn);
 
 public:
-    // The schema, http or https.
     virtual std::string schema();
     virtual uint8_t message_type();
     virtual uint8_t method();
     virtual uint16_t status_code();
-    // The method helpers.
     virtual std::string method_str();
     virtual bool is_http_get();
     virtual bool is_http_put();
     virtual bool is_http_post();
     virtual bool is_http_delete();
     virtual bool is_http_options();
-    // Whether body is chunked encoding, for reader only.
     virtual bool is_chunked();
-    // Whether should keep the connection alive.
     virtual bool is_keep_alive();
-    // The uri the client asked for, such as http://host:port/path?query.
+    // The URI the client asked for, such as http://host:port/path?query.
     virtual std::string uri();
-    // The url maybe the path.
     virtual std::string url();
     virtual std::string host();
     virtual int port();
     virtual std::string path();
     virtual std::string query();
     virtual std::string ext();
-    // Get the RESTful matched id.
     virtual std::string parse_rest_id(std::string pattern);
 
 public:
-    // Read body to string.
-    // @remark for small http body.
+    // For a small body only.
     virtual srs_error_t body_read_all(std::string &body);
-    // Get the body reader, to read one by one.
-    // @remark when body is very large, or chunked, use this.
+    // For a large or chunked body.
     virtual ISrsHttpResponseReader *body_reader();
-    // The content length, -1 for chunked or not set.
+    // -1 when chunked or not set.
     virtual int64_t content_length();
-    // Get the param in query string, for instance, query is "start=100&end=200",
-    // then query_get("start") is "100", and query_get("end") is "200"
     virtual std::string query_get(std::string key);
-    // Get the headers.
     virtual SrsHttpHeader *header();
 
 public:
-    // Convert the http message to a request.
-    // @remark user must free the return request.
+    // The caller frees the returned request.
     virtual ISrsRequest *to_request(std::string vhost);
     // The URL of the app on the HTTP server the client asked, such as http://127.0.0.1:8080/live: the
     // schema, the Host header as sent (or host() without one), and app. An HTTP client's tcUrl.
@@ -244,8 +188,7 @@ public:
     virtual bool is_jsonp();
 };
 
-// The http chunked header size,
-// for writev, there always one chunk to send it.
+// Holds the hex size line of one chunk.
 #define SRS_HTTP_HEADER_CACHE_SIZE 64
 
 class ISrsHttpHeaderFilter
@@ -255,7 +198,6 @@ public:
     virtual ~ISrsHttpHeaderFilter();
 
 public:
-    // Filter the HTTP header h.
     virtual srs_error_t filter(SrsHttpHeader *h) = 0;
 };
 
@@ -266,25 +208,19 @@ public:
     virtual ~ISrsHttpFirstLineWriter();
 
 public:
-    // Build first line of HTTP message to ss. Note that data with size of bytes is the body to write, which enables us
-    // to setup the header by detecting the body, and it might be NULL.
+    // The data is the body to write, maybe NULL; it is used to detect the Content-Type.
     virtual srs_error_t build_first_line(std::stringstream &ss, char *data, int size) = 0;
-    // Write a default header line if user does not specify one.
     virtual void write_default_header() = 0;
 };
 
-// Message writer use st socket, for writing HTTP request or response, which is only different at the first line. For
-// HTTP request, the first line is RequestLine. While for HTTP response, it's StatusLine.
+// An HTTP request and response differ only in the first line: the request line or the status line.
 class SrsHttpMessageWriter
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsProtocolReadWriter *skt_;
     SrsHttpHeader *hdr_;
-    // Before writing header, there is a chance to filter it,
-    // such as remove some headers or inject new.
     ISrsHttpHeaderFilter *hf_;
-    // The first line writer.
     ISrsHttpFirstLineWriter *flw_;
 
 // clang-format off
@@ -295,24 +231,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Reply header has been (logically) written
+    // The header is written logically, not yet sent.
     bool header_wrote_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The explicitly-declared Content-Length; or -1
+    // The Content-Length set in the header, or -1.
     int64_t content_length_;
-    // The number of bytes written in body
     int64_t written_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The wroteHeader tells whether the header's been written to "the
-    // wire" (or rather: w.conn.buf). this is unlike
-    // (*response).wroteHeader, which tells only whether it was
-    // logically written.
+    // The header is sent on the socket, unlike header_wrote_.
     bool header_sent_;
-    // Protocol utility for writing large iovs.
     SrsProtocolUtility *protocol_utility_;
 
 public:
@@ -332,13 +263,11 @@ public:
     void set_header_filter(ISrsHttpHeaderFilter *hf);
 };
 
-// Response writer use st socket
 class SrsHttpResponseWriter : public ISrsHttpResponseWriter, public ISrsHttpFirstLineWriter
 {
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     SrsHttpMessageWriter *writer_;
-    // The status code passed to WriteHeader, for response only.
     int status_;
 
 public:
@@ -347,7 +276,7 @@ public:
 
 public:
     void set_header_filter(ISrsHttpHeaderFilter *hf);
-    // Interface ISrsHttpResponseWriter
+
 public:
     virtual srs_error_t final_request();
     virtual SrsHttpHeader *header();
@@ -355,39 +284,36 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual void write_header(int code);
     virtual bool header_wrote();
-    // Interface ISrsHttpFirstLineWriter
+
 public:
     virtual srs_error_t build_first_line(std::stringstream &ss, char *data, int size);
     virtual void write_default_header();
 };
 
-// Request writer use st socket
 class SrsHttpRequestWriter : public ISrsHttpRequestWriter, public ISrsHttpFirstLineWriter
 {
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     SrsHttpMessageWriter *writer_;
-    // The method and path passed to WriteHeader, for request only.
     std::string method_;
     std::string path_;
 
 public:
     SrsHttpRequestWriter(ISrsProtocolReadWriter *io);
     virtual ~SrsHttpRequestWriter();
-    // Interface ISrsHttpResponseWriter
+
 public:
     virtual srs_error_t final_request();
     virtual SrsHttpHeader *header();
     virtual srs_error_t write(char *data, int size);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual void write_header(const std::string &method, const std::string &path);
-    // Interface ISrsHttpFirstLineWriter
+
 public:
     virtual srs_error_t build_first_line(std::stringstream &ss, char *data, int size);
     virtual void write_default_header();
 };
 
-// Response reader use st socket.
 class SrsHttpResponseReader : public ISrsHttpResponseReader
 {
 // clang-format off
@@ -396,25 +322,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsHttpMessage *owner_;
     SrsFastStream *buffer_;
     bool is_eof_;
-    // The left bytes in chunk.
     size_t nb_left_chunk_;
-    // The number of bytes of current chunk.
     size_t nb_chunk_;
-    // Already read total bytes.
     int64_t nb_total_read_;
 
 public:
-    // Generally the reader is the under-layer io such as socket,
-    // while buffer is a fast cache which may have cached some data from reader.
+    // The buffer may already hold body bytes read from the reader with the header.
     SrsHttpResponseReader(SrsHttpMessage *msg, ISrsReader *reader, SrsFastStream *buffer);
     virtual ~SrsHttpResponseReader();
 
 public:
-    // User close the HTTP response reader.
-    // For example, OPTIONS has no body, no content-length and not chunked,
-    // so we must close it(set to eof) to avoid reading the response body.
+    // Marks EOF for a message with no body, such as an OPTIONS request with no Content-Length and not chunked.
     void close();
-    // Interface ISrsHttpResponseReader
+
 public:
     virtual bool eof();
     virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);

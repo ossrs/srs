@@ -19,13 +19,10 @@
 
 using namespace srs_internal;
 
-// for openssl_HMACsha256
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-// for openssl_generate_key
 #include <openssl/dh.h>
 
-// For randomly generate the handshake bytes.
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY "(" RTMP_SIG_SRS_VERSION ")"
 
 // @see https://wiki.openssl.org/index.php/OpenSSL_1.1.0_Changes
@@ -60,9 +57,6 @@ static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **pri
 
 static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
 {
-    /* If the fields p and g in d are NULL, the corresponding input
-     * parameters MUST be non-NULL.  q may remain NULL.
-     */
     if ((dh->p == NULL && p == NULL) || (dh->g == NULL && g == NULL))
         return 0;
 
@@ -96,7 +90,7 @@ static int DH_set_length(DH *dh, long length)
 
 namespace srs_internal
 {
-// 68bytes FMS key which is used to sign the sever packet.
+// Signs the server packets.
 uint8_t SrsGenuineFMSKey[] = {
     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
     0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,
@@ -106,9 +100,9 @@ uint8_t SrsGenuineFMSKey[] = {
     0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
     0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
     0x6e, 0xec, 0x5d, 0x2d, 0x29, 0x80, 0x6f, 0xab,
-    0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae}; // 68
+    0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae};
 
-// 62bytes FP key which is used to sign the client packet.
+// Signs the client packets.
 uint8_t SrsGenuineFPKey[] = {
     0x47, 0x65, 0x6E, 0x75, 0x69, 0x6E, 0x65, 0x20,
     0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x46, 0x6C,
@@ -117,7 +111,7 @@ uint8_t SrsGenuineFPKey[] = {
     0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8,
     0x2E, 0x00, 0xD0, 0xD1, 0x02, 0x9E, 0x7E, 0x57,
     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
-    0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE}; // 62
+    0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE};
 
 srs_error_t do_openssl_HMACsha256(HMAC_CTX *ctx, const void *data, int data_size, void *digest, unsigned int *digest_size)
 {
@@ -134,11 +128,7 @@ srs_error_t do_openssl_HMACsha256(HMAC_CTX *ctx, const void *data, int data_size
     return err;
 }
 
-/**
- * sha256 digest algorithm.
- * @param key the sha256 key, NULL to use EVP_Digest, for instance,
- *       hashlib.sha256(data).digest().
- */
+// A NULL key gives the plain SHA-256, as hashlib.sha256(data).digest() in Python.
 srs_error_t openssl_HMACsha256(const void *key, int key_size, const void *data, int data_size, void *digest)
 {
     srs_error_t err = srs_success;
@@ -149,20 +139,16 @@ srs_error_t openssl_HMACsha256(const void *key, int key_size, const void *data, 
     unsigned char *temp_digest = (unsigned char *)digest;
 
     if (key == NULL) {
-        // use data to digest.
         // @see ./crypto/sha/sha256t.c
         // @see ./crypto/evp/digest.c
         if (EVP_Digest(data, data_size, temp_digest, &digest_size, EVP_sha256(), NULL) < 0) {
             return srs_error_new(ERROR_OpenSslSha256EvpDigest, "evp digest");
         }
     } else {
-        // use key-data to digest.
         HMAC_CTX *ctx = HMAC_CTX_new();
         if (ctx == NULL) {
             return srs_error_new(ERROR_OpenSslCreateHMAC, "hmac new");
         }
-        // @remark, if no key, use EVP_Digest to digest,
-        // for instance, in python, hashlib.sha256(data).digest().
         if (HMAC_Init_ex(ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
             HMAC_CTX_free(ctx);
             return srs_error_new(ERROR_OpenSslSha256Init, "hmac init");
@@ -238,21 +224,16 @@ srs_error_t SrsDH::copy_public_key(char *pkey, int32_t &pkey_size)
 {
     srs_error_t err = srs_success;
 
-    // copy public key to bytes.
-    // sometimes, the key_size is 127, seems ok.
+    // The key may be 127 bytes.
+    // @see https://github.com/ossrs/srs/issues/165
     const BIGNUM *pub_key = NULL;
     DH_get0_key(pdh, &pub_key, NULL);
     int32_t key_size = BN_num_bytes(pub_key);
     srs_assert(key_size > 0);
 
-    // maybe the key_size is 127, but dh will write all 128bytes pkey,
-    // so, donot need to set/initialize the pkey.
-    // @see https://github.com/ossrs/srs/issues/165
     key_size = BN_bn2bin(pub_key, (unsigned char *)pkey);
     srs_assert(key_size > 0);
 
-    // output the size of public key.
-    // @see https://github.com/ossrs/srs/issues/165
     srs_assert(key_size <= pkey_size);
     pkey_size = key_size;
 
@@ -268,9 +249,8 @@ srs_error_t SrsDH::copy_shared_key(const char *ppkey, int32_t ppkey_size, char *
         return srs_error_new(ERROR_OpenSslGetPeerPublicKey, "bin2bn");
     }
 
-    // if failed, donot return, do cleanup, @see ./test/dhtest.c:168
-    // maybe the key_size is 127, but dh will write all 128bytes skey,
-    // so, donot need to set/initialize the skey.
+    // On failure, go on to free ppk. @see ./test/dhtest.c:168
+    // The key may be 127 bytes.
     // @see https://github.com/ossrs/srs/issues/165
     int32_t key_size = DH_compute_key((unsigned char *)skey, ppk, pdh);
 
@@ -297,12 +277,10 @@ srs_error_t SrsDH::do_initialize()
 
     close();
 
-    // 1. Create the DH
     if ((pdh = DH_new()) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateDH, "dh new");
     }
 
-    // 2. Create his internal p and g
     BIGNUM *p, *g;
     if ((p = BN_new()) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateP, "dh new");
@@ -313,7 +291,7 @@ srs_error_t SrsDH::do_initialize()
     }
     DH_set0_pqg(pdh, p, NULL, g);
 
-    // 3. initialize p and g, @see ./test/ectest.c:260
+    // @see ./test/ectest.c:260
     if (!BN_hex2bn(&p, RFC2409_PRIME_1024)) {
         return srs_error_new(ERROR_OpenSslParseP1024, "hex2bn");
     }
@@ -322,7 +300,6 @@ srs_error_t SrsDH::do_initialize()
         return srs_error_new(ERROR_OpenSslSetG, "set word");
     }
 
-    // 4. Generate private and public key
     // @see ./test/dhtest.c:152
     if (!DH_generate_key(pdh)) {
         return srs_error_new(ERROR_OpenSslGenerateDHKeys, "dh generate key");
@@ -377,14 +354,11 @@ srs_error_t SrsKeyBlock::parse(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // the key must be 764 bytes.
     srs_assert(stream->require(764));
 
-    // read the last offset first, 760-763
     stream->skip(764 - sizeof(int32_t));
     offset_ = stream->read_4bytes();
 
-    // reset stream to read others.
     stream->skip(-764);
 
     int valid_offset = calc_valid_offset();
@@ -469,7 +443,6 @@ srs_error_t SrsDigestBlock::parse(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // the digest must be 764 bytes.
     srs_assert(stream->require(764));
 
     offset_ = stream->read_4bytes();
@@ -544,7 +517,6 @@ srs_error_t SrsC1S1Strategy::c1_create(SrsC1S1 *owner)
 {
     srs_error_t err = srs_success;
 
-    // generate digest
     char *c1_digest_raw = NULL;
 
     if ((err = calc_c1_digest(owner, c1_digest_raw)) != srs_success) {
@@ -583,19 +555,16 @@ srs_error_t SrsC1S1Strategy::s1_create(SrsC1S1 *owner, SrsC1S1 *c1)
 
     SrsDH dh;
 
-    // ensure generate 128bytes public key.
     if ((err = dh.initialize(true)) != srs_success) {
         return srs_error_wrap(err, "dh init");
     }
 
-    // directly generate the public key.
     int pkey_size = 128;
     if ((err = dh.copy_shared_key(c1->get_key(), 128, key_.key_, pkey_size)) != srs_success) {
         return srs_error_wrap(err, "copy shared key");
     }
 
-    // although the public key is always 128bytes, but the share key maybe not.
-    // we just ignore the actual key size, but if need to use the key, must use the actual size.
+    // The shared key may be shorter than 128 bytes; its actual size is ignored here.
     // TODO: FIXME: use the actual key size.
     // srs_assert(pkey_size == 128);
 
@@ -634,16 +603,12 @@ srs_error_t SrsC1S1Strategy::calc_c1_digest(SrsC1S1 *owner, char *&c1_digest)
 {
     srs_error_t err = srs_success;
 
-    // c1s1 is splited by digest:
-    //     c1s1-part1: n bytes (time, version, key and digest-part1).
-    //     digest-data: 32bytes
-    //     c1s1-part2: (1536-n-32)bytes (digest-part2)
-    // @return a new allocated bytes, user must free it.
     SrsUniquePtr<char[]> c1s1_joined_bytes(new char[1536 - 32]);
     if ((err = copy_to(owner, c1s1_joined_bytes.get(), 1536 - 32, false)) != srs_success) {
         return srs_error_wrap(err, "copy bytes");
     }
 
+    // The caller frees c1_digest.
     c1_digest = new char[SRS_OpensslHashSize];
     if ((err = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes.get(), 1536 - 32, c1_digest)) != srs_success) {
         srs_freepa(c1_digest);
@@ -657,16 +622,12 @@ srs_error_t SrsC1S1Strategy::calc_s1_digest(SrsC1S1 *owner, char *&s1_digest)
 {
     srs_error_t err = srs_success;
 
-    // c1s1 is splited by digest:
-    //     c1s1-part1: n bytes (time, version, key and digest-part1).
-    //     digest-data: 32bytes
-    //     c1s1-part2: (1536-n-32)bytes (digest-part2)
-    // @return a new allocated bytes, user must free it.
     SrsUniquePtr<char[]> c1s1_joined_bytes(new char[1536 - 32]);
     if ((err = copy_to(owner, c1s1_joined_bytes.get(), 1536 - 32, false)) != srs_success) {
         return srs_error_wrap(err, "copy bytes");
     }
 
+    // The caller frees s1_digest.
     s1_digest = new char[SRS_OpensslHashSize];
     if ((err = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes.get(), 1536 - 32, s1_digest)) != srs_success) {
         srs_freepa(s1_digest);
@@ -680,10 +641,8 @@ void SrsC1S1Strategy::copy_time_version(SrsBuffer *stream, SrsC1S1 *owner)
 {
     srs_assert(stream->require(8));
 
-    // 4bytes time
     stream->write_4bytes(owner->time_);
 
-    // 4bytes version
     stream->write_4bytes(owner->version_);
 }
 void SrsC1S1Strategy::copy_key(SrsBuffer *stream)
@@ -694,7 +653,6 @@ void SrsC1S1Strategy::copy_key(SrsBuffer *stream)
     int total = key_.random0_size_ + 128 + key_.random1_size_ + 4;
     srs_assert(stream->require(total));
 
-    // 764bytes key block
     if (key_.random0_size_ > 0) {
         stream->write_bytes(key_.random0_, key_.random0_size_);
     }
@@ -718,21 +676,16 @@ void SrsC1S1Strategy::copy_digest(SrsBuffer *stream, bool with_digest)
     }
     srs_assert(stream->require(total));
 
-    // 732bytes digest block without the 32bytes digest-data
-    // nbytes digest block part1
     stream->write_4bytes(digest_.offset_);
 
-    // digest random padding.
     if (digest_.random0_size_ > 0) {
         stream->write_bytes(digest_.random0_, digest_.random0_size_);
     }
 
-    // digest
     if (with_digest) {
         stream->write_bytes(digest_.digest_, 32);
     }
 
-    // nbytes digest block part2
     if (digest_.random1_size_ > 0) {
         stream->write_bytes(digest_.random1_, digest_.random1_size_);
     }
@@ -903,7 +856,7 @@ srs_error_t SrsC1S1::parse(char *c1s1, int size, srs_schema_type schema)
     SrsBuffer stream(c1s1, size);
 
     time_ = stream.read_4bytes();
-    version_ = stream.read_4bytes(); // client c1 version
+    version_ = stream.read_4bytes();
 
     srs_freep(payload_);
     if (schema == srs_schema0) {
@@ -922,11 +875,9 @@ srs_error_t SrsC1S1::c1_create(srs_schema_type schema)
         return srs_error_new(ERROR_RTMP_CH_SCHEMA, "create c1 failed. invalid schema=%d", schema);
     }
 
-    // client c1 time and version
     time_ = (int32_t)::time(NULL);
-    version_ = 0x80000702; // client c1 version
+    version_ = 0x80000702;
 
-    // generate signature by schema
     srs_freep(payload_);
     if (schema == srs_schema0) {
         payload_ = new SrsC1S1StrategySchema0();
@@ -952,7 +903,7 @@ srs_error_t SrsC1S1::s1_create(SrsC1S1 *c1)
     }
 
     time_ = ::time(NULL);
-    version_ = 0x01000504; // server s1 version
+    version_ = 0x01000504;
 
     srs_freep(payload_);
     if (c1->schema() == srs_schema0) {
@@ -1113,7 +1064,6 @@ srs_error_t SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes *hs_byte
         return srs_error_wrap(err, "read c0c1");
     }
 
-    // plain text required.
     if (hs_bytes->c0c1_[0] != 0x03) {
         return srs_error_new(ERROR_RTMP_PLAIN_REQUIRED, "only support rtmp plain text, version=%X", (uint8_t)hs_bytes->c0c1_[0]);
     }
@@ -1141,7 +1091,6 @@ srs_error_t SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes *hs_byte
 
     ssize_t nsize;
 
-    // simple handshake
     if ((err = hs_bytes->create_c0c1()) != srs_success) {
         return srs_error_wrap(err, "create c0c1");
     }
@@ -1154,7 +1103,6 @@ srs_error_t SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes *hs_byte
         return srs_error_wrap(err, "read s0s1s2");
     }
 
-    // plain text required.
     if (hs_bytes->s0s1s2_[0] != 0x03) {
         return srs_error_new(ERROR_RTMP_HANDSHAKE, "handshake failed, plain text required, version=%X", (uint8_t)hs_bytes->s0s1s2_[0]);
     }
@@ -1163,7 +1111,7 @@ srs_error_t SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes *hs_byte
         return srs_error_wrap(err, "create c2");
     }
 
-    // for simple handshake, copy s1 to c2.
+    // In the simple handshake, c2 echoes s1.
     // @see https://github.com/ossrs/srs/issues/418
     memcpy(hs_bytes->c2_, hs_bytes->s0s1s2_ + 1, 1536);
 
@@ -1194,14 +1142,11 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "read c0c1");
     }
 
-    // decode c1
     SrsC1S1 c1;
-    // try schema0.
-    // @remark, use schema0 to make flash player happy.
+    // Try schema0 first, for the Flash player.
     if ((err = c1.parse(hs_bytes->c0c1_ + 1, 1536, srs_schema0)) != srs_success) {
         return srs_error_wrap(err, "parse c1, schema=%d", srs_schema0);
     }
-    // try schema1
     bool is_valid = false;
     if ((err = c1.c1_validate_digest(is_valid)) != srs_success || !is_valid) {
         srs_freep(err);
@@ -1216,12 +1161,10 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         }
     }
 
-    // encode s1
     SrsC1S1 s1;
     if ((err = s1.s1_create(&c1)) != srs_success) {
         return srs_error_wrap(err, "create s1 from c1");
     }
-    // verify s1
     if ((err = s1.s1_validate_digest(is_valid)) != srs_success || !is_valid) {
         srs_freep(err);
         return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "verify s1 failed, try simple handshake");
@@ -1232,13 +1175,11 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
     if ((err = s2.s2_create(&c1)) != srs_success) {
         return srs_error_wrap(err, "create s2 from c1");
     }
-    // verify s2
     if ((err = s2.s2_validate(&c1, is_valid)) != srs_success || !is_valid) {
         srs_freep(err);
         return srs_error_new(ERROR_RTMP_TRY_SIMPLE_HS, "verify s2 failed, try simple handshake");
     }
 
-    // sendout s0s1s2
     if ((err = hs_bytes->create_s0s1s2()) != srs_success) {
         return srs_error_wrap(err, "create s0s1s2");
     }
@@ -1252,7 +1193,6 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "write s0s1s2");
     }
 
-    // recv c2
     if ((err = hs_bytes->read_c2(io)) != srs_success) {
         return srs_error_wrap(err, "read c2");
     }
@@ -1262,9 +1202,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "parse c2");
     }
 
-    // verify c2
-    // never verify c2, for ffmpeg will failed.
-    // it's ok for flash.
+    // Never verify c2: the check fails for FFmpeg, though it passes for Flash.
 
     srs_trace("complex handshake success");
 
@@ -1277,14 +1215,12 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes *hs_byt
 
     ssize_t nsize;
 
-    // complex handshake
     if ((err = hs_bytes->create_c0c1()) != srs_success) {
         return srs_error_wrap(err, "create c0c1");
     }
 
-    // sign c1
     SrsC1S1 c1;
-    // @remark, FMS requires the schema1(digest-key), or connect failed.
+    // FMS requires schema1, or the connect fails.
     if ((err = c1.c1_create(srs_schema1)) != srs_success) {
         return srs_error_wrap(err, "create c1");
     }
@@ -1292,7 +1228,6 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "dump c1");
     }
 
-    // verify c1
     bool is_valid;
     if ((err = c1.c1_validate_digest(is_valid)) != srs_success || !is_valid) {
         srs_freep(err);
@@ -1303,27 +1238,22 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "write c0c1");
     }
 
-    // s0s1s2
     if ((err = hs_bytes->read_s0s1s2(io)) != srs_success) {
         return srs_error_wrap(err, "read s0s1s2");
     }
 
-    // plain text required.
     if (hs_bytes->s0s1s2_[0] != 0x03) {
         return srs_error_new(ERROR_RTMP_HANDSHAKE, "handshake failed, plain text required, version=%X", (uint8_t)hs_bytes->s0s1s2_[0]);
     }
 
-    // verify s1s2
     SrsC1S1 s1;
     if ((err = s1.parse(hs_bytes->s0s1s2_ + 1, 1536, c1.schema())) != srs_success) {
         return srs_error_wrap(err, "parse s1");
     }
 
-    // never verify the s1,
-    // for if forward to nginx-rtmp, verify s1 will failed,
+    // Never verify s1: the check fails when forwarding to nginx-rtmp.
     // TODO: FIXME: find the handshake schema of nginx-rtmp.
 
-    // c2
     if ((err = hs_bytes->create_c2()) != srs_success) {
         return srs_error_wrap(err, "create c2");
     }

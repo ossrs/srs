@@ -18,7 +18,6 @@ using namespace std;
 
 using namespace srs_internal;
 
-// AMF0 marker
 #define RTMP_AMF0_Number 0x00
 #define RTMP_AMF0_Boolean 0x01
 #define RTMP_AMF0_String 0x02
@@ -38,10 +37,10 @@ using namespace srs_internal;
 #define RTMP_AMF0_TypedObject 0x10
 // AVM+ object is the AMF3 object.
 #define RTMP_AMF0_AVMplusObject 0x11
-// origin array whos data takes the same form as LengthValueBytes
+// Origin array, whose data takes the same form as LengthValueBytes.
 #define RTMP_AMF0_OriginStrictArray 0x20
 
-// User defined
+// User defined.
 #define RTMP_AMF0_Invalid 0x3F
 
 // The peer controls how deep containers nest, and each level recurses on the small coroutine
@@ -301,15 +300,12 @@ SrsJsonAny *SrsAmf0Any::to_json()
         return SrsJsonAny::null();
     }
     case RTMP_AMF0_Object: {
-        // amf0 object implements it.
         srs_assert(false);
     }
     case RTMP_AMF0_EcmaArray: {
-        // amf0 ecma array implements it.
         srs_assert(false);
     }
     case RTMP_AMF0_StrictArray: {
-        // amf0 strict array implements it.
         srs_assert(false);
     }
     case RTMP_AMF0_Date: {
@@ -376,20 +372,17 @@ srs_error_t SrsAmf0Any::discovery(SrsBuffer *stream, SrsAmf0Any **ppvalue)
 {
     srs_error_t err = srs_success;
 
-    // detect the object-eof specially
     if (srs_amf0_is_object_eof(stream)) {
         *ppvalue = new SrsAmf0ObjectEOF();
         return err;
     }
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "marker requires 1 only %d bytes", stream->left());
     }
 
     char marker = stream->read_1bytes();
 
-    // backward the 1byte marker.
     stream->skip(-1);
 
     switch (marker) {
@@ -596,7 +589,6 @@ srs_error_t SrsAmf0ObjectEOF::read(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // value
     if (!stream->require(2)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EOF requires 2 only %d bytes", stream->left());
     }
@@ -605,7 +597,6 @@ srs_error_t SrsAmf0ObjectEOF::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EOF invalid marker=%#x", temp);
     }
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EOF requires 1 only %d bytes", stream->left());
     }
@@ -622,13 +613,11 @@ srs_error_t SrsAmf0ObjectEOF::write(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // value
     if (!stream->require(2)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "EOF requires 2 only %d bytes", stream->left());
     }
     stream->write_2bytes(0x00);
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "EOF requires 1 only %d bytes", stream->left());
     }
@@ -681,7 +670,6 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "object depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
     }
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "object requires 1 only %d bytes", stream->left());
     }
@@ -691,9 +679,7 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "object invalid marker=%#x", marker);
     }
 
-    // value
     while (!stream->empty()) {
-        // detect whether is eof.
         if (srs_amf0_is_object_eof(stream)) {
             SrsAmf0ObjectEOF pbj_eof;
             if ((err = pbj_eof.read(stream)) != srs_success) {
@@ -702,12 +688,10 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
             break;
         }
 
-        // property-name: utf8 string
         std::string property_name;
         if ((err = srs_amf0_read_utf8(stream, property_name)) != srs_success) {
             return srs_error_wrap(err, "read property name");
         }
-        // property-value: any
         SrsAmf0Any *property_value = NULL;
         if ((err = SrsAmf0Any::discovery(stream, &property_value)) != srs_success) {
             return srs_error_wrap(err, "discovery property value, name=%s", property_name.c_str());
@@ -718,7 +702,6 @@ srs_error_t SrsAmf0Object::read(SrsBuffer *stream)
             return srs_error_wrap(err, "read property value, name=%s", property_name.c_str());
         }
 
-        // add property
         this->set(property_name, property_value);
     }
 
@@ -729,14 +712,12 @@ srs_error_t SrsAmf0Object::write(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "object requires 1 only %d bytes", stream->left());
     }
 
     stream->write_1bytes(RTMP_AMF0_Object);
 
-    // value
     for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
@@ -867,7 +848,6 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EcmaArray depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
     }
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -877,18 +857,15 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "EcmaArray invalid marker=%#x", marker);
     }
 
-    // count
     if (!stream->require(4)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 4 only %d bytes", stream->left());
     }
 
     int32_t count = stream->read_4bytes();
 
-    // value
     this->count_ = count;
 
     while (!stream->empty()) {
-        // detect whether is eof.
         if (srs_amf0_is_object_eof(stream)) {
             SrsAmf0ObjectEOF pbj_eof;
             if ((err = pbj_eof.read(stream)) != srs_success) {
@@ -897,12 +874,10 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
             break;
         }
 
-        // property-name: utf8 string
         std::string property_name;
         if ((err = srs_amf0_read_utf8(stream, property_name)) != srs_success) {
             return srs_error_wrap(err, "read property name");
         }
-        // property-value: any
         SrsAmf0Any *property_value = NULL;
         if ((err = SrsAmf0Any::discovery(stream, &property_value)) != srs_success) {
             return srs_error_wrap(err, "discovery property value, name=%s", property_name.c_str());
@@ -913,7 +888,6 @@ srs_error_t SrsAmf0EcmaArray::read(SrsBuffer *stream)
             return srs_error_wrap(err, "read property value, name=%s", property_name.c_str());
         }
 
-        // add property
         this->set(property_name, property_value);
     }
 
@@ -924,21 +898,18 @@ srs_error_t SrsAmf0EcmaArray::write(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
 
     stream->write_1bytes(RTMP_AMF0_EcmaArray);
 
-    // count
     if (!stream->require(4)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 4 only %d bytes", stream->left());
     }
 
     stream->write_4bytes(this->count_);
 
-    // value
     for (int i = 0; i < properties_->count(); i++) {
         std::string name = this->key_at(i);
         SrsAmf0Any *any = this->value_at(i);
@@ -1057,7 +1028,6 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "StrictArray depth %d exceeds %d", depth_, SRS_AMF0_MAX_DEPTH);
     }
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1067,18 +1037,15 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "StrictArray invalid marker=%#x", marker);
     }
 
-    // count
     if (!stream->require(4)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 4 only %d bytes", stream->left());
     }
 
     int32_t count = stream->read_4bytes();
 
-    // value
     this->count_ = count;
 
     for (int i = 0; i < count && !stream->empty(); i++) {
-        // property-value: any
         SrsAmf0Any *elem = NULL;
         if ((err = SrsAmf0Any::discovery(stream, &elem)) != srs_success) {
             return srs_error_wrap(err, "discovery property");
@@ -1089,7 +1056,6 @@ srs_error_t SrsAmf0StrictArray::read(SrsBuffer *stream)
             return srs_error_wrap(err, "read property");
         }
 
-        // add property
         properties_.push_back(elem);
     }
 
@@ -1100,21 +1066,18 @@ srs_error_t SrsAmf0StrictArray::write(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
 
     stream->write_1bytes(RTMP_AMF0_StrictArray);
 
-    // count
     if (!stream->require(4)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 4 only %d bytes", stream->left());
     }
 
     stream->write_4bytes(this->count_);
 
-    // value
     for (int i = 0; i < (int)properties_.size(); i++) {
         SrsAmf0Any *any = properties_[i];
 
@@ -1371,7 +1334,6 @@ srs_error_t SrsAmf0Date::read(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1381,7 +1343,6 @@ srs_error_t SrsAmf0Date::read(SrsBuffer *stream)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "Date invalid marker=%#x", marker);
     }
 
-    // date value
     // An ActionScript Date is serialized as the number of milliseconds
     // elapsed since the epoch of midnight on 1st Jan 1970 in the UTC
     // time zone.
@@ -1391,7 +1352,6 @@ srs_error_t SrsAmf0Date::read(SrsBuffer *stream)
 
     date_value_ = stream->read_8bytes();
 
-    // time zone
     // While the design of this type reserves room for time zone offset
     // information, it should not be filled in, nor used, as it is unconventional
     // to change time zones when serializing dates on a network. It is suggested
@@ -1409,21 +1369,18 @@ srs_error_t SrsAmf0Date::write(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
 
     stream->write_1bytes(RTMP_AMF0_Date);
 
-    // date value
     if (!stream->require(8)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 8 only %d bytes", stream->left());
     }
 
     stream->write_8bytes(date_value_);
 
-    // time zone
     if (!stream->require(2)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
     }
@@ -1533,7 +1490,6 @@ srs_error_t srs_amf0_read_any(SrsBuffer *stream, SrsAmf0Any **ppvalue)
 
 srs_error_t srs_amf0_read_string(SrsBuffer *stream, string &value)
 {
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1548,7 +1504,6 @@ srs_error_t srs_amf0_read_string(SrsBuffer *stream, string &value)
 
 srs_error_t srs_amf0_write_string(SrsBuffer *stream, string value)
 {
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1562,7 +1517,6 @@ srs_error_t srs_amf0_read_boolean(SrsBuffer *stream, bool &value)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1572,7 +1526,6 @@ srs_error_t srs_amf0_read_boolean(SrsBuffer *stream, bool &value)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "Boolean invalid marker=%#x", marker);
     }
 
-    // value
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1586,13 +1539,11 @@ srs_error_t srs_amf0_write_boolean(SrsBuffer *stream, bool value)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
     stream->write_1bytes(RTMP_AMF0_Boolean);
 
-    // value
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1610,7 +1561,6 @@ srs_error_t srs_amf0_read_number(SrsBuffer *stream, double &value)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1620,7 +1570,6 @@ srs_error_t srs_amf0_read_number(SrsBuffer *stream, double &value)
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "Number invalid marker=%#x", marker);
     }
 
-    // value
     if (!stream->require(8)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 8 only %d bytes", stream->left());
     }
@@ -1635,14 +1584,12 @@ srs_error_t srs_amf0_write_number(SrsBuffer *stream, double value)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
 
     stream->write_1bytes(RTMP_AMF0_Number);
 
-    // value
     if (!stream->require(8)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 8 only %d bytes", stream->left());
     }
@@ -1658,7 +1605,6 @@ srs_error_t srs_amf0_read_null(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1675,7 +1621,6 @@ srs_error_t srs_amf0_write_null(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1689,7 +1634,6 @@ srs_error_t srs_amf0_read_undefined(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1706,7 +1650,6 @@ srs_error_t srs_amf0_write_undefined(SrsBuffer *stream)
 {
     srs_error_t err = srs_success;
 
-    // marker
     if (!stream->require(1)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 1 only %d bytes", stream->left());
     }
@@ -1722,24 +1665,20 @@ srs_error_t srs_amf0_read_utf8(SrsBuffer *stream, string &value)
 {
     srs_error_t err = srs_success;
 
-    // len
     if (!stream->require(2)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires 2 only %d bytes", stream->left());
     }
     int16_t len = stream->read_2bytes();
 
-    // empty string
     if (len <= 0) {
         return err;
     }
 
-    // data
     if (!stream->require(len)) {
         return srs_error_new(ERROR_RTMP_AMF0_DECODE, "requires %d only %d bytes", len, stream->left());
     }
     std::string str = stream->read_string(len);
 
-    // support utf8-1 only
     // 1.3.1 Strings and UTF-8
     // UTF8-1 = %x00-7F
     // TODO: support other utf-8 strings
@@ -1761,18 +1700,15 @@ srs_error_t srs_amf0_write_utf8(SrsBuffer *stream, string value)
 {
     srs_error_t err = srs_success;
 
-    // len
     if (!stream->require(2)) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires 2 only %d bytes", stream->left());
     }
     stream->write_2bytes((int16_t)value.length());
 
-    // empty string
     if (value.length() <= 0) {
         return err;
     }
 
-    // data
     if (!stream->require((int)value.length())) {
         return srs_error_new(ERROR_RTMP_AMF0_ENCODE, "requires %" PRIu64 " only %d bytes", value.length(), stream->left());
     }
@@ -1783,7 +1719,6 @@ srs_error_t srs_amf0_write_utf8(SrsBuffer *stream, string value)
 
 bool srs_amf0_is_object_eof(SrsBuffer *stream)
 {
-    // detect the object-eof specially
     if (stream->require(3)) {
         int32_t flag = stream->read_3bytes();
         stream->skip(-3);

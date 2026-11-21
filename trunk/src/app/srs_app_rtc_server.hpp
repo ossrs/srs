@@ -38,7 +38,6 @@ class ISrsAppConfig;
 class ISrsAppFactory;
 class ISrsProtocolUtility;
 
-// The sink of the RTC plaintext packets, see SrsRtcBlackhole.
 class ISrsRtcBlackhole
 {
 public:
@@ -46,15 +45,12 @@ public:
     virtual ~ISrsRtcBlackhole();
 
 public:
-    // Open the black hole socket when it is enabled by config.
     virtual srs_error_t initialize() = 0;
-    // Send the packet to the black hole, ignored when it is disabled.
     virtual void sendto(void *data, int len) = 0;
 };
 
-// The UDP black hole, for developer to use wireshark to catch plaintext packets.
-// For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
-// we can use wireshark to capture the plaintext.
+// Lets a developer capture RTC packets as plaintext with Wireshark: the server copies the plaintext packets to this
+// UDP address.
 class SrsRtcBlackhole : public ISrsRtcBlackhole
 {
 public:
@@ -78,31 +74,27 @@ public:
 
 extern SrsRtcBlackhole *_srs_blackhole;
 
-// The user config for RTC publish or play.
 class SrsRtcUserConfig
 {
 public:
-    // Original variables from API.
     std::string remote_sdp_str_;
     SrsSdp remote_sdp_;
     std::string eip_;
-    std::string vcodec_; // Video codec
-    std::string acodec_; // Audio codec
+    std::string vcodec_;
+    std::string acodec_;
     std::string api_;
 
-    // Session data.
     std::string local_sdp_str_;
     std::string session_id_;
     std::string token_;
 
-    // Generated data.
     ISrsRequest *req_;
     bool publish_;
     bool dtls_;
     bool srtp_;
 
-    // The order of audio and video, or whether audio is before video. Please make sure the order is match for offer and
-    // answer, or client might fail at setRemoveDescription(answer). See https://github.com/ossrs/srs/issues/3179
+    // The answer must list audio and video in the same order as the offer, or the client may fail at
+    // setRemoteDescription(answer). See https://github.com/ossrs/srs/issues/3179
     bool audio_before_video_;
 
 public:
@@ -110,13 +102,10 @@ public:
     virtual ~SrsRtcUserConfig();
 };
 
-// Discover the candidates for RTC server.
 extern std::set<std::string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *config, SrsRtcUserConfig *ruc);
 
-// The dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host, int &family);
 
-// The RTC session manager interface.
 class ISrsRtcSessionManager
 {
 public:
@@ -131,7 +120,6 @@ public:
     virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt) = 0;
 };
 
-// RTC session manager to handle WebRTC session lifecycle and management.
 class SrsRtcSessionManager : public ISrsRtcSessionManager, public ISrsExecRtcAsyncTask
 {
 // clang-format off
@@ -145,7 +133,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // WebRTC async call worker for non-blocking operations.
     SrsAsyncCallWorker *rtc_async_;
 
 public:
@@ -166,7 +153,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     virtual void srs_update_rtc_sessions();
 
-    // interface ISrsExecRtcAsyncTask
 public:
     virtual srs_error_t exec_rtc_async_work(ISrsAsyncCallTask *t);
 
@@ -174,8 +160,6 @@ public:
     virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt);
 };
 
-// Helper function to discover candidate IPs from API server hostname
-// Used by WebRTC ICE candidate discovery
 extern srs_error_t api_server_as_candidates(ISrsAppConfig *config, std::string api, std::set<std::string> &candidate_ips);
 
 #endif

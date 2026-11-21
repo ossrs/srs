@@ -14,11 +14,9 @@
 
 #include <srs_app_st.hpp>
 
-// The async call for http hooks, for the http hooks will switch st-thread,
-// so we must use isolate thread to avoid the thread corrupt,
-// for example, when dvr call http hooks, the video receive thread got
-// a video and pass it to the dvr again.
-// Futhurmore, the aync call never block the main worker thread.
+// HTTP hooks switch coroutines, so they run in their own coroutine: for example,
+// while DVR calls a hook, the receive coroutine may get a video and pass it to DVR again.
+// The caller is never blocked by the call.
 class ISrsAsyncCallTask
 {
 public:
@@ -26,16 +24,10 @@ public:
     virtual ~ISrsAsyncCallTask();
 
 public:
-    // Execute the task async.
-    // This method is the actual execute method of task,
-    // for example, to notify callback server.
     virtual srs_error_t call() = 0;
-    // Convert task to string to describe it.
-    // It's used for logger.
     virtual std::string to_string() = 0;
 };
 
-// The async call worker, used to execute the task in async mode.
 class ISrsAsyncCallWorker
 {
 public:
@@ -48,9 +40,6 @@ public:
     virtual void stop() = 0;
 };
 
-// The async callback for dvr, callback and other async worker.
-// When worker call with the task, the worker will do it in isolate thread.
-// That is, the task is execute/call in async mode.
 class SrsAsyncCallWorker : public ISrsCoroutineHandler, public ISrsAsyncCallWorker
 {
 // clang-format off
@@ -74,7 +63,7 @@ public:
 public:
     virtual srs_error_t start();
     virtual void stop();
-    // Interface ISrsReusableThreadHandler
+
 public:
     virtual srs_error_t cycle();
 

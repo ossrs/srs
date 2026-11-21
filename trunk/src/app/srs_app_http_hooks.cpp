@@ -31,10 +31,8 @@ using namespace std;
 #define SRS_HTTP_READ_BUFFER 4096
 #define SRS_HTTP_BODY_BUFFER (32 * 1024)
 
-// the timeout for hls notify, in srs_utime_t.
 #define SRS_HLS_NOTIFY_TIMEOUT (10 * SRS_UTIME_SECONDS)
 
-// Global HTTP hooks instance
 ISrsHttpHooks *_srs_hooks = NULL;
 
 ISrsHttpHooks::ISrsHttpHooks()
@@ -378,7 +376,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, ISrsRequest *req, s
     SrsContextId cid = c;
     std::string cwd = config_->cwd();
 
-    // the ts_url is under the same dir of m3u8_url.
+    // A relative ts_url in the playlist is relative to the directory of the m3u8.
     SrsPath path;
     string prefix = path.filepath_dir(m3u8_url);
     if (!prefix.empty() && !srs_net_url_is_http(ts_url)) {
@@ -485,7 +483,6 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
     srs_trace("http hook on_hls_notify success. client_id=%s, url=%s, code=%d, spent=%dms, read=%dB, err=%s",
               cid.c_str(), url.c_str(), msg->status_code(), spenttime, nb_read, srs_error_desc(err).c_str());
 
-    // ignore any error for on_hls_notify.
     srs_freep(err);
     return srs_success;
 }
@@ -574,19 +571,16 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
 
-    // parse string res to json.
     SrsUniquePtr<SrsJsonAny> info(SrsJsonAny::loads(res));
     if (!info.get()) {
         return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "load json from %s", res.c_str());
     }
 
-    // response error code in string.
     if (!info->is_object()) {
         return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "response %s", res.c_str());
     }
 
     SrsJsonAny *prop = NULL;
-    // response standard object, format in json: {}
     SrsJsonObject *res_info = info->to_object();
     if ((prop = res_info->ensure_property_object("data")) == NULL) {
         return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse data %s", res.c_str());
@@ -600,6 +594,10 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     SrsJsonArray *urls = prop->to_array();
     for (int i = 0; i < urls->count(); i++) {
         prop = urls->at(i);
+        if (!prop->is_string()) {
+            return srs_error_new(ERROR_SYSTEM_FORWARD_LOOP, "parse url %d %s", i, res.c_str());
+        }
+
         string rtmp_url = prop->to_str();
         if (!rtmp_url.empty()) {
             rtmp_urls.push_back(rtmp_url);
@@ -636,23 +634,19 @@ srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::stri
         return srs_error_wrap(err, "http: body read");
     }
 
-    // ensure the http status is ok.
     if (code != SRS_CONSTS_HTTP_OK && code != SRS_CONSTS_HTTP_Created) {
         return srs_error_new(ERROR_HTTP_STATUS_INVALID, "http: status %d", code);
     }
 
-    // should never be empty.
     if (res.empty()) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "http: empty response");
     }
 
-    // parse string res to json.
     SrsUniquePtr<SrsJsonAny> info(SrsJsonAny::loads(res));
     if (!info.get()) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "http: not json %s", res.c_str());
     }
 
-    // response error code in string.
     if (!info->is_object()) {
         if (res == SRS_HTTP_RESPONSE_OK) {
             return err;
@@ -660,7 +654,6 @@ srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::stri
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "http: response number code %s", res.c_str());
     }
 
-    // response standard object, format in json: {"code": 0, "data": ""}
     SrsJsonObject *res_info = info->to_object();
     SrsJsonAny *res_code = NULL;
     if ((res_code = res_info->ensure_property_integer("code")) == NULL) {

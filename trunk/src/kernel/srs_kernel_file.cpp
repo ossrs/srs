@@ -119,12 +119,16 @@ bool SrsFileWriter::is_open()
     return fp_ != NULL;
 }
 
-void SrsFileWriter::seek2(int64_t offset)
+srs_error_t SrsFileWriter::seek2(int64_t offset)
 {
     srs_assert(is_open());
 
-    int r0 = _srs_fseek_fn(fp_, offset, SEEK_SET);
-    srs_assert(r0 != -1);
+    // The seek flushes the buffered writes first, which fails on a full disk.
+    if (_srs_fseek_fn(fp_, offset, SEEK_SET) == -1) {
+        return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file %s to %" PRId64, path_.c_str(), offset);
+    }
+
+    return srs_success;
 }
 
 int64_t SrsFileWriter::tellg()

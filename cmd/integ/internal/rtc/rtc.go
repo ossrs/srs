@@ -55,6 +55,10 @@ type Options struct {
 	// Controlled makes a raw session's STUN binding requests those of an
 	// ICE-controlled agent, which doesn't nominate the pair.
 	Controlled bool
+	// NoNominate makes a raw session's STUN binding requests those of an
+	// ICE-controlling agent that checks the pair without USE-CANDIDATE, as a
+	// browser checks its other candidate pairs once it nominated one.
+	NoNominate bool
 	// LocalPort is the local port of a raw session's socket, such as the
 	// port of an earlier session's closed socket; 0 lets the system pick.
 	LocalPort uint16

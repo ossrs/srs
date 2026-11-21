@@ -15,32 +15,19 @@ import (
 	"srsx/internal/sync"
 )
 
-// memoryLoadBalancer stores state in memory.
 type memoryLoadBalancer struct {
-	// The environment interface.
-	environment env.ProxyEnvironment
-	// All available SRS servers, key is server ID.
-	servers sync.Map[string, *OriginServer]
-	// The picked server to service client by specified stream URL, key is stream url.
-	picked sync.Map[string, *OriginServer]
-	// The HLS streaming, key is stream URL.
+	environment  env.ProxyEnvironment
+	servers      sync.Map[string, *OriginServer]
+	picked       sync.Map[string, *OriginServer]
 	hlsStreamURL sync.Map[string, HLSPlayStream]
-	// The HLS streaming, key is SPBHID.
-	hlsSPBHID sync.Map[string, HLSPlayStream]
-	// The WebRTC streaming, key is stream URL.
+	hlsSPBHID    sync.Map[string, HLSPlayStream]
 	rtcStreamURL sync.Map[string, RTCConnection]
-	// The WebRTC streaming, key is ufrag.
-	rtcUfrag sync.Map[string, RTCConnection]
-	// keepaliveInterval is the period at which the default-backend keep-alive
-	// goroutine re-Updates its registration. Struct field for test injection
-	// (avoids racing a package global across concurrent tests).
+	rtcUfrag     sync.Map[string, RTCConnection]
+	// A field, not a package global, so concurrent tests can each set their own.
 	keepaliveInterval time.Duration
-	// originServerTTL is the period during which an origin registration is
-	// considered healthy.
-	originServerTTL time.Duration
+	originServerTTL   time.Duration
 }
 
-// NewMemoryLoadBalancer creates a new memory-based load balancer.
 func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &memoryLoadBalancer{
 		environment:       environment,
@@ -74,7 +61,6 @@ func (v *memoryLoadBalancer) Initialize(ctx context.Context) error {
 		return errors.Wrapf(err, "update default SRS %+v", server)
 	}
 
-	// Keep alive.
 	go func() {
 		for {
 			select {
@@ -97,12 +83,10 @@ func (v *memoryLoadBalancer) Update(ctx context.Context, server *OriginServer) e
 }
 
 func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
-	// Always proxy to the same server for the same stream URL.
 	if server, ok := v.picked.Load(streamURL); ok {
 		return server, nil
 	}
 
-	// Gather all servers that were alive within the last few seconds.
 	var servers []*OriginServer
 	v.servers.Range(func(key string, server *OriginServer) bool {
 		if time.Since(server.UpdatedAt) < v.originServerTTL {
@@ -111,7 +95,6 @@ func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origi
 		return true
 	})
 
-	// If no servers available, use all possible servers.
 	if len(servers) == 0 {
 		v.servers.Range(func(key string, server *OriginServer) bool {
 			servers = append(servers, server)
@@ -119,20 +102,16 @@ func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origi
 		})
 	}
 
-	// No server found, failed.
 	if len(servers) == 0 {
 		return nil, fmt.Errorf("no server available for %v", streamURL)
 	}
 
-	// Pick a server randomly from servers. Use global rand which is thread-safe since Go 1.20.
-	// For older Go versions, this is still safe as we're only reading from the servers slice.
 	server := servers[rand.Intn(len(servers))]
 	v.picked.Store(streamURL, server)
 	return server, nil
 }
 
 func (v *memoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
-	// Load the HLS streaming for the SPBHID, for TS files.
 	if actual, ok := v.hlsSPBHID.Load(spbhid); !ok {
 		return nil, errors.Errorf("no HLS streaming for SPBHID %v", spbhid)
 	} else {
@@ -141,23 +120,19 @@ func (v *memoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string)
 }
 
 func (v *memoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
-	// Update the HLS streaming for the stream URL, for M3u8.
 	actual, _ := v.hlsStreamURL.LoadOrStore(streamURL, value)
 	if actual == nil {
 		return nil, errors.Errorf("load or store HLS streaming for %v failed", streamURL)
 	}
 
-	// Update the HLS streaming for the SPBHID, for TS files.
 	v.hlsSPBHID.Store(value.GetSPBHID(), actual)
 
 	return actual, nil
 }
 
 func (v *memoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
-	// Update the WebRTC streaming for the stream URL.
 	v.rtcStreamURL.Store(streamURL, value)
 
-	// Update the WebRTC streaming for the ufrag.
 	v.rtcUfrag.Store(value.GetUfrag(), value)
 	return nil
 }

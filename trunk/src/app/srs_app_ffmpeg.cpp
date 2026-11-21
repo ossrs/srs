@@ -27,13 +27,10 @@ using namespace std;
 #define SRS_RTMP_ENCODER_COPY "copy"
 #define SRS_RTMP_ENCODER_NO_VIDEO "vn"
 #define SRS_RTMP_ENCODER_NO_AUDIO "an"
-// only support encoder: h264, h265 and other variants like libx264 etc.
 #define SRS_RTMP_ENCODER_VCODEC_H264 "264"
 #define SRS_RTMP_ENCODER_VCODEC_H265 "265"
 #define SRS_RTMP_ENCODER_VCODEC_HEVC "hevc"
 #define SRS_RTMP_ENCODER_VCODEC_PNG "png"
-// any aac encoder is ok which contains the aac,
-// for example, libaacplus, aac, fdkaac
 #define SRS_RTMP_ENCODER_ACODEC "aac"
 #define SRS_RTMP_ENCODER_LIBAACPLUS "libaacplus"
 #define SRS_RTMP_ENCODER_LIBFDKAAC "libfdk_aac"
@@ -122,7 +119,6 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
     aparams_ = config_->get_engine_aparams(engine);
     oformat_ = config_->get_engine_oformat(engine);
 
-    // ensure the size is even.
     vwidth_ -= vwidth_ % 2;
     vheight_ -= vheight_ % 2;
 
@@ -183,8 +179,6 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
         return srs_error_new(ERROR_ENCODER_OUTPUT, "invalid empty output");
     }
 
-    // for not rtmp input, donot append the iformat,
-    // for example, "-f flv" before "-i udp://192.168.1.252:2222"
     if (!srs_strings_starts_with(input_, "rtmp://")) {
         iformat_ = "";
     }
@@ -214,16 +208,11 @@ srs_error_t SrsFFMPEG::start()
         return err;
     }
 
-    // the argv for process.
     params_.clear();
 
-    // argv[0], set to ffmpeg bin.
-    // The  execv()  and  execvp() functions ....
-    // The first argument, by convention, should point to
-    // the filename associated  with  the file being executed.
+    // By execv() convention, argv[0] points to the file being executed.
     params_.push_back(ffmpeg_);
 
-    // input params
     for (int i = 0; i < (int)iparams_.size(); i++) {
         string iparam = iparams_.at(i);
         if (!iparam.empty()) {
@@ -231,7 +220,6 @@ srs_error_t SrsFFMPEG::start()
         }
     }
 
-    // build the perfile
     if (!perfile_.empty()) {
         std::vector<std::string>::iterator it;
         for (it = perfile_.begin(); it != perfile_.end(); ++it) {
@@ -242,7 +230,6 @@ srs_error_t SrsFFMPEG::start()
         }
     }
 
-    // input.
     if (iformat_ != "off" && !iformat_.empty()) {
         params_.push_back("-f");
         params_.push_back(iformat_);
@@ -251,7 +238,6 @@ srs_error_t SrsFFMPEG::start()
     params_.push_back("-i");
     params_.push_back(input_);
 
-    // build the filter
     if (!vfilter_.empty()) {
         std::vector<std::string>::iterator it;
         for (it = vfilter_.begin(); it != vfilter_.end(); ++it) {
@@ -262,7 +248,6 @@ srs_error_t SrsFFMPEG::start()
         }
     }
 
-    // video specified.
     if (vcodec_ != SRS_RTMP_ENCODER_NO_VIDEO) {
         params_.push_back("-vcodec");
         params_.push_back(vcodec_);
@@ -270,7 +255,6 @@ srs_error_t SrsFFMPEG::start()
         params_.push_back("-vn");
     }
 
-    // the codec params is disabled when copy
     if (vcodec_ != SRS_RTMP_ENCODER_COPY && vcodec_ != SRS_RTMP_ENCODER_NO_VIDEO) {
         if (vbitrate_ > 0) {
             params_.push_back("-b:v");
@@ -308,7 +292,6 @@ srs_error_t SrsFFMPEG::start()
             params_.push_back(vpreset_);
         }
 
-        // vparams
         if (!vparams_.empty()) {
             std::vector<std::string>::iterator it;
             for (it = vparams_.begin(); it != vparams_.end(); ++it) {
@@ -320,7 +303,6 @@ srs_error_t SrsFFMPEG::start()
         }
     }
 
-    // audio specified.
     if (acodec_ != SRS_RTMP_ENCODER_NO_AUDIO) {
         params_.push_back("-acodec");
         params_.push_back(acodec_);
@@ -328,7 +310,6 @@ srs_error_t SrsFFMPEG::start()
         params_.push_back("-an");
     }
 
-    // the codec params is disabled when copy
     if (acodec_ != SRS_RTMP_ENCODER_NO_AUDIO) {
         if (acodec_ != SRS_RTMP_ENCODER_COPY) {
             if (abitrate_ > 0) {
@@ -346,7 +327,6 @@ srs_error_t SrsFFMPEG::start()
                 params_.push_back(srs_strconv_format_int(achannels_));
             }
 
-            // aparams
             std::vector<std::string>::iterator it;
             for (it = aparams_.begin(); it != aparams_.end(); ++it) {
                 std::string p = *it;
@@ -355,11 +335,9 @@ srs_error_t SrsFFMPEG::start()
                 }
             }
         } else {
-            // for audio copy.
             for (int i = 0; i < (int)aparams_.size();) {
                 std::string pn = aparams_[i++];
 
-                // aparams, the adts to asc filter "-bsf:a aac_adtstoasc"
                 if (pn == "-bsf:a" && i < (int)aparams_.size()) {
                     std::string pv = aparams_[i++];
                     if (pv == "aac_adtstoasc") {
@@ -371,7 +349,6 @@ srs_error_t SrsFFMPEG::start()
         }
     }
 
-    // output
     if (oformat_ != "off" && !oformat_.empty()) {
         params_.push_back("-f");
         params_.push_back(oformat_);
@@ -380,19 +357,15 @@ srs_error_t SrsFFMPEG::start()
     params_.push_back("-y");
     params_.push_back(output_);
 
-    // when specified the log file.
     if (!log_file_.empty()) {
-        // stdout
         params_.push_back("1");
         params_.push_back(">");
         params_.push_back(log_file_);
-        // stderr
         params_.push_back("2");
         params_.push_back(">");
         params_.push_back(log_file_);
     }
 
-    // initialize the process.
     if ((err = process_->initialize(ffmpeg_, params_)) != srs_success) {
         return srs_error_wrap(err, "init process");
     }

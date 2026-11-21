@@ -16,7 +16,6 @@
 class ISrsSrtEventLoop;
 class ISrsAppFactory;
 
-// The srt connection handler.
 class ISrsSrtHandler
 {
 public:
@@ -24,11 +23,9 @@ public:
     virtual ~ISrsSrtHandler();
 
 public:
-    // When got srt client.
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd) = 0;
 };
 
-// The SRT listener, which creates the socket, then listens after the options are set.
 class ISrsSrtListener
 {
 public:
@@ -41,7 +38,6 @@ public:
     virtual srs_error_t listen() = 0;
 };
 
-// Bind and listen SRT(udp) port, use handler to process the client.
 class SrsSrtListener : public ISrsSrtListener, public ISrsCoroutineHandler
 {
 // clang-format off
@@ -58,7 +54,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The SRT event loop, whose poller the listening socket attaches to.
     ISrsSrtEventLoop *srt_eventloop_;
     ISrsAppFactory *app_factory_;
 
@@ -70,16 +65,15 @@ public:
     virtual srs_srt_t fd();
 
 public:
-    // Create srt socket, separate this step because of srt have some option must set before listen.
+    // A separate step from listen, because some SRT options must be set before listen.
     virtual srs_error_t create_socket();
     virtual srs_error_t listen();
-    // Interface ISrsReusableThreadHandler.
+
 public:
     virtual srs_error_t cycle();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Accept a caller and give it to the handler.
     virtual srs_error_t do_cycle();
 };
 

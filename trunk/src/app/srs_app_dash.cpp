@@ -175,7 +175,7 @@ srs_error_t SrsFragmentedMp4::initialize(ISrsRequest *r, bool video, int64_t tim
 
     string home = config_->get_dash_path(r->vhost_);
     fragment_->set_path(home + "/" + file_home + "/" + file_name);
-    // Set number of the fragment, use in mpd SegmentTemplate@startNumber later.
+    // The MPD's SegmentTemplate@startNumber.
     fragment_->set_number(sequence_number);
 
     if ((err = fragment_->create_dir()) != srs_success) {
@@ -231,7 +231,8 @@ srs_error_t SrsFragmentedMp4::reap(uint64_t &dts)
         return srs_error_wrap(err, "Flush encoder failed");
     }
 
-    srs_freep(fw_);
+    // Close but keep the writer, which the encoder borrows: when the rename fails, the segment may be reaped again.
+    fw_->close();
 
     if ((err = fragment_->rename()) != srs_success) {
         return srs_error_wrap(err, "rename");
@@ -413,12 +414,8 @@ void SrsMpdWriter::dispose()
     mpd_path_ = "";
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsMpdWriter::initialize(ISrsRequest *r)
 {
     req_ = r;
@@ -452,7 +449,6 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
 {
     srs_error_t err = srs_success;
 
-    // A stream with no video or no audio lists the one track it has.
     if (afragments->empty() && vfragments->empty()) {
         return err;
     }
@@ -565,8 +561,6 @@ srs_error_t SrsMpdWriter::get_fragment(bool video, std::string &home, std::strin
 
     home = fragment_home_;
 
-    // We name the segment as advanced N segments, because when we are generating segment at the current time,
-    // the player may also request the current segment.
     srs_assert(fragment_);
 
     if (video) {
@@ -602,7 +596,7 @@ SrsDashController::SrsDashController()
 {
     req_ = NULL;
     format_ = NULL;
-    // trackid start from 1, because some player will check if track id is greater than 0
+    // Track IDs start from 1, since some players require a track ID greater than 0.
     video_track_id_ = 1;
     audio_track_id_ = 2;
     mpd_ = new SrsMpdWriter();
@@ -665,12 +659,8 @@ void SrsDashController::dispose()
     srs_trace("gracefully dispose dash %s", req_ ? req_->get_stream_url().c_str() : "");
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDashController::initialize(ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -713,7 +703,6 @@ srs_error_t SrsDashController::on_publish()
     return err;
 }
 
-// Remove the file of a reaped segment that no window lists, and free the segment.
 static void srs_dash_unlink_unlisted(ISrsFragmentedMp4 *&fragment)
 {
     srs_error_t err = srs_success;
@@ -796,11 +785,11 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
         mpd_->set_availability_start_time(srs_time_now_cached() - first_dts_ * SRS_UTIME_MILLISECONDS);
     }
 
-    // The video is reaped, audio must be reaped right now to align the timestamp of video; while
-    // the publish has sent no video, the audio is reaped by its own duration.
+    // When the video is reaped, the audio is reaped right away to align with the video timestamp;
+    // while the publish has sent no video, the audio is reaped by its own duration.
     if (video_reaped_ || (!vcurrent_ && vfragments_->empty() && acurrent_->duration() >= fragment_)) {
         video_reaped_ = false;
-        // Append current timestamp to calculate right duration.
+        // The duration ends at this frame, which starts the next segment.
         acurrent_->append(shared_audio->timestamp_);
         if ((err = acurrent_->reap(audio_dts_)) != srs_success) {
             return srs_error_wrap(err, "reap current");
@@ -832,12 +821,10 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
         }
         dash_window = srs_max(dash_window, w);
 
-        // shrink the segments.
         afragments_->shrink(dash_window);
     }
 
     bool dash_cleanup = config_->get_dash_cleanup(req_->vhost_);
-    // remove the m4s file.
     afragments_->clear_expired(dash_cleanup);
 
     return err;
@@ -876,13 +863,12 @@ srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat 
 
     bool reopen = format->video_->frame_type_ == SrsVideoAvcFrameTypeKeyFrame && vcurrent_->duration() >= fragment_;
     if (reopen) {
-        // Append current timestamp to calculate right duration.
+        // The duration ends at this frame, which starts the next segment.
         vcurrent_->append(shared_video->timestamp_);
         if ((err = vcurrent_->reap(video_dts_)) != srs_success) {
             return srs_error_wrap(err, "reap current");
         }
 
-        // Mark the video has reaped, audio will reaped when recv next frame.
         video_reaped_ = true;
 
         vfragments_->append(vcurrent_);
@@ -911,12 +897,10 @@ srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat 
         }
         dash_window = srs_max(dash_window, w);
 
-        // shrink the segments.
         vfragments_->shrink(dash_window);
     }
 
     bool dash_cleanup = config_->get_dash_cleanup(req_->vhost_);
-    // remove the m4s file.
     vfragments_->clear_expired(dash_cleanup);
 
     return err;
@@ -1025,18 +1009,15 @@ SrsDash::~SrsDash()
 
 void SrsDash::dispose()
 {
-    // Call on_unpublish only if still enabled to avoid duplicate calls.
     if (enabled_) {
         on_unpublish();
     }
 
-    // Ignore when dash_dispose disabled.
     srs_utime_t dash_dispose = config_->get_dash_dispose(req_->vhost_);
     if (!dash_dispose) {
         return;
     }
 
-    // Always dispose files when dash_dispose timeout occurs, even if already unpublished.
     controller_->dispose();
 }
 
@@ -1097,16 +1078,12 @@ srs_error_t SrsDash::resume()
 
 srs_utime_t SrsDash::cleanup_delay()
 {
-    // We use larger timeout to cleanup the HLS, after disposed it if required.
+    // Larger than dash_dispose, so the source is cleaned up after the DASH is disposed.
     return config_->get_dash_dispose(req_->vhost_) * 1.1;
 }
 
-// CRITICAL: This method is called AFTER the source has been added to the source pool
-// in the fetch_or_create pattern (see PR 4449).
-//
-// IMPORTANT: All field initialization in this method MUST NOT cause coroutine context switches.
-// This prevents the race condition where multiple coroutines could create duplicate sources
-// for the same stream when context switches occurred during initialization.
+// Called after fetch_or_create adds the source to the pool (PR 4449). It must not switch
+// coroutines, which let other coroutines create duplicate sources for the same stream.
 srs_error_t SrsDash::initialize(ISrsOriginHub *h, ISrsRequest *r)
 {
     srs_error_t err = srs_success;
@@ -1125,7 +1102,6 @@ srs_error_t SrsDash::on_publish()
 {
     srs_error_t err = srs_success;
 
-    // Prevent duplicated publish.
     if (enabled_) {
         return err;
     }
@@ -1135,7 +1111,6 @@ srs_error_t SrsDash::on_publish()
     }
     enabled_ = true;
 
-    // update the dash time, for dash_dispose.
     last_update_time_ = srs_time_now_cached();
     disposed_publishing_ = false;
 
@@ -1143,7 +1118,6 @@ srs_error_t SrsDash::on_publish()
         return srs_error_wrap(err, "controller");
     }
 
-    // ok, the dash can be dispose, or need to be dispose.
     disposable_ = true;
 
     return err;
@@ -1165,7 +1139,6 @@ srs_error_t SrsDash::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
         return err;
     }
 
-    // update the dash time, for dash_dispose.
     last_update_time_ = srs_time_now_cached();
 
     if ((err = controller_->on_audio(shared_audio, format)) != srs_success) {
@@ -1191,7 +1164,6 @@ srs_error_t SrsDash::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
         return err;
     }
 
-    // update the dash time, for dash_dispose.
     last_update_time_ = srs_time_now_cached();
 
     if ((err = controller_->on_video(shared_video, format)) != srs_success) {
@@ -1206,7 +1178,6 @@ void SrsDash::on_unpublish()
     // The stream is unpublished, so no media resumes a disposed DASH.
     disposed_publishing_ = false;
 
-    // Prevent duplicated unpublish.
     if (!enabled_) {
         return;
     }

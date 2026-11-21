@@ -183,6 +183,9 @@ srs_error_t SrsSrtRecvThread::do_cycle()
             if (srs_error_code(err) != ERROR_SRT_TIMEOUT) {
                 return srs_error_wrap(err, "srt read");
             }
+
+            // A player sends nothing, so its read times out after each idle period; ignore it.
+            srs_freep(err);
         }
     }
 
@@ -246,7 +249,6 @@ void SrsMpegtsSrtConn::assemble()
 {
     srt_conn_->assemble();
 
-    // Create a identify for this client.
     context_->set_id(context_->generate_id());
 
     kbps_->set_io(srt_conn_, srt_conn_);
@@ -322,28 +324,22 @@ srs_error_t SrsMpegtsSrtConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Update statistic when done.
     stat_->kbps_add_delta(get_id().c_str(), delta_);
     stat_->on_disconnect(get_id().c_str(), err);
 
-    // Notify manager to remove it.
-    // Note that we create this object, so we use manager to remove it.
     resource_manager_->remove(this);
 
-    // success.
     if (err == srs_success) {
         srs_trace("srt client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("srt client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("srt client disconnect peer. ret=%d", srs_error_code(err));
@@ -368,19 +364,16 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_wrap(err, "get srt streamid");
     }
 
-    // If streamid empty, using default streamid instead.
     if (streamid.empty()) {
         streamid = config_->get_srt_default_streamid();
         srs_warn("srt get empty streamid, using default streamid %s instead", streamid.c_str());
     }
 
-    // Detect streamid of srt to request.
     SrtMode mode = SrtModePull;
     if (!srs_srt_streamid_to_request(config_, streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
-    // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(req_->vhost_);
     if (parsed_vhost) {
         req_->vhost_ = parsed_vhost->arg0();
@@ -401,7 +394,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     srs_trace("@srt, streamid=%s, stream_url=%s, vhost=%s, app=%s, stream=%s, param=%s",
               streamid.c_str(), req_->get_stream_url().c_str(), req_->vhost_.c_str(), req_->app_.c_str(), req_->stream_.c_str(), req_->param_.c_str());
 
-    // Acquire stream publish token to prevent race conditions across all protocols.
+    // The token prevents races between publishers of all protocols.
     SrsStreamPublishToken *publish_token_raw = NULL;
     if (mode == SrtModePush && (err = stream_publish_tokens_->acquire_token(req_, publish_token_raw)) != srs_success) {
         return srs_error_wrap(err, "acquire stream publish token");
@@ -434,7 +427,7 @@ srs_error_t SrsMpegtsSrtConn::publishing()
 {
     srs_error_t err = srs_success;
 
-    // We must do stat the client before hooks, because hooks depends on it.
+    // The hooks depend on the stat of the client.
     if ((err = stat_->on_client(context_->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
@@ -443,7 +436,6 @@ srs_error_t SrsMpegtsSrtConn::publishing()
         return srs_error_wrap(err, "srt: security check");
     }
 
-    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "srt: callback on publish");
     }
@@ -453,8 +445,7 @@ srs_error_t SrsMpegtsSrtConn::publishing()
         err = do_publishing();
     }
 
-    // Whatever the acquire result, release any publish state changed by this session.
-    // When the stream is busy, another session owns it and must never be released here.
+    // A busy stream is owned by another session, which must keep it.
     int acquire_code = srs_error_code(acquire_err);
     if (acquire_code != ERROR_SRT_SOURCE_BUSY && acquire_code != ERROR_SYSTEM_STREAM_BUSY) {
         release_publish();
@@ -469,7 +460,7 @@ srs_error_t SrsMpegtsSrtConn::playing()
 {
     srs_error_t err = srs_success;
 
-    // We must do stat the client before hooks, because hooks depends on it.
+    // The hooks depend on the stat of the client.
     if ((err = stat_->on_client(context_->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
@@ -478,7 +469,6 @@ srs_error_t SrsMpegtsSrtConn::playing()
         return srs_error_wrap(err, "srt: security check");
     }
 
-    // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_play()) != srs_success) {
         return srs_error_wrap(err, "srt: callback on play");
     }
@@ -494,12 +484,10 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 {
     srs_error_t err = srs_success;
 
-    // Check srt stream is busy.
     if (!srt_source_->can_publish()) {
         return srs_error_new(ERROR_SRT_SOURCE_BUSY, "srt stream %s busy", req_->get_stream_url().c_str());
     }
 
-    // Check rtmp stream is busy.
     SrsSharedPtr<SrsLiveSource> live_source = live_sources_->fetch(req_);
     if (live_source.get() && !live_source->can_publish(false)) {
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "live_source stream %s busy", req_->get_stream_url().c_str());
@@ -516,10 +504,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     live_source->set_cache(enabled_cache);
     live_source->set_gop_cache_max_frames(gcmf);
 
-    // srt->rtmp->rtc
     // TODO: FIXME: the code below is repeat in srs_app_rtmp_conn.cpp, refactor it later, use function instead.
-
-    // Check whether RTC stream is busy.
     SrsSharedPtr<SrsRtcSource> rtc;
     bool rtc_server_enabled = config_->get_rtc_server_enabled();
     bool rtc_enabled = config_->get_rtc_enabled(req_->vhost_);
@@ -540,7 +525,6 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
         }
     }
 
-    // Bridge to RTMP and RTC streaming.
     SrsSrtBridge *bridge = new SrsSrtBridge(app_factory_);
     bridge->assemble();
 
@@ -591,7 +575,6 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     srs_trace("SRT: start publish url=%s", req_->get_stream_url().c_str());
 
-    // Set socket timeout to peer_idle_timeout for publishers.
     // @see https://github.com/ossrs/srs/issues/4600
     srs_utime_t timeout = config_->get_srto_peeridletimeout();
     srt_conn_->set_recv_timeout(timeout);
@@ -601,7 +584,7 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     int nb_packets = 0;
 
-    // Max udp packet size equal to 1500.
+    // The max UDP packet size is 1500.
     char buf[1500];
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
@@ -644,7 +627,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 {
     srs_error_t err = srs_success;
 
-    // Set socket timeout to peer_idle_timeout for players.
     // @see https://github.com/ossrs/srs/issues/4600
     srs_utime_t timeout = config_->get_srto_peeridletimeout();
     srt_conn_->set_recv_timeout(timeout);
@@ -674,7 +656,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     int nb_packets = 0;
 
     while (true) {
-        // Check recv thread error first, so we can detect the client disconnecting event.
+        // The recv thread is how a player's disconnect is detected.
         if ((err = srt_recv_trd.get_recv_err()) != srs_success) {
             return srs_error_wrap(err, "srt play recv thread");
         }
@@ -683,13 +665,11 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
             return srs_error_wrap(err, "srt play thread");
         }
 
-        // Wait for amount of packets.
         SrsSrtPacket *pkt_raw = NULL;
         consumer->dump_packet(&pkt_raw);
         if (!pkt_raw) {
-            // Wait for peer_idle_timeout. Note that enqueue() signals the cond, so we wake up
-            // immediately when packets arrive during normal playback. Only check publisher disconnect
-            // when no packets available after timeout. @see https://github.com/ossrs/srs/issues/4591
+            // enqueue() signals the cond, so the wait ends as soon as a packet arrives.
+            // @see https://github.com/ossrs/srs/issues/4591
             bool has_msgs = consumer->wait(1, timeout);
             if (!has_msgs && srt_source_->can_publish()) {
                 return srs_error_new(ERROR_SRT_SOURCE_DISCONNECTED, "srt source disconnected");
@@ -701,7 +681,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 
         ++nb_packets;
 
-        // reportable
         pprint->elapse();
         if (pprint->can_print()) {
             SrsSrtStat s;
@@ -724,7 +703,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
             return srs_error_wrap(err, "srt send, size=%d", pkt->size());
         }
 
-        // Yield to another coroutines.
         // @see https://github.com/ossrs/srs/issues/2194#issuecomment-777542162
         // TODO: FIXME: Please check whether SRT sendmsg causing clock deviation, see srs_thread_yield of SrsUdpMuxSocket::sendto
     }
@@ -736,17 +714,15 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char *buf, int nb_buf)
 {
     srs_error_t err = srs_success;
 
-    // Ignore if invalid length.
     if (nb_buf <= 0) {
         return err;
     }
 
-    // Check srt payload, mpegts must be N times of SRS_TS_PACKET_SIZE
     if ((nb_buf % SRS_TS_PACKET_SIZE) != 0) {
         return srs_error_new(ERROR_SRT_CONN, "invalid ts packet len=%d", nb_buf);
     }
 
-    // Check srt payload, the first byte must be 0x47
+    // 0x47 is the TS sync byte.
     if (buf[0] != 0x47) {
         return srs_error_new(ERROR_SRT_CONN, "invalid ts packet first=%#x", (uint8_t)buf[0]);
     }
@@ -769,8 +745,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -800,8 +775,7 @@ void SrsMpegtsSrtConn::http_hooks_on_close()
         return;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -829,8 +803,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -860,8 +833,7 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
         return;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -890,8 +862,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
         return err;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 
@@ -921,8 +892,7 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
         return;
     }
 
-    // the http hooks will cause context switch,
-    // so we must copy all hooks for the on_connect may freed.
+    // The hooks switch coroutines, during which the directive may be freed, so copy its URLs first.
     // @see https://github.com/ossrs/srs/issues/475
     vector<string> hooks;
 

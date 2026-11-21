@@ -159,11 +159,10 @@ void SrsRtcBlackhole::sendto(void *data, int len)
 
 SrsRtcBlackhole *_srs_blackhole = NULL;
 
-// @global dtls certficate for rtc module.
 SrsDtlsCertificate *_srs_rtc_dtls_certificate = NULL;
 
 // TODO: Should support error response.
-// For STUN packet, 0x00 is binding request, 0x01 is binding success response.
+// The first byte of a STUN binding request is 0x00, and of a binding success response 0x01.
 bool srs_is_stun(const uint8_t *data, size_t size)
 {
     return size > 0 && (data[0] == 0 || data[0] == 1);
@@ -176,15 +175,14 @@ bool srs_is_dtls(const uint8_t *data, size_t len)
     return (len >= 13 && (data[0] > 19 && data[0] < 64));
 }
 
-// For RTP or RTCP, the V=2 which is in the high 2bits, 0xC0 (1100 0000)
+// RTP and RTCP carry the version, 2, in the high 2 bits of the first byte.
 bool srs_is_rtp_or_rtcp(const uint8_t *data, size_t len)
 {
     return (len >= 12 && (data[0] & 0xC0) == 0x80);
 }
 
-// For RTCP, PT is [128, 223] (or without marker [0, 95]).
-// Literally, RTCP starts from 64 not 0, so PT is [192, 223] (or without marker [64, 95]).
-// @note For RTP, the PT is [96, 127], or [224, 255] with marker.
+// The RTCP packet type is 192 to 223 (64 to 95 without the top bit), while the RTP payload type is 96 to 127, or 224
+// to 255 with the marker bit.
 bool srs_is_rtcp(const uint8_t *data, size_t len)
 {
     return (len >= 12) && (data[0] & 0x80) && (data[1] >= 192 && data[1] <= 223);
@@ -206,12 +204,10 @@ srs_error_t api_server_as_candidates(ISrsAppConfig *config, string api, set<stri
         return err;
     }
 
-    // Whether add domain name.
     if (!srs_net_is_ipv4(hostname) && config->get_keep_api_domain()) {
         candidate_ips.insert(hostname);
     }
 
-    // Try to parse the domain name if not IP.
     if (!srs_net_is_ipv4(hostname) && config->get_resolve_api_domain()) {
         int family = 0;
         string ip = srs_dns_resolve(hostname, family);
@@ -219,11 +215,9 @@ srs_error_t api_server_as_candidates(ISrsAppConfig *config, string api, set<stri
             return err;
         }
 
-        // Try to add the API server ip as candidates.
         candidate_ips.insert(ip);
     }
 
-    // If hostname is IP, use it.
     if (srs_net_is_ipv4(hostname)) {
         candidate_ips.insert(hostname);
     }
@@ -235,34 +229,28 @@ set<string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *con
 {
     srs_error_t err = srs_success;
 
-    // Try to discover the eip as candidate, specified by user.
     set<string> candidate_ips;
     if (!ruc->eip_.empty()) {
         candidate_ips.insert(ruc->eip_);
     }
 
-    // Try to discover from api of request, if api_as_candidates enabled.
     if ((err = api_server_as_candidates(config, ruc->req_->host_, candidate_ips)) != srs_success) {
         srs_warn("ignore discovering ip from api %s, err %s", ruc->req_->host_.c_str(), srs_error_summary(err).c_str());
         srs_freep(err);
     }
 
-    // If not * or 0.0.0.0, use the candidate as exposed IP.
     string candidate = config->get_rtc_server_candidates();
     if (candidate != "*" && candidate != "0.0.0.0") {
         candidate_ips.insert(candidate);
         return candidate_ips;
     }
 
-    // All automatically detected IP list.
     vector<SrsIPAddress *> &ips = utility->local_ips();
     if (ips.empty()) {
         return candidate_ips;
     }
 
-    // Discover from local network interface addresses.
     if (config->get_use_auto_detect_network_ip()) {
-        // We try to find the best match candidates, no loopback.
         string family = config->get_rtc_server_ip_family();
         for (int i = 0; i < (int)ips.size(); ++i) {
             SrsIPAddress *ip = ips[i];
@@ -286,7 +274,6 @@ set<string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *con
         return candidate_ips;
     }
 
-    // Then, we use the ipv4 address.
     for (int i = 0; i < (int)ips.size(); ++i) {
         SrsIPAddress *ip = ips[i];
         if (!ip->is_ipv4_) {
@@ -298,7 +285,6 @@ set<string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *con
         return candidate_ips;
     }
 
-    // We use the first one, to make sure there will be at least one CANDIDATE.
     if (candidate_ips.empty()) {
         SrsIPAddress *ip = ips[0];
         candidate_ips.insert(ip->ip_);
@@ -378,7 +364,7 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
 
     ISrsRequest *req = ruc->req_;
 
-    // Acquire stream publish token to prevent race conditions across all protocols.
+    // Every protocol takes this token, so publishers of one stream over different protocols do not race.
     SrsStreamPublishToken *publish_token_raw = NULL;
     if (ruc->publish_ && (err = stream_publish_tokens_->acquire_token(req, publish_token_raw)) != srs_success) {
         return srs_error_wrap(err, "acquire stream publish token");
@@ -406,7 +392,6 @@ srs_error_t SrsRtcSessionManager::create_rtc_session(SrsRtcUserConfig *ruc, SrsS
         return srs_error_wrap(err, "create session");
     }
 
-    // Update publish token for publisher.
     if (ruc->publish_) {
         session->set_publish_token(publish_token);
     }
@@ -422,7 +407,7 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
 
     ISrsRequest *req = ruc->req_;
 
-    // first add publisher/player for negotiate sdp media info
+    // The publisher or player is added first, since it negotiates the SDP media info.
     if (ruc->publish_) {
         if ((err = session->add_publisher(ruc, local_sdp)) != srs_success) {
             return srs_error_wrap(err, "add publisher");
@@ -433,26 +418,24 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
         }
     }
 
-    // All tracks default as inactive, so we must enable them.
+    // All tracks are inactive by default.
     session->set_all_tracks_status(req->get_stream_url(), ruc->publish_, true);
 
-    // Generate local SDP other fields.
     string username;
     if ((err = session->generate_local_sdp(ruc, local_sdp, username)) != srs_success) {
         return srs_error_wrap(err, "generate local sdp");
     }
 
     session->set_remote_sdp(ruc->remote_sdp_);
-    // We must setup the local SDP, then initialize the session object.
+    // The session initialize needs the local SDP.
     session->set_local_sdp(local_sdp);
     session->set_state_as_waiting_stun();
 
-    // Before session initialize, we must setup the local SDP.
     if ((err = session->initialize(req, ruc->dtls_, ruc->srtp_, username)) != srs_success) {
         return srs_error_wrap(err, "init");
     }
 
-    // We allows username is optional, but it never empty here.
+    // The username is optional, but never empty here.
     conn_manager_->add_with_name(username, session);
 
     return err;
@@ -460,18 +443,14 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
 
 void SrsRtcSessionManager::srs_update_rtc_sessions()
 {
-    // Alive RTC sessions, for stat.
     int nn_rtc_conns = 0;
 
-    // Check all sessions and dispose the dead sessions.
     for (int i = 0; i < (int)conn_manager_->size(); i++) {
         ISrsRtcConnection *session = dynamic_cast<ISrsRtcConnection *>(conn_manager_->at(i));
-        // Ignore not session, or already disposing.
         if (!session || session->is_disposing()) {
             continue;
         }
 
-        // Update stat if session is alive.
         if (session->is_alive()) {
             nn_rtc_conns++;
             continue;
@@ -483,11 +462,10 @@ void SrsRtcSessionManager::srs_update_rtc_sessions()
         string username = session->username();
         srs_trace("RTC: session destroy by timeout, username=%s", username.c_str());
 
-        // Use manager to free session and notify other objects.
+        // The manager frees the session and notifies the other objects.
         conn_manager_->remove(session);
     }
 
-    // Ignore stats if no RTC connections.
     if (!nn_rtc_conns) {
         return;
     }
@@ -526,7 +504,6 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
     bool is_rtcp = srs_is_rtcp((uint8_t *)data, size);
 
     uint64_t fast_id = skt->fast_id();
-    // Try fast id first, if not found, search by long peer id.
     if (fast_id) {
         session = (ISrsRtcConnection *)conn_manager_->find_by_fast_id(fast_id);
     }
@@ -534,9 +511,17 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         string peer_id = skt->peer_id();
         session = (ISrsRtcConnection *)conn_manager_->find_by_id(peer_id);
     }
+    // A removed session is found until the manager frees it, which happens whenever a send of this packet switches
+    // coroutines, so take it as gone.
+    // TODO: FIXME: Refine the lifetime of the session. It is a raw pointer, and the manager frees it once it is removed
+    // and this coroutine switches. A STUN or DTLS response is one send, which never lets the manager run, but a NACK
+    // resend sends many packets and yields between them, so a session removed meanwhile may be freed while this
+    // packet still uses it.
+    if (session && session->is_disposing()) {
+        session = NULL;
+    }
 
     if (session) {
-        // When got any packet, the session is alive now.
         session->alive();
     }
 
@@ -553,7 +538,7 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         // The username names the session, while the address may still be another session's: one whose client closed
         // without a DTLS alert keeps its address until it times out, and a new client may get that port.
         ISrsRtcConnection *named = find_rtc_session_by_username(ping.get_username());
-        if (named) {
+        if (named && !named->is_disposing()) {
             session = named;
         }
         if (session) {
@@ -579,13 +564,13 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         return session->udp()->on_stun(&ping, data, size);
     }
 
-    // For DTLS, RTCP or RTP, which does not support peer address changing.
+    // DTLS, RTP and RTCP never change the peer address.
     if (!session) {
         string peer_id = skt->peer_id();
         return srs_error_new(ERROR_RTC_STUN, "no session, peer_id=%s, fast=%" PRId64, peer_id.c_str(), fast_id);
     }
 
-    // Note that we don't(except error) switch to the context of session, for performance issue.
+    // RTP does not switch to the session context, except on error, for performance.
     if (is_rtp_or_rtcp && !is_rtcp) {
         ++_srs_pps_rrtps->sugar_;
 

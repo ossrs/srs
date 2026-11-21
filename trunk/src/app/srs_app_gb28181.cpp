@@ -110,12 +110,11 @@ void SrsGbSession::assemble()
     media_starttime_ = startime_;
 
     cid_ = context_->generate_id();
-    context_->set_id(cid_); // Also change current coroutine cid as session's.
+    context_->set_id(cid_); // Also changes the current coroutine's cid to the session's.
 }
 
 SrsGbSession::~SrsGbSession()
 {
-    // Cut the media connections' pointers to this session before it is freed.
     for (int i = 0; i < (int)medias_.size(); i++) {
         SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
         media->interrupt();
@@ -151,7 +150,6 @@ void SrsGbSession::on_executor_done(ISrsInterruptable *executor)
 
 void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
 {
-    // Got a new context, that is new media transport.
     if (media_id_ != ctx->media_id_) {
         total_msgs_ += media_msgs_;
         total_packs_ += media_packs_;
@@ -164,7 +162,6 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
         media_reserved_ = 0;
     }
 
-    // Update data for current context.
     media_id_ = ctx->media_id_;
     media_packs_++;
     media_msgs_ += msgs.size();
@@ -173,13 +170,11 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
     media_msgs_dropped_ = ctx->media_nn_msgs_dropped_;
     media_reserved_ = ctx->media_reserved_;
 
-    // Group all video in pack to a video frame, because only allows one video for each PS pack.
     SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
 
     for (vector<SrsTsMessage *>::const_iterator it = msgs.begin(); it != msgs.end(); ++it) {
         SrsTsMessage *msg = *it;
 
-        // Group all videos to one video.
         if (msg->sid_ == SrsTsPESStreamIdVideoCommon) {
             video->ps_helper_ = msg->ps_helper_;
             video->dts_ = msg->dts_;
@@ -194,7 +189,6 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
             return;
         }
 
-        // Directly mux audio message.
         srs_error_t err = muxer_->on_ts_message(msg);
         if (err != srs_success) {
             srs_warn("Muxer: Ignore audio err %s", srs_error_desc(err).c_str());
@@ -202,7 +196,6 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
         }
     }
 
-    // Send the generated video message.
     if (!cycle_done_ && video->payload_->length() > 0) {
         srs_error_t err = muxer_->on_ts_message(video.get());
         if (err != srs_success) {
@@ -218,7 +211,6 @@ void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> medi
     media_ = media;
     connecting_starttime_ = 0;
 
-    // Change id of SIP and all its child coroutines.
     media_->set_cid(cid_);
 }
 
@@ -252,19 +244,16 @@ srs_error_t SrsGbSession::cycle()
 {
     srs_error_t err = srs_success;
 
-    // Update all context id to cid of session.
     _srs_context->set_id(cid_);
     owner_cid_->set_cid(cid_);
 
     media_->set_cid(cid_);
 
-    // Drive the session cycle.
     err = do_cycle();
 
     // No connection binds the session from now, so the interrupt below reaches every one that uses it.
     cycle_done_ = true;
 
-    // Interrupt the media transports when session terminated, which cuts their pointers to it.
     for (int i = 0; i < (int)medias_.size(); i++) {
         SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
         media->interrupt();
@@ -279,20 +268,17 @@ srs_error_t SrsGbSession::cycle()
         }
     }
 
-    // success.
     if (err == srs_success) {
         srs_trace("client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_warn("client finished %s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -317,10 +303,8 @@ srs_error_t SrsGbSession::do_cycle()
             return srs_error_wrap(err, "pull");
         }
 
-        // Drive the state in a fixed interval.
         srs_usleep(SRS_GB_SESSION_DRIVE_INTERVAL);
 
-        // Regular state, driven by state of transport.
         if ((err = drive_state()) != srs_success) {
             return srs_error_wrap(err, "drive");
         }
@@ -344,8 +328,7 @@ srs_error_t SrsGbSession::drive_state()
     srs_error_t err = srs_success;
 
     // The publish API reserves the ID and SSRC while the external SIP server
-    // starts its media publisher. Once TCP binds, its connection owns the
-    // session lifecycle; otherwise release an abandoned reservation.
+    // starts its media publisher, which may never connect.
     if (connecting_starttime_ && srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
         return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
     }
@@ -358,14 +341,12 @@ srs_error_t SrsGbSession::drive_state()
     }
 
     if (state_ == SrsGbSessionStateInit) {
-        // With external SIP server, we assume media connection is handled externally
         if (media_->is_connected()) {
             SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateEstablished);
         }
     }
 
     if (state_ == SrsGbSessionStateEstablished) {
-        // Simple state management - just check if media is still connected
         if (!media_->is_connected()) {
             SRS_GB_CHANGE_STATE_TO(SrsGbSessionStateInit);
         }
@@ -477,7 +458,6 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
 {
     srs_error_t err = srs_success;
 
-    // Handle TCP connections.
     if (listener == media_listener_) {
         ISrsGbMediaTcpConn *raw_conn = app_factory_->create_gb_media_tcp_conn();
         raw_conn->setup(stfd);
@@ -576,7 +556,6 @@ bool SrsGbMediaTcpConn::is_connected()
 
 void SrsGbMediaTcpConn::interrupt()
 {
-    // The session ended or is freed: never use it again.
     session_ = NULL;
     if (owner_coroutine_)
         owner_coroutine_->interrupt();
@@ -603,11 +582,9 @@ srs_error_t SrsGbMediaTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
 
-    // Should disconnect the TCP connection when stop cycle, especially when we stop first. In this situation, the
-    // connection won't be closed because it's shared by other objects.
+    // Close the TCP connection now: other objects share this one, so its destructor may run much later.
     srs_freep(conn_);
 
-    // Change state to disconnected.
     connected_ = false;
 
     // The external SIP server owns the signaling lifecycle, so a closed media
@@ -619,20 +596,17 @@ srs_error_t SrsGbMediaTcpConn::cycle()
 
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
 
-    // success.
     if (err == srs_success) {
         srs_trace("client finished.");
         return err;
     }
 
-    // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
         srs_trace("client finished%s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
 
-    // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
     if (srs_is_client_gracefully_close(err)) {
         srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
@@ -650,13 +624,10 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // The PS context to decode all PS packets.
     SrsRecoverablePsContext context;
 
-    // If bytes is not enough(defined by SRS_PS_MIN_REQUIRED), ignore.
     context.ctx_->set_detect_ps_integrity(true);
 
-    // Previous left bytes, to parse in next loop.
     uint32_t reserved = 0;
 
     for (;;) {
@@ -666,7 +637,7 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
             return srs_error_wrap(err, "pull");
         }
 
-        // RFC4571, 2 bytes length.
+        // RFC 4571, 2 bytes length.
         uint16_t length = 0;
         if (true) {
             uint8_t lbuffer[2];
@@ -685,25 +656,22 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
             srs_warn("PS: Large length=%u, previous-seq=%u, previous-ts=%u", length, h->rtp_seq_, h->rtp_ts_);
         }
 
-        // Read length of bytes of RTP packet.
         if ((err = conn_->read_fully(buffer_ + reserved, length, NULL)) != srs_success) {
             return srs_error_wrap(err, "read");
         }
 
-        // Drop all RTCP packets.
         if (srs_is_rtcp(buffer_ + reserved, length)) {
             nn_rtcp_++;
             srs_warn("PS: Drop RTCP packets nn=%d", nn_rtcp_);
             continue;
         }
 
-        // If no session, try to finger out it.
         if (!session_) {
             SrsRtpPacket rtp;
             SrsBuffer b((char *)(buffer_ + reserved), length);
             if ((err = rtp.decode(&b)) != srs_success) {
                 srs_warn("PS: Ignore packet length=%d for err %s", length, srs_error_desc(err).c_str());
-                srs_freep(err); // We ignore any error when decoding the RTP packet.
+                srs_freep(err);
                 continue;
             }
 
@@ -713,33 +681,30 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
         }
         if (!session_) {
             srs_warn("PS: Ignore packet length=%d for no session", length);
-            continue; // Ignore any media packet when no session.
+            continue;
         }
 
-        // Show tips about the buffer to parse.
         if (reserved) {
             string bytes = srs_strings_dumps_hex((const char *)(buffer_ + reserved), length, 16);
             srs_trace("PS: Consume reserved=%dB, length=%d, bytes=[%s]", reserved, length, bytes.c_str());
         }
 
-        // Parse RTP over TCP, RFC4571.
         SrsBuffer b((char *)buffer_, length + reserved);
         if ((err = context.decode_rtp(&b, reserved, pack_)) != srs_success) {
             return srs_error_wrap(err, "decode pack");
         }
 
-        // There might some messages left to parse in next loop.
         reserved = b.left();
         if (reserved > SRS_GB_MAX_RESERVED) {
             srs_warn("PS: Drop too many reserved=%d bytes", reserved);
-            reserved = 0; // Avoid reserving too much data.
+            reserved = 0;
         }
         if (reserved) {
             string bytes = srs_strings_dumps_hex(b.head(), reserved, 16);
             srs_trace("PS: Reserved bytes for next loop, pos=%d, left=%d, total=%d, bytes=[%s]",
                       b.pos(), b.left(), b.size(), bytes.c_str());
-            // Copy the bytes left to the start of buffer. Note that the left(reserved) bytes might be overlapped with
-            // buffer, so we must use memmove not memcpy, see https://github.com/ossrs/srs/issues/3300#issuecomment-1352907075
+            // The reserved bytes may overlap the start of the buffer, so use memmove, not memcpy, see
+            // https://github.com/ossrs/srs/issues/3300#issuecomment-1352907075
             memmove(buffer_, b.head(), reserved);
             pack_->media_reserved_++;
         }
@@ -758,13 +723,11 @@ srs_error_t SrsGbMediaTcpConn::on_ps_pack(SrsPsPacket *ps, const std::vector<Srs
         return err;
     }
 
-    // Change state to connected.
     if (!connected_) {
         connected_ = true;
         srs_trace("PS: Media connected");
     }
 
-    // Notify session about the media pack.
     session_->on_ps_pack(pack_, ps, msgs);
 
     // for (vector<SrsTsMessage*>::const_iterator it = msgs.begin(); it != msgs.end(); ++it) {
@@ -785,7 +748,6 @@ srs_error_t SrsGbMediaTcpConn::bind_session(uint32_t ssrc, ISrsGbSession **psess
     if (!ssrc)
         return err;
 
-    // Find exists session for register, might be created by another object and still alive.
     SrsSharedResource<ISrsGbSession> *session = dynamic_cast<SrsSharedResource<ISrsGbSession> *>(gb_manager_->find_by_fast_id(ssrc));
     if (!session)
         return err;
@@ -797,7 +759,6 @@ srs_error_t SrsGbMediaTcpConn::bind_session(uint32_t ssrc, ISrsGbSession **psess
     if (raw_session->is_ended())
         return err;
 
-    // Notice session to use current media connection.
     raw_session->on_media_transport(*wrapper_);
     *psession = raw_session;
 
@@ -833,8 +794,6 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
     srs_error_t err = srs_success;
 
     // TODO: FIXME: use right way.
-    // While another message holds the time, adjust the ts, add 1ms. The map holds a finite number of messages, so a
-    // free time is found, and no message is replaced.
     while (msgs_.find(msg->timestamp_) != msgs_.end()) {
         msg->timestamp_ += 1;
     }
@@ -856,13 +815,10 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
 
 SrsMediaPacket *SrsMpegpsQueue::dequeue()
 {
-    // got 2+ messages of each track that has come, ok to dequeue. A track
-    // that never came isn't waited for, so a stream of one track goes on too.
-    // A track that came is waited for until the stream ends. A device that
-    // stops one of its tracks while publishing, such as turning its audio off,
-    // is not supported: the other track is held until the queue overflows.
+    // A device that stops one of its tracks while publishing, such as turning
+    // its audio off, is not supported: the other track is held until the
+    // queue overflows.
     bool av_ok = (has_video_ || has_audio_) && (!has_video_ || nb_videos_ >= 2) && (!has_audio_ || nb_audios_ >= 2);
-    // 100 videos about 30s, while 300 audios about 30s
     bool av_overflow = nb_videos_ > 100 || nb_audios_ > 300;
 
     if (av_ok || av_overflow) {
@@ -968,7 +924,6 @@ srs_error_t SrsGbMuxer::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
@@ -995,16 +950,13 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ts tbn to flv tbn. A frame shown after its decode time, as with
-    // B-frames, keeps the difference as its composition time; a pts before
-    // the dts, which no valid stream has, gets none. The sequence header has
-    // no composition time.
+    // A pts before the dts, which no valid stream has, gets no composition
+    // time; neither does the sequence header.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
     uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
     uint32_t pts = dts + cts;
 
-    // The video of a PS pack is one access unit: every slice of the frame goes
-    // as one message, a keyframe when it has an IDR slice.
+    // The video of a PS pack is one access unit.
     std::string ibps;
     bool keyframe = false;
 
@@ -1020,14 +972,9 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // 5bits, 7.3.1 NAL unit syntax,
-        // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+        // 7.3.1 NAL unit syntax, ISO_IEC_14496-10-AVC-2003.pdf, page 44.
         SrsAvcNaluType nt = (SrsAvcNaluType)(frame[0] & 0x1f);
 
-        // Ignore the nalu except video frames:
-        //      7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 6: SEI, 9: AUD
-        // The rest of the pack is dropped; the slices before it still go.
         if (
             nt != SrsAvcNaluTypeSPS && nt != SrsAvcNaluTypePPS && nt != SrsAvcNaluTypeIDR &&
             nt != SrsAvcNaluTypeNonIDR && nt != SrsAvcNaluTypeSEI && nt != SrsAvcNaluTypeAccessUnitDelimiter) {
@@ -1039,7 +986,6 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // for sps
         if (avc_->is_sps(frame, frame_size)) {
             std::string sps;
             if ((err = avc_->sps_demux(frame, frame_size, sps)) != srs_success) {
@@ -1059,7 +1005,6 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // for pps
         if (avc_->is_pps(frame, frame_size)) {
             std::string pps;
             if ((err = avc_->pps_demux(frame, frame_size, pps)) != srs_success) {
@@ -1078,7 +1023,6 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // ibp frame, joined to the other slices of the access unit.
         srs_info("Muxer: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
         std::string ibp;
         if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
@@ -1106,21 +1050,19 @@ srs_error_t SrsGbMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIMXE: there exists bug, see following comments.
-    // when sps or pps changed, update the sequence header,
-    // for the pps maybe not changed while sps changed.
-    // so, we must check when each video ts message frame parsed.
+    // TODO: FIXME: there exists bug, see following comments.
+    // When the SPS or PPS changes, update the sequence header,
+    // since the PPS may stay the same while the SPS changes,
+    // so we must check it for each video frame.
     if (!h264_sps_changed_ || !h264_pps_changed_) {
         return err;
     }
 
-    // h264 raw to h264 packet.
     std::string sh;
     if ((err = avc_->mux_sequence_header(h264_sps_, h264_pps_, sh)) != srs_success) {
         return srs_error_wrap(err, "mux sequence header");
     }
 
-    // h264 packet to flv packet.
     int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
     int8_t avc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
     char *flv = NULL;
@@ -1129,13 +1071,12 @@ srs_error_t SrsGbMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "avc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The RTMP message header timestamp is the dts.
     uint32_t timestamp = dts;
     if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
         return srs_error_wrap(err, "write packet");
     }
 
-    // reset sps and pps.
     h264_sps_changed_ = false;
     h264_pps_changed_ = false;
     h264_sps_pps_sent_ = true;
@@ -1147,12 +1088,10 @@ srs_error_t SrsGbMuxer::write_h264_ipb_frame(const std::string &ibps, bool keyfr
 {
     srs_error_t err = srs_success;
 
-    // when sps or pps not sent, ignore the packet.
     if (!h264_sps_pps_sent_) {
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no sps/pps");
     }
 
-    // An access unit with an IDR slice is a keyframe.
     SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
@@ -1162,7 +1101,7 @@ srs_error_t SrsGbMuxer::write_h264_ipb_frame(const std::string &ibps, bool keyfr
         return srs_error_wrap(err, "mux avc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The RTMP message header timestamp is the dts.
     uint32_t timestamp = dts;
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
@@ -1171,16 +1110,13 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ts tbn to flv tbn. A frame shown after its decode time, as with
-    // B-frames, keeps the difference as its composition time; a pts before
-    // the dts, which no valid stream has, gets none. The sequence header has
-    // no composition time.
+    // A pts before the dts, which no valid stream has, gets no composition
+    // time; neither does the sequence header.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
     uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
     uint32_t pts = dts + cts;
 
-    // The video of a PS pack is one access unit: every slice of the frame goes
-    // as one message, a keyframe when it has an IRAP slice.
+    // The video of a PS pack is one access unit.
     std::string ipbs;
     bool keyframe = false;
 
@@ -1196,15 +1132,12 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // 6bits, 7.4.2.2 NAL unit header semantics
-        // ITU-T-H.265-2021.pdf, page 85.
-        // 32: VPS, 33: SPS, 34: PPS ...
+        // 7.4.2.2 NAL unit header semantics, ITU-T-H.265-2021.pdf, page 85.
         SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
         if (nt == SrsHevcNaluType_SEI || nt == SrsHevcNaluType_SEI_SUFFIX || nt == SrsHevcNaluType_ACCESS_UNIT_DELIMITER) {
             continue;
         }
 
-        // for vps
         if (hevc_->is_vps(frame, frame_size)) {
             std::string vps;
             if ((err = hevc_->vps_demux(frame, frame_size, vps)) != srs_success) {
@@ -1224,7 +1157,6 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // for sps
         if (hevc_->is_sps(frame, frame_size)) {
             std::string sps;
             if ((err = hevc_->sps_demux(frame, frame_size, sps)) != srs_success) {
@@ -1244,7 +1176,6 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // for pps
         if (hevc_->is_pps(frame, frame_size)) {
             std::string pps;
             if ((err = hevc_->pps_demux(frame, frame_size, pps)) != srs_success) {
@@ -1263,7 +1194,6 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             continue;
         }
 
-        // ibp frame, joined to the other slices of the access unit.
         srs_info("Muxer: demux hevc ibp frame size=%d, dts=%d", frame_size, dts);
         string ipb;
         if ((err = hevc_->mux_ipb_frame(frame, frame_size, ipb)) != srs_success) {
@@ -1271,8 +1201,7 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
         }
         ipbs.append(ipb);
 
-        // F.3.29 intra random access point (IRAP) picture
-        // ITU-T-H.265-2021.pdf, page 462.
+        // F.3.29 intra random access point (IRAP) picture, ITU-T-H.265-2021.pdf, page 462.
         if (SrsIsIRAP(nt)) {
             keyframe = true;
         }
@@ -1309,7 +1238,7 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "hevc mux sequence header");
     }
 
-    // h265 packet to flv packet, in enhanced RTMP as from SRT and WebRTC.
+    // Enhanced RTMP, as from SRT and WebRTC.
     int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
     int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeSequenceStart;
 
@@ -1320,13 +1249,12 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "hevc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The RTMP message header timestamp is the dts.
     uint32_t timestamp = dts;
     if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc write packet");
     }
 
-    // reset vps/sps/pps.
     vps_sps_pps_change_ = false;
     vps_sps_pps_sent_ = true;
 
@@ -1337,15 +1265,13 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(const std::string &ipbs, bool keyfr
 {
     srs_error_t err = srs_success;
 
-    // when sps or pps not sent, ignore the packet.
     if (!vps_sps_pps_sent_) {
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no vps/sps/pps");
     }
 
-    // An access unit with an IRAP slice is a keyframe.
     SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
-    // A frame shown after it is decoded carries its composition time.
+    // In enhanced RTMP, CodedFramesX has no composition time.
     int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFramesX;
     if (pts != dts) {
         hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
@@ -1357,7 +1283,7 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(const std::string &ipbs, bool keyfr
         return srs_error_wrap(err, "hevc to flv");
     }
 
-    // the timestamp in rtmp message header is dts.
+    // The RTMP message header timestamp is the dts.
     uint32_t timestamp = dts;
     if ((err = rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc write packet");
@@ -1370,15 +1296,12 @@ srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ensure rtmp connected.
     if ((err = connect()) != srs_success) {
         return srs_error_wrap(err, "connect");
     }
 
-    // ts tbn to flv tbn.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
 
-    // send each frame.
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
@@ -1387,14 +1310,11 @@ srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             return srs_error_wrap(err, "demux adts");
         }
 
-        // ignore invalid frame,
-        //  * atleast 1bytes for aac to decode the data.
         if (frame_size <= 0) {
             continue;
         }
         srs_info("Muxer: demux aac frame size=%d, dts=%d", frame_size, dts);
 
-        // generate sh.
         if (aac_specific_config_.empty()) {
             std::string sh;
             if ((err = aac_->mux_sequence_header(&codec, sh)) != srs_success) {
@@ -1409,7 +1329,6 @@ srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             }
         }
 
-        // audio raw data.
         codec.aac_packet_type_ = 1;
         if ((err = write_audio_raw_frame(frame, frame_size, &codec, dts)) != srs_success) {
             return srs_error_wrap(err, "write audio raw frame");
@@ -1449,7 +1368,6 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
     cmsg->to_msg(msg);
     srs_freep(cmsg);
 
-    // push msg to queue.
     if ((err = queue_->push(msg)) != srs_success) {
         return srs_error_wrap(err, "push to queue");
     }
@@ -1471,7 +1389,6 @@ srs_error_t SrsGbMuxer::send_queued_messages()
 {
     srs_error_t err = srs_success;
 
-    // for all ready msg, dequeue and send out.
     SrsMediaPacket *msg = NULL;
     while ((msg = queue_->dequeue()) != NULL) {
         if (pprint_->can_print()) {
@@ -1481,7 +1398,6 @@ srs_error_t SrsGbMuxer::send_queued_messages()
                       pprint_->age(), msg->timestamp_, msg->size());
         }
 
-        // send out encoded msg.
         if ((err = sdk_->send_and_free_message(msg)) != srs_success) {
             close();
             return srs_error_wrap(err, "send messages");
@@ -1495,7 +1411,6 @@ srs_error_t SrsGbMuxer::connect()
 {
     srs_error_t err = srs_success;
 
-    // Ignore when connected.
     if (sdk_) {
         return err;
     }
@@ -1512,7 +1427,6 @@ srs_error_t SrsGbMuxer::connect()
         return srs_error_new(ERROR_GB_SESSION_ENDED, "session ended");
     }
 
-    // Cleanup the data before connect again.
     close();
 
     string url = srs_strings_replace(output_, "[stream]", session_->device_id_);
@@ -1554,10 +1468,9 @@ void SrsGbMuxer::close()
 {
     srs_freep(sdk_);
 
-    // Regenerate the AAC sequence header.
+    // A new RTMP connection needs the AAC and AVC sequence headers again.
     aac_specific_config_ = "";
 
-    // Wait for the next AVC sequence header.
     h264_sps_pps_sent_ = false;
     h264_sps_ = "";
     h264_pps_ = "";
@@ -1615,7 +1528,6 @@ srs_error_t SrsPackContext::on_ts_message(SrsTsMessage *msg)
     //    srs_trace("PS: New pack header=%d, system=%d%s", h->ps_->has_pack_header_, h->ps_->has_system_header_, ss.str().c_str());
     //}
 
-    // Correct DTS/PS to the last one.
     if (!msgs_.empty() && (!msg->dts_ || !msg->pts_)) {
         SrsTsMessage *last = msgs_.back();
         if (!msg->dts_)
@@ -1629,19 +1541,15 @@ srs_error_t SrsPackContext::on_ts_message(SrsTsMessage *msg)
     //     msg->is_video() ? "Video" : "Audio", msg->dts, h->rtp_seq_, h->ps_->system_clock_reference_base_, msg->PES_packet_length,
     //     p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
-    // Notify about the previous pack.
     if (ps_->id_ != h->ps_->id_) {
-        // Handle all messages of previous pack, note that we must free them.
         if (!msgs_.empty()) {
             err = handler_->on_ps_pack(ps_, msgs_);
             clear();
         }
 
-        // Directly copy the pack headers to current.
         *ps_ = *h->ps_;
     }
 
-    // Store the message to current pack.
     msgs_.push_back(msg->detach());
 
     return err;
@@ -1649,12 +1557,10 @@ srs_error_t SrsPackContext::on_ts_message(SrsTsMessage *msg)
 
 void SrsPackContext::on_recover_mode(int nn_recover)
 {
-    // Only update stat for the first time.
     if (nn_recover <= 1) {
         media_nn_recovered_++;
     }
 
-    // Always update the stat for messages.
     if (!msgs_.empty()) {
         media_nn_msgs_dropped_ += msgs_.size();
         clear();
@@ -1684,7 +1590,6 @@ srs_error_t SrsRecoverablePsContext::decode_rtp(SrsBuffer *stream, int reserved,
 {
     srs_error_t err = srs_success;
 
-    // Start to parse from the reserved bytes.
     stream->skip(reserved);
 
     SrsRtpPacket rtp;
@@ -1694,20 +1599,17 @@ srs_error_t SrsRecoverablePsContext::decode_rtp(SrsBuffer *stream, int reserved,
     }
 
     SrsRtpRawPayload *rtp_raw = dynamic_cast<SrsRtpRawPayload *>(rtp.payload());
-    srs_assert(rtp_raw); // It must be a RTP RAW payload, by default.
+    srs_assert(rtp_raw); // SrsRtpPacket decodes a raw payload by default.
 
-    // If got reserved bytes, move to the start of payload.
     if (reserved) {
-        // Move the reserved bytes to the start of payload, from which we should parse.
+        // Put the reserved bytes right before the payload, so they are parsed first.
         char *src = stream->head() - stream->pos();
         char *dst = stream->head() - reserved;
         memmove(dst, src, reserved);
 
-        // The payload also should skip back to the reserved bytes.
         rtp_raw->payload_ -= reserved;
         rtp_raw->nn_payload_ += reserved;
 
-        // The stream also skip back to the not parsed bytes.
         stream->skip(-1 * reserved);
     }
 
@@ -1721,7 +1623,7 @@ srs_error_t SrsRecoverablePsContext::decode_rtp(SrsBuffer *stream, int reserved,
         return srs_error_wrap(err, "decode");
     }
 
-    // Consume the stream, because there might be data left in stream.
+    // The bytes the decoder left stay in the stream for the next RTP packet.
     stream->skip(b.pos());
 
     return err;
@@ -1731,11 +1633,9 @@ srs_error_t SrsRecoverablePsContext::decode(SrsBuffer *stream, ISrsPsMessageHand
 {
     srs_error_t err = srs_success;
 
-    // Ignore if empty packet.
     if (stream->empty())
         return err;
 
-    // For recover mode, we drop bytes util pack header(00 00 01 ba).
     if (recover_) {
         int pos = stream->pos();
         if (!srs_skip_util_pack(stream)) {
@@ -1745,7 +1645,6 @@ srs_error_t SrsRecoverablePsContext::decode(SrsBuffer *stream, ISrsPsMessageHand
         quit_recover_mode(stream, handler);
     }
 
-    // Got packet to decode.
     if ((err = ctx_->decode(stream, handler)) != srs_success) {
         return enter_recover_mode(stream, handler, stream->pos(), srs_error_wrap(err, "decode pack"));
     }
@@ -1754,10 +1653,8 @@ srs_error_t SrsRecoverablePsContext::decode(SrsBuffer *stream, ISrsPsMessageHand
 
 srs_error_t SrsRecoverablePsContext::enter_recover_mode(SrsBuffer *stream, ISrsPsMessageHandler *handler, int pos, srs_error_t err)
 {
-    // Enter recover mode. Increase the recover counter because we might fail for many times.
     recover_++;
 
-    // Print the error information for debugging.
     int npos = stream->pos();
     stream->skip(pos - stream->pos());
     string bytes = srs_strings_dumps_hex(stream->head(), stream->left(), 8);
@@ -1771,26 +1668,21 @@ srs_error_t SrsRecoverablePsContext::enter_recover_mode(SrsBuffer *stream, ISrsP
              recover_, h->rtp_seq_, h->rtp_ts_, h->rtp_pt_, pack_seq, pack_msgs, lsopm, last->PES_packet_length_, last->payload_->length(),
              bytes.c_str(), npos, stream->left(), srs_error_desc(err).c_str());
 
-    // If RTP packet exceed SRS_GB_LARGE_PACKET, which is large packet, might be correct length and impossible to
-    // recover, so we directly fail it and re-inivte.
+    // A large RTP packet might have a correct length and be impossible to recover.
     if (stream->size() > SRS_GB_LARGE_PACKET) {
         return srs_error_wrap(err, "no recover for large packet length=%dB", stream->size());
     }
 
-    // Sometimes, we're unable to recover it, so we limit the max retry.
     if (recover_ > SRS_GB_MAX_RECOVER) {
         return srs_error_wrap(err, "exceed max recover, pack=%u, pack-seq=%u, seq=%u",
                               h->pack_id_, h->pack_first_seq_, h->rtp_seq_);
     }
 
-    // Reap and dispose last incomplete message.
     SrsTsMessage *msg = ctx_->reap();
     srs_freep(msg);
-    // Skip all left bytes in buffer, reset error because recovered.
     stream->skip(stream->left());
     srs_freep(err);
 
-    // Notify handler to cleanup previous messages in pack.
     handler->on_recover_mode(recover_);
 
     return err;
@@ -1809,7 +1701,7 @@ bool srs_skip_util_pack(SrsBuffer *stream)
     while (stream->require(4)) {
         uint8_t *p = (uint8_t *)stream->head();
 
-        // When searching pack header from payload, mostly not zero.
+        // Payload bytes are mostly not zero.
         if (p[0] != 0x00 && p[1] != 0x00 && p[2] != 0x00 && p[3] != 0x00) {
             stream->skip(4);
         } else if (p[0] != 0x00 && p[1] != 0x00 && p[2] != 0x00) {
@@ -1866,10 +1758,8 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttp
 {
     srs_error_t err = srs_success;
 
-    // For each GB session, we use short-term HTTP connection.
     w->header()->set("Connection", "Close");
 
-    // Parse req, the request json object, from body.
     SrsSharedPtr<SrsJsonObject> req;
     if (true) {
         string req_json;
@@ -1886,7 +1776,6 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttp
         req = SrsSharedPtr<SrsJsonObject>(json->to_object());
     }
 
-    // Fetch params from req object.
     SrsJsonAny *prop = NULL;
     if ((prop = req->ensure_property_string("id")) == NULL) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "id required");
@@ -1918,7 +1807,7 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttp
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     int port = config_->get_stream_caster_listen(conf_);
     res->set("port", SrsJsonAny::integer(port));
-    res->set("is_tcp", SrsJsonAny::boolean(true)); // only tcp supported
+    res->set("is_tcp", SrsJsonAny::boolean(true)); // Only TCP is supported.
 
     srs_trace("GB publish id: %s, ssrc=%lu", id.c_str(), ssrc);
 
@@ -1940,7 +1829,6 @@ srs_error_t SrsGoApiGbPublish::bind_session(std::string id, uint64_t ssrc)
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "ssrc already exists");
     }
 
-    // Create new GB session.
     ISrsGbSession *raw_session = app_factory_->create_gb_session();
     raw_session->setup(conf_);
 

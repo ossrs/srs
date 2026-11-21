@@ -43,15 +43,6 @@ string srs_net_url_normalize_param(const string &param)
     return "?" + param;
 }
 
-// Reconstruct the complete URL from the RTMP connect tcUrl, publish stream,
-// and previously discovered parameter. For example:
-//      tcUrl="rtmp://localhost/live", stream="livestream", param="?token=abc"
-// becomes:
-//      rtmp://localhost/live/livestream?token=abc
-//
-// The request may be parsed twice. If tcUrl already contains param, this
-// function does not append it again. If stream repeats the same parameter,
-// the duplicate suffix is removed before rebuilding the URL.
 static string srs_net_url_build_full_url(const string &tcUrl, string stream, const string &param)
 {
     string normalized_param = srs_net_url_normalize_param(param);
@@ -71,18 +62,11 @@ static string srs_net_url_build_full_url(const string &tcUrl, string stream, con
     return full_url;
 }
 
-// Convert legacy RTMP and FMLE URL forms to the standard form understood by
-// SrsHttpUri. For example:
-//      rtmp://localhost/live?vhost=example.com/livestream
-// becomes:
-//      rtmp://localhost/live/livestream?vhost=example.com
-// It also converts the old "...vhost..." marker and removes "/_definst_".
 static string srs_net_url_normalize_legacy_url(string url)
 {
     // Legacy vhost marker: rtmp://ip/app...vhost...VHOST/stream
     url = srs_strings_replace(url, "...vhost...", "?vhost=");
 
-    // Legacy query placement: rtmp://ip/app/app2?vhost=xxx/stream
     url = srs_net_url_convert_legacy_rtmp_url(url);
 
     // FMLE inserts this virtual instance into the application path.
@@ -92,24 +76,17 @@ static string srs_net_url_normalize_legacy_url(string url)
     return url;
 }
 
-// Parse an RTMP tcUrl together with its publish stream and parameters into the
-// request fields used by SRS. Both stream and param are inputs and outputs.
 // For example, this input:
 //      tcUrl="rtmp://localhost:1935/live"
 //      stream="livestream?token=abc", param=""
 // produces:
 //      schema="rtmp", host="localhost", vhost="localhost", port=1935
 //      app="live", stream="livestream", param="?token=abc"
-//
-// The function first reconstructs and normalizes one complete URL, parses it
-// once with SrsHttpUri, and then extracts the individual request fields.
 void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string &vhost, string &app, string &stream, int &port, string &param)
 {
-    // Reconstruct one complete URL, then normalize legacy RTMP forms before parsing.
     string full_url = srs_net_url_build_full_url(tcUrl, stream, param);
     full_url = srs_net_url_normalize_legacy_url(full_url);
 
-    // Parse the normalized URL once, then copy each component to the request.
     SrsHttpUri uri;
     srs_error_t err = srs_success;
     if ((err = uri.initialize(full_url)) != srs_success) {
@@ -127,14 +104,12 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
     param = uri.get_query().empty() ? "" : "?" + uri.get_query();
     param += uri.get_fragment().empty() ? "" : "#" + uri.get_fragment();
 
-    // Parse app without the prefix slash.
     app = path.filepath_dir(uri.get_path());
     if (!app.empty() && app.at(0) == '/')
         app = app.substr(1);
     if (app.empty())
         app = SRS_CONSTS_RTMP_DEFAULT_APP;
 
-    // Discover vhost from query parameters, or use host if not specified.
     string vhost_in_query = uri.get_query_by_key("vhost");
     if (vhost_in_query.empty())
         vhost_in_query = uri.get_query_by_key("domain");
@@ -143,46 +118,26 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
     if (vhost.empty())
         vhost = host;
 
-    // Only one param, the default vhost, clear it.
     if (param.find("&") == string::npos && vhost_in_query == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         param = "";
     }
 }
 
-// Move a query placed before the final stream path to the standard URL suffix.
-// Some legacy RTMP clients send:
-//      rtmp://localhost/live?vhost=example.com/livestream
-// This function converts it to:
-//      rtmp://localhost/live/livestream?vhost=example.com
-// A query on the stream too joins the moved one, so
-//      rtmp://localhost/live?vhost=example.com/livestream?token=abc
-// becomes:
-//      rtmp://localhost/live/livestream?vhost=example.com&token=abc
-// A URL whose query is already after the stream path is returned unchanged.
 string srs_net_url_convert_legacy_rtmp_url(const string &url)
 {
-    // Check if this is a legacy RTMP URL format: rtmp://ip/app/app2?vhost=xxx/stream
-    // We need to convert it to standard format: rtmp://ip/app/app2/stream?vhost=xxx
-
-    // Find the query part starting with ?
     size_t query_pos = url.find('?');
 
-    // Find the last slash in the URL
     size_t last_slash_pos = url.rfind('/');
     if (last_slash_pos == string::npos) {
-        // No slash in URL, return as is
         return url;
     }
 
-    // Check for normal legacy case: query exists and slash is after query
     if (query_pos != string::npos && last_slash_pos > query_pos) {
-        // Normal legacy case: rtmp://ip/app/app2?vhost=xxx/stream
-        string base_url = url.substr(0, query_pos);                            // rtmp://ip/app/app2
-        string query_part = url.substr(query_pos, last_slash_pos - query_pos); // ?vhost=xxx
-        string stream_part = url.substr(last_slash_pos);                       // /stream
+        string base_url = url.substr(0, query_pos);
+        string query_part = url.substr(query_pos, last_slash_pos - query_pos);
+        string stream_part = url.substr(last_slash_pos);
 
-        // The stream may have a query of its own, such as /stream?token=abc, so
-        // join both into one query by &, like ?vhost=xxx&token=abc.
+        // The stream may have a query of its own, such as /stream?token=abc.
         size_t stream_query_pos = stream_part.find('?');
         if (stream_query_pos != string::npos) {
             string stream_query = stream_part.substr(stream_query_pos + 1);
@@ -194,11 +149,9 @@ string srs_net_url_convert_legacy_rtmp_url(const string &url)
             }
         }
 
-        // Reconstruct as standard format: base_url + stream_part + query_part
         return base_url + stream_part + query_part;
     }
 
-    // No conversion needed, return as is
     return url;
 }
 
@@ -206,8 +159,6 @@ void srs_net_url_guess_stream(string &app, string &param, string &stream)
 {
     size_t pos = std::string::npos;
 
-    // Extract stream from app, if contains slash. Like a file path, the last segment is the
-    // stream and the others are the app, so "tenant/live/stream" is app "tenant/live".
     size_t query = app.find("?");
     if ((pos = app.substr(0, query).rfind("/")) != std::string::npos) {
         stream = app.substr(pos + 1);
@@ -220,7 +171,6 @@ void srs_net_url_guess_stream(string &app, string &param, string &stream)
         return;
     }
 
-    // Extract stream from param, if contains slash.
     if ((pos = param.find("/")) != std::string::npos) {
         stream = param.substr(pos + 1);
         param = param.substr(0, pos);
@@ -229,7 +179,6 @@ void srs_net_url_guess_stream(string &app, string &param, string &stream)
 
 void srs_net_url_parse_query(string q, map<string, string> &query)
 {
-    // query string flags.
     static vector<string> flags;
     if (flags.empty()) {
         flags.push_back("=");
@@ -272,7 +221,6 @@ string srs_net_url_encode_stream(string host, string vhost, string stream, strin
     string url = stream;
     string query = param;
 
-    // If no vhost in param, try to append one.
     string guessVhost;
     if (query.find("vhost=") == string::npos) {
         if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
@@ -282,12 +230,10 @@ string srs_net_url_encode_stream(string host, string vhost, string stream, strin
         }
     }
 
-    // Well, if vhost exists, always append in query string.
     if (!guessVhost.empty() && query.find("vhost=") == string::npos) {
         query += "&vhost=" + guessVhost;
     }
 
-    // If not pass in query, remove it.
     if (!with_vhost) {
         size_t pos = query.find("&vhost=");
         if (pos == string::npos) {
@@ -304,15 +250,12 @@ string srs_net_url_encode_stream(string host, string vhost, string stream, strin
         }
     }
 
-    // Remove the start & and ? when param is empty.
     query = srs_strings_trim_start(query, "&?");
 
-    // Prefix query with ?.
     if (!query.empty() && !srs_strings_starts_with(query, "?")) {
         url += "?";
     }
 
-    // Append query to url.
     if (!query.empty()) {
         url += query;
     }
@@ -329,15 +272,11 @@ string srs_net_url_encode_sid(string vhost, string app, string stream)
     }
     url += "/" + app;
 
-    // Strip only known streaming extensions, not arbitrary dots in stream names.
-    // This fixes issue 4011 where stream names like "WavMain.exe_rooms_290" were
-    // incorrectly truncated to "WavMain" because filepath_filename() stripped
-    // everything after any dot.
+    // Stream names may have dots, such as "WavMain.exe_rooms_290" in issue 4011.
     std::string stream_name = stream;
     size_t pos = stream_name.rfind(".");
     if (pos != string::npos) {
         std::string ext = stream_name.substr(pos);
-        // Only strip known streaming extensions
         if (ext == ".flv" || ext == ".m3u8" || ext == ".mp4" || ext == ".ts") {
             stream_name = stream_name.substr(0, pos);
         }
@@ -424,7 +363,6 @@ srs_error_t srs_rtmp_create_msg(char type, uint32_t timestamp, char *data, int s
 {
     srs_error_t err = srs_success;
 
-    // only when failed, we must free the data.
     if ((err = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != srs_success) {
         srs_freepa(data);
         return srs_error_wrap(err, "create message");
@@ -453,11 +391,9 @@ srs_error_t SrsProtocolUtility::write_iovs(ISrsProtocolReadWriter *skt, iovec *i
 {
     srs_error_t err = srs_success;
 
-    // the limits of writev iovs.
-    // for linux, generally it's 1024.
+    // IOV_MAX is generally 1024 on Linux.
     static int limits = srs_iov_max();
 
-    // send in a time.
     if (size <= limits) {
         if ((err = skt->writev(iovs, size, pnwrite)) != srs_success) {
             return srs_error_wrap(err, "writev");
@@ -465,7 +401,6 @@ srs_error_t SrsProtocolUtility::write_iovs(ISrsProtocolReadWriter *skt, iovec *i
         return err;
     }
 
-    // send in multiple times.
     int cur_iov = 0;
     ssize_t nwrite = 0;
     while (cur_iov < size) {
@@ -482,9 +417,6 @@ srs_error_t SrsProtocolUtility::write_iovs(ISrsProtocolReadWriter *skt, iovec *i
     return err;
 }
 
-// we detect all network device as internet or intranet device, by its ip address.
-//      key is device name, for instance, eth0
-//      value is whether internet, for instance, true.
 static std::map<std::string, bool> _srs_device_ifs;
 
 bool SrsProtocolUtility::is_internet(string ifname)
@@ -525,31 +457,25 @@ bool SrsProtocolUtility::is_internet(const sockaddr *addr)
     } else if (addr->sa_family == AF_INET6) {
         const sockaddr_in6 *a6 = (const sockaddr_in6 *)addr;
 
-        // IPv6 loopback is ::1
         if (IN6_IS_ADDR_LOOPBACK(&a6->sin6_addr)) {
             return false;
         }
 
-        // IPv6 unspecified is ::
         if (IN6_IS_ADDR_UNSPECIFIED(&a6->sin6_addr)) {
             return false;
         }
 
-        // From IPv4, you might know APIPA (Automatic Private IP Addressing) or AutoNet.
-        // Whenever automatic IP configuration through DHCP fails.
-        // The prefix of a site-local address is FE80::/10.
+        // Link-local addresses, FE80::/10, are like the IPv4 APIPA (AutoNet) addresses used when DHCP fails.
         if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) {
             return false;
         }
 
-        // Site-local addresses are equivalent to private IP addresses in IPv4.
-        // The prefix of a site-local address is FEC0::/10.
+        // Site-local addresses, FEC0::/10, are like the IPv4 private addresses.
         // https://4sysops.com/archives/ipv6-tutorial-part-6-site-local-addresses-and-link-local-addresses/
         if (IN6_IS_ADDR_SITELOCAL(&a6->sin6_addr)) {
             return false;
         }
 
-        // Others.
         if (IN6_IS_ADDR_MULTICAST(&a6->sin6_addr)) {
             return false;
         }
@@ -596,8 +522,7 @@ void discover_network_iface(SrsProtocolUtility *utility, ifaddrs *cur, vector<Sr
     ip_address->is_internet_ = utility->is_internet(cur->ifa_addr);
     ips.push_back(ip_address);
 
-    // set the device internet status. A device is internet if any of its addresses is, because a device
-    // with a public address also has the IPv6 link-local address, which is intranet.
+    // A device with a public address also has an IPv6 link-local address, which is intranet.
     if (!ip_address->is_internet_) {
         ss1 << ", intranet ";
         if (_srs_device_ifs.find(cur->ifa_name) == _srs_device_ifs.end()) {
@@ -614,7 +539,6 @@ vector<SrsIPAddress *> _srs_system_ips;
 
 void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<SrsIPAddress *> &ips)
 {
-    // The device status comes only from the addresses discovered now.
     _srs_device_ifs.clear();
 
     stringstream ss0;
@@ -623,21 +547,20 @@ void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<S
     stringstream ss1;
     ss1 << "devices";
 
-    // Discover IPv4 first.
     for (ifaddrs *p = ifap; p; p = p->ifa_next) {
         ifaddrs *cur = p;
 
-        // Ignore if no address for this interface.
+        // Some interfaces have no address.
         // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
         if (!cur->ifa_addr) {
             continue;
         }
 
-        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+        // The tun0 network device has a NULL address.
         // @see: https://github.com/ossrs/srs/issues/141
         bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
         bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
-        // Ignore IFF_PROMISC(Interface is in promiscuous mode), which may be set by Wireshark.
+        // IFF_PROMISC (promiscuous mode) is not ignored, since Wireshark may set it while capturing.
         bool ignored = (!cur->ifa_addr) || (cur->ifa_flags & IFF_LOOPBACK) || (cur->ifa_flags & IFF_POINTOPOINT);
         bool loopback = (cur->ifa_flags & IFF_LOOPBACK);
         if (ipv4 && ready && !ignored) {
@@ -645,17 +568,16 @@ void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<S
         }
     }
 
-    // Then, discover IPv6 addresses.
     for (ifaddrs *p = ifap; p; p = p->ifa_next) {
         ifaddrs *cur = p;
 
-        // Ignore if no address for this interface.
+        // Some interfaces have no address.
         // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
         if (!cur->ifa_addr) {
             continue;
         }
 
-        // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+        // The tun0 network device has a NULL address.
         // @see: https://github.com/ossrs/srs/issues/141
         bool ipv6 = (cur->ifa_addr->sa_family == AF_INET6);
         bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
@@ -666,18 +588,17 @@ void srs_discover_local_ips(SrsProtocolUtility *utility, ifaddrs *ifap, vector<S
         }
     }
 
-    // If empty, disover IPv4 loopback.
     if (ips.empty()) {
         for (ifaddrs *p = ifap; p; p = p->ifa_next) {
             ifaddrs *cur = p;
 
-            // Ignore if no address for this interface.
+            // Some interfaces have no address.
             // @see https://github.com/ossrs/srs/issues/1087#issuecomment-408847115
             if (!cur->ifa_addr) {
                 continue;
             }
 
-            // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
+            // The tun0 network device has a NULL address.
             // @see: https://github.com/ossrs/srs/issues/141
             bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
             bool ready = (cur->ifa_flags & IFF_UP) && (cur->ifa_flags & IFF_RUNNING);
@@ -697,7 +618,6 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
 {
     vector<SrsIPAddress *> &ips = _srs_system_ips;
 
-    // Get the addresses.
     ifaddrs *ifap;
     if (srs_getifaddrs(&ifap) == -1) {
         srs_warn("retrieve local ips, getifaddrs failed.");
@@ -728,7 +648,6 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
 
     std::vector<SrsIPAddress *> &ips = local_ips();
 
-    // find the best match public address.
     for (int i = 0; i < (int)ips.size(); i++) {
         SrsIPAddress *ip = ips[i];
         if (!ip->is_internet_) {
@@ -743,7 +662,6 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         return ip->ip_;
     }
 
-    // no public address, use private address.
     for (int i = 0; i < (int)ips.size(); i++) {
         SrsIPAddress *ip = ips[i];
         if (ip->is_loopback_) {
@@ -758,7 +676,6 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         return ip->ip_;
     }
 
-    // Finally, use first whatever kind of address.
     if (!ips.empty() && _srs_public_internet_address.empty()) {
         SrsIPAddress *ip = ips[0];
 
@@ -831,14 +748,14 @@ utsname *SrsProtocolUtility::system_uname()
 }
 
 // See streamid of https://github.com/ossrs/srs/issues/2893
-// TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
+// TODO: FIXME: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
 bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath)
 {
     mode = SrtModePull;
 
     size_t pos = streamid.find("#!::");
     if (pos != 0) {
-        // Short format without #!:: prefix, use default_mode config.
+        // A short stream id, without the #!:: prefix.
         std::string default_mode = config->get_srt_default_mode();
         if (default_mode == "publish") {
             mode = SrtModePush;
@@ -853,13 +770,13 @@ bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtM
         return true;
     }
 
-    // SRT url supports multiple QueryStrings, which are passed to RTMP to realize authentication and other capabilities
+    // The other keys are passed to RTMP as the query, such as for authentication.
     //@see https://github.com/ossrs/srs/issues/2893
     std::string params;
     std::string real_streamid;
     real_streamid = streamid.substr(4);
 
-    // Compatible with previous auth querystring, like this one:
+    // Compatible with the old auth query string, like this one:
     //      srt://127.0.0.1:10080?streamid=#!::h=live/livestream?secret=xxx,m=publish
     real_streamid = srs_strings_replace(real_streamid, "?", ",");
 
@@ -877,7 +794,6 @@ bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtM
                 //      srt://127.0.0.1:10080?streamid=#!::h=live/livestream,m=request
                 //      srt://127.0.0.1:10080?streamid=#!::h=srs.srt.com.cn/live/livestream,m=publish
                 if (r0 != r1) {
-                    // We got vhost in host.
                     url_subpath = host.substr(r0 + 1);
                     host = host.substr(0, r0);
 
@@ -886,7 +802,6 @@ bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtM
                     params.append("&");
                     vhost = host;
                 } else {
-                    // Only stream in host.
                     url_subpath = host;
                 }
             } else {
@@ -902,7 +817,7 @@ bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtM
         } else if (it->first == "r") {
             url_subpath = it->second;
         } else if (it->first == "m") {
-            std::string mode_str = it->second; // support m=publish or m=request
+            std::string mode_str = it->second;
             std::transform(it->second.begin(), it->second.end(), mode_str.begin(), ::tolower);
             if (mode_str == "publish") {
                 mode = SrtModePush;
@@ -927,7 +842,7 @@ bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtM
     if (!params.empty()) {
         url_subpath.append("?");
         url_subpath.append(params);
-        url_subpath = url_subpath.substr(0, url_subpath.length() - 1); // remove last '&'
+        url_subpath = url_subpath.substr(0, url_subpath.length() - 1);
     }
 
     return true;
@@ -949,8 +864,6 @@ bool srs_srt_streamid_to_request(ISrsConfig *config, const std::string &streamid
         url_path = url_path.substr(0, pos);
     }
 
-    // Like a file path, the last segment is the stream and the others are the app, so
-    // "tenant/live/stream" is app "tenant/live" and stream "stream", the same as RTMP.
     pos = url_path.rfind("/");
     if (pos == string::npos) {
         request->app_ = config->get_default_app_name();

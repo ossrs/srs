@@ -41,8 +41,8 @@ func (v *loggerPlus) Log(ctx context.Context, msg string, args ...any) {
 		attrs = append(attrs, "cid", cid)
 	}
 
-	// Keep compatibility with the old *f call sites while exposing the new
-	// slog-style API. New code should pass structured key/value args.
+	// Old call sites pass printf-style args; new code should pass slog
+	// key/value args.
 	if len(args) > 0 && strings.Contains(msg, "%") {
 		msg = fmt.Sprintf(msg, args...)
 		args = nil
@@ -75,7 +75,6 @@ func Error(ctx context.Context, msg string, args ...any) {
 	errorLogger.Log(ctx, msg, args...)
 }
 
-// newJSONLogger builds a slog.Logger that writes JSON records to w.
 func newJSONLogger(w io.Writer) *slog.Logger {
 	h := slog.NewJSONHandler(w, &slog.HandlerOptions{
 		Level: slog.LevelDebug,

@@ -91,7 +91,6 @@ VOID TEST(HookRejectionTest, HttpFlvRejectedViewerReceivesHookStatus)
     stream.config_ = &config;
     stream.hooks_ = &hooks;
     stream.entry_ = new SrsHttpMuxEntry();
-    stream.entry_->enabled = false;
 
     err = stream.serve_http(&writer, message.get());
 
@@ -143,7 +142,6 @@ VOID TEST(HookRejectionTest, HttpFlvDeniedViewerReceivesForbidden)
         stream.config_ = &config;
         stream.hooks_ = &hooks;
         stream.entry_ = new SrsHttpMuxEntry();
-        stream.entry_->enabled = false;
 
         err = stream.serve_http(&writer, message.get());
         EXPECT_EQ(code, srs_error_code(err));

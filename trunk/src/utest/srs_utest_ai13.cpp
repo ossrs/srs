@@ -218,9 +218,9 @@ bool MockFileWriterProxy::is_open()
     return real_writer_->is_open();
 }
 
-void MockFileWriterProxy::seek2(int64_t offset)
+srs_error_t MockFileWriterProxy::seek2(int64_t offset)
 {
-    real_writer_->seek2(offset);
+    return real_writer_->seek2(offset);
 }
 
 int64_t MockFileWriterProxy::tellg()

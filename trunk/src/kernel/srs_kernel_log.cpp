@@ -13,7 +13,7 @@
 //      or https://github.com/apache/logging-log4j2/blob/release-2.x/log4j-api/src/main/java/org/apache/logging/log4j/Level.java#L29
 const char *srs_log_level_strings[] = {
 #ifdef SRS_LOG_LEVEL_V2
-    // The v2 log level specs by log4j.
+    // The level names of log4j.
     "FORB",
     "TRACE",
     "DEBUG",
@@ -48,7 +48,7 @@ const char *srs_log_level_strings[] = {
     NULL,
     "OFF",
 #else
-    // SRS 4.0 level definition, to keep compatible.
+    // The level names of SRS 4.0, to stay compatible.
     "Forb",
     "Verb",
     "Debug",

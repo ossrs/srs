@@ -107,13 +107,12 @@ const SrsContextId &srs_context_set_cid_of(srs_thread_t trd, const SrsContextId 
 
 bool srs_log_header(char *buffer, int size, bool utc, bool dangerous, const char *tag, SrsContextId cid, const char *level, int *psize)
 {
-    // clock time
     timeval tv;
     if (srs_gettimeofday(&tv, NULL) == -1) {
         return false;
     }
 
-    // to calendar time, from a time_t: the Winsock timeval has a long tv_sec.
+    // The Winsock timeval has a long tv_sec, so copy it to a time_t.
     time_t sec = tv.tv_sec;
     struct tm now;
     // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
@@ -154,13 +153,11 @@ bool srs_log_header(char *buffer, int size, bool utc, bool dangerous, const char
         }
     }
 
-    // Exceed the size, ignore this log.
-    // Check size to avoid security issue https://github.com/ossrs/srs/issues/1229
+    // Check the size to avoid a security issue, see https://github.com/ossrs/srs/issues/1229
     if (written <= 0 || written >= size) {
         return false;
     }
 
-    // write the header size.
     *psize = written;
 
     return true;

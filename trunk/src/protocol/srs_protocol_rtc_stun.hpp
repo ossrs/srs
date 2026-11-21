@@ -16,11 +16,10 @@
 class SrsBuffer;
 
 // @see: https://tools.ietf.org/html/rfc5389
-// The magic cookie field MUST contain the fixed value 0x2112A442 in network byte order
 const uint32_t kStunMagicCookie = 0x2112A442;
 
 enum SrsStunMessageType {
-    // see @ https://tools.ietf.org/html/rfc3489#section-11.1
+    // @see https://tools.ietf.org/html/rfc3489#section-11.1
     BindingRequest = 0x0001,
     BindingResponse = 0x0101,
     BindingErrorResponse = 0x0111,
@@ -30,7 +29,7 @@ enum SrsStunMessageType {
 };
 
 enum SrsStunMessageAttribute {
-    // see @ https://tools.ietf.org/html/rfc3489#section-11.2
+    // @see https://tools.ietf.org/html/rfc3489#section-11.2
     MappedAddress = 0x0001,
     ResponseAddress = 0x0002,
     ChangeRequest = 0x0003,
@@ -43,7 +42,7 @@ enum SrsStunMessageAttribute {
     UnknownAttributes = 0x000A,
     ReflectedFrom = 0x000B,
 
-    // see @ https://tools.ietf.org/html/rfc5389#section-18.2
+    // @see https://tools.ietf.org/html/rfc5389#section-18.2
     Realm = 0x0014,
     Nonce = 0x0015,
     XorMappedAddress = 0x0020,
@@ -99,7 +98,7 @@ public:
     void set_mapped_address(const uint32_t &addr);
     void set_mapped_port(const uint32_t &port);
     srs_error_t decode(const char *buf, const int nb_buf);
-    // Check the MESSAGE-INTEGRITY of a decoded packet against the ICE password, see RFC 5389 section 15.4.
+    // The pwd is the ICE password, see RFC 5389 section 15.4.
     srs_error_t check_message_integrity(const std::string &pwd) const;
     srs_error_t encode(const std::string &pwd, SrsBuffer *stream);
 
@@ -112,7 +111,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string encode_fingerprint(uint32_t crc32);
 };
 
-// Calc the crc32 of bytes in buf by IEEE, for zip.
+// The CRC-32 that zip uses.
 extern uint32_t srs_crc32_ieee(const void *buf, int size, uint32_t previous = 0);
 
 #endif

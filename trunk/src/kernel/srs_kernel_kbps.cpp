@@ -43,7 +43,7 @@ void srs_pps_update(SrsRateSample &sample, int64_t nn, srs_utime_t now)
 {
     int pps = (int)((nn - sample.total_) * 1000 / srsu2ms(now - sample.time_));
     if (pps == 0 && nn > sample.total_) {
-        pps = 1; // For pps in (0, 1), we set to 1.
+        pps = 1;
     }
     sample.update(nn, now, pps);
 }
@@ -126,8 +126,6 @@ srs_utime_t SrsWallClock::now()
 
 SrsWallClock *_srs_clock = NULL;
 
-// Global SrsPps statistics variables implementations
-// I/O operations statistics
 SrsPps *_srs_pps_recvfrom = NULL;
 SrsPps *_srs_pps_recvfrom_eagain = NULL;
 SrsPps *_srs_pps_sendto = NULL;
@@ -145,7 +143,6 @@ SrsPps *_srs_pps_recvmsg_eagain = NULL;
 SrsPps *_srs_pps_sendmsg = NULL;
 SrsPps *_srs_pps_sendmsg_eagain = NULL;
 
-// Clock and timing statistics
 SrsPps *_srs_pps_clock_15ms = NULL;
 SrsPps *_srs_pps_clock_20ms = NULL;
 SrsPps *_srs_pps_clock_25ms = NULL;
@@ -156,30 +153,25 @@ SrsPps *_srs_pps_clock_80ms = NULL;
 SrsPps *_srs_pps_clock_160ms = NULL;
 SrsPps *_srs_pps_timer_s = NULL;
 
-// WebRTC packet statistics (only the ones originally in srs_app_server.cpp)
 SrsPps *_srs_pps_rstuns = NULL;
 SrsPps *_srs_pps_rrtps = NULL;
 SrsPps *_srs_pps_rrtcps = NULL;
 
-// NACK and loss statistics (only _srs_pps_aloss2 was originally in srs_app_server.cpp)
 SrsPps *_srs_pps_aloss2 = NULL;
 
 SrsPps *_srs_pps_objs_msgs = NULL;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
-// Debug thread statistics
 SrsPps *_srs_pps_thread_run = NULL;
 SrsPps *_srs_pps_thread_idle = NULL;
 SrsPps *_srs_pps_thread_yield = NULL;
 SrsPps *_srs_pps_thread_yield2 = NULL;
 
-// Debug epoll statistics
 SrsPps *_srs_pps_epoll = NULL;
 SrsPps *_srs_pps_epoll_zero = NULL;
 SrsPps *_srs_pps_epoll_shake = NULL;
 SrsPps *_srs_pps_epoll_spin = NULL;
 
-// Debug scheduler statistics
 SrsPps *_srs_pps_sched_15ms = NULL;
 SrsPps *_srs_pps_sched_20ms = NULL;
 SrsPps *_srs_pps_sched_25ms = NULL;
@@ -193,7 +185,6 @@ SrsPps *_srs_pps_sched_s = NULL;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 extern "C" {
-// External ST statistics
 extern __thread unsigned long long _st_stat_recvfrom;
 extern __thread unsigned long long _st_stat_recvfrom_eagain;
 extern __thread unsigned long long _st_stat_sendto;
@@ -240,10 +231,9 @@ srs_error_t srs_global_kbps_initialize()
 {
     srs_error_t err = srs_success;
 
-    // The clock wall object.
     _srs_clock = new SrsWallClock();
 
-    // Initialize global pps, which depends on _srs_clock
+    // The SrsPps constructor reads _srs_clock.
     _srs_pps_ids = new SrsPps();
     _srs_pps_fids = new SrsPps();
     _srs_pps_fids_level0 = new SrsPps();
@@ -348,7 +338,7 @@ srs_error_t srs_global_kbps_initialize()
     _srs_pps_objs_rbuf = new SrsPps();
     _srs_pps_objs_rothers = new SrsPps();
 
-    // The pps cids depends by st init.
+    // Created before srs_st_init(), which counts context IDs in them.
     _srs_pps_cids_get = new SrsPps();
     _srs_pps_cids_set = new SrsPps();
 
@@ -552,9 +542,8 @@ void srs_global_rtc_update(SrsKbsRtcStats *stats)
         rnk_desc = buf;
     }
 
-    // The RTX group prints cumulative totals since server start, not a 10s rate like its neighbors: retransmissions are
-    // rare events whose rate rounds to the clamp of 1, while the total matches the detail NACK logs line for line and
-    // stays on every later line once RTX has happened. A print never resets it.
+    // Totals since start, not 10s rates: retransmissions are rare, so their rate rounds to 1, while the totals match
+    // the detail NACK logs line for line.
     string &rtx_desc = stats->rtx_desc_;
     if (_srs_pps_srtx->sugar_ || _srs_pps_rrtx->sugar_ || _srs_pps_rrtx_unwrap->sugar_ || _srs_pps_rrtx_padding->sugar_) {
         snprintf(buf, sizeof(buf), ", rtx=(s:%" PRId64 ",r:%" PRId64 ",u:%" PRId64 ",p:%" PRId64 ")", _srs_pps_srtx->sugar_, _srs_pps_rrtx->sugar_, _srs_pps_rrtx_unwrap->sugar_, _srs_pps_rrtx_padding->sugar_);
@@ -784,11 +773,8 @@ void SrsKbps::add_delta(ISrsKbpsDelta *delta)
 
 void SrsKbps::add_delta(int64_t in, int64_t out)
 {
-    // update the total bytes
     is_->bytes_ += in;
     os_->bytes_ += out;
-
-    // we donot sample, please use sample() to do resample.
 }
 
 void SrsKbps::sample()

@@ -100,6 +100,10 @@ A version bump is not a release. Bumping happens on every merged change; releasi
      - One sentence naming the release and its baseline, e.g. `SRS 7.0-a0 is the first alpha release of SRS 7. Compared with v7.0-d0, ...`
      - One bullet per `CHANGELOG.md` entry since the previous tag (`git diff v7.0-d0 v7.0-a0 -- trunk/doc/CHANGELOG.md`), each linking its PR. For a large release, summarize the major changes and add `## Important Changes` for breaking changes.
      - `For all N commits, see the [SRS 7 changelog](https://github.com/ossrs/srs/blob/v7.0-a0/trunk/doc/CHANGELOG.md#srs-70-changelog).`
+  8. Compare performance with the previous tag of the series. Ask the user, and on a yes:
+     - Run an A/B round per [internal-perf-for-srs](../../internal-perf-for-srs/SKILL.md), with both sides built from the two releases.
+     - Draft a `## Performance: <tag> vs <previous tag>` section after `## Usage`, following the last release that has one (`gh release view v8.0-d2 -R ossrs/srs`).
+     - Ask the user to paste it with the `## Changelog` section.
 - **Oryx** — `cd oryx && ./auto/pub.sh --target vX.Y.Z`. The branch decides the release type: a tag from `main` publishes a prerelease, a tag from `release/X.Y` publishes the stable/latest release. Not every revision is tagged; after publishing, link that changelog entry to its release page.
 - **Proxy** — No release process exists yet. Its version is bumped alongside SRS but never released separately. Do not invent one.
 
