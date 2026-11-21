@@ -1125,9 +1125,8 @@ VOID TEST(ServerResampleKbpsTest, AddsDeltaOfEachConnectionKind)
 // Accepts one client of the server's listener through the acceptor, and returns the client's end.
 static SrsTcpConnection *ai36_accept_client(MockServerTcpAcceptor *acceptor, SrsTcpListener *listener)
 {
-    int port = srs_utest_random_port();
-    listener->set_endpoint("127.0.0.1", port);
-    srs_error_t err = listener->listen();
+    int port = 0;
+    srs_error_t err = srs_utest_tcp_listener_listen(listener, "127.0.0.1", &port);
     if (err != srs_success) {
         srs_freep(err);
         return NULL;
@@ -1910,11 +1909,10 @@ VOID TEST(RtmpTransportTest, SocketOptionsOfRealSocket)
 {
     srs_error_t err;
 
-    int port = srs_utest_random_port();
+    int port = 0;
     MockTcpHandler handler;
     SrsTcpListener listener(&handler);
-    listener.set_endpoint("127.0.0.1", port);
-    HELPER_ASSERT_SUCCESS(listener.listen());
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listener_listen(&listener, "127.0.0.1", &port));
 
     srs_netfd_t stfd = NULL;
     HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
@@ -2325,11 +2323,10 @@ VOID TEST(AppUtilityTest, PeerAndLocalAddressOfSockets)
     }
 
     // A connected IPv4 socket has its peer.
-    int port = srs_utest_random_port();
+    int port = 0;
     MockTcpHandler handler;
     SrsTcpListener listener(&handler);
-    listener.set_endpoint("127.0.0.1", port);
-    HELPER_ASSERT_SUCCESS(listener.listen());
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listener_listen(&listener, "127.0.0.1", &port));
     srs_netfd_t stfd = NULL;
     HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
     SrsTcpConnection client(stfd);
@@ -2440,9 +2437,8 @@ VOID TEST(ServerTcpClientTest, SharedPortRefusesClientThatSendsNothing)
 
     MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
     SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(&acceptor));
-    int port = srs_utest_random_port();
-    listener->set_endpoint("127.0.0.1", port);
-    HELPER_ASSERT_SUCCESS(listener->listen());
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listener_listen(listener.get(), "127.0.0.1", &port));
 
     srs_netfd_t stfd = NULL;
     HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
