@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <map>
+#include <set>
 #include <vector>
 
 #include <srs_app_stream_bridge.hpp>
@@ -200,6 +201,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    bool is_converted_track(SrsTsMessage *msg);
     srs_error_t on_ts_video_avc(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t check_sps_pps_change(SrsTsMessage *msg);
@@ -236,6 +238,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int video_streamid_;
     int audio_streamid_;
     SrsAlonePithyPrint *pp_audio_duration_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    int video_pid_;
+    int audio_pid_;
+    // The PES in a row on other PIDs of the kind, to tell a second track from a track moved to a new PID.
+    int nn_video_others_;
+    int nn_audio_others_;
+    std::set<int> ignored_pids_;
 };
 
 class ISrsSrtSource : public ISrsSrtTarget

@@ -478,6 +478,63 @@ public:
         return err;
     }
 
+    // Announce a PAT with one program, and its PMT on PID 0x1001 with the elementary streams, each a PID and its stream
+    // type, as FFmpeg does for a source with more tracks, or with a new version, as a switcher does when it moves the
+    // tracks to other PIDs.
+    srs_error_t pmt(const vector<pair<int16_t, SrsTsStream> > &streams, uint8_t version = 0)
+    {
+        srs_error_t err = srs_success;
+
+        SrsUniquePtr<SrsTsPacket> pat(SrsTsPacket::create_pat(&ts_, 1, 0x1001));
+        if ((err = table(pat.get())) != srs_success) {
+            return err;
+        }
+
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(&ts_, 1, 0x1001, 0x100, SrsTsStreamVideoH264, 0x101, SrsTsStreamAudioAAC, version));
+        SrsTsPayloadPMT *payload = dynamic_cast<SrsTsPayloadPMT *>(pkt->payload_);
+        for (int i = 0; i < (int)payload->infos.size(); i++) {
+            srs_freep(payload->infos[i]);
+        }
+        payload->infos.clear();
+        for (int i = 0; i < (int)streams.size(); i++) {
+            payload->infos.push_back(new SrsTsPayloadPMTESInfo(streams[i].second, streams[i].first));
+        }
+        payload->PCR_PID = streams[0].first;
+
+        // The muxer writes its own PMT only when the codecs change, so it keeps this one.
+        ts_.vcodec_ = vcodec_;
+        ts_.acodec_ = acodec_;
+        ts_.ready_ = true;
+        return table(pkt.get());
+    }
+
+    // Write a PSI table in one TS packet.
+    srs_error_t table(SrsTsPacket *pkt)
+    {
+        srs_error_t err = srs_success;
+
+        char buf[SRS_TS_PACKET_SIZE];
+        memset(buf, 0xff, sizeof(buf));
+        SrsBuffer stream(buf, pkt->size());
+        if ((err = pkt->encode(&stream)) != srs_success) {
+            return err;
+        }
+        writer_.data_.append(buf, sizeof(buf));
+        return err;
+    }
+
+    // Mux a PES on one of the PIDs of the PMT, with its dts and pts in 90kHz.
+    srs_error_t pes(int16_t pid, SrsTsStream stream, int64_t dts, int64_t pts, const string &payload)
+    {
+        SrsTsMessage msg;
+        bool is_audio = (stream == SrsTsStreamAudioAAC);
+        msg.sid_ = is_audio ? SrsTsPESStreamIdAudioCommon : SrsTsPESStreamIdVideoCommon;
+        msg.dts_ = dts;
+        msg.pts_ = pts;
+        msg.payload_->append(payload.data(), (int)payload.length());
+        return ts_.encode_pes(&writer_, &msg, pid, stream, false);
+    }
+
     // Send the TS muxed so far in SRT packets of 7 TS packets, with the server's log kept.
     srs_error_t send()
     {
@@ -1022,6 +1079,147 @@ VOID TEST(AppSrtSourceTest, KeyFrameWithCutSpsThenPFrame_VideoReportedFromNextKe
     ASSERT_TRUE(s.api_stream() != NULL);
     EXPECT_EQ(320, s.api_stream()->width_);
     EXPECT_EQ(240, s.api_stream()->height_);
+}
+
+// The elementary streams of a PMT, in its order, each a PID and its stream type; a PID of 0 is left out.
+static vector<pair<int16_t, SrsTsStream> > srt_source_utest_es(int16_t pid1, SrsTsStream st1, int16_t pid2, SrsTsStream st2,
+                                                               int16_t pid3 = 0, SrsTsStream st3 = SrsTsStreamReserved)
+{
+    vector<pair<int16_t, SrsTsStream> > streams;
+    streams.push_back(make_pair(pid1, st1));
+    streams.push_back(make_pair(pid2, st2));
+    if (pid3) {
+        streams.push_back(make_pair(pid3, st3));
+    }
+    return streams;
+}
+
+static int srt_source_utest_nb_warns(SrtSourceUtestStream &s, const string &text)
+{
+    int nb_warns = 0;
+    for (int i = 0; i < (int)s.log_.warns_.size(); i++) {
+        if (s.log_.warns_[i].find(text) != string::npos) {
+            nb_warns++;
+        }
+    }
+    return nb_warns;
+}
+
+// FFmpeg muxes two AAC tracks, such as two languages, on PIDs 0x101 and 0x102 of one TS, for the whole publish. RTMP
+// carries one audio track, so every frame of the first track goes to RTMP, each later than the one before, none of the
+// second, and the server warns once that it ignores the other PID, not for each of its PES
+// (https://github.com/ossrs/srs/issues/4776).
+VOID TEST(AppSrtSourceTest, TwoAacTracks_OnlyFirstTrackConverted)
+{
+    srs_error_t err;
+
+    SrtSourceUtestStream s("two-aac");
+    HELPER_ASSERT_SUCCESS(s.publish());
+    HELPER_ASSERT_SUCCESS(s.pmt(srt_source_utest_es(0x100, SrsTsStreamVideoH264, 0x101, SrsTsStreamAudioAAC, 0x102, SrsTsStreamAudioAAC)));
+
+    string first = srt_source_utest_adts_frame();
+    string second = first;
+    second[second.length() - 1] = 0x47;
+
+    // Each track has 1024 samples at 44.1kHz in a PES, 2090 apart in 90kHz, for about 1s.
+    HELPER_ASSERT_SUCCESS(s.video(90000, 90000, srt_source_utest_h264_key()));
+    for (int i = 0; i < 40; i++) {
+        HELPER_ASSERT_SUCCESS(s.pes(0x101, SrsTsStreamAudioAAC, 90000 + i * 2090, 90000 + i * 2090, first));
+        HELPER_ASSERT_SUCCESS(s.pes(0x102, SrsTsStreamAudioAAC, 90000 + i * 2090, 90000 + i * 2090, second));
+    }
+    HELPER_ASSERT_SUCCESS(s.send());
+
+    // The AVC sequence header and key frame, the AAC sequence header, then one frame for each PES of the first track.
+    ASSERT_EQ(3 + 40, (int)s.rtmp_.tags_.size());
+    for (int i = 3; i < (int)s.rtmp_.tags_.size(); i++) {
+        EXPECT_EQ(first.substr(7), s.rtmp_.tags_[i].substr(2)) << i;
+        if (i > 3) {
+            EXPECT_GT(s.rtmp_.times_[i], s.rtmp_.times_[i - 1]) << i;
+        }
+    }
+
+    EXPECT_EQ(1, srt_source_utest_nb_warns(s, "pid=0x102"));
+}
+
+// An encoder muxes two H.264 tracks, such as two camera angles, on PIDs 0x100 and 0x102 of one TS. RTMP carries one
+// video track, so only the first track goes to RTMP, and the server warns once that it ignores the other PID.
+VOID TEST(AppSrtSourceTest, TwoH264Tracks_OnlyFirstTrackConverted)
+{
+    srs_error_t err;
+
+    SrtSourceUtestStream s("two-h264");
+    HELPER_ASSERT_SUCCESS(s.publish());
+    HELPER_ASSERT_SUCCESS(s.pmt(srt_source_utest_es(0x100, SrsTsStreamVideoH264, 0x101, SrsTsStreamAudioAAC, 0x102, SrsTsStreamVideoH264)));
+
+    const uint8_t other_p[] = {0x41, 0x9a, 0x21, 0x6c, 0x42, 0x44, 0x55, 0x66};
+    string second_p = srt_source_utest_nalu(other_p, sizeof(other_p));
+
+    HELPER_ASSERT_SUCCESS(s.pes(0x100, SrsTsStreamVideoH264, 90000, 90000, srt_source_utest_h264_key()));
+    HELPER_ASSERT_SUCCESS(s.pes(0x102, SrsTsStreamVideoH264, 90000, 90000, srt_source_utest_h264_key()));
+    for (int i = 1; i <= 25; i++) {
+        HELPER_ASSERT_SUCCESS(s.pes(0x100, SrsTsStreamVideoH264, 90000 + i * 3600, 90000 + i * 3600, srt_source_utest_h264_p()));
+        HELPER_ASSERT_SUCCESS(s.pes(0x102, SrsTsStreamVideoH264, 90000 + i * 3600, 90000 + i * 3600, second_p));
+    }
+    HELPER_ASSERT_SUCCESS(s.send());
+
+    // The AVC sequence header and key frame, then each P frame of the first track, 40ms apart.
+    ASSERT_EQ(2 + 25, (int)s.rtmp_.tags_.size());
+    for (int i = 2; i < (int)s.rtmp_.tags_.size(); i++) {
+        EXPECT_EQ(string((const char *)srt_source_utest_p, sizeof(srt_source_utest_p)), s.rtmp_.tags_[i].substr(9)) << i;
+        EXPECT_EQ(1000 + (i - 1) * 40, s.rtmp_.times_[i]) << i;
+    }
+
+    EXPECT_EQ(1, srt_source_utest_nb_warns(s, "pid=0x102"));
+}
+
+// A switcher cuts to another source and moves the tracks to new PIDs, H.264 on 0x200 and AAC on 0x201, with a new PMT
+// version, so the old PIDs stop. The first 7 PES of each new track are dropped while it could be a second track of
+// the old one, then it takes its place, and RTMP goes on with the new tracks only. A key frame among the dropped PES
+// is lost, as a PID change is not supported otherwise.
+VOID TEST(AppSrtSourceTest, PmtUpdateToNewPids_NewTracksConvertedWhenOldStop)
+{
+    srs_error_t err;
+
+    SrtSourceUtestStream s("pid-move");
+    HELPER_ASSERT_SUCCESS(s.publish());
+    HELPER_ASSERT_SUCCESS(s.pmt(srt_source_utest_es(0x100, SrsTsStreamVideoH264, 0x101, SrsTsStreamAudioAAC)));
+
+    HELPER_ASSERT_SUCCESS(s.pes(0x100, SrsTsStreamVideoH264, 90000, 90000, srt_source_utest_h264_key()));
+    HELPER_ASSERT_SUCCESS(s.pes(0x101, SrsTsStreamAudioAAC, 90000, 90000, srt_source_utest_adts_frame()));
+    HELPER_ASSERT_SUCCESS(s.send());
+    EXPECT_STREQ("17 00,17 01,af 00,af 01", srt_source_utest_kinds(s.rtmp_.tags_).c_str());
+
+    HELPER_ASSERT_SUCCESS(s.pmt(srt_source_utest_es(0x200, SrsTsStreamVideoH264, 0x201, SrsTsStreamAudioAAC), 1));
+
+    const uint8_t new_p[] = {0x41, 0x9a, 0x21, 0x6c, 0x42, 0x44, 0x55, 0x66};
+    string new_audio = srt_source_utest_adts_frame();
+    new_audio[new_audio.length() - 1] = 0x47;
+    for (int i = 0; i < 20; i++) {
+        string video = srt_source_utest_nalu(new_p, sizeof(new_p));
+        HELPER_ASSERT_SUCCESS(s.pes(0x200, SrsTsStreamVideoH264, 93600 + i * 3600, 93600 + i * 3600, video));
+        HELPER_ASSERT_SUCCESS(s.pes(0x201, SrsTsStreamAudioAAC, 92090 + i * 2090, 92090 + i * 2090, new_audio));
+    }
+    HELPER_ASSERT_SUCCESS(s.send());
+
+    // The first 7 PES of each new track are dropped, then the other 13 go on.
+    int nb_video = 0, nb_audio = 0;
+    for (int i = 4; i < (int)s.rtmp_.tags_.size(); i++) {
+        const string &tag = s.rtmp_.tags_[i];
+        if (tag[0] == 0x27) {
+            EXPECT_EQ(string((const char *)new_p, sizeof(new_p)), tag.substr(9)) << i;
+            nb_video++;
+        } else {
+            EXPECT_EQ(new_audio.substr(7), tag.substr(2)) << i;
+            nb_audio++;
+        }
+    }
+    EXPECT_EQ(13, nb_video);
+    EXPECT_EQ(13, nb_audio);
+
+    // The last frames of the stream are all converted.
+    ASSERT_GE((int)s.rtmp_.tags_.size(), 2);
+    EXPECT_EQ(1000 + 20 * 40, s.rtmp_.times_[s.rtmp_.tags_.size() - 2]);
+    EXPECT_EQ((92090 + 19 * 2090) / 90, s.rtmp_.times_[s.rtmp_.tags_.size() - 1]);
 }
 
 // An SRT encoder leaves a stream with no player. The source stays for 3s, so an encoder that reconnects finds it, and
