@@ -323,6 +323,11 @@ SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsFrameTarget *target)
     audio_streamid_ = 2;
 
     pp_audio_duration_ = new SrsAlonePithyPrint();
+
+    video_pid_ = -1;
+    audio_pid_ = -1;
+    nn_video_others_ = 0;
+    nn_audio_others_ = 0;
 }
 
 SrsSrtFrameBuilder::~SrsSrtFrameBuilder()
@@ -403,6 +408,10 @@ srs_error_t SrsSrtFrameBuilder::on_ts_message(SrsTsMessage *msg)
         return srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "ts: unsupported stream codec=%d", msg->channel_->stream_);
     }
 
+    if (!is_converted_track(msg)) {
+        return err;
+    }
+
     SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
 
     if (msg->channel_->stream_ == SrsTsStreamVideoH264) {
@@ -424,6 +433,40 @@ srs_error_t SrsSrtFrameBuilder::on_ts_message(SrsTsMessage *msg)
     }
 
     return err;
+}
+
+// RTMP carries one video and one audio track, while a TS may have more, such as two languages from FFmpeg, so only the
+// first H.264 or HEVC track and the first AAC track that send are converted. A track moved to a new PID, as by a
+// switcher, takes the place of the old one once the old one stops, which two live tracks never do, as the muxer
+// interleaves them. A PID change is not supported otherwise: the first 7 PES on the new PID are dropped, with its
+// key frame, so RTMP may show a GOP of broken picture after it.
+bool SrsSrtFrameBuilder::is_converted_track(SrsTsMessage *msg)
+{
+    bool is_audio = (msg->channel_->stream_ == SrsTsStreamAudioAAC);
+    int pid = msg->channel_->pid_;
+    int &converted_pid = is_audio ? audio_pid_ : video_pid_;
+    int &nn_others = is_audio ? nn_audio_others_ : nn_video_others_;
+    const char *kind = is_audio ? "audio" : "video";
+
+    if (converted_pid == -1 || converted_pid == pid) {
+        converted_pid = pid;
+        nn_others = 0;
+        return true;
+    }
+
+    nn_others++;
+    if (nn_others >= 8) {
+        srs_warn("ts: convert %s pid=%#x, as pid=%#x stopped", kind, pid, converted_pid);
+        converted_pid = pid;
+        nn_others = 0;
+        return true;
+    }
+
+    if (ignored_pids_.find(pid) == ignored_pids_.end()) {
+        ignored_pids_.insert(pid);
+        srs_warn("ts: ignore %s pid=%#x, RTMP carries one %s track, converted pid=%#x", kind, pid, kind, converted_pid);
+    }
+    return false;
 }
 
 srs_error_t SrsSrtFrameBuilder::on_ts_video_avc(SrsTsMessage *msg, SrsBuffer *avs)
