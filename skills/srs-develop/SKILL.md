@@ -160,7 +160,7 @@ Choose exactly one supported task:
 
 - **Develop Code** — Use for any planned SRS, Oryx, Dev Docker, State Threads, project-documentation, or skill change. Its Service Router lists the supported services and stops at the ones not yet supported, a new origin or edge server. → [Develop Code workflow](references/develop-code.md)
 - **Scan Issues** — Use for a read-only scan of recently active open SRS or Oryx issues that may need attention. → [Scan Issues workflow](references/scan-issues.md)
-- **Scan PRs** — Use for a read-only assessment of a specified SRS or Oryx pull request, or the single most recently updated open pull request in one selected repository. → [Scan PRs workflow](references/scan-prs.md)
+- **Scan PRs** — Use for a read-only assessment of a specified SRS or Oryx pull request, or the most recently updated open pull requests in one selected repository. → [Scan PRs workflow](references/scan-prs.md)
 - **Fix a Bug** — Use when an SRS or Oryx issue reports broken, unexpected, unsafe, or otherwise incorrect behavior and may require investigation or a maintenance fix. → [Fix a Bug workflow](references/fix-a-bug.md)
 - **Handle Issues** — Use when the user asks to handle, fix, or work through several SRS or Oryx issues, or all of them, such as overnight. → [Handle Issues workflow](references/handle-issues.md)
 - **Learn Code** — Use when the user wants an explanation of existing SRS or Oryx implementation, architecture, control flow, or behavior without project changes. → [Learn Code workflow](references/learn-code.md)

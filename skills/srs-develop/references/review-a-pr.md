@@ -26,7 +26,14 @@
 3. From those code and doc changes, tell the user the idea of the PR first: the problem it fixes or the feature it adds, and how. The PR description and discussion are claims to check against them, not the source.
 4. Audit the change with `skills/internal-audit-for-srs/SKILL.md` on `<base>..<tip>`, and give the user its proven bug, with its red test, and its test gaps before the summary.
 5. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
-6. Pause and let the user redirect or ask for more detail.
+6. Explain the PR to the user as to a reader with no background on it, in plain words, building up from what they know:
+   - How the feature works, with the terms it needs and a small diagram when it helps.
+   - The bug as a story: what the user did, what the code did, and what the user saw. For a feature, what a user can do now that they could not before.
+   - The change in plain words, and its cost.
+   - The audit's proven bug, with its red test, and its test gaps.
+   - Where to read the code, with the few lines that matter, and the tests to read with it.
+7. Also write that explanation as one HTML page in `$HOME/Downloads`, with diagrams, tables and charts where they show it better than words.
+8. Pause and let the user redirect or ask for more detail.
 
 ## Step 2: Reproduce and fix the problem on the base
 
