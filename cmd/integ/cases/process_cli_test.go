@@ -6,6 +6,7 @@ package cases
 
 import (
 	"encoding/json"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -218,6 +219,13 @@ func TestProcess_Cli(t *testing.T) {
 		})
 	}
 	check.Case(t, "HelpWithoutArgs", check.Normal, func(c *check.C) {
+		if runtime.GOOS == "windows" {
+			// Windows loads a config without arguments; a missing override must fail without help.
+			r := cli(c, map[string]string{"SRS_CONFIG_FILE": "/srs-integ-missing.conf"})
+			checkExit(c, r, false)
+			c.Check(!strings.Contains(r.Stdout, "Usage:"), "the help printed, want a config error")
+			return
+		}
 		r := cli(c, nil)
 		checkExit(c, r, true)
 		checkHelp(c, r)

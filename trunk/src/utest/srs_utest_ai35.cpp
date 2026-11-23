@@ -1149,11 +1149,7 @@ VOID TEST(PlatformTest, ForkStartsAChild)
 
 VOID TEST(PlatformTest, DaemonIsSupported)
 {
-#ifdef _WIN32
-    EXPECT_FALSE(srs_daemon_supported());
-#else
     EXPECT_TRUE(srs_daemon_supported());
-#endif
 }
 
 VOID TEST(PlatformTest, SocketStartupSucceeds)
