@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* <strong>v7.0, 2026-11-22, [7.0 beta0(7.0.218)](https://github.com/ossrs/srs/releases/tag/v7.0-b0) released. 334961 lines.</strong>
 * v7.0, 2026-11-17, RTC: Keep media on the nominated ICE pair. v7.0.218
 * v7.0, 2026-11-15, Merge [#4802](https://github.com/ossrs/srs/pull/4802): Security: Fix bugs found by a second memory audit. v7.0.217 (#4802)
 * v7.0, 2026-11-14, Security: Fix 58 bugs found by the C++ memory audit. v7.0.216
