@@ -248,7 +248,7 @@ extern bool srs_daemon_supported();
 // Returns 1 in the launcher, 0 in the daemon, or -1 on failure. Unix double-forks; Windows re-execs
 // without a console and waits for srs_daemon_ready or for the child to fail.
 extern int srs_daemon_start();
-extern int srs_daemon_ready();
+extern bool srs_daemon_ready();
 
 // The argv ends with a NULL. Windows has no fork: there the child is a process group of its own, which
 // srs_kill sends SIGTERM to as Ctrl+Break, in a job that ends it when SRS quits.

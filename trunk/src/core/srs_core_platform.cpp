@@ -765,15 +765,15 @@ int srs_daemon_start()
     return 1;
 }
 
-int srs_daemon_ready()
+bool srs_daemon_ready()
 {
     if (!srs_daemon_event) {
-        return 0;
+        return true;
     }
     BOOL ok = ::SetEvent(srs_daemon_event);
     ::CloseHandle(srs_daemon_event);
     srs_daemon_event = NULL;
-    return ok ? 0 : -1;
+    return ok != FALSE;
 }
 
 static std::wstring srs_utf8_to_wide(const char *s)
@@ -1383,9 +1383,9 @@ int srs_daemon_start()
     return 0;
 }
 
-int srs_daemon_ready()
+bool srs_daemon_ready()
 {
-    return 0;
+    return true;
 }
 
 int srs_redirect_output(const char *file, int to_fd)

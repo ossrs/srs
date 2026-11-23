@@ -538,7 +538,7 @@ srs_error_t SrsServer::run()
     }
 #endif
 
-    if (srs_daemon_ready() < 0) {
+    if (!srs_daemon_ready()) {
         return srs_error_new(-1, "notify daemon startup");
     }
 
