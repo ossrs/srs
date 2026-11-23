@@ -740,8 +740,14 @@ int srs_daemon_start()
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi;
     memset(&pi, 0, sizeof(pi));
-    BOOL started = ::CreateProcessW(executable, &line[0], NULL, NULL, FALSE, CREATE_NO_WINDOW,
+    // A shell such as an SSH session runs in a job that kills its processes when the session ends, so the
+    // daemon leaves it. A job that refuses that, such as a service manager's, keeps the daemon.
+    BOOL started = ::CreateProcessW(executable, &line[0], NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB,
                                     NULL, srs_startup_directory.c_str(), &si, &pi);
+    if (!started && ::GetLastError() == ERROR_ACCESS_DENIED) {
+        started = ::CreateProcessW(executable, &line[0], NULL, NULL, FALSE, CREATE_NO_WINDOW,
+                                   NULL, srs_startup_directory.c_str(), &si, &pi);
+    }
     ::SetEnvironmentVariableW(L"_SRS_DAEMON_EVENT", NULL);
     if (!started) {
         ::CloseHandle(ready);
