@@ -149,6 +149,8 @@ or `2m` and must be positive.
 **Session State**: 120 seconds
 - HLS and WebRTC sessions expire after 120 seconds of inactivity
 - Automatic cleanup via TTL (Redis) or garbage collection (Memory)
+- Memory WebRTC sessions are deleted when the proxy ends them: on DELETE, after
+  120 seconds with no client packet, or at shutdown
 - Sessions renewed on each request
 
 **Stream Mappings**: No expiration

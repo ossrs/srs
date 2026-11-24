@@ -8,6 +8,19 @@ import (
 )
 
 type FakeRTCService struct {
+	DeleteWebRTCStub        func(context.Context, string, lb.RTCConnection) error
+	deleteWebRTCMutex       sync.RWMutex
+	deleteWebRTCArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 lb.RTCConnection
+	}
+	deleteWebRTCReturns struct {
+		result1 error
+	}
+	deleteWebRTCReturnsOnCall map[int]struct {
+		result1 error
+	}
 	LoadWebRTCByUfragStub        func(context.Context, string) (lb.RTCConnection, error)
 	loadWebRTCByUfragMutex       sync.RWMutex
 	loadWebRTCByUfragArgsForCall []struct {
@@ -37,6 +50,69 @@ type FakeRTCService struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeRTCService) DeleteWebRTC(arg1 context.Context, arg2 string, arg3 lb.RTCConnection) error {
+	fake.deleteWebRTCMutex.Lock()
+	ret, specificReturn := fake.deleteWebRTCReturnsOnCall[len(fake.deleteWebRTCArgsForCall)]
+	fake.deleteWebRTCArgsForCall = append(fake.deleteWebRTCArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 lb.RTCConnection
+	}{arg1, arg2, arg3})
+	stub := fake.DeleteWebRTCStub
+	fakeReturns := fake.deleteWebRTCReturns
+	fake.recordInvocation("DeleteWebRTC", []interface{}{arg1, arg2, arg3})
+	fake.deleteWebRTCMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeRTCService) DeleteWebRTCCallCount() int {
+	fake.deleteWebRTCMutex.RLock()
+	defer fake.deleteWebRTCMutex.RUnlock()
+	return len(fake.deleteWebRTCArgsForCall)
+}
+
+func (fake *FakeRTCService) DeleteWebRTCCalls(stub func(context.Context, string, lb.RTCConnection) error) {
+	fake.deleteWebRTCMutex.Lock()
+	defer fake.deleteWebRTCMutex.Unlock()
+	fake.DeleteWebRTCStub = stub
+}
+
+func (fake *FakeRTCService) DeleteWebRTCArgsForCall(i int) (context.Context, string, lb.RTCConnection) {
+	fake.deleteWebRTCMutex.RLock()
+	defer fake.deleteWebRTCMutex.RUnlock()
+	argsForCall := fake.deleteWebRTCArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeRTCService) DeleteWebRTCReturns(result1 error) {
+	fake.deleteWebRTCMutex.Lock()
+	defer fake.deleteWebRTCMutex.Unlock()
+	fake.DeleteWebRTCStub = nil
+	fake.deleteWebRTCReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRTCService) DeleteWebRTCReturnsOnCall(i int, result1 error) {
+	fake.deleteWebRTCMutex.Lock()
+	defer fake.deleteWebRTCMutex.Unlock()
+	fake.DeleteWebRTCStub = nil
+	if fake.deleteWebRTCReturnsOnCall == nil {
+		fake.deleteWebRTCReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteWebRTCReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeRTCService) LoadWebRTCByUfrag(arg1 context.Context, arg2 string) (lb.RTCConnection, error) {

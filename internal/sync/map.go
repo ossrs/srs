@@ -6,6 +6,7 @@ package sync
 import "sync"
 
 type Map[K comparable, V any] interface {
+	CompareAndDelete(key K, old V) (deleted bool)
 	Delete(key K)
 	Load(key K) (value V, ok bool)
 	LoadAndDelete(key K) (value V, loaded bool)
@@ -20,6 +21,10 @@ func NewMap[K comparable, V any]() Map[K, V] {
 
 type mapImpl[K comparable, V any] struct {
 	m sync.Map
+}
+
+func (m *mapImpl[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	return m.m.CompareAndDelete(key, old)
 }
 
 func (m *mapImpl[K, V]) Delete(key K) {

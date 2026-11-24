@@ -257,6 +257,11 @@ func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
+// Redis expires both keys of the session after RTCAliveDuration.
+func (v *redisLoadBalancer) DeleteWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+	return nil
+}
+
 func (v *redisLoadBalancer) redisKeyUfrag(ufrag string) string {
 	return v.redisKey(fmt.Sprintf("srs-proxy-ufrag:%v", ufrag))
 }
