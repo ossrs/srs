@@ -171,7 +171,8 @@ if [[ $code != 0 ]]; then
 fi
 
 PROXY_E2E="proxy-e2e-test.sh proxy-e2e-cluster-test.sh proxy-e2e-edge-test.sh proxy-e2e-redis-test.sh
-    proxy-e2e-transmux-test.sh proxy-e2e-srt-test.sh proxy-e2e-whip-test.sh proxy-e2e-bearer-auth-test.sh"
+    proxy-e2e-transmux-test.sh proxy-e2e-srt-test.sh proxy-e2e-whip-test.sh proxy-e2e-bearer-auth-test.sh
+    proxy-e2e-rtc-session-test.sh"
 FEATURE_SH="gb28181-api-timeout-test.sh gb28181-tcp-disconnect-test.sh srs-reload-test.sh install-target-test.sh
     rtc-rtx-whip-publish-test.sh rtc-rtx-whep-play-test.sh rtc-plain-whep-play-test.sh rtc-plain-whip-publish-test.sh"
 if [[ -f $SCRIPTS/forward-status-test.sh ]]; then
