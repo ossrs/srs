@@ -11,11 +11,14 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	stdSync "sync"
 	"time"
 
+	"srsx/internal/clock"
 	"srsx/internal/env"
 	"srsx/internal/errors"
 	"srsx/internal/lb"
@@ -23,6 +26,8 @@ import (
 	"srsx/internal/sync"
 	"srsx/internal/utils"
 )
+
+const rtcIdleCheckInterval = 10 * time.Second
 
 type WebRTCProxyServer interface {
 	Run(ctx context.Context) error
@@ -41,12 +46,16 @@ type webRTCProxyServer struct {
 	// TODO: Support fast search by uint64 address.
 	addresses sync.Map[string, *rtcConnection]
 
-	wg stdSync.WaitGroup
+	wg     stdSync.WaitGroup
+	cancel context.CancelFunc
 
 	// Tests replace backendURL to reach an httptest.Server, and listenUDP.
 	backendURL func(backend *lb.OriginServer, r *http.Request) (string, error)
 
 	listenUDP func(ctx context.Context, endpoint string) (net.PacketConn, error)
+
+	// Tests replace it.
+	dialBackendUDP func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error)
 }
 
 func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*webRTCProxyServer)) WebRTCProxyServer {
@@ -63,6 +72,11 @@ func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 			return nil, errors.Wrapf(err, "resolve udp addr %v", endpoint)
 		}
 		return net.ListenUDP("udp", saddr)
+	}
+
+	v.dialBackendUDP = func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "udp", net.JoinHostPort(ip, strconv.Itoa(port)))
 	}
 
 	v.backendURL = func(backend *lb.OriginServer, r *http.Request) (string, error) {
@@ -87,11 +101,19 @@ func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 }
 
 func (v *webRTCProxyServer) Close() error {
+	if v.cancel != nil {
+		v.cancel()
+	}
 	if v.listener != nil {
 		_ = v.listener.Close()
 	}
 
 	v.wg.Wait()
+
+	v.usernames.Range(func(_ string, c *rtcConnection) bool {
+		v.closeConnection(context.Background(), c)
+		return true
+	})
 	return nil
 }
 
@@ -181,13 +203,21 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return errors.Errorf("proxy api to %v failed, status=%v", backendURL, resp.Status)
 	}
 
 	// A WHIP client ends its session by a DELETE to the Location of the answer,
 	// which carries no SDP.
 	if r.Method == http.MethodDelete {
+		// SRS names the session in the Location by its ICE username, which the
+		// client's STUN binding requests carry. It answers 200 to a DELETE of a
+		// session it does not hold, without checking the token.
+		q := r.URL.Query()
+		if c, ok := v.usernames.Load(q.Get("session")); ok && c.deleteToken != "" && c.deleteToken == q.Get("token") {
+			v.closeConnection(ctx, c)
+		}
+
 		copyBackendResponseHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
 		if _, err = io.Copy(w, resp.Body); err != nil {
@@ -229,12 +259,18 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 		RemoteICEUfrag: remoteICEUfrag, RemoteICEPwd: remoteICEPwd,
 		LocalICEUfrag: localICEUfrag, LocalICEPwd: localICEPwd,
 	}
+	location, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		return errors.Wrapf(err, "parse location %v", resp.Header.Get("Location"))
+	}
 	if err := v.loadBalancer.StoreWebRTC(ctx, streamURL, newRTCConnection(func(c *rtcConnection) {
 		c.loadBalancer = v.loadBalancer
 		c.StreamURL, c.Ufrag = streamURL, icePair.Ufrag()
+		c.deleteToken = location.Query().Get("token")
+		c.dialBackendUDP = v.dialBackendUDP
 		c.Initialize(ctx, v.listener)
 
-		v.usernames.Store(c.Ufrag, c)
+		c.cacheBy(v.usernames, c.Ufrag)
 	})); err != nil {
 		return errors.Wrapf(err, "load or store webrtc %v", streamURL)
 	}
@@ -269,6 +305,28 @@ func (v *webRTCProxyServer) Run(ctx context.Context) error {
 	v.listener = listener
 	logger.Debug(ctx, "WebRTC server listen at %v", listener.LocalAddr())
 
+	ctx, v.cancel = context.WithCancel(ctx)
+
+	// UDP has no close, so a client that leaves without a DELETE only stops sending.
+	v.wg.Add(1)
+	go func() {
+		defer v.wg.Done()
+
+		ticker := time.NewTicker(rtcIdleCheckInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case now := <-ticker.C:
+				v.expireIdleConnections(now)
+			}
+		}
+	}()
+
+	// TODO: Use more than one listener, such as SO_REUSEPORT sockets each with
+	// its own read loop. This one loop reads the packets of every session, so a
+	// packet that waits for a lock or takes long to handle holds up all others.
 	v.wg.Add(1)
 	go func() {
 		defer v.wg.Done()
@@ -325,7 +383,7 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 		}
 
 		if connection != nil {
-			v.usernames.Store(pkt.Username, connection)
+			connection.cacheBy(v.usernames, pkt.Username)
 		}
 		return nil
 	}(); err != nil {
@@ -337,7 +395,7 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 	// follows it; other packets are found by the address.
 	if connection != nil {
 		if s, ok := v.addresses.Load(addr.String()); !ok || s != connection {
-			v.addresses.Store(addr.String(), connection)
+			connection.cacheBy(v.addresses, addr.String())
 		}
 	} else if s, ok := v.addresses.Load(addr.String()); ok {
 		connection = s
@@ -364,11 +422,9 @@ type rtcConnection struct {
 
 	StreamURL string `json:"stream_url"`
 	Ufrag     string `json:"ufrag"`
+	// From the Location of the answer, which only the client holds.
+	deleteToken string
 
-	// An interface, so a test dialBackendUDP can return a fake.
-	backendUDP io.ReadWriteCloser
-	// It may change during the session.
-	clientUDP net.Addr
 	// An interface, so tests can inject a fake.
 	listenerUDP net.PacketConn
 
@@ -378,10 +434,32 @@ type rtcConnection struct {
 	// HandlePacket runs for every client packet, STUN keepalives and RTCP
 	// feedback included.
 	startReader stdSync.Once
+
+	// The UDP read loop, the backend reader, and the HTTP and timer goroutines
+	// that end the session all reach the fields below.
+	mu stdSync.Mutex
+	// An interface, so a test dialBackendUDP can return a fake.
+	backendUDP io.ReadWriteCloser
+	// It may change during the session.
+	clientUDP    net.Addr
+	closed       bool
+	lastPacketAt time.Time
+	// A client may send from more than one address, such as the backup pairs
+	// that ICE keeps checking.
+	cached []rtcCacheEntry
+}
+
+// The server finds a session by the ICE username "<answer ufrag>:<offer ufrag>"
+// of its STUN binding requests, or by the client address of its other packets.
+type rtcCacheEntry struct {
+	// The usernames or the addresses of the server.
+	index sync.Map[string, *rtcConnection]
+	// The ICE username, or the client address as ip:port.
+	key string
 }
 
 func newRTCConnection(opts ...func(*rtcConnection)) *rtcConnection {
-	v := &rtcConnection{}
+	v := &rtcConnection{lastPacketAt: clock.Now()}
 
 	// DialContext lets ctx abort the DNS lookup; UDP has no handshake.
 	v.dialBackendUDP = func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error) {
@@ -409,46 +487,116 @@ func (v *rtcConnection) GetUfrag() string {
 	return v.Ufrag
 }
 
+func (v *rtcConnection) cacheBy(index sync.Map[string, *rtcConnection], key string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.closed {
+		return
+	}
+
+	index.Store(key, v)
+	entry := rtcCacheEntry{index: index, key: key}
+	if !slices.Contains(v.cached, entry) {
+		v.cached = append(v.cached, entry)
+	}
+}
+
+func (v *rtcConnection) Close() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.closed {
+		return false
+	}
+	v.closed = true
+
+	if v.backendUDP != nil {
+		_ = v.backendUDP.Close()
+	}
+	for _, entry := range v.cached {
+		entry.index.CompareAndDelete(entry.key, v)
+	}
+	return true
+}
+
+func (v *rtcConnection) idleSince(now time.Time) time.Duration {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return now.Sub(v.lastPacketAt)
+}
+
 func (v *rtcConnection) HandlePacket(addr net.Addr, data []byte) error {
 	ctx := v.ctx
 
-	v.clientUDP = addr
-
-	if err := v.connectBackend(ctx); err != nil {
+	backendUDP, err := v.receivedFrom(ctx, addr)
+	if err != nil {
 		return errors.Wrapf(err, "connect backend for %v", v.StreamURL)
 	}
 
-	if v.backendUDP == nil {
+	if backendUDP == nil {
 		return nil
 	}
 
 	// A reader per packet leaked tens of thousands of goroutines under WHEP
-	// load. WriteTo copies into the kernel, so the next Read can reuse the buffer.
+	// load.
 	v.startReader.Do(func() {
-		go func() {
-			buf := make([]byte, 4096)
-			for ctx.Err() == nil {
-				n, err := v.backendUDP.Read(buf)
-				if err != nil {
-					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-					logger.Warn(ctx, "read from backend failed, err=%v", err)
-					return
-				}
-
-				if _, err = v.listenerUDP.WriteTo(buf[:n], v.clientUDP); err != nil {
-					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-					logger.Warn(ctx, "write to client failed, err=%v", err)
-					return
-				}
-			}
-		}()
+		go v.readBackend(ctx, backendUDP)
 	})
 
-	if _, err := v.backendUDP.Write(data); err != nil {
+	if _, err := backendUDP.Write(data); err != nil {
 		return errors.Wrapf(err, "write to backend %v", v.StreamURL)
 	}
 
 	return nil
+}
+
+// Returns no backend once the session is closed.
+//
+// TODO: Give each session a packet queue and a goroutine that handles it, so
+// the read loop only puts a packet in the queue. This lock is held while the
+// first packet picks and dials the backend, which may wait on Redis, and the
+// read loop waits with it.
+func (v *rtcConnection) receivedFrom(ctx context.Context, addr net.Addr) (io.ReadWriteCloser, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.closed {
+		return nil, nil
+	}
+	v.clientUDP, v.lastPacketAt = addr, clock.Now()
+
+	if err := v.connectBackend(ctx); err != nil {
+		return nil, err
+	}
+	return v.backendUDP, nil
+}
+
+func (v *rtcConnection) clientAddr() net.Addr {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.clientUDP
+}
+
+func (v *rtcConnection) readBackend(ctx context.Context, backendUDP io.Reader) {
+	// WriteTo copies into the kernel, so the next Read can reuse the buffer.
+	buf := make([]byte, 4096)
+	for {
+		n, err := backendUDP.Read(buf)
+		if err == io.EOF || utils.IsClosedNetworkError(err) {
+			return
+		}
+		if err != nil {
+			// A connected UDP socket reports an ICMP error on the next read, such
+			// as port unreachable while the backend restarts.
+			logger.Warn(ctx, "read from backend failed, err=%v", err)
+			continue
+		}
+
+		if _, err = v.listenerUDP.WriteTo(buf[:n], v.clientAddr()); err != nil {
+			logger.Warn(ctx, "write to client failed, err=%v", err)
+		}
+	}
 }
 
 func (v *rtcConnection) connectBackend(ctx context.Context) error {
@@ -470,7 +618,6 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 		return errors.Wrapf(err, "parse udp port %v of %v for %v", backend.RTC[0], backend, v.StreamURL)
 	}
 
-	// TODO: FIXME: Support close the connection when timeout or DTLS alert.
 	backendUDP, err := v.dialBackendUDP(ctx, backend.IP, int(udpPort))
 	if err != nil {
 		return errors.Wrapf(err, "dial udp to %v:%v", backend.IP, udpPort)
@@ -478,6 +625,27 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	v.backendUDP = backendUDP
 
 	return nil
+}
+
+func (v *webRTCProxyServer) closeConnection(ctx context.Context, c *rtcConnection) {
+	if !c.Close() {
+		return
+	}
+
+	if err := v.loadBalancer.DeleteWebRTC(ctx, c.StreamURL, c); err != nil {
+		logger.Warn(ctx, "delete WebRTC %v of %v failed, err=%v", c.Ufrag, c.StreamURL, err)
+	}
+}
+
+// A live client sends a STUN consent check every few seconds (RFC 7675), while
+// the backend's media to a client that left is no sign of life.
+func (v *webRTCProxyServer) expireIdleConnections(now time.Time) {
+	v.usernames.Range(func(_ string, c *rtcConnection) bool {
+		if c.idleSince(now) >= lb.RTCAliveDuration {
+			v.closeConnection(context.Background(), c)
+		}
+		return true
+	})
 }
 
 // The legacy SRS /rtc/v1/play/ and /rtc/v1/publish/ APIs send the SDP in JSON, such as

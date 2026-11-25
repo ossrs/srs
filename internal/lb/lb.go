@@ -124,6 +124,8 @@ type HLSService interface {
 type RTCService interface {
 	StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error
 	LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error)
+	// Removes the entries that still hold value, so a newer session of the stream keeps its own.
+	DeleteWebRTC(ctx context.Context, streamURL string, value RTCConnection) error
 }
 
 type OriginLoadBalancer interface {

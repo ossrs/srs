@@ -111,8 +111,9 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
   entries expire after 120s (`HLSAliveDuration`); the memory LB keeps them
   in-process without expiration.
 - **WebRTC session state** — dual-indexed by stream URL and by ICE ufrag. In
-  Redis, entries expire after 120s (`RTCAliveDuration`); the memory LB keeps
-  them in-process without expiration.
+  Redis, entries expire after 120s (`RTCAliveDuration`); the memory LB deletes
+  them when the proxy ends the session: on the client's DELETE, after 120s with
+  no packet from the client, or at shutdown.
 
 ## Backend Registration
 

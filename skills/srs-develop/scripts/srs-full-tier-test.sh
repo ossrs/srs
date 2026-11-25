@@ -39,7 +39,7 @@ setup() {
     printf '%s\n' '#!/bin/bash' 'case $1 in status) echo free;; acquire) echo token;; esac' >$FAKE_SCRIPTS/full-tier-lock.sh
     local s
     for s in proxy-e2e-test proxy-e2e-cluster-test proxy-e2e-edge-test proxy-e2e-redis-test proxy-e2e-transmux-test \
-        proxy-e2e-srt-test proxy-e2e-whip-test proxy-e2e-bearer-auth-test srs-config-file-test gb28181-api-timeout-test \
+        proxy-e2e-srt-test proxy-e2e-whip-test proxy-e2e-bearer-auth-test proxy-e2e-rtc-session-test srs-config-file-test gb28181-api-timeout-test \
         gb28181-tcp-disconnect-test srs-reload-test install-target-test rtc-rtx-whip-publish-test \
         rtc-rtx-whep-play-test rtc-plain-whep-play-test rtc-plain-whip-publish-test; do
         fake $FAKE_SCRIPTS/$s.sh

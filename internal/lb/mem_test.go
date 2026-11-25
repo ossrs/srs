@@ -284,3 +284,32 @@ func TestMemLB_LoadWebRTCByUfrag_NotFound(t *testing.T) {
 		t.Fatalf("expected error, got %v", err)
 	}
 }
+
+// Viewers of one stream each store a session, and each one ends on its own.
+func TestMemLB_DeleteWebRTC_KeepsNewerSessionOfStream(t *testing.T) {
+	b := newMem()
+	ctx := context.Background()
+	older, newer := &stubRTC{ufrag: "older:R"}, &stubRTC{ufrag: "newer:R"}
+	_ = b.StoreWebRTC(ctx, "live/demo", older)
+	_ = b.StoreWebRTC(ctx, "live/demo", newer)
+
+	if err := b.DeleteWebRTC(ctx, "live/demo", older); err != nil {
+		t.Fatalf("DeleteWebRTC: %v", err)
+	}
+	if _, err := b.LoadWebRTCByUfrag(ctx, "older:R"); err == nil {
+		t.Fatal("ended session is still found by its ufrag")
+	}
+	if got, err := b.LoadWebRTCByUfrag(ctx, "newer:R"); err != nil || got != newer {
+		t.Fatalf("live session lost its ufrag entry, got %v, %v", got, err)
+	}
+	if got, ok := b.rtcStreamURL.Load("live/demo"); !ok || got != newer {
+		t.Fatalf("live session lost its stream entry, got %v, %v", got, ok)
+	}
+
+	if err := b.DeleteWebRTC(ctx, "live/demo", newer); err != nil {
+		t.Fatalf("DeleteWebRTC: %v", err)
+	}
+	if _, ok := b.rtcStreamURL.Load("live/demo"); ok {
+		t.Fatal("stream entry of the last session is left")
+	}
+}

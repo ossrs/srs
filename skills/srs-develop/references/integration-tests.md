@@ -26,9 +26,10 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 | 7 | `proxy-e2e-srt-test.sh` | SRT publish with SRT, RTMP, HTTP-FLV, HLS, and WHEP playback verification |
 | 8 | `proxy-e2e-whip-test.sh` | WHIP publish with RTMP, HTTP-FLV, HLS, and WHEP playback verification |
 | 9 | `proxy-e2e-bearer-auth-test.sh` | Bearer authentication startup validation, protected SRS, WHIP/WHEP, and proxy APIs, and authenticated origin registration |
-| 10 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
-| 11 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
-| 12 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |
+| 10 | `proxy-e2e-rtc-session-test.sh` | The proxy frees a WebRTC session on a WHEP or WHIP DELETE, and on the idle timeout for a player killed without one, counted by its UDP sockets to the origin and its reader goroutines; about 150 s, mostly the 120 s idle timeout |
+| 11 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
+| 12 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
+| 13 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |
 
 ### Dependencies
 
@@ -312,7 +313,7 @@ Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS fo
 
 | Lane | Runs |
 |---|---|
-| A | The Go proxy unit tests, then the eight `proxy-e2e-*` scripts in parallel, each on its own default port slot |
+| A | The Go proxy unit tests, then the nine `proxy-e2e-*` scripts in parallel, each on its own default port slot |
 | B | Black-box fast |
 | C | Black-box slow |
 | D | Regression |
@@ -368,8 +369,7 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | Range | Owner | Total ports | Bound today | Available for new tests |
 |---|---|---|---|---|
 | 1–10999 | System and shared: the defaults of a human SRS or Oryx, such as 1935, 1985, 8080, 8000, 8554, 9000 and 10080, and Redis on 6379 | 10,999 | 0 | 0, never bound by tests |
-| 11000–11799 | The eight `proxy-e2e-*` scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 11000 to 11700 in the order of the Suite | 800 | 99 | 701, inside the existing slots |
-| 11800–11899 | Spare `proxy-e2e-*` slot | 100 | 0 | 100 |
+| 11000–11899 | The nine `proxy-e2e-*` scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 11000 to 11800 in the order of the Suite | 900 | 106 | 794, inside the existing slots |
 | 11900–11999 | Kept free for the proxy defaults 11935 and 11985 | 100 | 0 | 0 |
 | 12000–12099 | Kept free for the proxy default 12025 | 100 | 0 | 0 |
 | 12100–12999 | The other bundled scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 12100 `srs-config-file`, 12200 `srs-reload`, 12300 and 12400 `gb28181-*`, 12500 to 12800 `rtc-*`, 12900 `forward-status` | 900 | 31 | 869, inside the existing slots |

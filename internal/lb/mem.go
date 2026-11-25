@@ -144,3 +144,9 @@ func (v *memoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string
 		return actual, nil
 	}
 }
+
+func (v *memoryLoadBalancer) DeleteWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+	v.rtcStreamURL.CompareAndDelete(streamURL, value)
+	v.rtcUfrag.CompareAndDelete(value.GetUfrag(), value)
+	return nil
+}

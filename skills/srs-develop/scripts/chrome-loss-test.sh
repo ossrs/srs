@@ -129,8 +129,14 @@ for job in plain rtx up-plain-play up-rtx-play; do
   chrome_test_startup_freeze loss "$job" "$job"
   chrome_test_freeze_assert loss "$job" "settled(before($(drop_at "$job"))) | series(.inboundVideo.freezeCount)
     | length > 0 and last - first == 0" "$job before drop: no freeze after its first second" "$(srs_log_of "$job")"
-  CHECK_ASSERT=chrome_test_freeze_assert check "$job" inboundVideo.freezeCount '($a | last) - ($b | last) <= 1' \
-    "$job after drop: at most one freeze"
+  # The repair freezes the play once. A player of FFmpeg's stream plays it at
+  # an uneven 7-20 fps even before the drop, so Chrome may count one more
+  # freeze a second or two after the repair, with no loss or NACK; the
+  # uplink players play a steady 20 fps.
+  freezes=1 most='at most one freeze'
+  [[ $job == plain || $job == rtx ]] && freezes=2 most='at most two freezes'
+  CHECK_ASSERT=chrome_test_freeze_assert check "$job" inboundVideo.freezeCount "(\$a | last) - (\$b | last) <= $freezes" \
+    "$job after drop: $most"
   check "$job" inboundVideo.framesDecoded '($a | last) - ($b | last) >= 60' "$job after drop: frames decoded +60"
   [[ $job == plain || $job == rtx ]] || continue
   check "$job" inboundVideo.nackCount '($b | last) - ($b | first) == 0' "$job before drop: no NACK"
