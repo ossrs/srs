@@ -196,7 +196,9 @@ func TestTimer_Caster_UdpTsOutput(t *testing.T) {
 	// than the socket buffers between the caster's RTMP output and its RTMP
 	// server hold: the output waits for the publish, and once the hook
 	// accepts, the caster has published its stream once, with no new
-	// connection and no unpublish, and a player gets it.
+	// connection and no unpublish, and a player gets it. The stream ends
+	// where the buffers dropped the rest, so the GOP cache a player gets may
+	// hold only a keyframe and the few frames after it.
 	check.Case(t, "SlowOnPublishOnePublish", check.Timer, func(c *check.C) {
 		stream := path.Base(server.UDPTSStream)
 		srs.Hooks.Script(hookOfStream("on_publish", stream), mock.OK().After(casterSlowHook))
@@ -206,7 +208,7 @@ func TestTimer_Caster_UdpTsOutput(t *testing.T) {
 		c.CheckEqual(len(srs.Hooks.Requests(mock.Match{Action: "on_connect"})), 1, "on_connect requests")
 		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_publish", stream))), 1, "on_publish requests")
 		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_unpublish", stream))), 0, "on_unpublish requests")
-		r := playUntilWithin(c, rtmpURL(srs, server.UDPTSStream), srtPlayedUntil, 500*time.Millisecond)
+		r := playUntilWithin(c, rtmpURL(srs, server.UDPTSStream), report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1}, 500*time.Millisecond)
 		checkSRTPlayed(c, r)
 	})
 }
