@@ -520,6 +520,12 @@ VOID TEST(ProtocolSrtTest, PlayerClosesWhilePublisherStalls_StatsFail)
 // A player that pauses, such as one busy decoding, while the server sends to it: libsrt's send buffer
 // fills, so the server's send waits until the player reads again, then goes on. The player gets every
 // message in order, as the vhost has `tlpktdrop off`.
+//
+// The player reads the first message before it pauses, as a player that already plays, and the server
+// sends the rest once libsrt has acknowledged it. Until its first ACK, libsrt lets the sender send as
+// many packets as the player's receive buffer has, one more than the buffer holds, so the last of them
+// is dropped. A later packet shows the gap and the sender sends it again, but when it is the last packet
+// the window allows, the connection stalls for good.
 VOID TEST(ProtocolSrtTest, SlowPlayerCatchesUp_SendWaitsThenGoesOn)
 {
     srs_error_t err;
@@ -547,14 +553,38 @@ VOID TEST(ProtocolSrtTest, SlowPlayerCatchesUp_SendWaitsThenGoesOn)
     SrsSrtSocket accepted(_srs_srt_eventloop->poller(), afd);
     accepted.set_send_timeout(3 * SRS_UTIME_SECONDS);
 
+    // The player reads the first message, and libsrt acknowledges it.
+    if (true) {
+        string msg = srt_utest_ts_message(0);
+        ssize_t nn = 0;
+        HELPER_ASSERT_SUCCESS(accepted.sendmsg((void *)msg.data(), msg.size(), &nn));
+
+        char buf[1500];
+        ssize_t nread = 0;
+        HELPER_ASSERT_SUCCESS(client.recvmsg(buf, sizeof(buf), &nread));
+        int seq = -1;
+        memcpy(&seq, buf, sizeof(seq));
+        EXPECT_EQ(0, seq);
+
+        SRT_TRACEBSTATS stats;
+        for (int i = 0; i < 300; i++) {
+            ASSERT_EQ(0, srt_bstats(afd, &stats, 0));
+            if (stats.pktFlightSize == 0) {
+                break;
+            }
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+        ASSERT_EQ(0, stats.pktFlightSize);
+    }
+
     // More messages than the two buffers hold, so the send must wait for the player.
     const int total = 200;
     const srs_utime_t pause = 200 * SRS_UTIME_MILLISECONDS;
-    SrtUtestSlowPlayer player(&client, pause, total);
+    SrtUtestSlowPlayer player(&client, pause, total - 1);
     HELPER_ASSERT_SUCCESS(player.trd_->start());
 
     srs_utime_t starttime = srs_time_now_realtime();
-    for (int i = 0; i < total; i++) {
+    for (int i = 1; i < total; i++) {
         string msg = srt_utest_ts_message(i);
         ssize_t nn = 0;
         HELPER_ASSERT_SUCCESS(accepted.sendmsg((void *)msg.data(), msg.size(), &nn));
@@ -569,9 +599,9 @@ VOID TEST(ProtocolSrtTest, SlowPlayerCatchesUp_SendWaitsThenGoesOn)
     ASSERT_TRUE(player.done_);
     HELPER_EXPECT_SUCCESS(player.err_);
     player.err_ = srs_success;
-    ASSERT_EQ(total, (int)player.seqs_.size());
-    for (int i = 0; i < total; i++) {
-        EXPECT_EQ(i, player.seqs_[i]);
+    ASSERT_EQ(total - 1, (int)player.seqs_.size());
+    for (int i = 0; i < total - 1; i++) {
+        EXPECT_EQ(i + 1, player.seqs_[i]);
     }
 }
 
