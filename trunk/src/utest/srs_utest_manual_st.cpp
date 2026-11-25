@@ -10,6 +10,8 @@
 #include <srs_utest_manual_st.hpp>
 #include <time.h>
 
+#include <chrono>
+
 using namespace std;
 
 VOID TEST(StTest, CondPtrSugar)
@@ -58,96 +60,34 @@ static inline st_utime_t time_gettimeofday()
     return (tv.tv_sec * 1000000LL + tv.tv_usec);
 }
 
+// The fastest of a few rounds of n calls, in microseconds, so a round that the system preempted does not count.
+template <typename F>
+static int64_t st_utest_fastest_round(F f, int n)
+{
+    int64_t fastest = -1;
+    for (int round = 0; round < 5; round++) {
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        for (int i = 0; i < n; i++) {
+            EXPECT_GT(f(), 0);
+        }
+        int64_t elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+        if (fastest < 0 || elapsed < fastest) {
+            fastest = elapsed;
+        }
+    }
+    return fastest;
+}
+
+// SRS reads the time by st_utime on every packet, so it costs about what gettimeofday costs. One call takes
+// well under a microsecond, too little to time alone, so the test times rounds of many calls.
 VOID TEST(StTest, StUtimePerformance)
 {
-    clock_t start;
-    int gettimeofday_elapsed_time = 0;
-    int st_utime_elapsed_time = 0;
+    const int n = 10000;
+    int64_t st = st_utest_fastest_round(st_utime, n);
+    int64_t gtod = st_utest_fastest_round(time_gettimeofday, n);
 
-    // Both the st_utime(clock_gettime or gettimeofday) and gettimeofday's
-    // elpased time to execute is dependence on whether it is the first time be called.
-    // In general, the gettimeofday has better performance, but the gap between
-    // them is really small, maybe less than 30 clock ~ 30 microseconds.
-
-    // check st_utime first, then gettimeofday
-    {
-        start = clock();
-        st_utime_t t2 = st_utime();
-        int elapsed_time = clock() - start;
-        st_utime_elapsed_time += elapsed_time;
-        EXPECT_GT(t2, 0);
-
-        start = clock();
-        st_utime_t t1 = time_gettimeofday();
-        elapsed_time = clock() - start;
-        gettimeofday_elapsed_time += elapsed_time;
-        EXPECT_GT(t1, 0);
-
-        EXPECT_GE(gettimeofday_elapsed_time, 0);
-        EXPECT_GE(st_utime_elapsed_time, 0);
-
-        // Calculate absolute difference between the two elapsed times
-        int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
-
-        // The difference should be less than N clock ticks (microseconds)
-        EXPECT_LT(time_diff, 100);
-    }
-
-    // check gettimeofday first, then st_utime
-    {
-        start = clock();
-        st_utime_t t1 = time_gettimeofday();
-        int elapsed_time = clock() - start;
-        gettimeofday_elapsed_time += elapsed_time;
-        EXPECT_GT(t1, 0);
-
-        start = clock();
-        st_utime_t t2 = st_utime();
-        elapsed_time = clock() - start;
-        st_utime_elapsed_time += elapsed_time;
-        EXPECT_GT(t2, 0);
-
-        EXPECT_GE(gettimeofday_elapsed_time, 0);
-        EXPECT_GE(st_utime_elapsed_time, 0);
-
-        // Calculate absolute difference between the two elapsed times
-        int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
-
-        // The difference should be less than N clock ticks (microseconds)
-        EXPECT_LT(time_diff, 100);
-    }
-
-    // compare st_utime & gettimeofday in a loop
-    for (int i = 0; i < 100; i++) {
-        start = clock();
-        st_utime_t t2 = st_utime();
-        int elapsed_time = clock() - start;
-        st_utime_elapsed_time = elapsed_time;
-        EXPECT_GT(t2, 0);
-        st_usleep(1);
-
-        start = clock();
-        st_utime_t t1 = time_gettimeofday();
-        elapsed_time = clock() - start;
-        gettimeofday_elapsed_time = elapsed_time;
-        EXPECT_GT(t1, 0);
-        st_usleep(1);
-
-        EXPECT_GE(gettimeofday_elapsed_time, 0);
-        EXPECT_GE(st_utime_elapsed_time, 0);
-
-        // Calculate absolute difference between the two elapsed times
-        int time_diff = gettimeofday_elapsed_time > st_utime_elapsed_time
-                            ? gettimeofday_elapsed_time - st_utime_elapsed_time
-                            : st_utime_elapsed_time - gettimeofday_elapsed_time;
-
-        // The difference should be less than N clock ticks (microseconds)
-        EXPECT_LT(time_diff, 100);
-    }
+    // At most a few times gettimeofday, with 1ms for a slow clock source or build, such as one with ASan.
+    EXPECT_LE(st, 4 * gtod + 1000) << "st_utime " << st << "us, gettimeofday " << gtod << "us for " << n << " calls";
 }
 
 // Test IPv4 and IPv6 socket functions
