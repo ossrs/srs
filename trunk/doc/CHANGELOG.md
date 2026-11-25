@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-11-25, Merge [#4808](https://github.com/ossrs/srs/pull/4808): Proxy: Clean up WebRTC sessions. v8.0.80 (#4808)
 * v8.0, 2026-11-23, Merge [#4793](https://github.com/ossrs/srs/pull/4793): Windows: Support daemon mode, running SRS in the background. v8.0.79 (#4793)
 * v8.0, 2026-11-21, Merge [#4806](https://github.com/ossrs/srs/pull/4806): SRT: Convert one audio and video track to RTMP. v8.0.78 (#4806)
 * v8.0, 2026-11-17, Merge [#4804](https://github.com/ossrs/srs/pull/4804): RTC: Keep media on the nominated ICE pair. v8.0.77 (#4804)
