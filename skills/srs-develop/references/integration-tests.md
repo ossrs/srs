@@ -26,7 +26,7 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 | 7 | `proxy-e2e-srt-test.sh` | SRT publish with SRT, RTMP, HTTP-FLV, HLS, and WHEP playback verification |
 | 8 | `proxy-e2e-whip-test.sh` | WHIP publish with RTMP, HTTP-FLV, HLS, and WHEP playback verification |
 | 9 | `proxy-e2e-bearer-auth-test.sh` | Bearer authentication startup validation, protected SRS, WHIP/WHEP, and proxy APIs, and authenticated origin registration |
-| 10 | `proxy-e2e-rtc-session-test.sh` | The proxy frees a WebRTC session on a WHEP or WHIP DELETE, and on the idle timeout for a player killed without one, counted by its UDP sockets to the origin and its reader goroutines; about 150 s, mostly the 120 s idle timeout |
+| 10 | `proxy-e2e-rtc-session-test.sh` | The proxy frees a WebRTC session on a WHEP or WHIP DELETE, and on the idle timeout for a player killed without one, counted by its UDP sockets to the origin and its reader goroutines, with `PROXY_RTC_SESSION_TTL=10s`; about 35 s |
 | 11 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
 | 12 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
 | 13 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |

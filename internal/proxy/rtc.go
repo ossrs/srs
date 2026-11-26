@@ -27,6 +27,7 @@ import (
 	"srsx/internal/utils"
 )
 
+// The idle sweep runs at this interval, or at a quarter of a shorter session TTL.
 const rtcIdleCheckInterval = 10 * time.Second
 
 type WebRTCProxyServer interface {
@@ -41,6 +42,9 @@ type webRTCProxyServer struct {
 	loadBalancer lb.OriginLoadBalancer
 	// An interface, so a test listenUDP can return a fake.
 	listener net.PacketConn
+
+	// How long a session lives after its client's last packet: PROXY_RTC_SESSION_TTL, set by Run.
+	sessionTTL time.Duration
 
 	usernames sync.Map[string, *rtcConnection]
 	// TODO: Support fast search by uint64 address.
@@ -62,6 +66,7 @@ func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 	v := &webRTCProxyServer{
 		environment:  environment,
 		loadBalancer: loadBalancer,
+		sessionTTL:   lb.DefaultRTCSessionTTL,
 		usernames:    sync.NewMap[string, *rtcConnection](),
 		addresses:    sync.NewMap[string, *rtcConnection](),
 	}
@@ -293,6 +298,12 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 }
 
 func (v *webRTCProxyServer) Run(ctx context.Context) error {
+	sessionTTL, err := lb.ParseRTCSessionTTL(v.environment.RTCSessionTTL())
+	if err != nil {
+		return err
+	}
+	v.sessionTTL = sessionTTL
+
 	endpoint := v.environment.WebRTCServer()
 	if !strings.Contains(endpoint, ":") {
 		endpoint = fmt.Sprintf(":%v", endpoint)
@@ -312,7 +323,7 @@ func (v *webRTCProxyServer) Run(ctx context.Context) error {
 	go func() {
 		defer v.wg.Done()
 
-		ticker := time.NewTicker(rtcIdleCheckInterval)
+		ticker := time.NewTicker(min(rtcIdleCheckInterval, v.sessionTTL/4))
 		defer ticker.Stop()
 		for {
 			select {
@@ -641,7 +652,7 @@ func (v *webRTCProxyServer) closeConnection(ctx context.Context, c *rtcConnectio
 // the backend's media to a client that left is no sign of life.
 func (v *webRTCProxyServer) expireIdleConnections(now time.Time) {
 	v.usernames.Range(func(_ string, c *rtcConnection) bool {
-		if c.idleSince(now) >= lb.RTCAliveDuration {
+		if c.idleSince(now) >= v.sessionTTL {
 			v.closeConnection(context.Background(), c)
 		}
 		return true

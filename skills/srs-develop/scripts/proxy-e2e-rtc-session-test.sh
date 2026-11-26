@@ -5,14 +5,15 @@
 #   - A WHEP player that ends by a DELETE frees its session at once.
 #   - A WHIP publisher that ends by a DELETE frees its session at once.
 #   - A WHEP player killed without a DELETE frees its session by the idle
-#     timeout, lb.RTCAliveDuration (120s) after its last packet, although the
+#     timeout, PROXY_RTC_SESSION_TTL after its last packet, although the
 #     origin still sends it media; the live publisher keeps its own session.
+#     The script sets the TTL to 10s, from the default 120s, to keep it short.
 #
 # A session holds one connected UDP socket to the origin and one goroutine,
 # rtcConnection.readBackend, which reads it. The script counts both: the
 # sockets with lsof, and the goroutines from the proxy's Go pprof.
 #
-# It takes about three minutes, mostly the idle timeout.
+# It takes about 30 seconds.
 set -e
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
@@ -56,10 +57,11 @@ WHEP_PLAY_URL="http://localhost:$PROXY_HTTP_API_PORT/rtc/v1/whep/?app=live&strea
 # already be reachable for the clients.
 ORIGIN_CANDIDATE="127.0.0.1"
 
-# The idle sweep runs every rtcIdleCheckInterval (10s) in internal/proxy/rtc.go,
-# so a session ends between 120s and 130s after its last packet.
-IDLE_MIN=110
-IDLE_MAX=145
+# The idle sweep in internal/proxy/rtc.go runs every quarter of a TTL under
+# 40s, so with 10s a session ends between 10s and 12.5s after its last packet.
+RTC_SESSION_TTL=10s
+IDLE_MIN=9
+IDLE_MAX=16
 
 PROXY_LOG=/tmp/srs-proxy-rtc-session-e2e.log
 ORIGIN_LOG=/tmp/srs-origin-rtc-session-e2e.log
@@ -236,6 +238,7 @@ env PROXY_RTMP_SERVER=$PROXY_RTMP_PORT \
     PROXY_SRT_SERVER=$PROXY_SRT_PORT \
     PROXY_SYSTEM_API=$PROXY_SYSTEM_API_PORT \
     PROXY_LOAD_BALANCER_TYPE=memory \
+    PROXY_RTC_SESSION_TTL=$RTC_SESSION_TTL \
     GO_PPROF=127.0.0.1:$PROXY_PPROF_PORT \
     ./bin/srs-proxy >"$PROXY_LOG" 2>&1 &
 PROXY_PID=$!

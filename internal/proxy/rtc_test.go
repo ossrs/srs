@@ -684,6 +684,30 @@ func TestWebRTCProxyServer_Run_ListenError(t *testing.T) {
 	}
 }
 
+// A bad PROXY_RTC_SESSION_TTL stops the proxy at start, before it listens.
+func TestWebRTCProxyServer_Run_InvalidSessionTTL(t *testing.T) {
+	for _, value := range []string{"soon", "0s", "-1s"} {
+		envFake := &envfakes.FakeProxyEnvironment{}
+		envFake.WebRTCServerReturns("18000")
+		envFake.RTCSessionTTLReturns(value)
+		listened := false
+		srv := NewWebRTCProxyServer(envFake, &lbfakes.FakeOriginLoadBalancer{}, func(v *webRTCProxyServer) {
+			v.listenUDP = func(ctx context.Context, endpoint string) (net.PacketConn, error) {
+				listened = true
+				return newBlockingUDPListener(), nil
+			}
+		})
+
+		err := srv.Run(context.Background())
+		if err == nil || !strings.Contains(err.Error(), "PROXY_RTC_SESSION_TTL") {
+			t.Fatalf("Run with PROXY_RTC_SESSION_TTL=%q: err = %v, want a configuration error", value, err)
+		}
+		if listened {
+			t.Fatalf("Run with PROXY_RTC_SESSION_TTL=%q listened before refusing it", value)
+		}
+	}
+}
+
 func TestWebRTCProxyServer_Run_EndpointWithoutColon(t *testing.T) {
 	// A bare port like "18000" must be normalized to ":18000".
 	envFake := &envfakes.FakeProxyEnvironment{}

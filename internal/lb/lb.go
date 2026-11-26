@@ -12,21 +12,30 @@ import (
 
 const HLSAliveDuration = 120 * time.Second
 
-const RTCAliveDuration = 120 * time.Second
+// DefaultRTCSessionTTL is how long a WebRTC session lives after the client's last packet, unless
+// PROXY_RTC_SESSION_TTL sets it.
+const DefaultRTCSessionTTL = 120 * time.Second
 
 func parseOriginServerTTL(value string) (time.Duration, error) {
-	const serverAliveDuration = 300 * time.Second
+	return parseTTL("PROXY_ORIGIN_SERVER_TTL", value, 300*time.Second)
+}
 
+// ParseRTCSessionTTL parses PROXY_RTC_SESSION_TTL, a positive Go duration, DefaultRTCSessionTTL when empty.
+func ParseRTCSessionTTL(value string) (time.Duration, error) {
+	return parseTTL("PROXY_RTC_SESSION_TTL", value, DefaultRTCSessionTTL)
+}
+
+func parseTTL(name, value string, defaultTTL time.Duration) (time.Duration, error) {
 	if value == "" {
-		return serverAliveDuration, nil
+		return defaultTTL, nil
 	}
 
 	ttl, err := time.ParseDuration(value)
 	if err != nil {
-		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: %w", value, err)
+		return 0, fmt.Errorf("invalid %v %q: %w", name, value, err)
 	}
 	if ttl <= 0 {
-		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: must be positive", value)
+		return 0, fmt.Errorf("invalid %v %q: must be positive", name, value)
 	}
 	return ttl, nil
 }

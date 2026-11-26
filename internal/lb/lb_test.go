@@ -170,3 +170,34 @@ func TestNewOriginServer(t *testing.T) {
 		}
 	})
 }
+
+func TestParseRTCSessionTTL(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		value   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{name: "default", value: "", want: 120 * time.Second},
+		{name: "custom", value: "10s", want: 10 * time.Second},
+		{name: "invalid", value: "soon", wantErr: true},
+		{name: "zero", value: "0s", wantErr: true},
+		{name: "negative", value: "-1s", wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseRTCSessionTTL(tt.value)
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "PROXY_RTC_SESSION_TTL") {
+					t.Fatalf("ParseRTCSessionTTL(%q) error = %v, want configuration error", tt.value, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseRTCSessionTTL(%q): %v", tt.value, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ParseRTCSessionTTL(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}

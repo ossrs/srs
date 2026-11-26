@@ -25,6 +25,7 @@ type redisLoadBalancer struct {
 	newClient         func(addr, password string, db int) redisclient.RedisClient
 	keepaliveInterval time.Duration
 	originServerTTL   time.Duration
+	rtcSessionTTL     time.Duration
 }
 
 func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
@@ -32,6 +33,7 @@ func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 		environment:       environment,
 		newClient:         redisclient.New,
 		keepaliveInterval: 30 * time.Second,
+		rtcSessionTTL:     DefaultRTCSessionTTL,
 	}
 }
 
@@ -41,6 +43,12 @@ func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 		return err
 	}
 	v.originServerTTL = originServerTTL
+
+	rtcSessionTTL, err := ParseRTCSessionTTL(v.environment.RTCSessionTTL())
+	if err != nil {
+		return err
+	}
+	v.rtcSessionTTL = rtcSessionTTL
 
 	redisDatabase, err := strconv.Atoi(v.environment.RedisDB())
 	if err != nil {
@@ -228,12 +236,12 @@ func (v *redisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, v
 	}
 
 	key := v.redisKeyRTC(streamURL)
-	if err = v.rdb.Set(ctx, key, b, RTCAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, v.rtcSessionTTL).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key, value)
 	}
 
 	key2 := v.redisKeyUfrag(value.GetUfrag())
-	if err := v.rdb.Set(ctx, key2, b, RTCAliveDuration).Err(); err != nil {
+	if err := v.rdb.Set(ctx, key2, b, v.rtcSessionTTL).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key2, value)
 	}
 
@@ -257,7 +265,7 @@ func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
-// Redis expires both keys of the session after RTCAliveDuration.
+// Redis expires both keys of the session after PROXY_RTC_SESSION_TTL.
 func (v *redisLoadBalancer) DeleteWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
 	return nil
 }

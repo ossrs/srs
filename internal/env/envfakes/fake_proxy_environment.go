@@ -177,6 +177,16 @@ type FakeProxyEnvironment struct {
 	originServerTTLReturnsOnCall map[int]struct {
 		result1 string
 	}
+	RTCSessionTTLStub        func() string
+	rTCSessionTTLMutex       sync.RWMutex
+	rTCSessionTTLArgsForCall []struct {
+	}
+	rTCSessionTTLReturns struct {
+		result1 string
+	}
+	rTCSessionTTLReturnsOnCall map[int]struct {
+		result1 string
+	}
 	RedisDBStub        func() string
 	redisDBMutex       sync.RWMutex
 	redisDBArgsForCall []struct {
@@ -1178,6 +1188,59 @@ func (fake *FakeProxyEnvironment) OriginServerTTLReturnsOnCall(i int, result1 st
 		})
 	}
 	fake.originServerTTLReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RTCSessionTTL() string {
+	fake.rTCSessionTTLMutex.Lock()
+	ret, specificReturn := fake.rTCSessionTTLReturnsOnCall[len(fake.rTCSessionTTLArgsForCall)]
+	fake.rTCSessionTTLArgsForCall = append(fake.rTCSessionTTLArgsForCall, struct {
+	}{})
+	stub := fake.RTCSessionTTLStub
+	fakeReturns := fake.rTCSessionTTLReturns
+	fake.recordInvocation("RTCSessionTTL", []interface{}{})
+	fake.rTCSessionTTLMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) RTCSessionTTLCallCount() int {
+	fake.rTCSessionTTLMutex.RLock()
+	defer fake.rTCSessionTTLMutex.RUnlock()
+	return len(fake.rTCSessionTTLArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) RTCSessionTTLCalls(stub func() string) {
+	fake.rTCSessionTTLMutex.Lock()
+	defer fake.rTCSessionTTLMutex.Unlock()
+	fake.RTCSessionTTLStub = stub
+}
+
+func (fake *FakeProxyEnvironment) RTCSessionTTLReturns(result1 string) {
+	fake.rTCSessionTTLMutex.Lock()
+	defer fake.rTCSessionTTLMutex.Unlock()
+	fake.RTCSessionTTLStub = nil
+	fake.rTCSessionTTLReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RTCSessionTTLReturnsOnCall(i int, result1 string) {
+	fake.rTCSessionTTLMutex.Lock()
+	defer fake.rTCSessionTTLMutex.Unlock()
+	fake.RTCSessionTTLStub = nil
+	if fake.rTCSessionTTLReturnsOnCall == nil {
+		fake.rTCSessionTTLReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.rTCSessionTTLReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }

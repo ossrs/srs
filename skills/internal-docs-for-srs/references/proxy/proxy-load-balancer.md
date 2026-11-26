@@ -131,8 +131,8 @@ prefix.
 **Session State Keys**:
 - `srs-proxy-hls:{streamURL}` - HLS by URL (120s TTL)
 - `srs-proxy-spbhid:{spbhid}` - HLS by SPBHID (120s TTL)
-- `srs-proxy-rtc:{streamURL}` - WebRTC by URL (120s TTL)
-- `srs-proxy-ufrag:{ufrag}` - WebRTC by ufrag (120s TTL)
+- `srs-proxy-rtc:{streamURL}` - WebRTC by URL (`PROXY_RTC_SESSION_TTL`, default 120s)
+- `srs-proxy-ufrag:{ufrag}` - WebRTC by ufrag (`PROXY_RTC_SESSION_TTL`, default 120s)
 
 ## Expiration and Cleanup
 
@@ -146,11 +146,15 @@ The configured lifetime must be longer than the origin heartbeat interval, with
 enough margin for transient delays. It accepts Go duration syntax such as `45s`
 or `2m` and must be positive.
 
-**Session State**: 120 seconds
-- HLS and WebRTC sessions expire after 120 seconds of inactivity
+**Session State**: HLS 120 seconds; WebRTC `PROXY_RTC_SESSION_TTL` (default 120 seconds)
+- HLS sessions expire after 120 seconds of inactivity, WebRTC sessions after
+  `PROXY_RTC_SESSION_TTL`, a positive Go duration such as `30s`; the proxy
+  refuses to start with another value
 - Automatic cleanup via TTL (Redis) or garbage collection (Memory)
 - Memory WebRTC sessions are deleted when the proxy ends them: on DELETE, after
-  120 seconds with no client packet, or at shutdown
+  `PROXY_RTC_SESSION_TTL` with no client packet, or at shutdown
+- A WebRTC TTL shorter than a client's STUN consent interval (a few seconds,
+  RFC 7675) ends live sessions
 - Sessions renewed on each request
 
 **Stream Mappings**: No expiration

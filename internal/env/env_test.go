@@ -491,6 +491,7 @@ func TestNewProxyEnvironment_PreservesPreSetValues(t *testing.T) {
 	setEnv("PROXY_HTTP_API", "9999")
 	setEnv("PROXY_REDIS_KEY_PREFIX", "xxx")
 	setEnv("PROXY_ORIGIN_SERVER_TTL", "45s")
+	setEnv("PROXY_RTC_SESSION_TTL", "10s")
 
 	env, err := NewProxyEnvironment(context.Background())
 	if err != nil {
@@ -501,6 +502,9 @@ func TestNewProxyEnvironment_PreservesPreSetValues(t *testing.T) {
 	}
 	if got := env.RedisKeyPrefix(); got != "xxx" {
 		t.Errorf("RedisKeyPrefix() = %q, want %q", got, "xxx")
+	}
+	if got := env.RTCSessionTTL(); got != "10s" {
+		t.Errorf("RTCSessionTTL() = %q, want %q", got, "10s")
 	}
 	if got := env.OriginServerTTL(); got != "45s" {
 		t.Errorf("OriginServerTTL() = %q, want %q", got, "45s")

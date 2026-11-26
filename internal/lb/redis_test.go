@@ -654,6 +654,53 @@ func TestRedisLB_StoreWebRTC_Success(t *testing.T) {
 	}
 }
 
+// Other proxies find a WebRTC session in Redis for as long as it lives.
+func TestRedisLB_StoreWebRTC_UsesRTCSessionTTL(t *testing.T) {
+	for _, tt := range []struct {
+		value string
+		want  time.Duration
+	}{
+		{value: "", want: 120 * time.Second},
+		{value: "10s", want: 10 * time.Second},
+	} {
+		fake := &redisclientfakes.FakeRedisClient{}
+		fake.PingReturns(statusCmd(nil))
+		fake.SetReturns(statusCmd(nil))
+		env := &envfakes.FakeProxyEnvironment{}
+		env.RedisDBReturns("0")
+		env.RTCSessionTTLReturns(tt.value)
+		lb := withFakeClient(env, fake)
+		if err := lb.Initialize(context.Background()); err != nil {
+			t.Fatalf("Initialize: %v", err)
+		}
+		before := fake.SetCallCount()
+
+		if err := lb.StoreWebRTC(context.Background(), "url1", &stubRTC{ufrag: "u"}); err != nil {
+			t.Fatalf("StoreWebRTC: %v", err)
+		}
+		if got := fake.SetCallCount() - before; got != 2 {
+			t.Fatalf("PROXY_RTC_SESSION_TTL=%q: %d Set calls, want 2", tt.value, got)
+		}
+		for i := before; i < before+2; i++ {
+			_, key, _, ttl := fake.SetArgsForCall(i)
+			if ttl != tt.want {
+				t.Fatalf("PROXY_RTC_SESSION_TTL=%q: key %v TTL = %v, want %v", tt.value, key, ttl, tt.want)
+			}
+		}
+	}
+}
+
+func TestRedisLB_Initialize_InvalidRTCSessionTTL(t *testing.T) {
+	env := &envfakes.FakeProxyEnvironment{}
+	env.RedisDBReturns("0")
+	env.RTCSessionTTLReturns("soon")
+	lb := withFakeClient(env, &redisclientfakes.FakeRedisClient{})
+	err := lb.Initialize(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "PROXY_RTC_SESSION_TTL") {
+		t.Fatalf("Initialize: err = %v, want a configuration error", err)
+	}
+}
+
 func TestRedisLB_StoreWebRTC_FirstSetFails(t *testing.T) {
 	fake := &redisclientfakes.FakeRedisClient{}
 	fake.SetReturns(statusCmd(fmt.Errorf("boom")))
