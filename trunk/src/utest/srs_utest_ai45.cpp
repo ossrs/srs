@@ -5033,6 +5033,19 @@ public:
     }
 };
 
+// The server's manager of connections, which keeps each connection removed from it.
+class SrtConnUtestManager : public MockConnectionManager
+{
+public:
+    std::vector<ISrsResource *> removed_;
+
+public:
+    virtual void remove(ISrsResource *c)
+    {
+        removed_.push_back(c);
+    }
+};
+
 // An SRT client of the server: the real SrsMpegtsSrtConn with the vhost from config text, the stream's real SRT source
 // in its manager, the statistic and the publish tokens. The client's connection is SrtConnUtestIO, or a real SRT socket
 // the listener accepted. The connection serves the client in its own coroutine, as the server runs it.
@@ -5046,7 +5059,7 @@ public:
     SrsSrtSourceManager srt_sources_;
     MockLiveSourceManager live_sources_;
     MockRtcSourceManager rtc_sources_;
-    MockConnectionManager manager_;
+    SrtConnUtestManager manager_;
     MockSrsRequest req_;
     // The source of the stream live/livestream, which the client's stream id names.
     SrsSharedPtr<SrsSrtSource> source_;
@@ -5054,6 +5067,8 @@ public:
     SrsMpegtsSrtConn *conn_;
     srs_error_t err_;
     bool done_;
+    // Whether the coroutine runs the connection's cycle(), with its end as the server has it, or only do_cycle().
+    bool whole_cycle_;
 
 public:
     SrtConnUtestClient() : req_("__defaultVhost__", "live", "livestream")
@@ -5062,6 +5077,7 @@ public:
         conn_ = NULL;
         err_ = srs_success;
         done_ = false;
+        whole_cycle_ = false;
     }
     virtual ~SrtConnUtestClient()
     {
@@ -5154,7 +5170,7 @@ public:
 public:
     virtual srs_error_t cycle()
     {
-        err_ = conn_->do_cycle();
+        err_ = whole_cycle_ ? conn_->cycle() : conn_->do_cycle();
         done_ = true;
         return srs_success;
     }
@@ -5728,4 +5744,160 @@ VOID TEST(AppSrtConnTest, PlayerOfLoneMessage_SentAtOnce)
     c.conn_->expire();
     c.wait_done();
     c.encoder_unpublishes();
+}
+
+// The clients of the server's HTTP API, /api/v1/clients, as the statistic dumps them.
+static srs_error_t srt_conn_utest_api_clients(SrsStatistic *stat, SrsJsonArray *arr)
+{
+    return stat->dumps_clients(arr, 0, 10);
+}
+
+// The HTTP API lists an SRT encoder as srt-publish and a player as srt-play, each with the client's IP and the stream,
+// and the bytes the server read from the encoder or wrote to the player, as the server samples each connection.
+VOID TEST(AppSrtConnTest, ClientsListedInApi_TypeIpStreamAndBytes)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=publish"));
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_publishing();
+
+        c.io_->client_sends(srt_conn_utest_ts(7));
+        for (int i = 0; i < 500 && c.io_->recv_bytes_ == 0; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+        c.stat_.kbps_add_delta(c.conn_->get_id().c_str(), c.conn_->delta());
+        c.stat_.kbps_sample();
+
+        SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+        ASSERT_EQ(1, clients->count());
+        SrsJsonObject *client = clients->at(0)->to_object();
+        EXPECT_STREQ(c.conn_->get_id().c_str(), client->get_property("id")->to_str().c_str());
+        EXPECT_STREQ("srt-publish", client->get_property("type")->to_str().c_str());
+        EXPECT_TRUE(client->get_property("publish")->to_boolean());
+        EXPECT_STREQ("192.168.1.100", client->get_property("ip")->to_str().c_str());
+        EXPECT_STREQ("/live/livestream", client->get_property("url")->to_str().c_str());
+        EXPECT_STREQ("livestream", client->get_property("name")->to_str().c_str());
+        EXPECT_EQ(7 * SRS_TS_PACKET_SIZE, client->get_property("recv_bytes")->to_integer());
+        EXPECT_EQ(0, client->get_property("send_bytes")->to_integer());
+
+        c.conn_->expire();
+        c.wait_done();
+    }
+
+    if (true) {
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+        HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_playing();
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+        HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+        for (int i = 0; i < 500 && c.io_->send_bytes_ == 0; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+        c.stat_.kbps_add_delta(c.conn_->get_id().c_str(), c.conn_->delta());
+        c.stat_.kbps_sample();
+
+        SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+        ASSERT_EQ(1, clients->count());
+        SrsJsonObject *client = clients->at(0)->to_object();
+        EXPECT_STREQ("srt-play", client->get_property("type")->to_str().c_str());
+        EXPECT_FALSE(client->get_property("publish")->to_boolean());
+        EXPECT_STREQ("192.168.1.100", client->get_property("ip")->to_str().c_str());
+        EXPECT_STREQ("/live/livestream", client->get_property("url")->to_str().c_str());
+        EXPECT_EQ(7 * SRS_TS_PACKET_SIZE, client->get_property("send_bytes")->to_integer());
+        EXPECT_EQ(0, client->get_property("recv_bytes")->to_integer());
+
+        c.conn_->expire();
+        c.wait_done();
+        c.encoder_unpublishes();
+    }
+}
+
+// An encoder or a player closes its SRT connection, the usual end of a client: the server logs it as the client's
+// disconnect, a warning and not an error, removes the connection from its manager, and the HTTP API no longer lists
+// the client.
+VOID TEST(AppSrtConnTest, ClientCloses_LoggedAsDisconnectAndLeavesApi)
+{
+    srs_error_t err;
+
+    string streamids[] = {"#!::r=live/livestream,m=publish", "#!::r=live/livestream,m=request"};
+    for (int i = 0; i < 2; i++) {
+        ListenerUtestLog log;
+        SrtConnUtestClient c;
+        c.whole_cycle_ = true;
+        HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), streamids[i]));
+        if (i == 1) {
+            HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+        }
+        HELPER_ASSERT_SUCCESS(c.start());
+        if (i == 0) {
+            c.wait_publishing();
+        } else {
+            c.wait_playing();
+        }
+
+        SrsUniquePtr<SrsJsonArray> before(SrsJsonAny::array());
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, before.get()));
+        EXPECT_EQ(1, before->count()) << streamids[i];
+
+        c.io_->client_closes();
+        if (i == 1) {
+            // A player's close is seen when the server next sends it media.
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            HELPER_ASSERT_SUCCESS(c.encoder_sends(srt_conn_utest_ts(7)));
+        }
+        c.wait_done();
+        ASSERT_TRUE(c.done_) << streamids[i];
+        HELPER_EXPECT_SUCCESS(c.err_);
+        c.err_ = srs_success;
+
+        EXPECT_EQ(1, log.warns("srt client disconnect peer")) << streamids[i];
+        EXPECT_EQ(0, log.errors("srt serve error")) << streamids[i];
+        ASSERT_EQ(1, (int)c.manager_.removed_.size()) << streamids[i];
+        EXPECT_TRUE(c.manager_.removed_[0] == static_cast<ISrsResource *>(c.conn_)) << streamids[i];
+
+        SrsUniquePtr<SrsJsonArray> after(SrsJsonAny::array());
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, after.get()));
+        EXPECT_EQ(0, after->count()) << streamids[i];
+        EXPECT_TRUE(c.stat_.find_client(c.conn_->get_id().c_str()) == NULL) << streamids[i];
+
+        if (i == 1) {
+            c.encoder_unpublishes();
+        }
+    }
+}
+
+// A client the server refuses, here a stream id with no resource: the server logs it as an error with the reason,
+// and removes the connection from its manager; the HTTP API never listed it.
+VOID TEST(AppSrtConnTest, ClientRefused_LoggedAsErrorAndRemoved)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    SrtConnUtestClient c;
+    c.whole_cycle_ = true;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::h=127.0.0.1,m=publish"));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    HELPER_EXPECT_SUCCESS(c.err_);
+    c.err_ = srs_success;
+
+    EXPECT_EQ(1, log.errors("srt serve error"));
+    EXPECT_EQ(1, log.errors("invalid srt streamid=#!::h=127.0.0.1,m=publish"));
+    EXPECT_EQ(0, log.warns("srt client disconnect peer"));
+    ASSERT_EQ(1, (int)c.manager_.removed_.size());
+    EXPECT_TRUE(c.manager_.removed_[0] == static_cast<ISrsResource *>(c.conn_));
+    EXPECT_STREQ("", c.hooks_.called().c_str());
+
+    SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+    HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+    EXPECT_EQ(0, clients->count());
 }

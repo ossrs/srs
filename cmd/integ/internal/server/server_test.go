@@ -501,6 +501,15 @@ func TestWithSRT(t *testing.T) {
 			map[string]string{"SRS_SRT_SERVER_LATENCY": "300", "SRS_SRT_SERVER_RECVLATENCY": ""}},
 		{"PeerIdleTimeout", SRTOptions{PeerIdleTimeout: 1500 * time.Millisecond},
 			map[string]string{"SRS_SRT_SERVER_PEER_IDLE_TIMEOUT": "1500"}},
+		{"ConnectTimeout", SRTOptions{ConnectTimeout: 100 * time.Millisecond},
+			map[string]string{"SRS_SRT_SERVER_CONNECT_TIMEOUT": "100"}},
+		{"Transport", SRTOptions{MaxBW: 200000, MSS: 1000, PayloadSize: 940, SendBuf: 972000, RecvBuf: 486000},
+			map[string]string{"SRS_SRT_SERVER_MAXBW": "200000", "SRS_SRT_SERVER_MSS": "1000", "SRS_SRT_SERVER_PAYLOADSIZE": "940",
+				"SRS_SRT_SERVER_SENDBUF": "972000", "SRS_SRT_SERVER_RECVBUF": "486000"}},
+		{"FlagsOff", SRTOptions{TSBPDOff: true, TLPktDropOff: true},
+			map[string]string{"SRS_SRT_SERVER_TSBPDMODE": "off", "SRS_SRT_SERVER_TLPKTDROP": "off"}},
+		{"VhostOff", SRTOptions{VhostOff: true}, map[string]string{"SRS_VHOST_SRT_ENABLED": "off"}},
+		{"NoToRTMP", SRTOptions{NoToRTMP: true}, map[string]string{"SRS_VHOST_SRT_TO_RTMP": "off"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -538,6 +547,10 @@ func TestWithSRT(t *testing.T) {
 				t.Fatalf("build env: %v", err)
 			}
 		})
+	}
+	// IPv6 and MorePorts go to the config, for the listener.
+	if cfg := WithSRT(CommonConfig(), SRTOptions{IPv6: true, MorePorts: []int{14003}}); !cfg.SRTIPv6 || !reflect.DeepEqual(cfg.SRTMorePorts, []int{14003}) {
+		t.Errorf("SRTIPv6 %v SRTMorePorts %v, want true and [14003]", cfg.SRTIPv6, cfg.SRTMorePorts)
 	}
 	// A config with SRT on keeps its listeners.
 	if cfg := WithSRT(CommonConfig(), SRTOptions{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {

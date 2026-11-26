@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Run the Full tier of references/integration-tests.md on this checkout: Step 1 builds, then lanes A-G and
-# the Chrome lane I in parallel, then lane H alone, under the SRS global lock. On native Windows, in Git Bash,
+# the Chrome lane I in parallel, then lane H and the SRT proxy lane J, each alone, under the SRS global lock. On native Windows, in Git Bash,
 # it runs lane W instead: the Windows build, utest and integ, with the OBS and Chrome cases on that host. Every
 # log is in /tmp/srs-full-tier; the summary is one row per layer, then the unverified OBS and Chrome checks.
 #
@@ -146,6 +146,8 @@ build() {
     fi
     (cd trunk && make -j10 server) || return 1
     make || return 1
+    # The SRT cases' libsrt v1.5.7 client, built once and reused.
+    bash $SCRIPTS/srt-libsrt-build.sh || return 1
     (cd trunk/3rdparty/srs-bench && make test) || return 1
 }
 obs_build() {
@@ -243,6 +245,9 @@ lane_h() {
     layer integ-unit make integ-unit INTEG_UNIT_ARGS=-v
     layer integ make integ
 }
+# Alone after lane H, for the same reason: the SRT proxy cases are srs-integ timer cases through the proxy, and
+# beside lane A one went over its limit.
+lane_j() { layer proxy-e2e-srt-impair bash $SCRIPTS/proxy-e2e-srt-impair-test.sh; }
 
 START=$(date +%s)
 LANES="A-F" SKIPPED=
@@ -268,5 +273,7 @@ lane_f & PF=$!
 wait $PA $PB $PC $PD $PE $PF $PG $PI
 echo "step 3: lane H"
 lane_h
+echo "step 4: lane J"
+lane_j
 
 summary

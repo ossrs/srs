@@ -216,6 +216,33 @@ func TestBuildEnvIPv6(t *testing.T) {
 	}
 }
 
+// TestBuildEnvSRTListen checks SRTIPv6 adds [::] on the same port to the SRT
+// listener, and SRTMorePorts the ports after it, and IPv6 leaves SRT alone.
+func TestBuildEnvSRTListen(t *testing.T) {
+	ls := []Listener{HTTPAPI, SRT}
+	ports := map[Listener]int{HTTPAPI: 14001, SRT: 14002}
+	for _, tc := range []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{"Neither", Config{}, "14002"},
+		{"RtmpIPv6", Config{IPv6: true}, "14002"},
+		{"IPv6", Config{SRTIPv6: true}, "14002 [::]:14002"},
+		{"MorePorts", Config{SRTMorePorts: []int{14003, 14004}}, "14002 14003 14004"},
+		{"Both", Config{SRTIPv6: true, SRTMorePorts: []int{14003}}, "14002 [::]:14002 14003"},
+	} {
+		tc.cfg.Listeners = ls
+		env, err := BuildEnv(tc.cfg, ports, "/w", TLSFiles{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := envMap(env)["SRS_SRT_SERVER_LISTEN"]; got != tc.want {
+			t.Errorf("%v: SRS_SRT_SERVER_LISTEN=%q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 // TestBuildEnvProcess checks Process replaces the adapter's process settings,
 // such as the pid file and the log tank, and nothing else.
 func TestBuildEnvProcess(t *testing.T) {

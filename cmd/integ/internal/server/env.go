@@ -110,6 +110,12 @@ type Config struct {
 	// IPv6 makes RTMP listen on [::] too, on the same port, when the host has
 	// IPv6.
 	IPv6 bool
+	// SRTIPv6 makes SRT listen on [::] too, on the same port, when the host
+	// has IPv6.
+	SRTIPv6 bool
+	// SRTMorePorts are more ports SRT listens on, each one ReservePort
+	// handed out.
+	SRTMorePorts []int
 	// APIAuth turns the HTTP API's authentication on, nil leaves it off.
 	APIAuth *APIAuth
 	// OneHTTPPort makes the HTTP API and the HTTP server share one port, and
@@ -241,6 +247,14 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		env[listen] = strconv.Itoa(port)
 		if l == RTMP && cfg.IPv6 {
 			env[listen] += fmt.Sprintf(" [::]:%d", port)
+		}
+		if l == SRT {
+			if cfg.SRTIPv6 {
+				env[listen] += fmt.Sprintf(" [::]:%d", port)
+			}
+			for _, p := range cfg.SRTMorePorts {
+				env[listen] += " " + strconv.Itoa(p)
+			}
 		}
 
 		if info.tls != "" {

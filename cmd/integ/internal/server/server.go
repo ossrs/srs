@@ -222,6 +222,7 @@ func Start(name string, cfg Config) (*Server, error) {
 
 	// SRS fails to start on [::] where the host has no IPv6.
 	cfg.IPv6 = cfg.IPv6 && HasIPv6()
+	cfg.SRTIPv6 = cfg.SRTIPv6 && HasIPv6()
 
 	env, err := BuildEnv(cfg, ports, dir, run.tls)
 	if err != nil {
@@ -1235,6 +1236,22 @@ type SRTOptions struct {
 	// PeerIdleTimeout sets peer_idle_timeout, in whole milliseconds, when
 	// not zero.
 	PeerIdleTimeout time.Duration
+	// ConnectTimeout sets connect_timeout, in whole milliseconds, when not
+	// zero.
+	ConnectTimeout time.Duration
+	// MaxBW, MSS, PayloadSize, SendBuf and RecvBuf set maxbw in bytes per
+	// second, mss, payloadsize, sendbuf and recvbuf in bytes, when not zero.
+	MaxBW                              int64
+	MSS, PayloadSize, SendBuf, RecvBuf int
+	// TSBPDOff and TLPktDropOff turn tsbpdmode and tlpktdrop off.
+	TSBPDOff, TLPktDropOff bool
+	// VhostOff leaves SRT off on the vhost, with the listener on, and
+	// NoToRTMP turns srt_to_rtmp off.
+	VhostOff, NoToRTMP bool
+	// IPv6 makes SRT listen on [::] too, on the same port, and MorePorts
+	// are more ports it listens on, each one ReservePort handed out.
+	IPv6      bool
+	MorePorts []int
 }
 
 // WithSRT returns a copy of cfg with SRT on, like Common: the listener, SRT
@@ -1271,11 +1288,35 @@ func WithSRT(cfg Config, s SRTOptions) Config {
 		"SRS_SRT_SERVER_LATENCY":           s.Latency,
 		"SRS_SRT_SERVER_PEERLATENCY":       s.PeerLatency,
 		"SRS_SRT_SERVER_PEER_IDLE_TIMEOUT": s.PeerIdleTimeout,
+		"SRS_SRT_SERVER_CONNECT_TIMEOUT":   s.ConnectTimeout,
 	} {
 		if d != 0 {
 			env[k] = ms(d)
 		}
 	}
+	for k, v := range map[string]int64{
+		"SRS_SRT_SERVER_MAXBW":       s.MaxBW,
+		"SRS_SRT_SERVER_MSS":         int64(s.MSS),
+		"SRS_SRT_SERVER_PAYLOADSIZE": int64(s.PayloadSize),
+		"SRS_SRT_SERVER_SENDBUF":     int64(s.SendBuf),
+		"SRS_SRT_SERVER_RECVBUF":     int64(s.RecvBuf),
+	} {
+		if v != 0 {
+			env[k] = strconv.FormatInt(v, 10)
+		}
+	}
+	for k, off := range map[string]bool{
+		"SRS_SRT_SERVER_TSBPDMODE": s.TSBPDOff,
+		"SRS_SRT_SERVER_TLPKTDROP": s.TLPktDropOff,
+		"SRS_VHOST_SRT_ENABLED":    s.VhostOff,
+		"SRS_VHOST_SRT_TO_RTMP":    s.NoToRTMP,
+	} {
+		if off {
+			env[k] = "off"
+		}
+	}
+	cfg.SRTIPv6 = s.IPv6
+	cfg.SRTMorePorts = s.MorePorts
 	cfg.Env = env
 	if !slices.Contains(cfg.Listeners, SRT) {
 		cfg.Listeners = append(slices.Clone(cfg.Listeners), SRT)

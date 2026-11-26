@@ -16,6 +16,7 @@ require (
 	github.com/pion/stun/v4 v4.0.0
 	github.com/pion/transport/v4 v4.1.0
 	github.com/pion/webrtc/v4 v4.2.20
+	github.com/zsiec/srtgo v0.4.0
 )
 
 require (

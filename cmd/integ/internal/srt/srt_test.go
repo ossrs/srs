@@ -318,6 +318,26 @@ func TestSenderMessages(t *testing.T) {
 	}
 }
 
+// TestSenderSize checks messages of 5 packets, and a size of no whole packet
+// rounded down to one, at least one.
+func TestSenderSize(t *testing.T) {
+	data := tsStream(12)
+	for _, tc := range []struct{ size, packets int }{{5 * 188, 5}, {5*188 + 100, 5}, {100, 1}} {
+		w := &writes{}
+		if err := NewSenderSize(bytes.NewReader(data), tc.size).SendThrough(w, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		for i, m := range w.msgs[:len(w.msgs)-1] {
+			if len(m) != tc.packets*188 {
+				t.Errorf("size %v: message %v of %v bytes, want %v", tc.size, i, len(m), tc.packets*188)
+			}
+		}
+		if !bytes.Equal(bytes.Join(w.msgs, nil), data) {
+			t.Errorf("size %v: the messages are not the stream", tc.size)
+		}
+	}
+}
+
 func TestSenderErrors(t *testing.T) {
 	bad := tsStream(3)
 	bad[188] = 0x46

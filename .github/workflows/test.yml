@@ -208,6 +208,12 @@ jobs:
         with:
           path: cmd/integ/testdata/media
           key: ${{ steps.media.outputs.cache-primary-key }}
+      # The SRT cases and unit tests use libsrt v1.5.7 through the tools/srt-libsrt client, built from source
+      # with OpenSSL's headers into a Docker volume, which each step below mounts at tools/srt-libsrt/objs.
+      - name: Build the libsrt test client
+        run: |
+          docker run --rm -w /srs -v srt-libsrt:/srs/tools/srt-libsrt/objs srs:test \
+            bash -c 'apt-get update -y && apt-get install -y libssl-dev && bash skills/srs-develop/scripts/srt-libsrt-build.sh'
       # Its unit tests test its clients and analyzers, and its media tests read the test media.
       # Some send media over UDP to a local fake server, which a busy runner can drop, so they
       # are retried like the cases.
@@ -219,7 +225,8 @@ jobs:
           retry_on: error
           command: |
             docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
-              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media \
+              -v srt-libsrt:/srs/tools/srt-libsrt/objs srs:test \
               make integ-unit
       # CI runners are slower than a developer's machine, so the class limits of the cases are 4
       # times longer. The cases and the timer cases run one after the other, not at once as make
@@ -233,7 +240,8 @@ jobs:
           retry_on: error
           command: |
             docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
-              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media \
+              -v srt-libsrt:/srs/tools/srt-libsrt/objs srs:test \
               make integ-main INTEG_ARGS=-integ.limit-scale=4
       - name: Run SRS integration timer test
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
@@ -243,7 +251,8 @@ jobs:
           retry_on: error
           command: |
             docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
-              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media \
+              -v srt-libsrt:/srs/tools/srt-libsrt/objs srs:test \
               make integ-timer INTEG_ARGS=-integ.limit-scale=4
     runs-on: ubuntu-22.04
 
