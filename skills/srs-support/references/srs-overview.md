@@ -171,6 +171,14 @@ About the features supported by SRS.
 
 - **RTMP** — SRS is fundamentally an RTMP server. It supports publishing and playing RTMP streams, which is the core foundation of SRS. All other protocols are built on top of RTMP as the base. v1.0, 2013
 - **SRT** — SRS is also an SRT server. It supports publishing and playing SRT streams. SRS uses [libsrt](https://github.com/Haivision/srt) to create the SRT server. v4.0, 2020-01
+- **SRT bonding** — SRS accepts a bonded SRT publisher: an encoder that sends one stream over several links (a libsrt socket group, in broadcast or backup mode), so the stream survives losing a link. Off by default: `srt_server.bonding on` or `SRS_SRT_SERVER_BONDING=on`, then a restart. See the Bonding section of `doc/srt.md`. v8.0
+  - Publish only: a group in play mode is refused; players use plain SRT.
+  - Encoders: FFmpeg and OBS cannot bond; the encoder must use libsrt socket groups.
+  - At most 8 links per group; every link must reach the same SRS, though one may use IPv4 and another IPv6.
+  - One client: the client IP in the API, hooks and security rules is the first link's address.
+  - All links lost: SRS closes the group, and the encoder must start a new group to publish again.
+  - Set a passphrase, or anyone who guesses a live group's ID can add a link to it.
+  - Through the proxy: several proxies need the Redis load balancer, and links dialed at the same moment through two proxies may still reach two origins.
 - **WebRTC** — SRS is also a WebRTC server, supporting WHIP for publishing and WHEP for playing streams. SRS is an SFU (Selective Forwarding Unit) server. It does not support TURN. It does not support P2P for WebRTC. v4.0, 2020-03
 - **RTSP** — SRS only supports playing RTSP streams. Currently it only supports converting RTMP to RTSP. v7.0, 2025-07
 - **HLS** — SRS supports converting RTMP to HLS. HLS is the best compatibility protocol, supported by all platforms, all browsers, and all operating systems. v1.0, 2013

@@ -171,7 +171,7 @@ func TestTimer_Srt_Proxy(t *testing.T) {
 			}
 			stream := streamName(c)
 			play := dialSRTAt(c, srt.GoSRT, redisB.srtAddr(), srt.Options{StreamID: srtID("live/"+stream, "request")})
-			origin, other := srtProxyOriginOf(c, stream, origin1, origin2)
+			origin, other := srtProxyOriginOf(c, "on_play", stream, origin1, origin2)
 			publishSRTInterop(c, cl, redisA.srtAddr(), srt.Options{StreamID: srtID("live/"+stream, "publish")})
 			waitHook(c, origin, "on_publish", stream)
 			checkSRTPlayed(c, srtAnalyze(c, play))
@@ -359,20 +359,20 @@ func (p *srtProxy) register(t interface {
 	}
 }
 
-// srtProxyOriginOf is the origin that got a player of a stream, by its
-// on_play, and the other one.
-func srtProxyOriginOf(c *check.C, stream string, a, b *server.Server) (*server.Server, *server.Server) {
+// srtProxyOriginOf is the origin that got a client of a stream, by the hook
+// action, such as its on_play, and the other one.
+func srtProxyOriginOf(c *check.C, action, stream string, a, b *server.Server) (*server.Server, *server.Server) {
 	c.Helper()
 	deadline := time.Now().Add(check.Scaled(time.Second))
 	for time.Now().Before(deadline) {
-		if len(a.Hooks.Requests(mock.Match{Action: "on_play", Stream: stream})) > 0 {
+		if len(a.Hooks.Requests(mock.Match{Action: action, Stream: stream})) > 0 {
 			return a, b
 		}
-		if len(b.Hooks.Requests(mock.Match{Action: "on_play", Stream: stream})) > 0 {
+		if len(b.Hooks.Requests(mock.Match{Action: action, Stream: stream})) > 0 {
 			return b, a
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	c.Fatalf("no origin got the player of %v", stream)
+	c.Fatalf("no origin got the %v of %v", action, stream)
 	return nil, nil
 }

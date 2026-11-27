@@ -319,6 +319,7 @@ public:
 
 public:
     virtual std::vector<std::string> get_srt_listens() = 0;
+    virtual bool get_srt_bonding() = 0;
     virtual int64_t get_srto_maxbw() = 0;
     virtual int get_srto_mss() = 0;
     virtual bool get_srto_tsbpdmode() = 0;
@@ -844,6 +845,8 @@ public:
 public:
     virtual bool get_srt_enabled();
     virtual std::vector<std::string> get_srt_listens();
+    // Whether the SRT listeners accept bonded callers (libsrt socket groups). A restart changes it.
+    virtual bool get_srt_bonding();
     virtual int64_t get_srto_maxbw();
     virtual int get_srto_mss();
     virtual bool get_srto_tsbpdmode();

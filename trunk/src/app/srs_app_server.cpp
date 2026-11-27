@@ -193,6 +193,7 @@ SrsServer::SrsServer()
     signal_gracefully_quit_ = false;
 
     pid_file_locker_ = new SrsPidFileLocker();
+    srt_groups_ = new SrsSrtGroups();
 
     signal_manager_ = new SrsSignalManager(this);
 
@@ -272,6 +273,7 @@ SrsServer::~SrsServer()
     srs_freep(ingester_);
 
     srs_freep(pid_file_locker_);
+    srs_freep(srt_groups_);
 
     srs_freep(signal_manager_);
     srs_freep(rtmp_listener_);
@@ -1226,12 +1228,14 @@ void SrsServer::close_srt_listeners()
     }
 }
 
-srs_error_t SrsServer::accept_srt_client(srs_srt_t srt_fd)
+srs_error_t SrsServer::accept_srt_client(srs_srt_t srt_fd, std::string ip, int port)
 {
     srs_error_t err = srs_success;
 
+    srt_groups_->add(srt_fd);
+
     ISrsResource *resource = NULL;
-    if ((err = srt_fd_to_resource(srt_fd, &resource)) != srs_success) {
+    if ((err = srt_fd_to_resource(srt_fd, ip, port, &resource)) != srs_success) {
         // The fd leaks unless closed here.
         srs_srt_close(srt_fd);
         return srs_error_wrap(err, "srt fd to resource");
@@ -1249,16 +1253,16 @@ srs_error_t SrsServer::accept_srt_client(srs_srt_t srt_fd)
     return err;
 }
 
-srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
+void SrsServer::on_srt_links_joined()
+{
+    srt_groups_->limit_links();
+}
+
+srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, std::string ip, int port, ISrsResource **pr)
 {
     srs_error_t err = srs_success;
 
-    string ip = "";
-    int port = 0;
-    if ((err = srs_srt_get_remote_ip_port(srt_fd, ip, port)) != srs_success) {
-        return srs_error_wrap(err, "get srt ip port");
-    }
-
+    // The address is the one the listener accepted the caller from, as a socket group has no peer address.
     if ((err = on_before_connection("SRT", (int)srt_fd, ip, port)) != srs_success) {
         return srs_error_wrap(err, "check");
     }

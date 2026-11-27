@@ -246,8 +246,11 @@ lane_h() {
     layer integ make integ
 }
 # Alone after lane H, for the same reason: the SRT proxy cases are srs-integ timer cases through the proxy, and
-# beside lane A one went over its limit.
-lane_j() { layer proxy-e2e-srt-impair bash $SCRIPTS/proxy-e2e-srt-impair-test.sh; }
+# beside lane A one went over its limit. The bonding script after the impair one, so neither loads the other.
+lane_j() {
+    layer proxy-e2e-srt-impair bash $SCRIPTS/proxy-e2e-srt-impair-test.sh
+    layer proxy-e2e-srt-bonding bash $SCRIPTS/proxy-e2e-srt-bonding-test.sh
+}
 
 START=$(date +%s)
 LANES="A-F" SKIPPED=

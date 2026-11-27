@@ -369,6 +369,25 @@ type srtGot struct {
 	buf  []byte
 	err  error
 	more chan struct{}
+	// last is when the player last read something, and gap the longest wait
+	// between two reads since resetGap.
+	last time.Time
+	gap  time.Duration
+}
+
+// resetGap starts the longest wait between two reads again, from now.
+func (g *srtGot) resetGap() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.last, g.gap = time.Now(), 0
+}
+
+// longestGap is the longest wait between two reads since resetGap, up to
+// now.
+func (g *srtGot) longestGap() time.Duration {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return max(g.gap, time.Since(g.last))
 }
 
 // collectSRT reads a player until it closes.
@@ -379,6 +398,12 @@ func collectSRT(play *srt.Conn) *srtGot {
 		for {
 			n, err := play.Read(p)
 			g.mu.Lock()
+			if now := time.Now(); n > 0 {
+				if !g.last.IsZero() {
+					g.gap = max(g.gap, now.Sub(g.last))
+				}
+				g.last = now
+			}
 			g.buf = append(g.buf, p[:n]...)
 			g.err = err
 			g.mu.Unlock()

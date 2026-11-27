@@ -196,10 +196,7 @@ func (liveTransmitClient) Dial(ctx context.Context, addr string, opts Options) (
 		return nil, err
 	}
 
-	l := &liveTransmitLink{
-		publish: ffmpegPublishes(opts.StreamID),
-		started: make(chan struct{}), connected: make(chan struct{}), rejected: make(chan struct{}), exited: make(chan struct{}),
-	}
+	l := newInteropLink("srtLiveTransmit", ffmpegPublishes(opts.StreamID), interopConnectedRE)
 	uri := liveTransmitURI(interopHost(addr), opts, handshakeTimeout(ctx, opts))
 	tool := interopLiveTransmit
 	var args []string
@@ -209,29 +206,9 @@ func (liveTransmitClient) Dial(ctx context.Context, addr string, opts Options) (
 		tool.wholeReads = false
 		args = []string{uri, "file://con"}
 	}
-	l.cmd, l.name, l.rm = interopRun(tool, nil, args...)
-	var err error
-	if l.stdin, err = l.cmd.StdinPipe(); err != nil {
+	if err := l.start(tool, args...); err != nil {
 		return nil, err
 	}
-	// An os.Pipe of its own, which Wait leaves open, so the last of the media
-	// can be read after the tool exits.
-	r, w, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	defer w.Close()
-	l.cmd.Stdout, l.stdout = w, r
-	stderr, err := l.cmd.StderrPipe()
-	if err != nil {
-		r.Close()
-		return nil, err
-	}
-	if err := l.cmd.Start(); err != nil {
-		r.Close()
-		return nil, err
-	}
-	go l.watch(stderr)
 
 	ready := l.connected
 	if !l.publish {
@@ -245,9 +222,142 @@ func (liveTransmitClient) Dial(ctx context.Context, addr string, opts Options) (
 		settle := time.AfterFunc(liveTransmitSettle, func() { close(ready) })
 		defer settle.Stop()
 	}
+	return l.wait(ctx, ready)
+}
+
+// TestLive is srt-test-live of libsrt v1.5.7, in the interop image, run with
+// Docker, as a publisher that calls as a socket group: libsrt's own bonded
+// caller. The image patches it to send over a group, which 1.5.7 refuses as
+// it is. It calls only as a group, so it is not in GroupClients, but tests
+// that have the image name it.
+var TestLive GroupClient = testLiveClient{}
+
+type testLiveClient struct{}
+
+func (testLiveClient) Name() string { return "srtTestLive" }
+
+// Dial is refused: srt-live-transmit is the plain libsrt tool, LiveTransmit.
+func (testLiveClient) Dial(ctx context.Context, addr string, opts Options) (*Conn, error) {
+	return nil, errors.New("srtTestLive calls only as a socket group here; srtLiveTransmit is libsrt's plain caller")
+}
+
+// testLiveLinkRE is libsrt's note, in srt-test-live's log at -ll:note, of a
+// link that connected, and testLiveReadyRE the tool's line once it reads
+// stdin.
+var (
+	testLiveLinkRE  = regexp.MustCompile(`: Connection established from .* to peer @`)
+	testLiveReadyRE = regexp.MustCompile(`STARTING TRANSMISSION: `)
+)
+
+// DialGroup runs srt-test-live to publish what the Conn is written over a
+// group of mode, one link to each address of links, with the group's options
+// in its -g URI. The tool reads its stdin once its first link connects, as
+// libsrt's srt_connect_group returns then, and tells nothing of the later
+// links, so DialGroup counts libsrt's note of each link that connected, and
+// returns once every link did, or the handshake timeout after the first; a
+// refusal is a *RejectError, from libsrt's log. A container starts in about
+// a second, so ctx needs more than that.
+func (testLiveClient) DialGroup(ctx context.Context, mode GroupMode, links []string, opts Options) (*Conn, error) {
+	if err := checkOptions(opts); err != nil {
+		return nil, err
+	}
+	if err := liveTransmitOptions(opts); err != nil {
+		return nil, fmt.Errorf("srtTestLive: %w", err)
+	}
+	if !ffmpegPublishes(opts.StreamID) {
+		return nil, errors.New("srtTestLive only publishes; give a stream ID with m=publish")
+	}
+	if err := interopOnce(); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	l := newInteropLink("srtTestLive", true, testLiveReadyRE)
+	l.linkRE = testLiveLinkRE
+	timeout := handshakeTimeout(ctx, opts)
+	args := append([]string{}, interopTestLive.callerArgs...)
+	args = append(args, "-ll:note", "file://con", "-g", testLiveGroupURI(mode, opts, timeout))
+	for _, link := range links {
+		args = append(args, interopHost(link))
+	}
+	if err := l.start(interopTestLive, args...); err != nil {
+		return nil, err
+	}
+	c, err := l.wait(ctx, l.connected)
+	if err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(timeout)
+	for l.links() < len(links) && time.Now().Before(deadline) && ctx.Err() == nil {
+		time.Sleep(5 * time.Millisecond)
+	}
+	return c, nil
+}
+
+// testLiveGroupURI is srt-test-live's URI of a group of mode with opts, whose
+// values it URL-decodes, as srt-live-transmit does.
+func testLiveGroupURI(mode GroupMode, opts Options, timeout time.Duration) string {
+	q := []string{"type=" + string(mode), "conntimeo=" + strconv.FormatInt(timeout.Milliseconds(), 10)}
+	if opts.StreamID != "" {
+		q = append(q, "streamid="+url.QueryEscape(opts.StreamID))
+	}
+	if opts.Passphrase != "" {
+		q = append(q, "passphrase="+url.QueryEscape(opts.Passphrase))
+		if opts.PBKeyLen != 0 {
+			q = append(q, "pbkeylen="+strconv.Itoa(opts.PBKeyLen))
+		}
+	}
+	if opts.Latency != 0 {
+		q = append(q, "latency="+strconv.FormatInt(opts.Latency.Milliseconds(), 10))
+	}
+	return "srt://*?" + strings.Join(q, "&")
+}
+
+// newInteropLink is a link of the client of a tool that publishes or plays,
+// connected at its line readyRE.
+func newInteropLink(client string, publish bool, readyRE *regexp.Regexp) *liveTransmitLink {
+	return &liveTransmitLink{
+		client: client, publish: publish, readyRE: readyRE,
+		started: make(chan struct{}), connected: make(chan struct{}), rejected: make(chan struct{}), exited: make(chan struct{}),
+	}
+}
+
+// start runs tool with args in its container, and watches its log.
+func (l *liveTransmitLink) start(tool interopTool, args ...string) error {
+	l.cmd, l.name, l.rm = interopRun(tool, nil, args...)
+	var err error
+	if l.stdin, err = l.cmd.StdinPipe(); err != nil {
+		return err
+	}
+	// An os.Pipe of its own, which Wait leaves open, so the last of the media
+	// can be read after the tool exits.
+	r, w, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	l.cmd.Stdout, l.stdout = w, r
+	stderr, err := l.cmd.StderrPipe()
+	if err != nil {
+		r.Close()
+		return err
+	}
+	if err := l.cmd.Start(); err != nil {
+		r.Close()
+		return err
+	}
+	go l.watch(stderr)
+	return nil
+}
+
+// wait returns the Conn once ready is closed, or the tool's error when it is
+// refused or ends first, or ctx's.
+func (l *liveTransmitLink) wait(ctx context.Context, ready <-chan struct{}) (*Conn, error) {
 	select {
 	case <-ready:
-		return &Conn{c: l, client: "srtLiveTransmit"}, nil
+		return &Conn{c: l, client: l.client}, nil
 	case <-l.rejected:
 		l.kill()
 		return nil, l.err()
@@ -256,18 +366,34 @@ func (liveTransmitClient) Dial(ctx context.Context, addr string, opts Options) (
 		return nil, l.err()
 	case <-ctx.Done():
 		l.kill()
-		return nil, fmt.Errorf("srtLiveTransmit did not connect: %w: %v", ctx.Err(), l.output())
+		return nil, fmt.Errorf("%v did not connect: %w: %v", l.client, ctx.Err(), l.output())
 	}
 }
 
-// A liveTransmitLink is a running srt-live-transmit in its container.
+// links is how many links of a group the tool said connected, 0 for a plain
+// connection.
+func (l *liveTransmitLink) links() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.nlinks
+}
+
+// A liveTransmitLink is a running srt-live-transmit, or srt-test-live, in its
+// container.
 type liveTransmitLink struct {
+	// client is the name of the client, for its errors.
+	client  string
 	cmd     *exec.Cmd
 	name    string
 	rm      func()
 	publish bool
 	stdin   io.WriteCloser
 	stdout  *os.File
+	// readyRE is the tool's line that says it connected, and linkRE, when
+	// set, a line before it of each link of a group that connected, which
+	// nlinks counts.
+	readyRE, linkRE *regexp.Regexp
+	nlinks          int
 	// started, connected and rejected are closed at the tool's lines that
 	// say so, and exited when the tool has exited.
 	started, connected, rejected, exited chan struct{}
@@ -286,11 +412,16 @@ func (l *liveTransmitLink) watch(stderr io.Reader) {
 		line := s.Text()
 		l.mu.Lock()
 		fmt.Fprintf(&l.logs, "%v\n", line)
+		// libsrt's log and the tool's own lines share stderr, so a note
+		// of a link may come in the middle of another line.
+		if l.linkRE != nil && l.linkRE.MatchString(line) {
+			l.nlinks++
+		}
 		l.mu.Unlock()
 		switch {
 		case liveTransmitStartedRE.MatchString(line):
 			started.Do(func() { close(l.started) })
-		case interopConnectedRE.MatchString(line):
+		case l.readyRE.MatchString(line):
 			connected.Do(func() { close(l.connected) })
 		case ffmpegRejectRE.MatchString(line):
 			rejected.Do(func() {
@@ -317,12 +448,12 @@ func (l *liveTransmitLink) err() error {
 	if err := ffmpegRejectOf(errors.New("ended"), logs); errors.As(err, new(*RejectError)) {
 		return err
 	}
-	return fmt.Errorf("srtLiveTransmit ended before it connected: %v", logs)
+	return fmt.Errorf("%v ended before it connected: %v", l.client, logs)
 }
 
 func (l *liveTransmitLink) Read(p []byte) (int, error) {
 	if l.publish {
-		return 0, errors.New("the srtLiveTransmit connection publishes; give a stream ID without m=publish to play")
+		return 0, fmt.Errorf("the %v connection publishes; give a stream ID without m=publish to play", l.client)
 	}
 	n, err := l.stdout.Read(p)
 	if err != nil {
@@ -337,11 +468,11 @@ func (l *liveTransmitLink) Read(p []byte) (int, error) {
 
 func (l *liveTransmitLink) Write(p []byte) (int, error) {
 	if !l.publish {
-		return 0, errors.New("the srtLiveTransmit connection plays; give a stream ID with m=publish to publish")
+		return 0, fmt.Errorf("the %v connection plays; give a stream ID with m=publish to publish", l.client)
 	}
 	n, err := l.stdin.Write(p)
 	if err != nil {
-		return n, fmt.Errorf("srtLiveTransmit: %w: %v", err, l.output())
+		return n, fmt.Errorf("%v: %w: %v", l.client, err, l.output())
 	}
 	return n, nil
 }

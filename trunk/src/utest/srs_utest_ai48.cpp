@@ -87,6 +87,7 @@ SrtUtestUdpRelay::SrtUtestUdpRelay(string target_ip, int target_port, uint32_t s
         blackholed_[i] = 0;
     }
     blackhole_ = 0;
+    forged_group_ = 0;
     stop_ = 0;
     started_ = false;
 }
@@ -199,6 +200,35 @@ void SrtUtestUdpRelay::inject(const char *buf, int size)
     ::send(server_fd_, buf, size, 0);
 }
 
+void SrtUtestUdpRelay::forge_group(SRTSOCKET group)
+{
+    srt_utest_atomic_store(&forged_group_, (int)group);
+}
+
+// Write the group ID into the group block of a handshake: the 16-byte header of a control packet of type 0, the
+// 48-byte handshake, then extension blocks of a 32-bit word of type and length in words, all in network order;
+// the group block, type 8, starts with the caller's group ID.
+static void srt_utest_forge_group(char *buf, int size, uint32_t group)
+{
+    if (size < 68 || (uint8_t)buf[0] != 0x80 || buf[1] != 0) {
+        return;
+    }
+
+    for (int pos = 64; pos + 4 <= size;) {
+        uint32_t head = 0;
+        memcpy(&head, buf + pos, 4);
+        head = ntohl(head);
+        int type = (int)(head >> 16);
+        int len = (int)(head & 0xffff) * 4;
+        if (type == 8 && len >= 4 && pos + 8 <= size) {
+            uint32_t id = htonl(group);
+            memcpy(buf + pos + 4, &id, 4);
+            return;
+        }
+        pos += 4 + len;
+    }
+}
+
 int SrtUtestUdpRelay::forwarded(Direction dir)
 {
     return srt_utest_atomic_load(&forwarded_[dir]);
@@ -284,6 +314,10 @@ void SrtUtestUdpRelay::cycle()
             }
 
             if (dir == Up) {
+                int forged = srt_utest_atomic_load(&forged_group_);
+                if (forged) {
+                    srt_utest_forge_group(buf, nn, (uint32_t)forged);
+                }
                 ::send(server_fd_, buf, nn, 0);
             } else {
                 ::sendto(client_fd_, buf, nn, 0, (sockaddr *)&client, client_len);
@@ -606,4 +640,447 @@ VOID TEST(SrtUtestUdpRelayTest, LossOfSeed_DropsThatShareAndReplays)
     srs_close_socket(sink);
 
     EXPECT_EQ(lost[0], lost[1]);
+}
+
+// The members of a group, as srt_group_data gives them.
+vector<SRT_SOCKGROUPDATA> srt_utest_group_members(SRTSOCKET group)
+{
+    // A link may join between the two calls, so the second has room for a few more.
+    size_t size = 0;
+    if (srt_group_data(group, NULL, &size) < 0) {
+        return vector<SRT_SOCKGROUPDATA>();
+    }
+    vector<SRT_SOCKGROUPDATA> members(size + 4);
+    size = members.size();
+    if (srt_group_data(group, &members[0], &size) < 0) {
+        size = 0;
+    }
+    members.resize(size);
+    return members;
+}
+
+SrtUtestBondCaller::SrtUtestBondCaller(SRT_GROUP_TYPE type)
+{
+    type_ = type;
+    group_ = SRT_INVALID_SOCK;
+}
+
+SrtUtestBondCaller::~SrtUtestBondCaller()
+{
+    // The group first, so no relay thread is stopped under a handshake or a shutdown.
+    close();
+    for (int i = 0; i < (int)relays_.size(); i++) {
+        srs_freep(relays_[i]);
+    }
+}
+
+void SrtUtestBondCaller::set_passphrase(string passphrase)
+{
+    passphrase_ = passphrase;
+}
+
+srs_error_t SrtUtestBondCaller::add_link(string ip, int port)
+{
+    srs_error_t err = srs_success;
+
+    SrtUtestUdpRelay *relay = new SrtUtestUdpRelay(ip, port, (uint32_t)relays_.size() + 1);
+    relays_.push_back(relay);
+    ips_.push_back(ip);
+    ports_.push_back(port);
+    if ((err = relay->start()) != srs_success) {
+        return srs_error_wrap(err, "relay of link %d", (int)relays_.size());
+    }
+
+    return err;
+}
+
+srs_error_t SrtUtestBondCaller::connect(string streamid, srs_utime_t latency)
+{
+    if ((group_ = srt_create_group(type_)) == SRT_INVALID_SOCK) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "create group: %s", srt_getlasterror_str());
+    }
+
+    // A group passes its options on to each link.
+    int latency_ms = srsu2msi(latency);
+    if (srt_setsockflag(group_, SRTO_LATENCY, &latency_ms, sizeof(latency_ms)) != 0) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "latency: %s", srt_getlasterror_str());
+    }
+    if (srt_setsockflag(group_, SRTO_STREAMID, streamid.data(), (int)streamid.size()) != 0) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "streamid: %s", srt_getlasterror_str());
+    }
+    if (!passphrase_.empty() && srt_setsockflag(group_, SRTO_PASSPHRASE, passphrase_.data(), (int)passphrase_.size()) != 0) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "passphrase: %s", srt_getlasterror_str());
+    }
+
+    return connect_links(0);
+}
+
+srs_error_t SrtUtestBondCaller::join(string ip, int port)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = add_link(ip, port)) != srs_success) {
+        return srs_error_wrap(err, "add link");
+    }
+
+    // On a connected group, libsrt starts the new link and returns at once.
+    return connect_links((int)relays_.size() - 1);
+}
+
+void SrtUtestBondCaller::drop_links()
+{
+    vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(group_);
+    for (int i = 0; i < (int)members.size(); i++) {
+        SRT_SOCKGROUPDATA &member = members[i];
+        srt_close(member.id);
+    }
+
+    // libsrt takes a closed link out of the group in its own threads.
+    for (int i = 0; i < 300 && !srt_utest_group_members(group_).empty(); i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
+srs_error_t SrtUtestBondCaller::redial()
+{
+    srs_error_t err = srs_success;
+
+    int from = (int)relays_.size();
+    for (int i = 0; i < from; i++) {
+        if ((err = add_link(ips_[i], ports_[i])) != srs_success) {
+            return srs_error_wrap(err, "link %d", i);
+        }
+    }
+
+    return connect_links(from);
+}
+
+srs_error_t SrtUtestBondCaller::connect_links(int from)
+{
+    srs_error_t err = srs_success;
+
+    vector<SRT_SOCKGROUPCONFIG> links;
+    for (int i = from; i < (int)relays_.size(); i++) {
+        sockaddr_storage addr;
+        socklen_t addr_len = 0;
+        if ((err = srt_utest_relay_addr(ips_[i], relays_[i]->port(), &addr, &addr_len)) != srs_success) {
+            return srs_error_wrap(err, "link %d", i);
+        }
+        links.push_back(srt_prepare_endpoint(NULL, (sockaddr *)&addr, addr_len));
+    }
+    if (srt_connect_group(group_, &links[0], (int)links.size()) < 0) {
+        return srs_error_new(ERROR_SRT_CONN, "connect group: %s", srt_getlasterror_str());
+    }
+
+    srs_utime_t deadline = srs_time_now_realtime() + 3 * SRS_UTIME_SECONDS;
+    while (srs_time_now_realtime() < deadline) {
+        vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(group_);
+        bool connecting = false;
+        for (int i = 0; i < (int)members.size(); i++) {
+            connecting = connecting || members[i].sockstate < SRTS_CONNECTED;
+        }
+        if (!connecting) {
+            break;
+        }
+        srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    }
+
+    return err;
+}
+
+int SrtUtestBondCaller::connected_links()
+{
+    if (group_ == SRT_INVALID_SOCK) {
+        return 0;
+    }
+
+    int connected = 0;
+    vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(group_);
+    for (int i = 0; i < (int)members.size(); i++) {
+        if (members[i].sockstate == SRTS_CONNECTED) {
+            connected++;
+        }
+    }
+    return connected;
+}
+
+srs_error_t SrtUtestBondCaller::send(const void *buf, int size)
+{
+    if (srt_sendmsg2(group_, (const char *)buf, size, NULL) < 0) {
+        return srs_error_new(ERROR_SRT_IO, "send: %s", srt_getlasterror_str());
+    }
+    return srs_success;
+}
+
+SrtUtestUdpRelay *SrtUtestBondCaller::relay(int i)
+{
+    return relays_.at(i);
+}
+
+SrtUtestUdpRelay *SrtUtestBondCaller::busiest()
+{
+    SrtUtestUdpRelay *best = NULL;
+    for (int i = 0; i < (int)relays_.size(); i++) {
+        SrtUtestUdpRelay *relay = relays_[i];
+        if (!best || relay->forwarded(SrtUtestUdpRelay::Up) > best->forwarded(SrtUtestUdpRelay::Up)) {
+            best = relay;
+        }
+    }
+    return best;
+}
+
+SRTSOCKET SrtUtestBondCaller::group()
+{
+    return group_;
+}
+
+void SrtUtestBondCaller::close()
+{
+    if (group_ != SRT_INVALID_SOCK) {
+        srt_close(group_);
+        group_ = SRT_INVALID_SOCK;
+    }
+}
+
+// A non-blocking libsrt listener of SRS's libsrt on a free loopback port, as SRS's own, that accepts socket
+// groups when groupconnect is set.
+static srs_error_t srt_utest_group_listen(bool groupconnect, SRTSOCKET *pfd, int *pport)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = srs_utest_free_port(SOCK_DGRAM, pport)) != srs_success) {
+        return srs_error_wrap(err, "free port");
+    }
+
+    SRTSOCKET fd = srt_create_socket();
+    if (fd == SRT_INVALID_SOCK) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "socket: %s", srt_getlasterror_str());
+    }
+    *pfd = fd;
+
+    int no = 0;
+    int on = groupconnect ? 1 : 0;
+    if (srt_setsockflag(fd, SRTO_RCVSYN, &no, sizeof(no)) != 0 || srt_setsockflag(fd, SRTO_GROUPCONNECT, &on, sizeof(on)) != 0) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "options: %s", srt_getlasterror_str());
+    }
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(*pport);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    if (srt_bind(fd, (sockaddr *)&addr, sizeof(addr)) != 0 || srt_listen(fd, 8) != 0) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "listen: %s", srt_getlasterror_str());
+    }
+
+    return err;
+}
+
+// Accept the next caller, waiting at most timeout.
+static srs_error_t srt_utest_group_accept(SRTSOCKET lfd, SRTSOCKET *pfd, srs_utime_t timeout = 3 * SRS_UTIME_SECONDS)
+{
+    srs_utime_t deadline = srs_time_now_realtime() + timeout;
+    while (true) {
+        sockaddr_storage addr;
+        int addr_len = sizeof(addr);
+        if ((*pfd = srt_accept(lfd, (sockaddr *)&addr, &addr_len)) != SRT_INVALID_SOCK) {
+            return srs_success;
+        }
+        if (srs_time_now_realtime() > deadline) {
+            return srs_error_new(ERROR_SRT_TIMEOUT, "accept: %s", srt_getlasterror_str());
+        }
+        srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
+// Send messages from to to-1 over the group, 10 every 5ms, and read on the accepted socket, non-blocking as
+// the listener, until all of them are in seqs, at most 3 seconds. While the receiver gets nothing for 20ms, the
+// caller sends a filler message, of sequence -1, as a publisher's next packets would.
+static srs_error_t srt_utest_group_deliver(SrtUtestBondCaller *caller, SRTSOCKET afd, int from, int to, vector<int> &seqs)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = from; i < to; i++) {
+        string msg = srt_utest_relay_message(i);
+        if ((err = caller->send(msg.data(), msg.size())) != srs_success) {
+            return srs_error_wrap(err, "send %d", i);
+        }
+        if ((i % 10) == 9) {
+            srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+
+    char buf[1500];
+    srs_utime_t deadline = srs_time_now_realtime() + 3 * SRS_UTIME_SECONDS;
+    srs_utime_t last = srs_time_now_realtime();
+    while ((int)seqs.size() < to && srs_time_now_realtime() < deadline) {
+        int nn = srt_recvmsg(afd, buf, sizeof(buf));
+        if (nn < 0) {
+            if (srt_getlasterror(NULL) != SRT_EASYNCRCV) {
+                return srs_error_new(ERROR_SRT_IO, "recv: %s", srt_getlasterror_str());
+            }
+            if (srs_time_now_realtime() - last >= 20 * SRS_UTIME_MILLISECONDS) {
+                string filler = srt_utest_relay_message(-1);
+                if ((err = caller->send(filler.data(), filler.size())) != srs_success) {
+                    return srs_error_wrap(err, "send filler");
+                }
+                last = srs_time_now_realtime();
+            }
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            continue;
+        }
+
+        last = srs_time_now_realtime();
+        int seq = srt_utest_relay_seq(buf);
+        if (seq >= 0) {
+            seqs.push_back(seq);
+        }
+    }
+
+    return err;
+}
+
+// A listener that takes groups accepts a broadcast caller of two links as one group, not as two connections:
+// the accepted ID is a group with both links as members, and each message arrives once, as the receiver drops
+// the copy of the other link.
+VOID TEST(SrtUtestBondCallerTest, Broadcast_ListenerAcceptsOneGroupOfBothLinks)
+{
+    srs_error_t err;
+
+    SRTSOCKET lfd = SRT_INVALID_SOCK;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_listen(true, &lfd, &port));
+
+    SrtUtestBondCaller caller(SRT_GTYPE_BROADCAST);
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.connect("#!::r=live/bond,m=publish", 120 * SRS_UTIME_MILLISECONDS));
+    EXPECT_EQ(2, caller.connected_links());
+    EXPECT_NE(0, caller.group() & SRTGROUP_MASK);
+
+    SRTSOCKET afd = SRT_INVALID_SOCK;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_accept(lfd, &afd));
+    EXPECT_NE(0, afd & SRTGROUP_MASK);
+
+    // The second link joins the group in libsrt's threads, after the accept.
+    vector<int> seqs;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_deliver(&caller, afd, 0, 100, seqs));
+    vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(afd);
+    EXPECT_EQ(2, (int)members.size());
+
+    ASSERT_EQ(100, (int)seqs.size());
+    for (int i = 0; i < 100; i++) {
+        EXPECT_EQ(i, seqs[i]);
+    }
+    EXPECT_GE(caller.relay(0)->forwarded(SrtUtestUdpRelay::Up), 100);
+    EXPECT_GE(caller.relay(1)->forwarded(SrtUtestUdpRelay::Up), 100);
+
+    // The stream ID of the group is its first link's.
+    char sid[512];
+    int sid_len = sizeof(sid);
+    ASSERT_EQ(0, srt_getsockflag(afd, SRTO_STREAMID, sid, &sid_len)) << srt_getlasterror_str();
+    EXPECT_EQ("#!::r=live/bond,m=publish", string(sid, sid_len));
+
+    srt_close(afd);
+    srt_close(lfd);
+}
+
+// A broadcast group sends each message over both links, so when one link goes down mid-stream, every message
+// still arrives once and in order over the other, with no gap.
+VOID TEST(SrtUtestBondCallerTest, Broadcast_OneLinkBlackholed_EveryMessageOnceInOrder)
+{
+    srs_error_t err;
+
+    SRTSOCKET lfd = SRT_INVALID_SOCK;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_listen(true, &lfd, &port));
+
+    SrtUtestBondCaller caller(SRT_GTYPE_BROADCAST);
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.connect("#!::r=live/bond,m=publish", 120 * SRS_UTIME_MILLISECONDS));
+    ASSERT_EQ(2, caller.connected_links());
+
+    SRTSOCKET afd = SRT_INVALID_SOCK;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_accept(lfd, &afd));
+
+    vector<int> seqs;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_deliver(&caller, afd, 0, 250, seqs));
+    caller.relay(0)->blackhole();
+    HELPER_ASSERT_SUCCESS(srt_utest_group_deliver(&caller, afd, 250, 500, seqs));
+
+    ASSERT_EQ(500, (int)seqs.size());
+    for (int i = 0; i < 500; i++) {
+        EXPECT_EQ(i, seqs[i]);
+    }
+    EXPECT_GE(caller.relay(0)->blackholed(SrtUtestUdpRelay::Up), 250);
+
+    srt_close(afd);
+    srt_close(lfd);
+}
+
+// A backup group sends over one link, the active one; when that link goes down mid-stream, libsrt moves to the
+// other and sends again what the listener did not acknowledge, so every message still arrives once and in order.
+VOID TEST(SrtUtestBondCallerTest, Backup_ActiveLinkBlackholed_EveryMessageOnceInOrder)
+{
+    srs_error_t err;
+
+    SRTSOCKET lfd = SRT_INVALID_SOCK;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_listen(true, &lfd, &port));
+
+    SrtUtestBondCaller caller(SRT_GTYPE_BACKUP);
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.connect("#!::r=live/bond,m=publish", 120 * SRS_UTIME_MILLISECONDS));
+    ASSERT_EQ(2, caller.connected_links());
+
+    SRTSOCKET afd = SRT_INVALID_SOCK;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_accept(lfd, &afd));
+
+    vector<int> seqs;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_deliver(&caller, afd, 0, 250, seqs));
+    SrtUtestUdpRelay *active = caller.busiest();
+    ASSERT_TRUE(active != NULL);
+    SrtUtestUdpRelay *standby = (active == caller.relay(0)) ? caller.relay(1) : caller.relay(0);
+    int standby_up = standby->forwarded(SrtUtestUdpRelay::Up);
+    EXPECT_GE(active->forwarded(SrtUtestUdpRelay::Up), 250);
+    EXPECT_LT(standby_up, 250);
+
+    active->blackhole();
+    HELPER_ASSERT_SUCCESS(srt_utest_group_deliver(&caller, afd, 250, 500, seqs));
+
+    ASSERT_EQ(500, (int)seqs.size());
+    for (int i = 0; i < 500; i++) {
+        EXPECT_EQ(i, seqs[i]);
+    }
+    EXPECT_GE(standby->forwarded(SrtUtestUdpRelay::Up), standby_up + 250);
+
+    srt_close(afd);
+    srt_close(lfd);
+}
+
+// A listener that does not take groups refuses a group caller in the handshake, so no link connects.
+VOID TEST(SrtUtestBondCallerTest, ListenerWithoutGroupConnect_RefusesTheGroup)
+{
+    srs_error_t err;
+
+    SRTSOCKET lfd = SRT_INVALID_SOCK;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srt_utest_group_listen(false, &lfd, &port));
+
+    SrtUtestBondCaller caller(SRT_GTYPE_BROADCAST);
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    HELPER_ASSERT_SUCCESS(caller.add_link("127.0.0.1", port));
+    err = caller.connect("#!::r=live/bond,m=publish", 120 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(ERROR_SRT_CONN, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, caller.connected_links());
+
+    SRTSOCKET afd = SRT_INVALID_SOCK;
+    err = srt_utest_group_accept(lfd, &afd, 100 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(ERROR_SRT_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+
+    srt_close(lfd);
 }

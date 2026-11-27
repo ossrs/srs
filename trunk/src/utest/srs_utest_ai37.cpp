@@ -235,6 +235,8 @@ void MockRtcConnectionForTcpConnCycle::expire()
 MockSrtClientHandlerForAcceptor::MockSrtClientHandlerForAcceptor()
 {
     accept_error_ = srs_success;
+    links_joined_ = 0;
+    groups_ = NULL;
 }
 
 MockSrtClientHandlerForAcceptor::~MockSrtClientHandlerForAcceptor()
@@ -242,10 +244,23 @@ MockSrtClientHandlerForAcceptor::~MockSrtClientHandlerForAcceptor()
     srs_freep(accept_error_);
 }
 
-srs_error_t MockSrtClientHandlerForAcceptor::accept_srt_client(srs_srt_t srt_fd)
+srs_error_t MockSrtClientHandlerForAcceptor::accept_srt_client(srs_srt_t srt_fd, std::string ip, int port)
 {
     fds_.push_back(srt_fd);
+    ips_.push_back(ip);
+    ports_.push_back(port);
+    if (groups_) {
+        groups_->add(srt_fd);
+    }
     return srs_error_copy(accept_error_);
+}
+
+void MockSrtClientHandlerForAcceptor::on_srt_links_joined()
+{
+    links_joined_++;
+    if (groups_) {
+        groups_->limit_links();
+    }
 }
 
 MockSrtSocketWaiter::MockSrtSocketWaiter(SrsSrtSocket *skt, bool readable)
@@ -2108,7 +2123,8 @@ VOID TEST(SrtEventLoopTest, KeepsPollingWhenPollFails)
     }
 }
 
-// The acceptor hands each SRT client to its handler, and keeps accepting when the handler refuses one.
+// The acceptor hands each SRT client to its handler with the client's address, and keeps accepting when the
+// handler refuses one.
 VOID TEST(SrtAcceptorTest, HandsClientToHandler)
 {
     srs_error_t err;
@@ -2116,14 +2132,18 @@ VOID TEST(SrtAcceptorTest, HandsClientToHandler)
     MockSrtClientHandlerForAcceptor handler;
     SrsSrtAcceptor acceptor(&handler);
 
-    HELPER_EXPECT_SUCCESS(acceptor.on_srt_client(100));
+    HELPER_EXPECT_SUCCESS(acceptor.on_srt_client(100, "192.0.2.10", 5000));
     ASSERT_EQ(1, (int)handler.fds_.size());
     EXPECT_EQ(100, handler.fds_[0]);
+    EXPECT_STREQ("192.0.2.10", handler.ips_[0].c_str());
+    EXPECT_EQ(5000, handler.ports_[0]);
 
     handler.accept_error_ = srs_error_new(ERROR_SRT_CONN, "mock accept error");
-    HELPER_EXPECT_SUCCESS(acceptor.on_srt_client(101));
+    HELPER_EXPECT_SUCCESS(acceptor.on_srt_client(101, "2001:db8::1", 5001));
     ASSERT_EQ(2, (int)handler.fds_.size());
     EXPECT_EQ(101, handler.fds_[1]);
+    EXPECT_STREQ("2001:db8::1", handler.ips_[1].c_str());
+    EXPECT_EQ(5001, handler.ports_[1]);
 }
 
 // The hostname is the system one, and is cached.

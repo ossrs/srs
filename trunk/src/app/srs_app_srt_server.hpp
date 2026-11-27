@@ -25,7 +25,29 @@ public:
     virtual ~ISrsSrtClientHandler();
 
 public:
-    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd) = 0;
+    // Serve a caller the listener accepted from the address ip and port.
+    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd, std::string ip, int port) = 0;
+    // A link joined a socket group a listener accepted before.
+    virtual void on_srt_links_joined() = 0;
+};
+
+// The socket groups the listeners accepted, each the connection of a bonded publisher, so a link that joins one
+// later, which no listener hands, is still bounded: libsrt takes any number of links into a group.
+class SrsSrtGroups
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    std::vector<srs_srt_t> groups_;
+
+public:
+    SrsSrtGroups();
+    virtual ~SrsSrtGroups();
+
+public:
+    void add(srs_srt_t group);
+    // Close the links of each group past the most a group may have, the ones that joined last.
+    void limit_links();
+    int size();
 };
 
 class ISrsSrtAcceptor
@@ -68,7 +90,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t set_srt_opt();
 
 public:
-    virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd, std::string ip, int port);
+    virtual void on_srt_links_joined();
 };
 
 class ISrsSrtEventLoop

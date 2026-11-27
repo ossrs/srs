@@ -166,6 +166,67 @@ srs_srt_t srs_srt_socket_invalid()
     return SRT_INVALID_SOCK;
 }
 
+bool srs_srt_is_group(srs_srt_t fd)
+{
+    // libsrt gives a group an ID with the group bit, and a socket one below it.
+    return fd != SRT_INVALID_SOCK && (fd & SRTGROUP_MASK) != 0;
+}
+
+static srs_error_t srs_srt_addr_to_ip_port(const sockaddr_storage &addr, int addrlen, std::string &ip, int &port);
+
+static const char *srs_srt_member_state_str(SRT_MEMBERSTATUS state)
+{
+    switch (state) {
+    case SRT_GST_PENDING:
+        return "pending";
+    case SRT_GST_IDLE:
+        return "idle";
+    case SRT_GST_RUNNING:
+        return "running";
+    case SRT_GST_BROKEN:
+        return "broken";
+    }
+    return "unknown";
+}
+
+srs_error_t srs_srt_group_links(srs_srt_t group, std::vector<SrsSrtGroupLink> &links)
+{
+    // Links may join between asking the size and reading the links, and then the read fails for want of room.
+    std::vector<SRT_SOCKGROUPDATA> data;
+    size_t size = 0;
+    while (true) {
+        if (srt_group_data(group, NULL, &size) < 0) {
+            return srs_error_new(ERROR_SRT_SOCKOPT, "srt_group_data group=%d, err=%s", group, srt_getlasterror_str());
+        }
+
+        data.resize(size + 4);
+        size = data.size();
+        if (srt_group_data(group, &data[0], &size) >= 0) {
+            break;
+        }
+    }
+
+    links.clear();
+    for (size_t i = 0; i < size; i++) {
+        SRT_SOCKGROUPDATA &member = data[i];
+
+        SrsSrtGroupLink link;
+        link.id_ = member.id;
+        link.port_ = 0;
+        link.state_ = srs_srt_member_state_str(member.memberstate);
+        link.weight_ = member.weight;
+
+        // A link whose peer address cannot be read is still a link of the group, with no address.
+        int addrlen = member.peeraddr.ss_family == AF_INET6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in);
+        srs_error_t err = srs_srt_addr_to_ip_port(member.peeraddr, addrlen, link.ip_, link.port_);
+        srs_freep(err);
+
+        links.push_back(link);
+    }
+
+    return srs_success;
+}
+
 srs_error_t srs_srt_socket(srs_srt_t *pfd)
 {
     srs_error_t err = srs_success;
@@ -345,6 +406,13 @@ srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
     return srs_success;
 }
 
+srs_error_t srs_srt_set_group_connect(srs_srt_t srt_fd, bool group_connect)
+{
+    int value = group_connect ? 1 : 0;
+    SET_SRT_OPT(srt_fd, SRTO_GROUPCONNECT, value);
+    return srs_success;
+}
+
 srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int64_t &maxbw)
 {
     GET_SRT_OPT(srt_fd, SRTO_MAXBW, maxbw);
@@ -428,15 +496,10 @@ srs_error_t srs_srt_get_streamid(srs_srt_t srt_fd, std::string &streamid)
     return err;
 }
 
-srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string &ip, int &port)
+// The numeric IP and the port of an address libsrt gave.
+static srs_error_t srs_srt_addr_to_ip_port(const sockaddr_storage &addr, int addrlen, std::string &ip, int &port)
 {
     srs_error_t err = srs_success;
-
-    sockaddr_storage addr;
-    int addrlen = sizeof(addr);
-    if (srt_getsockname(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
-        return srs_error_new(ERROR_SRT_SOCKOPT, "srt_getsockname");
-    }
 
     char saddr[64];
     char *h = (char *)saddr;
@@ -459,35 +522,26 @@ srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string &ip, int &po
     return err;
 }
 
+srs_error_t srs_srt_get_local_ip_port(srs_srt_t srt_fd, std::string &ip, int &port)
+{
+    sockaddr_storage addr;
+    int addrlen = sizeof(addr);
+    if (srt_getsockname(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
+        return srs_error_new(ERROR_SRT_SOCKOPT, "srt_getsockname");
+    }
+
+    return srs_srt_addr_to_ip_port(addr, addrlen, ip, port);
+}
+
 srs_error_t srs_srt_get_remote_ip_port(srs_srt_t srt_fd, std::string &ip, int &port)
 {
-    srs_error_t err = srs_success;
-
     sockaddr_storage addr;
     int addrlen = sizeof(addr);
     if (srt_getpeername(srt_fd, (sockaddr *)&addr, &addrlen) == -1) {
         return srs_error_new(ERROR_SRT_SOCKOPT, "srt_getpeername");
     }
 
-    char saddr[64];
-    char *h = (char *)saddr;
-    socklen_t nbh = (socklen_t)sizeof(saddr);
-    const int r0 = getnameinfo((const sockaddr *)&addr, addrlen, h, nbh, NULL, 0, NI_NUMERICHOST);
-    if (r0) {
-        return srs_error_new(ERROR_SRT_SOCKOPT, "getnameinfo");
-    }
-
-    switch (addr.ss_family) {
-    case AF_INET:
-        port = ntohs(((sockaddr_in *)&addr)->sin_port);
-        break;
-    case AF_INET6:
-        port = ntohs(((sockaddr_in6 *)&addr)->sin6_port);
-        break;
-    }
-
-    ip.assign(saddr);
-    return err;
+    return srs_srt_addr_to_ip_port(addr, addrlen, ip, port);
 }
 
 SrsSrtStat::SrsSrtStat()
@@ -519,6 +573,16 @@ int SrsSrtStat::pktRcvRetrans()
 int SrsSrtStat::pktRcvDrop()
 {
     return ((SRT_TRACEBSTATS *)stat_)->pktRcvDrop;
+}
+
+int64_t SrsSrtStat::pktRecvUnique()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRecvUnique;
+}
+
+double SrsSrtStat::msRTT()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msRTT;
 }
 
 int64_t SrsSrtStat::pktSent()
@@ -667,6 +731,9 @@ srs_error_t SrsSrtPoller::wait(int timeout_ms, int *pn_fds)
                 srt_skt->notify_writeable();
             }
         }
+        if (event.events & SRT_EPOLL_UPDATE) {
+            srt_skt->notify_update();
+        }
     }
 
     return err;
@@ -793,6 +860,11 @@ srs_error_t SrsSrtOptions::set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
     return srs_srt_set_pbkeylen(srt_fd, pbkeylen);
 }
 
+srs_error_t SrsSrtOptions::set_group_connect(srs_srt_t srt_fd, bool group_connect)
+{
+    return srs_srt_set_group_connect(srt_fd, group_connect);
+}
+
 ISrsSrtSocket::ISrsSrtSocket()
 {
 }
@@ -801,9 +873,18 @@ ISrsSrtSocket::~ISrsSrtSocket()
 {
 }
 
+ISrsSrtUpdateHandler::ISrsSrtUpdateHandler()
+{
+}
+
+ISrsSrtUpdateHandler::~ISrsSrtUpdateHandler()
+{
+}
+
 SrsSrtSocket::SrsSrtSocket(ISrsSrtPoller *srt_poller, srs_srt_t srt_fd)
 {
     srt_poller_ = srt_poller;
+    update_handler_ = NULL;
     srt_fd_ = srt_fd;
     has_error_ = 0;
     read_cond_ = srs_cond_new();
@@ -870,15 +951,30 @@ srs_error_t SrsSrtSocket::connect(const string &ip, int port)
 
 srs_error_t SrsSrtSocket::accept(srs_srt_t *client_srt_fd)
 {
+    std::string ip;
+    int port = 0;
+    return accept(client_srt_fd, ip, port);
+}
+
+srs_error_t SrsSrtSocket::accept(srs_srt_t *client_srt_fd, std::string &ip, int &port)
+{
     srs_error_t err = srs_success;
 
     while (true) {
+        // For a group, libsrt gives the address of the link it accepted, the one that brought the group up; the
+        // group itself has no peer address, so srt_getpeername fails on it.
         sockaddr_storage inaddr;
         int addrlen = sizeof(inaddr);
         // @see https://github.com/Haivision/srt/blob/master/docs/API/API-functions.md#srt_accept
         srs_srt_t srt_fd = srt_accept(srt_fd_, (sockaddr *)&inaddr, &addrlen);
 
         if (srt_fd != srs_srt_socket_invalid()) {
+            if ((err = srs_srt_addr_to_ip_port(inaddr, addrlen, ip, port)) != srs_success) {
+                // Nobody else holds the accepted socket yet, so it leaks unless closed here.
+                srs_srt_close(srt_fd);
+                return srs_error_wrap(err, "srt_accept address");
+            }
+
             *client_srt_fd = srt_fd;
             return err;
         }
@@ -1032,6 +1128,32 @@ void SrsSrtSocket::notify_error()
     has_error_ = true;
     srs_cond_signal(read_cond_);
     srs_cond_signal(write_cond_);
+}
+
+srs_error_t SrsSrtSocket::set_update_handler(ISrsSrtUpdateHandler *handler)
+{
+    update_handler_ = handler;
+    return enable_event(SRT_EPOLL_UPDATE);
+}
+
+void SrsSrtSocket::notify_update()
+{
+    // libsrt sets the update of a listener and never clears it, so a later update is no change and is never raised.
+    // A new subscription starts clear. A caller queued while unsubscribed raises nothing either, so wake the accept
+    // to take it.
+    srs_error_t err = srt_poller_->del_socket(this);
+    if (err == srs_success) {
+        err = srt_poller_->add_socket(this);
+    }
+    if (err != srs_success) {
+        srs_warn("srt socket %d watch updates again, err=%s", srt_fd_, srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+    notify_readable();
+
+    if (update_handler_) {
+        update_handler_->on_srt_update();
+    }
 }
 
 srs_error_t SrsSrtSocket::enable_read()

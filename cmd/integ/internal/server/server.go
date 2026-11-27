@@ -1252,6 +1252,8 @@ type SRTOptions struct {
 	// are more ports it listens on, each one ReservePort handed out.
 	IPv6      bool
 	MorePorts []int
+	// Bonding turns srt_server.bonding on: the listener takes socket groups.
+	Bonding bool
 }
 
 // WithSRT returns a copy of cfg with SRT on, like Common: the listener, SRT
@@ -1314,6 +1316,9 @@ func WithSRT(cfg Config, s SRTOptions) Config {
 		if off {
 			env[k] = "off"
 		}
+	}
+	if s.Bonding {
+		env["SRS_SRT_SERVER_BONDING"] = "on"
 	}
 	cfg.SRTIPv6 = s.IPv6
 	cfg.SRTMorePorts = s.MorePorts

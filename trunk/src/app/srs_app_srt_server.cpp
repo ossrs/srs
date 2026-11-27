@@ -28,6 +28,56 @@ ISrsSrtClientHandler::~ISrsSrtClientHandler()
 {
 }
 
+#define SRS_SRT_GROUP_MAX_LINKS 8
+
+SrsSrtGroups::SrsSrtGroups()
+{
+}
+
+SrsSrtGroups::~SrsSrtGroups()
+{
+}
+
+void SrsSrtGroups::add(srs_srt_t group)
+{
+    if (!srs_srt_is_group(group)) {
+        return;
+    }
+
+    // A connection closes its group when it ends and tells nobody, so the groups that ended are dropped here too.
+    limit_links();
+    groups_.push_back(group);
+}
+
+void SrsSrtGroups::limit_links()
+{
+    for (vector<srs_srt_t>::iterator it = groups_.begin(); it != groups_.end();) {
+        srs_srt_t group = *it;
+
+        vector<SrsSrtGroupLink> links;
+        srs_error_t err = srs_srt_group_links(group, links);
+        if (err != srs_success) {
+            srs_freep(err);
+            it = groups_.erase(it);
+            continue;
+        }
+
+        for (int i = SRS_SRT_GROUP_MAX_LINKS; i < (int)links.size(); i++) {
+            SrsSrtGroupLink &link = links[i];
+            srs_warn("srt group=%d has %d links, close link=%d over the most of %d", group, (int)links.size(), link.id_, SRS_SRT_GROUP_MAX_LINKS);
+            if ((err = srs_srt_close(link.id_)) != srs_success) {
+                srs_freep(err);
+            }
+        }
+        ++it;
+    }
+}
+
+int SrsSrtGroups::size()
+{
+    return (int)groups_.size();
+}
+
 ISrsSrtAcceptor::ISrsSrtAcceptor()
 {
 }
@@ -152,19 +202,28 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
         }
     }
 
+    if (config_->get_srt_bonding() && (err = srt_options_->set_group_connect(listener_->fd(), true)) != srs_success) {
+        return srs_error_wrap(err, "srt_server.bonding on needs a libsrt built with bonding");
+    }
+
     return err;
 }
 
-srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
+srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd, std::string ip, int port)
 {
     srs_error_t err = srs_success;
 
-    if ((err = srt_handler_->accept_srt_client(srt_fd)) != srs_success) {
+    if ((err = srt_handler_->accept_srt_client(srt_fd, ip, port)) != srs_success) {
         srs_warn("accept srt client failed, err is %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
 
     return err;
+}
+
+void SrsSrtAcceptor::on_srt_links_joined()
+{
+    srt_handler_->on_srt_links_joined();
 }
 
 ISrsSrtEventLoop::ISrsSrtEventLoop()

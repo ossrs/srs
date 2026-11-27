@@ -158,19 +158,25 @@ public:
     virtual void expire();
 };
 
-// Mock ISrsSrtClientHandler that records the SRT clients the acceptor hands over.
+// Mock ISrsSrtClientHandler that records the SRT clients the acceptor hands over, with their addresses, and the
+// links that joined a group. With groups_ set, it bounds the links of the groups it was handed, as the server does.
 class MockSrtClientHandlerForAcceptor : public ISrsSrtClientHandler
 {
 public:
     std::vector<srs_srt_t> fds_;
+    std::vector<std::string> ips_;
+    std::vector<int> ports_;
     srs_error_t accept_error_;
+    int links_joined_;
+    SrsSrtGroups *groups_;
 
 public:
     MockSrtClientHandlerForAcceptor();
     virtual ~MockSrtClientHandlerForAcceptor();
 
 public:
-    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
+    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd, std::string ip, int port);
+    virtual void on_srt_links_joined();
 };
 
 // A coroutine that waits on an SRT socket, readable or writeable, and keeps the result.

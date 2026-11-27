@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -999,25 +1000,40 @@ func TestSRSSRTProxyServer_HandleClientUDP_BadHandshakeUnmarshalError(t *testing
 	}
 }
 
-// proxy's handshake as a listener does, from a connection of socket ID
-// originSocketID, and hands over every other packet it gets.
+// srtFakeOrigin is an origin's SRT port on loopback that answers the
+// proxy's handshake as a listener does, and hands over every other packet it
+// gets. Each peer address is a connection of its own, the first of socket ID
+// srtFakeOriginSocketID, the next one more, and so on.
 type srtFakeOrigin struct {
-	conn  *net.UDPConn
-	peer  chan net.Addr
-	media chan []byte
+	conn *net.UDPConn
+	// The extensions of the conclusion's answer, such as the origin's GROUP.
+	answerExtra []byte
+	peer        chan net.Addr
+	// Every handshake the origin got and every conclusion answer it sent, as
+	// on the wire, with the peer's address.
+	handshakes chan udpPacket
+	answers    chan udpPacket
+	media      chan udpPacket
 }
 
 const srtFakeOriginSocketID uint32 = 0x0abc0def
 
-func newSRTFakeOrigin(t *testing.T) *srtFakeOrigin {
+// srtFakeOriginCookie is the origin's cookie in its answer to the induction.
+const srtFakeOriginCookie uint32 = 0x0c00c1e0
+
+func newSRTFakeOrigin(t *testing.T, answerExtra []byte) *srtFakeOrigin {
 	t.Helper()
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := &srtFakeOrigin{conn: conn, peer: make(chan net.Addr, 1), media: make(chan []byte, 16)}
+	o := &srtFakeOrigin{
+		conn: conn, answerExtra: answerExtra, peer: make(chan net.Addr, 1),
+		handshakes: make(chan udpPacket, 16), answers: make(chan udpPacket, 16), media: make(chan udpPacket, 16),
+	}
 	t.Cleanup(func() { conn.Close() })
 	go func() {
+		socketIDs := map[string]uint32{}
 		buf := make([]byte, 4096)
 		for {
 			n, addr, err := conn.ReadFrom(buf)
@@ -1026,24 +1042,95 @@ func newSRTFakeOrigin(t *testing.T) *srtFakeOrigin {
 			}
 			hs := &SRTHandshakePacket{}
 			if n < 64 || buf[0]&0x80 == 0 || hs.UnmarshalBinary(buf[:n]) != nil || !hs.IsHandshake() {
-				o.media <- bytes.Clone(buf[:n])
+				o.media <- udpPacket{data: bytes.Clone(buf[:n]), addr: addr}
 				continue
 			}
+			o.handshakes <- udpPacket{data: bytes.Clone(buf[:n]), addr: addr}
+
 			// The induction's answer has the origin's cookie, the
-			// conclusion's the origin's socket ID.
-			answer := &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SynCookie: 0x0c00c1e0, PeerIP: net.ParseIP("127.0.0.1")}
+			// conclusion's the origin's socket ID and extensions.
+			answer := &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SocketID: hs.SRTSocketID, SynCookie: srtFakeOriginCookie, PeerIP: net.ParseIP("127.0.0.1")}
 			if hs.SynCookie != 0 {
-				answer.HandshakeType, answer.SRTSocketID = 0xFFFFFFFF, srtFakeOriginSocketID
+				socketID, ok := socketIDs[addr.String()]
+				if !ok {
+					socketID = srtFakeOriginSocketID + uint32(len(socketIDs))
+					socketIDs[addr.String()] = socketID
+				}
+				answer.Version, answer.HandshakeType, answer.SRTSocketID, answer.ExtraData = 5, 0xFFFFFFFF, socketID, o.answerExtra
 				select {
 				case o.peer <- addr:
 				default:
 				}
 			}
 			b, _ := answer.MarshalBinary()
+			if hs.SynCookie != 0 {
+				o.answers <- udpPacket{data: b, addr: addr}
+			}
 			conn.WriteTo(b, addr)
 		}
 	}()
 	return o
+}
+
+// srtTake takes the next packet of a fake origin's channel.
+func srtTake(t *testing.T, packets chan udpPacket, what string) udpPacket {
+	t.Helper()
+	select {
+	case p := <-packets:
+		return p
+	case <-time.After(time.Second):
+		t.Fatalf("no %v", what)
+		return udpPacket{}
+	}
+}
+
+// srtExtension builds a handshake extension: a 16-bit type, a 16-bit length
+// in four-byte blocks, then the blocks.
+func srtExtension(extType uint16, blocks ...uint32) []byte {
+	b := make([]byte, 4+4*len(blocks))
+	binary.BigEndian.PutUint16(b, extType)
+	binary.BigEndian.PutUint16(b[2:], uint16(len(blocks)))
+	for i, block := range blocks {
+		binary.BigEndian.PutUint32(b[4+4*i:], block)
+	}
+	return b
+}
+
+// srtGroupExtension is the GROUP extension (type 8) of a link of a socket
+// group: the group ID, which has bit 30 set, then the group type in the top
+// byte and the link's weight in the low 16 bits.
+func srtGroupExtension(groupID uint32, groupType uint8, weight uint16) []byte {
+	return srtExtension(8, groupID, uint32(groupType)<<24|uint32(weight))
+}
+
+// srtGroupLink is one link of a libsrt caller group of the stream streamID:
+// its induction and its conclusion, with every field of the header set and
+// the extensions HSREQ, the stream ID and GROUP, as libsrt sends them.
+func srtGroupLink(t *testing.T, socketID, groupID uint32, streamID string) (induction, conclusion []byte) {
+	t.Helper()
+	hs0 := &SRTHandshakePacket{
+		ControlFlag: 0x80, Timestamp: 1000, Version: 4, ExtensionField: 2, InitSequence: 0x1234567,
+		MTU: 1500, FlowWindow: 8192, HandshakeType: 1, SRTSocketID: socketID, PeerIP: net.ParseIP("10.0.0.7"),
+	}
+	hs2 := *hs0
+	hs2.Timestamp, hs2.Version, hs2.ExtensionField = 2000, 5, 0x0005
+	hs2.HandshakeType, hs2.SynCookie = 0xFFFFFFFF, 0x418d5e4e
+	// HSREQ: the SRT version 1.5.7, its flags, then the receiver's and the
+	// sender's TSBPD delays of 120ms.
+	hs2.ExtraData = append(srtExtension(1, 0x00010507, 0xbf, 120<<16|120), encodeSRTStreamIDExt(streamID)...)
+	hs2.ExtraData = append(hs2.ExtraData, srtGroupExtension(groupID, 1, 0)...)
+	return marshalOrFatal(t, hs0), marshalOrFatal(t, &hs2)
+}
+
+// srtSameButCookie fails unless got is want with the cookie, bytes 44 to 47 of
+// the handshake, set to cookie.
+func srtSameButCookie(t *testing.T, what string, got, want []byte, cookie uint32) {
+	t.Helper()
+	want = bytes.Clone(want)
+	binary.BigEndian.PutUint32(want[44:], cookie)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("%v is not as sent but the cookie 0x%08x:\n got  %x\n want %x", what, cookie, got, want)
+	}
 }
 
 func (o *srtFakeOrigin) port() string {
@@ -1056,7 +1143,7 @@ func (o *srtFakeOrigin) port() string {
 func TestSRSSRTProxyServer_HandleClientUDP_HandshakeThenRelayByOriginSocketID(t *testing.T) {
 	f := newSRTServerFixture()
 	f.server.listener = f.listener
-	origin := newSRTFakeOrigin(t)
+	origin := newSRTFakeOrigin(t, nil)
 	f.lb.PickReturns(&lb.OriginServer{IP: "127.0.0.1", SRT: []string{origin.port()}}, nil)
 	client := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 9000}
 	ctx := context.Background()
@@ -1090,8 +1177,8 @@ func TestSRSSRTProxyServer_HandleClientUDP_HandshakeThenRelayByOriginSocketID(t 
 	}
 	select {
 	case got := <-origin.media:
-		if !bytes.Equal(got, data) {
-			t.Fatalf("origin got %q, want %q", got, data)
+		if !bytes.Equal(got.data, data) {
+			t.Fatalf("origin got %q, want %q", got.data, data)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("the origin got none of the client's data")
@@ -1153,5 +1240,138 @@ func TestSRTConnection_HandleHandshake_Step2_RepeatedAnsweredAgain(t *testing.T)
 	case b := <-f.backend.writes:
 		t.Fatalf("the origin got %vB for the repeated handshake 2, want nothing", len(b))
 	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+// A link of a socket group names its group in the GROUP extension (type 8)
+// of its conclusion, and the origin answers with its own group's. The proxy
+// does not read the extension, so it must pass both on as they are, both
+// ways, changing only the cookie: its own on the client's side, the origin's
+// on the origin's side.
+func TestSRSSRTProxyServer_HandleClientUDP_GroupHandshakeForwardedByteForByte(t *testing.T) {
+	f := newSRTServerFixture()
+	f.server.listener = f.listener
+	// HSRSP of SRT 1.5.6, then the origin's group.
+	answerExtra := append(srtExtension(2, 0x00010506, 0xbf, 120<<16|120), srtGroupExtension(0x40005678, 1, 0)...)
+	origin := newSRTFakeOrigin(t, answerExtra)
+	f.lb.PickReturns(&lb.OriginServer{IP: "127.0.0.1", SRT: []string{origin.port()}}, nil)
+	client := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 9000}
+	ctx := context.Background()
+
+	induction, conclusion := srtGroupLink(t, 0x11112222, 0x40001234, "#!::r=live/stream,m=publish")
+	if err := f.server.handleClientUDP(ctx, client, induction); err != nil {
+		t.Fatalf("induction: %v", err)
+	}
+	drainServerWrite(t, f.listener, client)
+	if err := f.server.handleClientUDP(ctx, client, conclusion); err != nil {
+		t.Fatalf("conclusion: %v", err)
+	}
+
+	if got := srtTake(t, origin.handshakes, "induction at the origin"); !bytes.Equal(got.data, induction) {
+		t.Fatalf("the induction at the origin is not as sent:\n got  %x\n want %x", got.data, induction)
+	}
+	srtSameButCookie(t, "the conclusion at the origin", srtTake(t, origin.handshakes, "conclusion at the origin").data, conclusion, srtFakeOriginCookie)
+	answer := srtTake(t, origin.answers, "answer of the origin")
+	srtSameButCookie(t, "the origin's answer at the client", drainServerWrite(t, f.listener, client), answer.data, 0x418d5e4e)
+}
+
+// The links of a socket group are callers of their own, each with its own
+// socket ID and address and the same stream ID. The proxy must take them to
+// the one origin the stream is pinned to, as libsrt joins the links of a group
+// on one listener only; each over a backend socket of its own, as the origin
+// tells the links apart by their address; and send what the origin sends each
+// link to that link's own address.
+func TestSRSSRTProxyServer_HandleClientUDP_GroupLinksOneOriginOwnSockets(t *testing.T) {
+	f := newSRTServerFixture()
+	f.server.listener = f.listener
+	ctx := context.Background()
+
+	// The memory balancer, which picks an origin at random for each new stream
+	// and pins the stream to it.
+	origins := []*srtFakeOrigin{newSRTFakeOrigin(t, srtGroupExtension(0x40005678, 1, 0)), newSRTFakeOrigin(t, srtGroupExtension(0x40005678, 1, 0))}
+	balancer := lb.NewMemoryLoadBalancer(f.env)
+	if err := balancer.Initialize(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for i, o := range origins {
+		if err := balancer.Update(ctx, &lb.OriginServer{IP: "127.0.0.1", ServerID: fmt.Sprintf("origin%v", i), SRT: []string{o.port()}, UpdatedAt: time.Now()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.server.loadBalancer = balancer
+
+	links := []struct {
+		addr     *net.UDPAddr
+		socketID uint32
+	}{
+		{&net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 9000}, 0x11110001},
+		{&net.UDPAddr{IP: net.ParseIP("5.6.7.8"), Port: 9001}, 0x11110002},
+	}
+	originSocketIDs := make([]uint32, len(links))
+	for i, link := range links {
+		induction, conclusion := srtGroupLink(t, link.socketID, 0x40001234, "#!::r=live/stream,m=publish")
+		if err := f.server.handleClientUDP(ctx, link.addr, induction); err != nil {
+			t.Fatalf("link %v induction: %v", i, err)
+		}
+		drainServerWrite(t, f.listener, link.addr)
+		if err := f.server.handleClientUDP(ctx, link.addr, conclusion); err != nil {
+			t.Fatalf("link %v conclusion: %v", i, err)
+		}
+		hs3 := &SRTHandshakePacket{}
+		if err := hs3.UnmarshalBinary(drainServerWrite(t, f.listener, link.addr)); err != nil {
+			t.Fatalf("link %v handshake 3: %v", i, err)
+		}
+		originSocketIDs[i] = hs3.SRTSocketID
+	}
+
+	// The proxy waits for the origin's answers in handleClientUDP, so each
+	// origin has every handshake it will get.
+	origin, other := origins[0], origins[1]
+	if len(origin.handshakes) == 0 {
+		origin, other = other, origin
+	}
+	if len(origin.handshakes) != 4 || len(other.handshakes) != 0 {
+		t.Fatalf("handshakes at the origins %v and %v, want both links' 4 at one", len(origin.handshakes), len(other.handshakes))
+	}
+	peers := make([]net.Addr, len(links))
+	for i := range links {
+		induction := srtTake(t, origin.handshakes, "induction")
+		conclusion := srtTake(t, origin.handshakes, "conclusion")
+		if induction.addr.String() != conclusion.addr.String() {
+			t.Fatalf("link %v: induction from %v, conclusion from %v, want one backend socket", i, induction.addr, conclusion.addr)
+		}
+		peers[i] = conclusion.addr
+	}
+	if peers[0].String() == peers[1].String() {
+		t.Fatalf("both links reached the origin from %v, want a backend socket each", peers[0])
+	}
+	if originSocketIDs[0] == originSocketIDs[1] {
+		t.Fatalf("both links got the origin's socket ID 0x%08x", originSocketIDs[0])
+	}
+	for i, link := range links {
+		byClient, _ := f.server.sockets.Load(link.socketID)
+		byOrigin, ok := f.server.sockets.Load(originSocketIDs[i])
+		if !ok || byOrigin != byClient {
+			t.Fatalf("link %v: connection under the origin's socket ID %v, the same as the client's %v", i, ok, byOrigin == byClient)
+		}
+	}
+
+	for i, link := range links {
+		data := buildNonHandshakeUDPPayload(originSocketIDs[i], []byte(fmt.Sprintf("media of link %v", i)))
+		if err := f.server.handleClientUDP(ctx, link.addr, data); err != nil {
+			t.Fatalf("link %v: relay the client's data: %v", i, err)
+		}
+		got := srtTake(t, origin.media, fmt.Sprintf("media of link %v at the origin", i))
+		if !bytes.Equal(got.data, data) || got.addr.String() != peers[i].String() {
+			t.Fatalf("link %v: origin got %q from %v, want %q from %v", i, got.data, got.addr, data, peers[i])
+		}
+
+		back := buildNonHandshakeUDPPayload(link.socketID, []byte(fmt.Sprintf("origin to link %v", i)))
+		if _, err := origin.conn.WriteTo(back, peers[i]); err != nil {
+			t.Fatal(err)
+		}
+		if got := drainServerWrite(t, f.listener, link.addr); !bytes.Equal(got, back) {
+			t.Fatalf("link %v: client got %q, want %q", i, got, back)
+		}
 	}
 }

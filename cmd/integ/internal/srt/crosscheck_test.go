@@ -676,27 +676,33 @@ func interopURI(hostPort string, mode string, m crossMode) string {
 // dialInterop runs a tool that sends its stdin to addr.
 func dialInterop(tool interopTool) func(t *testing.T, ctx context.Context, addr string, m crossMode) (crossSend, error) {
 	return func(t *testing.T, ctx context.Context, addr string, m crossMode) (crossSend, error) {
-		args := append(append([]string{}, tool.callerArgs...), "file://con", interopURI(interopHost(addr), "caller", m))
-		cmd, _, rm := interopRun(tool, nil, args...)
-		stdin, _, lines := startProcess(t, cmd, rm)
-		var logs []string
-		for {
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("%v did not connect: %w: %v", tool.name, ctx.Err(), strings.Join(logs, "; "))
-			case line, ok := <-lines:
-				if !ok {
-					return nil, fmt.Errorf("%v ended: %v", tool.name, strings.Join(logs, "; "))
-				}
-				if !interopConnectedRE.MatchString(line) {
-					if len(logs) < 20 {
-						logs = append(logs, line)
-					}
-					continue
-				}
-				drainLines(lines)
-				return &interopSend{stdin: stdin, rm: rm}, nil
+		return startInteropCaller(t, ctx, tool, "file://con", interopURI(interopHost(addr), "caller", m))
+	}
+}
+
+// startInteropCaller runs a tool that calls with args after its caller args,
+// and returns its stdin once it says it connected.
+func startInteropCaller(t *testing.T, ctx context.Context, tool interopTool, args ...string) (crossSend, error) {
+	args = append(append([]string{}, tool.callerArgs...), args...)
+	cmd, _, rm := interopRun(tool, nil, args...)
+	stdin, _, lines := startProcess(t, cmd, rm)
+	var logs []string
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("%v did not connect: %w: %v", tool.name, ctx.Err(), strings.Join(logs, "; "))
+		case line, ok := <-lines:
+			if !ok {
+				return nil, fmt.Errorf("%v ended: %v", tool.name, strings.Join(logs, "; "))
 			}
+			if !interopConnectedRE.MatchString(line) {
+				if len(logs) < 20 {
+					logs = append(logs, line)
+				}
+				continue
+			}
+			drainLines(lines)
+			return &interopSend{stdin: stdin, rm: rm}, nil
 		}
 	}
 }
@@ -719,23 +725,29 @@ func (s *interopSend) Close() error {
 // stdout.
 func listenInterop(tool interopTool) func(t *testing.T, ctx context.Context, m crossMode, want int) (string, <-chan crossResult) {
 	return func(t *testing.T, ctx context.Context, m crossMode, want int) (string, <-chan crossResult) {
-		// The port was free a moment ago; another test may take it before
-		// Docker binds it, and docker run then ends, so it is tried again.
-		for try := 1; ; try++ {
-			port := freeUDPPort(t)
-			cmd, name, rm := interopRun(tool, []int{port}, interopURI(":"+strconv.Itoa(port), "listener", m), "file://con")
-			_, stdout, lines := startProcess(t, cmd, rm)
-			ended := drainLines(lines)
-			if waitInteropBound(t, ctx, name, port, ended) {
-				got := make(chan crossResult, 1)
-				go readAll(ctx, stdout, want, got)
-				return "127.0.0.1:" + strconv.Itoa(port), got
-			}
-			if try == 3 {
-				t.Fatalf("%v ended %v times before it listened", tool.name, try)
-			}
-			t.Logf("%v on port %v ended before it listened, try %v", tool.name, port, try)
+		return startInteropListener(t, ctx, tool, want, func(port int) string { return interopURI(":"+strconv.Itoa(port), "listener", m) })
+	}
+}
+
+// startInteropListener runs a tool that listens on the URI of a free port and
+// writes what it receives to its stdout.
+func startInteropListener(t *testing.T, ctx context.Context, tool interopTool, want int, uri func(port int) string) (string, <-chan crossResult) {
+	// The port was free a moment ago; another test may take it before
+	// Docker binds it, and docker run then ends, so it is tried again.
+	for try := 1; ; try++ {
+		port := freeUDPPort(t)
+		cmd, name, rm := interopRun(tool, []int{port}, uri(port), "file://con")
+		_, stdout, lines := startProcess(t, cmd, rm)
+		ended := drainLines(lines)
+		if waitInteropBound(t, ctx, name, port, ended) {
+			got := make(chan crossResult, 1)
+			go readAll(ctx, stdout, want, got)
+			return "127.0.0.1:" + strconv.Itoa(port), got
 		}
+		if try == 3 {
+			t.Fatalf("%v ended %v times before it listened", tool.name, try)
+		}
+		t.Logf("%v on port %v ended before it listened, try %v", tool.name, port, try)
 	}
 }
 

@@ -23,7 +23,10 @@ public:
     virtual ~ISrsSrtHandler();
 
 public:
-    virtual srs_error_t on_srt_client(srs_srt_t srt_fd) = 0;
+    // A caller was accepted, from the address ip and port.
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd, std::string ip, int port) = 0;
+    // A link joined a socket group the listener accepted before, which libsrt does not hand as a caller.
+    virtual void on_srt_links_joined() = 0;
 };
 
 class ISrsSrtListener
@@ -38,7 +41,7 @@ public:
     virtual srs_error_t listen() = 0;
 };
 
-class SrsSrtListener : public ISrsSrtListener, public ISrsCoroutineHandler
+class SrsSrtListener : public ISrsSrtListener, public ISrsCoroutineHandler, public ISrsSrtUpdateHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -71,6 +74,7 @@ public:
 
 public:
     virtual srs_error_t cycle();
+    virtual void on_srt_update();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

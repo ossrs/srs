@@ -192,6 +192,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_srt_packet(char *buf, int nb_buf);
+    // For a socket group: log the links that joined or left since the last call, then the stats of the group and of
+    // each link, as libsrt's stats of a group count neither per link nor anything but the unique packets.
+    void update_group_links();
+    void print_group_stats();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -215,6 +219,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     SrsSharedPtr<SrsSrtSource> srt_source_;
     ISrsSecurity *security_;
+    // The links of the socket group at the last update, none for a plain socket.
+    std::vector<SrsSrtGroupLink> group_links_;
 };
 
 #endif

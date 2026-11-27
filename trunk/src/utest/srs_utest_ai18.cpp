@@ -178,9 +178,13 @@ MockSrtHandlerForSrtListener::~MockSrtHandlerForSrtListener()
 {
 }
 
-srs_error_t MockSrtHandlerForSrtListener::on_srt_client(srs_srt_t srt_fd)
+srs_error_t MockSrtHandlerForSrtListener::on_srt_client(srs_srt_t srt_fd, std::string ip, int port)
 {
     return srs_success;
+}
+
+void MockSrtHandlerForSrtListener::on_srt_links_joined()
+{
 }
 
 // Mock ISrsUdpHandler implementation

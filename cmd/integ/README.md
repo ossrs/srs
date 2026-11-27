@@ -111,22 +111,25 @@ go -C cmd/integ/cases test -count=1 -run 'Test(Timer_)?Srt' -skip '^TestTimer_' 
 go -C cmd/integ/cases test -count=1 -run '^TestTimer_Srt' -parallel 256 -args -integ.timer -integ.settle=2s
 go -C cmd/integ test -count=1 ./internal/srt/
 bash skills/srs-develop/scripts/proxy-e2e-srt-impair-test.sh
+bash skills/srs-develop/scripts/proxy-e2e-srt-bonding-test.sh
 ```
 
 | Layer | macOS arm64 | Linux arm64, CI image, `-integ.limit-scale=4` |
 |---|---|---|
-| SRT cases, main process | 148 cases, 3.6–5.7s | 3.2–3.3s |
-| SRT cases, timer process | 79 cases, 20 of them skipped without `SRT_INTEROP=on`; 12.5–12.6s, as long as the serial lossy concurrency cases | 11.2–12.3s |
-| Both at once, as `make integ` runs them | 12.6s | 14.5–15.6s one after the other, as CI runs them |
-| `internal/srt` tests | 22.5–23.5s; 44s with `SRT_INTEROP=on` | 15.3–16.1s |
-| SRT utests, `--gtest_filter='*Srt*:*SRT*:-*Srtp*:*Srtcp*'` | 250 tests, 4.2–4.5s | 3.8–4.2s |
+| SRT cases, main process | 159 cases, 3–4s | 3.2–3.3s, at 148 cases |
+| SRT cases, timer process | 85 cases, 22 of them skipped without `SRT_INTEROP=on`; 13s, as long as the serial lossy concurrency cases | 11.2–12.3s, at 79 cases |
+| Both at once, as `make integ` runs them | 12.9–14.0s | 14.5–15.6s one after the other, as CI runs them |
+| `internal/srt` tests | 23.6–24.0s; 48–50s with `SRT_INTEROP=on` | 15.3–16.1s |
+| SRT utests, `--gtest_filter='*Srt*:*SRT*:-*Srtp*:*Srtcp*'` | 256 tests, 5.7s | 3.8–4.2s |
 | `proxy-e2e-srt-impair-test.sh` | 14 cases, 6–9s | not run, Full tier only |
+| `proxy-e2e-srt-bonding-test.sh` | 9 cases, 4–6s | not run, Full tier only |
 | `proxy-e2e-srt-test.sh` | 24–28s | not run, Full tier only |
 | `obs-srt-publish-test.sh` | 7s | not run, Full tier only |
 
-Measured on 2026-11-26, 5 runs each, with every libsrt case on. With
-`SRT_INTEROP=on` the timer process also runs libsrt's tools in Docker, 20
-containers at its start, which slowed the main process's SRT cases over their
+Measured on 2026-11-26, 5 runs each (the macOS cases 3 runs alone and 5 at
+once after the bonding cases came), with every libsrt case on. With
+`SRT_INTEROP=on` the timer process also runs libsrt's tools in Docker, 22
+containers at its start (srt-test-live among them as a bonded publisher), which slowed the main process's SRT cases over their
 limit (cases of 540ms to 1.1s); run `make integ-main`, then `make integ-timer`,
 as CI does, not `make integ`: about 17s in all.
 
@@ -167,7 +170,7 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 | `internal/flv/`, `internal/ts/`, `internal/audio/`, `internal/mp4/` | Demuxers, analyzers and players of FLV, TS, AAC/MP3 and MP4 |
 | `internal/hls/`, `internal/dash/` | HLS and DASH parsers and players |
 | `internal/rtc/` | WebRTC WHIP and WHEP client on pion, with raw and recorder tools |
-| `internal/srt/` | SRT clients on gosrt, zsiec/srtgo, libsrt (`tools/srt-libsrt/README.md`), FFmpeg and `srt-live-transmit`, a relay that impairs the network, a raw packet writer, and a cross-check of the libraries; see [SRT](#srt) |
+| `internal/srt/` | SRT clients on gosrt, zsiec/srtgo, libsrt (`tools/srt-libsrt/README.md`), FFmpeg and `srt-live-transmit`, a relay that impairs the network, a raw packet writer, and a cross-check of the libraries, plain and as socket groups; see [SRT](#srt) |
 | `internal/rtsp/` | RTSP player on gortsplib |
 | `internal/gb/` | GB28181 PS-over-RTP publisher, without SIP |
 | `cases/` | The cases |
@@ -373,7 +376,7 @@ checks are in the test files under `cases/`.
 | Hls | Common, Options, Fmp4, Fmp4Default, TsFloor, Keys, Fmp4Keys, Sessions, CtxOff, Dispose, Fmp4Dispose, Cleanup | HLS TS and fMP4, its options and file names, encryption, `hls_ctx` sessions, dispose and cleanup |
 | Dash | Common, Options, StreamDir, Dispose, Cleanup | DASH play, the MPD, its options, dispose and cleanup |
 | Rtc | Common, Transport, PreferRtx, NackTwccOff, TwccLoss, StartFails | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC and how right its feedback is, packets the client loses, a failed start |
-| Srt | Common, Latencies, LatencyOnly, Options, PeerIdle, Transport, TsbpdOff, TlpktdropOff, VhostOff, Edge, Impair, Failure, Concurrency, MaxConnections, Robust, Interop, Stats, Proxy | SRT publish and play, latencies, stream IDs, encryption, idle peers, listen ports and IPv6, the transport settings, SRT off on the vhost or an edge, a bad network and a client's failed link, many clients, hand-written packets, the interop of the libraries, stats under loss, the Go proxy (see [SRT](#srt)) |
+| Srt | Common, Latencies, LatencyOnly, Options, PeerIdle, Transport, TsbpdOff, TlpktdropOff, VhostOff, Edge, Impair, Failure, Concurrency, MaxConnections, Robust, Interop, Stats, Proxy, Bonding, ProxyBonding | SRT publish and play, latencies, stream IDs, encryption, idle peers, listen ports and IPv6, the transport settings, SRT off on the vhost or an edge, a bad network and a client's failed link, many clients, hand-written packets, the interop of the libraries, stats under loss, the Go proxy, bonded publishers of socket groups, the libsrt tool's and srt-test-live's, directly and through the Go proxy to one of two origins, one proxy or two sharing Redis (see [SRT](#srt)) |
 | Rtsp | Common, Options, VhostOff | RTSP play from RTMP, its options |
 | Gb | Common, Reconnect, MediaTimeout, RtmpOutput | GB28181 publish over TCP, reconnects, media timeouts, its RTMP output |
 | Caster | UdpTs, UdpTsRepush, UdpTsOutput | The MPEG-TS over UDP caster |

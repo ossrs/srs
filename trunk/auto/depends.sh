@@ -626,30 +626,19 @@ if [[ $SRS_USE_SYS_SRT == YES ]]; then
     echo "Warning: Use system libsrt, without compiling srt."
 fi
 if [[ $SRS_USE_SYS_SRT == NO ]]; then
-    # Always disable c++11 for libsrt, because only the srt-app requres it.
-    LIBSRT_OPTIONS="--enable-apps=0  --enable-static=1 --enable-c++11=0"
-    CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
-    CMAKE_MAJOR=$(echo $CMAKE_VERSION | cut -d'.' -f1)
-    if [[ $CMAKE_MAJOR -ge 4 ]]; then
-        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --CMAKE_POLICY_VERSION_MINIMUM=3.5"
-    fi
-    if [[ $SRS_SHARED_SRT == YES ]]; then
-        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=1"
-    else
-        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --enable-shared=0"
-    fi
+    # The options libsrt is built with, shared with scripts/check_build_cache.sh.
+    . $SRS_WORKDIR/auto/srt_options.sh
 
-    # For cross-build.
-    if [[ $SRS_CROSS_BUILD == YES ]]; then
-        TOOL_GCC_REALPATH=$(realpath $(which $SRS_TOOL_CC))
-        SRT_COMPILER_PREFIX=$(echo $TOOL_GCC_REALPATH |sed 's/-gcc.*$/-/')
-        LIBSRT_OPTIONS="$LIBSRT_OPTIONS --with-compiler-prefix=$SRT_COMPILER_PREFIX"
-    fi
-
-    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib/libsrt.a ]]; then
+    # The options of the built libsrt are kept beside it, so a libsrt built with other options, such as without
+    # bonding, is rebuilt instead of reused.
+    LIBSRT_OPTIONS_FILE=${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/srs-options.txt
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib/libsrt.a && "$(cat $LIBSRT_OPTIONS_FILE 2>/dev/null)" == "$LIBSRT_OPTIONS" ]]; then
         rm -rf ${SRS_OBJS}/srt && cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/ &&
         echo "libsrt-1-fit is ok."
     else
+        if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib/libsrt.a ]]; then
+            echo "libsrt-1-fit was built with other options, rebuild it with: $LIBSRT_OPTIONS"
+        fi
         if [[ $SRS_USE_SYS_SSL != YES && ! -d ${SRS_OBJS}/openssl/lib/pkgconfig ]]; then
             echo "OpenSSL pkgconfig no found, build srt-1-fit failed."
             exit -1
@@ -668,6 +657,7 @@ if [[ $SRS_USE_SYS_SRT == NO ]]; then
         if [[ -d ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib64 ]]; then
             cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib64 ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/lib
         fi &&
+        echo "$LIBSRT_OPTIONS" > $LIBSRT_OPTIONS_FILE &&
         cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt ${SRS_OBJS}/ &&
         echo "libsrt-1-fit is ok."
     fi

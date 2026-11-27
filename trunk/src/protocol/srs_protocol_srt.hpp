@@ -21,6 +21,19 @@ extern srs_error_t srs_srt_log_initialize();
 extern void srs_srt_cleanup();
 
 extern srs_srt_t srs_srt_socket_invalid();
+// Whether the fd is a socket group, which a listener with bonding on accepts from a bonded caller.
+extern bool srs_srt_is_group(srs_srt_t fd);
+// A link of a socket group: its socket, the address of its peer, its state in the group (pending, idle, running or
+// broken) and its weight, which picks the active link of a backup group.
+struct SrsSrtGroupLink {
+    srs_srt_t id_;
+    std::string ip_;
+    int port_;
+    std::string state_;
+    int weight_;
+};
+// The links of a socket group, in the order they joined it; an error when the group is gone.
+extern srs_error_t srs_srt_group_links(srs_srt_t group, std::vector<SrsSrtGroupLink> &links);
 
 extern srs_error_t srs_srt_socket(srs_srt_t *pfd);
 extern srs_error_t srs_srt_close(srs_srt_t fd);
@@ -46,6 +59,7 @@ extern srs_error_t srs_srt_set_peer_latency(srs_srt_t srt_fd, int peer_latency);
 extern srs_error_t srs_srt_set_streamid(srs_srt_t srt_fd, const std::string &streamid);
 extern srs_error_t srs_srt_set_passphrase(srs_srt_t srt_fd, const std::string &passphrase);
 extern srs_error_t srs_srt_set_pbkeylen(srs_srt_t srt_fd, int pbkeylen);
+extern srs_error_t srs_srt_set_group_connect(srs_srt_t srt_fd, bool group_connect);
 
 extern srs_error_t srs_srt_get_maxbw(srs_srt_t srt_fd, int64_t &maxbw);
 extern srs_error_t srs_srt_get_mss(srs_srt_t srt_fd, int &mss);
@@ -79,6 +93,10 @@ public:
     int pktRcvLoss();
     int pktRcvRetrans();
     int pktRcvDrop();
+    // The packets a socket group got once, whatever link brought them; libsrt counts only these and the drops of
+    // a group, and leaves the rest 0.
+    int64_t pktRecvUnique();
+    double msRTT();
 
 public:
     int64_t pktSent();
@@ -130,6 +148,7 @@ public:
     virtual srs_error_t set_peer_latency(srs_srt_t srt_fd, int peer_latency) = 0;
     virtual srs_error_t set_passphrase(srs_srt_t srt_fd, const std::string &passphrase) = 0;
     virtual srs_error_t set_pbkeylen(srs_srt_t srt_fd, int pbkeylen) = 0;
+    virtual srs_error_t set_group_connect(srs_srt_t srt_fd, bool group_connect) = 0;
 };
 
 class SrsSrtOptions : public ISrsSrtOptions
@@ -153,6 +172,7 @@ public:
     virtual srs_error_t set_peer_latency(srs_srt_t srt_fd, int peer_latency);
     virtual srs_error_t set_passphrase(srs_srt_t srt_fd, const std::string &passphrase);
     virtual srs_error_t set_pbkeylen(srs_srt_t srt_fd, int pbkeylen);
+    virtual srs_error_t set_group_connect(srs_srt_t srt_fd, bool group_connect);
 };
 
 class ISrsSrtSocket
@@ -172,6 +192,18 @@ public:
     virtual int64_t get_recv_bytes() = 0;
 };
 
+// libsrt raises an update on a listener when a link joins a socket group the listener already accepted, and does
+// not accept the link: the group's owner is told nothing else.
+class ISrsSrtUpdateHandler
+{
+public:
+    ISrsSrtUpdateHandler();
+    virtual ~ISrsSrtUpdateHandler();
+
+public:
+    virtual void on_srt_update() = 0;
+};
+
 class SrsSrtSocket : public ISrsSrtSocket
 {
 public:
@@ -180,6 +212,9 @@ public:
 
 public:
     srs_error_t connect(const std::string &ip, int port);
+    // Accept a caller, with its address. A socket group has no peer of its own, so its address is the one of the
+    // link that brought the group up, the first link.
+    srs_error_t accept(srs_srt_t *client_srt_fd, std::string &ip, int &port);
     srs_error_t accept(srs_srt_t *client_srt_fd);
     srs_error_t recvmsg(void *buf, size_t size, ssize_t *nread);
     srs_error_t sendmsg(void *buf, size_t size, ssize_t *nwrite);
@@ -200,6 +235,9 @@ public:
     void notify_readable();
     void notify_writeable();
     void notify_error();
+    // Watch the socket's updates, which the poller hands to the handler.
+    srs_error_t set_update_handler(ISrsSrtUpdateHandler *handler);
+    void notify_update();
 
 public:
     srs_error_t enable_read();
@@ -228,6 +266,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
     int events_;
     ISrsSrtPoller *srt_poller_;
+    ISrsSrtUpdateHandler *update_handler_;
 };
 
 #endif

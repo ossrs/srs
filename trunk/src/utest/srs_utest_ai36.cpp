@@ -1349,26 +1349,6 @@ VOID TEST(ServerTcpClientTest, EmptyPeerIpIsIgnoredOrRefused)
 }
 #endif
 
-VOID TEST(ServerSrtClientTest, RefusesSocketWithoutPeer)
-{
-    srs_error_t err;
-
-    MockConnectionManagerForResampleKbps manager;
-    SrsUniquePtr<SrsServer> server(new SrsServer());
-    server->assemble();
-    server->conn_manager_ = &manager;
-
-    srs_srt_t fd = srs_srt_socket_invalid();
-    HELPER_ASSERT_SUCCESS(srs_srt_socket_with_default_option(&fd));
-    err = server->accept_srt_client(fd);
-    EXPECT_TRUE(err != srs_success);
-    EXPECT_TRUE(srs_error_desc(err).find("srt fd to resource") != string::npos);
-    srs_freep(err);
-    EXPECT_TRUE(manager.connections_.empty());
-
-    server->conn_manager_ = NULL;
-}
-
 // An SRT listener and a client connected to it, freed with the pair.
 class Ai36SrtPair
 {
@@ -1389,13 +1369,14 @@ public:
     }
 };
 
-// Connects an SRT client to a new listener, and returns the listener's end of the connection.
-static srs_error_t ai36_srt_pair(Ai36SrtPair *pair, srs_srt_t *paccepted)
+// Connects an SRT client to a new listener, and returns the listener's end of the connection, with the client's
+// address as the listener accepted it.
+static srs_error_t ai36_srt_pair(Ai36SrtPair *pair, srs_srt_t *paccepted, string &ip, int &port)
 {
     srs_error_t err = srs_success;
 
-    int port = 0;
-    if ((err = srs_utest_free_port(SOCK_DGRAM, &port)) != srs_success) {
+    int listen_port = 0;
+    if ((err = srs_utest_free_port(SOCK_DGRAM, &listen_port)) != srs_success) {
         return err;
     }
 
@@ -1403,7 +1384,7 @@ static srs_error_t ai36_srt_pair(Ai36SrtPair *pair, srs_srt_t *paccepted)
     if ((err = srs_srt_socket_with_default_option(&lfd)) != srs_success) {
         return err;
     }
-    if ((err = srs_srt_listen(lfd, "127.0.0.1", port)) != srs_success) {
+    if ((err = srs_srt_listen(lfd, "127.0.0.1", listen_port)) != srs_success) {
         srs_srt_close(lfd);
         return err;
     }
@@ -1415,12 +1396,12 @@ static srs_error_t ai36_srt_pair(Ai36SrtPair *pair, srs_srt_t *paccepted)
     }
     pair->client_ = new SrsSrtSocket(_srs_srt_eventloop->poller(), cfd);
     pair->client_->set_send_timeout(3 * SRS_UTIME_SECONDS);
-    if ((err = pair->client_->connect("127.0.0.1", port)) != srs_success) {
+    if ((err = pair->client_->connect("127.0.0.1", listen_port)) != srs_success) {
         return err;
     }
 
     pair->listener_->set_recv_timeout(3 * SRS_UTIME_SECONDS);
-    return pair->listener_->accept(paccepted);
+    return pair->listener_->accept(paccepted, ip, port);
 }
 
 VOID TEST(ServerSrtClientTest, RefusesClientOverConnectionLimit)
@@ -1439,9 +1420,11 @@ VOID TEST(ServerSrtClientTest, RefusesClientOverConnectionLimit)
 
     Ai36SrtPair pair;
     srs_srt_t fd = srs_srt_socket_invalid();
-    HELPER_ASSERT_SUCCESS(ai36_srt_pair(&pair, &fd));
+    string ip;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(ai36_srt_pair(&pair, &fd, ip, port));
 
-    err = server->accept_srt_client(fd);
+    err = server->accept_srt_client(fd, ip, port);
     EXPECT_EQ(ERROR_EXCEED_CONNECTIONS, srs_error_code(err));
     srs_freep(err);
 
@@ -1463,13 +1446,20 @@ VOID TEST(ServerSrtClientTest, ManagesConnectionOfClient)
 
     Ai36SrtPair pair;
     srs_srt_t fd = srs_srt_socket_invalid();
-    HELPER_ASSERT_SUCCESS(ai36_srt_pair(&pair, &fd));
+    string ip;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(ai36_srt_pair(&pair, &fd, ip, port));
 
-    HELPER_EXPECT_SUCCESS(server->accept_srt_client(fd));
+    // The connection has the client's address as the listener accepted it.
+    string client_ip;
+    int client_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_srt_get_local_ip_port(pair.client_->fd(), client_ip, client_port));
+    HELPER_EXPECT_SUCCESS(server->accept_srt_client(fd, ip, port));
     ASSERT_EQ(1, (int)manager.size());
     SrsMpegtsSrtConn *conn = dynamic_cast<SrsMpegtsSrtConn *>(manager.at(0));
     ASSERT_TRUE(conn != NULL);
     EXPECT_STREQ("127.0.0.1", conn->ip_.c_str());
+    EXPECT_EQ(client_port, conn->port_);
 
     // SRT is off in the global config, so the connection refuses the client and the manager frees it.
     for (int i = 0; i < 300 && !manager.empty(); i++) {
