@@ -39,7 +39,8 @@ setup() {
     printf '%s\n' '#!/bin/bash' 'case $1 in status) echo free;; acquire) echo token;; esac' >$FAKE_SCRIPTS/full-tier-lock.sh
     local s
     for s in proxy-e2e-test proxy-e2e-cluster-test proxy-e2e-edge-test proxy-e2e-redis-test proxy-e2e-transmux-test \
-        proxy-e2e-srt-test proxy-e2e-whip-test proxy-e2e-bearer-auth-test proxy-e2e-rtc-session-test srs-config-file-test gb28181-api-timeout-test \
+        proxy-e2e-srt-test proxy-e2e-whip-test proxy-e2e-bearer-auth-test proxy-e2e-rtc-session-test proxy-e2e-srt-impair-test \
+        srt-libsrt-build srs-config-file-test gb28181-api-timeout-test \
         gb28181-tcp-disconnect-test srs-reload-test install-target-test rtc-rtx-whip-publish-test \
         rtc-rtx-whep-play-test rtc-plain-whep-play-test rtc-plain-whip-publish-test; do
         fake $FAKE_SCRIPTS/$s.sh
@@ -106,6 +107,11 @@ check before 'start obs-lane-test.sh [' 'end proxy-utest.sh ['
 check before 'start obs-lane-test.sh [' 'start obs-linux-test.sh []'
 check before 'end obs-lane-test.sh [' 'start make [integ-unit'
 check before 'end obs-linux-test.sh []' 'start make [integ-unit'
+# Step 1 builds the libsrt client the SRT cases use; lane J runs the SRT proxy script alone, after lane H.
+check before 'start srt-libsrt-build.sh [' 'start proxy-utest.sh ['
+check before 'end make [integ]' 'start proxy-e2e-srt-impair-test.sh ['
+check says 'step 4: lane J'
+check row '^proxy-e2e-srt-impair +0 '
 check not_called 'obs-windows-test.sh'
 check row '^obs-lane +0 +2 +0 '
 check row '^obs-linux +0 +0 +0 '

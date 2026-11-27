@@ -68,11 +68,20 @@ runner has few cores:
 ```bash
 docker build --tag srs:test -f trunk/Dockerfile.test .
 M="-v $PWD/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media"
+L="-v srt-libsrt:/srs/tools/srt-libsrt/objs"
+docker run --rm -w /srs $L srs:test bash -c 'apt-get update -y && apt-get install -y libssl-dev &&
+    bash skills/srs-develop/scripts/srt-libsrt-build.sh'
 docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-prepare
-docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-unit
-docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-main INTEG_ARGS=-integ.limit-scale=4
-docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-timer INTEG_ARGS=-integ.limit-scale=4
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M $L srs:test make integ-unit
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M $L srs:test make integ-main INTEG_ARGS=-integ.limit-scale=4
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M $L srs:test make integ-timer INTEG_ARGS=-integ.limit-scale=4
 ```
+
+The SRT cases and the `internal/srt` tests run libsrt v1.5.7 through the
+`tools/srt-libsrt` client, built from source with OpenSSL's headers, which the
+image lacks; the Docker volume `srt-libsrt` keeps it for the steps after its
+build, which takes about 11 seconds. Build the image from a clean checkout, as
+CI does, so no local build in `tools/srt-libsrt/objs` lands in the volume.
 
 The image's `ffmpeg` is 5.0, which writes HEVC in FLV the legacy way, so the
 test media, and the cases that run ffmpeg, use its `ffmpeg7`; it has no VP9 or AV1 encoder, so those
@@ -90,6 +99,36 @@ by SIGKILL", which the suite never sends to a running server; on Linux,
 confirm it in the kernel log (`dmesg`, in a privileged container for the
 Docker VM: `docker run --rm --privileged srs:test dmesg | grep -i 'killed
 process'`) before taking the group's failures for flakes.
+
+### SRT
+
+The SRT cases run over several client libraries (see `internal/srt/` below);
+each case stays within its class limit, and each SRT layer within 60 seconds
+of wall time:
+
+```bash
+go -C cmd/integ/cases test -count=1 -run 'Test(Timer_)?Srt' -skip '^TestTimer_' -parallel 24
+go -C cmd/integ/cases test -count=1 -run '^TestTimer_Srt' -parallel 256 -args -integ.timer -integ.settle=2s
+go -C cmd/integ test -count=1 ./internal/srt/
+bash skills/srs-develop/scripts/proxy-e2e-srt-impair-test.sh
+```
+
+| Layer | macOS arm64 | Linux arm64, CI image, `-integ.limit-scale=4` |
+|---|---|---|
+| SRT cases, main process | 148 cases, 3.6–5.7s | 3.2–3.3s |
+| SRT cases, timer process | 79 cases, 20 of them skipped without `SRT_INTEROP=on`; 12.5–12.6s, as long as the serial lossy concurrency cases | 11.2–12.3s |
+| Both at once, as `make integ` runs them | 12.6s | 14.5–15.6s one after the other, as CI runs them |
+| `internal/srt` tests | 22.5–23.5s; 44s with `SRT_INTEROP=on` | 15.3–16.1s |
+| SRT utests, `--gtest_filter='*Srt*:*SRT*:-*Srtp*:*Srtcp*'` | 250 tests, 4.2–4.5s | 3.8–4.2s |
+| `proxy-e2e-srt-impair-test.sh` | 14 cases, 6–9s | not run, Full tier only |
+| `proxy-e2e-srt-test.sh` | 24–28s | not run, Full tier only |
+| `obs-srt-publish-test.sh` | 7s | not run, Full tier only |
+
+Measured on 2026-11-26, 5 runs each, with every libsrt case on. With
+`SRT_INTEROP=on` the timer process also runs libsrt's tools in Docker, 20
+containers at its start, which slowed the main process's SRT cases over their
+limit (cases of 540ms to 1.1s); run `make integ-main`, then `make integ-timer`,
+as CI does, not `make integ`: about 17s in all.
 
 Each `go test` process ends with its summary: the cases passed, failed and
 skipped with their reasons, the known bugs, and the 10 slowest cases. Then the
@@ -128,7 +167,7 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 | `internal/flv/`, `internal/ts/`, `internal/audio/`, `internal/mp4/` | Demuxers, analyzers and players of FLV, TS, AAC/MP3 and MP4 |
 | `internal/hls/`, `internal/dash/` | HLS and DASH parsers and players |
 | `internal/rtc/` | WebRTC WHIP and WHEP client on pion, with raw and recorder tools |
-| `internal/srt/` | SRT caller on gosrt |
+| `internal/srt/` | SRT clients on gosrt, zsiec/srtgo, libsrt (`tools/srt-libsrt/README.md`), FFmpeg and `srt-live-transmit`, a relay that impairs the network, a raw packet writer, and a cross-check of the libraries; see [SRT](#srt) |
 | `internal/rtsp/` | RTSP player on gortsplib |
 | `internal/gb/` | GB28181 PS-over-RTP publisher, without SIP |
 | `cases/` | The cases |
@@ -166,7 +205,9 @@ default vhost and the FFmpeg log dir, for `-c`, while the env sets the rest.
 - **Feature:** one name per feature area, such as `Rtmp`, `HttpFlv`, `Hls`, `Rtc`, `Api` or `Hooks`. Reuse a name from the catalog before adding one.
 
 `make integ` runs `^TestTimer_` in one process and everything else in another,
-with `-parallel 24`, at the same time. With 64 cases at once, the cases that
+with `-parallel 24`, at the same time. `make integ-timer` runs the
+`TestTimer_Srt_` cases after the other timer cases, as their own process,
+since their load made the others' timers late on a CI runner. With 64 cases at once, the cases that
 start together slowed each other past their limit, while the run took no
 less time; with 32, at about 1,300 cases, a fast run still had cases at
 500-600ms, and 24 holds them under 420ms in about the same time.
@@ -332,7 +373,7 @@ checks are in the test files under `cases/`.
 | Hls | Common, Options, Fmp4, Fmp4Default, TsFloor, Keys, Fmp4Keys, Sessions, CtxOff, Dispose, Fmp4Dispose, Cleanup | HLS TS and fMP4, its options and file names, encryption, `hls_ctx` sessions, dispose and cleanup |
 | Dash | Common, Options, StreamDir, Dispose, Cleanup | DASH play, the MPD, its options, dispose and cleanup |
 | Rtc | Common, Transport, PreferRtx, NackTwccOff, TwccLoss, StartFails | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC and how right its feedback is, packets the client loses, a failed start |
-| Srt | Common, Latencies, LatencyOnly, Options, PeerIdle | SRT publish and play, latencies, stream ids, encryption, idle peers |
+| Srt | Common, Latencies, LatencyOnly, Options, PeerIdle, Transport, TsbpdOff, TlpktdropOff, VhostOff, Edge, Impair, Failure, Concurrency, MaxConnections, Robust, Interop, Stats, Proxy | SRT publish and play, latencies, stream IDs, encryption, idle peers, listen ports and IPv6, the transport settings, SRT off on the vhost or an edge, a bad network and a client's failed link, many clients, hand-written packets, the interop of the libraries, stats under loss, the Go proxy (see [SRT](#srt)) |
 | Rtsp | Common, Options, VhostOff | RTSP play from RTMP, its options |
 | Gb | Common, Reconnect, MediaTimeout, RtmpOutput | GB28181 publish over TCP, reconnects, media timeouts, its RTMP output |
 | Caster | UdpTs, UdpTsRepush, UdpTsOutput | The MPEG-TS over UDP caster |

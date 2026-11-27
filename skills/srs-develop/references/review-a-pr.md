@@ -67,7 +67,7 @@ For a PR that fixes a bug, prove the problem exists before the fix is trusted. T
 
 The user's decision on the PR picks what to do:
 
-- **Merge:** after the problem is confirmed and the version and changelog are bumped, rewrite the PR title and description from what the review learned: the problem, the fix, and the verification. Use the changelog summary and version as the title, such as `RTC: Fix negative SDP session-id on Android. v8.0.67`. Show the user the draft, then update the PR with `gh pr edit <number> --repo <owner/repo> --title <title> --body-file <file>`.
+- **Merge:** after the problem is confirmed and the version and changelog are bumped, rewrite the PR title and description from what the review learned: the problem, the fix, and the verification. Use the changelog summary and version as the title, such as `RTC: Fix negative SDP session-id on Android. v8.0.67`. Keep the title short, as `references/version-and-changelog.md` says; the details go in the description. Show the user the draft, then update the PR with `gh pr edit <number> --repo <owner/repo> --title <title> --body-file <file>`.
 - **Close or give up:** comment on the PR with the reason, as below.
 
 To comment:

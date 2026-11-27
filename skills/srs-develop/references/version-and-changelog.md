@@ -4,6 +4,16 @@
 
 Apply these rules whenever a task bumps a version or adds a changelog entry, regardless of which task the router selected. A version bump is not exclusive to the Review a PR workflow — Fix a Bug and Develop Code reach it too.
 
+## Short Summary
+
+The changelog summary is also the PR title, so keep it short and plain, in SRS, State Threads and Oryx alike:
+
+- Aim for about five words after the prefix. Name what changed, not how the code does it.
+- Leave out the mechanism, the cases, the lists and the reasons. They go in the PR description.
+- Good: `Proxy: Clean up WebRTC sessions`, `RTC: Keep media on the nominated ICE pair`.
+- Too long: `Proxy: End WebRTC sessions on DELETE, idle timeout and shutdown`, `Windows: Support daemon mode, running SRS in the background`.
+- A commit title on a task branch may say more. Shorten it when it becomes the summary.
+
 ## SRS
 
 **Bump revision by one in both version files, and keep them in sync. Missing either one is a defect.**

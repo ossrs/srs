@@ -2,10 +2,15 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package srt is the suite's SRT client, built on the pure-Go gosrt: a caller
-// that publishes or plays a stream by its streamid, a sender that sends an
-// MPEG-TS file in SRT messages timed by its PCR, and a player that fills the
-// stream report from the TS it gets.
+// Package srt is the suite's SRT client: a caller that publishes or plays a
+// stream by its streamid, with one of the Clients, an SRT library such as the
+// pure-Go gosrt (the default) or zsiec/srtgo, or libsrt through the
+// tools/srt-libsrt process; a sender that sends an MPEG-TS
+// file in SRT messages timed by its PCR; and a player that fills the stream
+// report from the TS it gets. Impair is a UDP relay between a client
+// and the server that loses, delays, reorders, duplicates or blackholes the
+// packets of each direction, and moves the client to a new port. Raw is a
+// caller that writes SRT packets by hand, for what no library sends.
 package srt
 
 import (
@@ -15,12 +20,9 @@ import (
 	"io"
 	"net"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	gosrt "github.com/datarhei/gosrt"
 
 	"srs-integ/internal/report"
 	"srs-integ/internal/ts"
@@ -37,13 +39,35 @@ type Options struct {
 	// zero is 16.
 	PBKeyLen int
 	// Latency is the caller's receiver latency and the latency it asks the
-	// peer for; zero asks for none, so the peer's own latency applies.
+	// peer for; zero asks for none with gosrt, so the peer's own latency
+	// applies, and is the library's default, 120ms, with zsiec, whose least
+	// is 20ms, and with libsrt.
 	Latency time.Duration
+	// RecvLatency and PeerLatency, when either is set, replace Latency: the
+	// caller's receiver latency, and the latency it asks the peer for; the
+	// one not set is Latency.
+	RecvLatency, PeerLatency time.Duration
 	// Timeout bounds the handshake; zero is 3s.
 	Timeout time.Duration
 	// PeerIdleTimeout closes the connection when the peer sends nothing for
-	// that long; zero is gosrt's 5s.
+	// that long; zero is the library's 5s.
 	PeerIdleTimeout time.Duration
+	// PayloadSize is the largest payload of a packet, SRTO_PAYLOADSIZE; zero
+	// is 1316.
+	PayloadSize int
+	// MSS is the largest UDP packet with its IP header, SRTO_MSS; zero is
+	// 1500.
+	MSS int
+	// MaxBW is the sending rate limit in bytes per second, SRTO_MAXBW; zero
+	// is the library's default.
+	MaxBW int64
+	// SendBuf and RecvBuf are the buffer sizes in bytes, SRTO_SNDBUF and
+	// SRTO_RCVBUF; zero is the library's default.
+	SendBuf, RecvBuf int
+	// TSBPDMode and TLPktDrop turn SRTO_TSBPDMODE and SRTO_TLPKTDROP on or
+	// off; nil is the library's default, on in live mode. zsiec has neither
+	// and refuses them.
+	TSBPDMode, TLPktDrop *bool
 }
 
 // ParseURL splits an SRT URL, srt://host:port?key=value&..., into the address
@@ -95,58 +119,16 @@ func ParseURL(u string) (addr string, opts Options, err error) {
 	return net.JoinHostPort(host, port), opts, nil
 }
 
-// A Conn is an SRT connection in live mode.
+// A Conn is an SRT connection in live mode, of one of the Clients.
 type Conn struct {
-	c gosrt.Conn
+	c      link
+	client string
 }
 
-// Dial connects to an SRT listener as a caller. A listener that refuses the
-// handshake gives a *RejectError.
+// Dial connects to an SRT listener as a caller with gosrt, GoSRT.Dial. A
+// listener that refuses the handshake gives a *RejectError.
 func Dial(ctx context.Context, addr string, opts Options) (*Conn, error) {
-	cfg := gosrt.DefaultConfig()
-	cfg.StreamId = opts.StreamID
-	cfg.Passphrase = opts.Passphrase
-	if opts.PBKeyLen != 0 {
-		cfg.PBKeylen = opts.PBKeyLen
-	}
-	cfg.Latency = opts.Latency
-	if opts.PeerIdleTimeout != 0 {
-		cfg.PeerIdleTimeout = opts.PeerIdleTimeout
-	}
-	cfg.ConnectionTimeout = opts.Timeout
-	if cfg.ConnectionTimeout == 0 {
-		cfg.ConnectionTimeout = 3 * time.Second
-	}
-	if d, ok := ctx.Deadline(); ok && time.Until(d) < cfg.ConnectionTimeout {
-		cfg.ConnectionTimeout = max(time.Until(d), time.Millisecond)
-	}
-
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	c, err := gosrt.Dial("srt", addr, cfg)
-	if err != nil {
-		return nil, rejectOf(err)
-	}
-	return &Conn{c: c}, nil
-}
-
-// rejectedRE is how gosrt reports a refused handshake: the handshake type, in
-// base 32, is the reason.
-var rejectedRE = regexp.MustCompile(`connection rejected: REJECT \(([0-9a-v]+)\)`)
-
-// rejectOf returns a *RejectError for gosrt's error of a refused handshake,
-// and err otherwise.
-func rejectOf(err error) error {
-	m := rejectedRE.FindStringSubmatch(err.Error())
-	if m == nil {
-		return err
-	}
-	reason, perr := strconv.ParseUint(m[1], 32, 32)
-	if perr != nil {
-		return err
-	}
-	return &RejectError{Reason: int(reason)}
+	return GoSRT.Dial(ctx, addr, opts)
 }
 
 // Read reads the next message, up to 1316 bytes.
@@ -161,12 +143,18 @@ func (c *Conn) Close() error { return c.c.Close() }
 // TSBPD returns the TSBPD delays the handshake agreed: recv, how long this end
 // holds what it receives, and send, how long the peer holds what this end
 // sends, which is the peer's receive latency.
-func (c *Conn) TSBPD() (recv, send time.Duration) {
-	var s gosrt.Statistics
-	c.c.Stats(&s)
-	return time.Duration(s.Instantaneous.MsRecvTsbPdDelay) * time.Millisecond,
-		time.Duration(s.Instantaneous.MsSendTsbPdDelay) * time.Millisecond
-}
+func (c *Conn) TSBPD() (recv, send time.Duration) { return c.c.tsbpd() }
+
+// MSS returns the MSS the handshake agreed, the smaller of the two ends', and
+// FlowWindow the packets the peer takes in flight, its receiver buffer in
+// packets; each is 0 when the library doesn't tell it: FFmpeg tells neither,
+// gosrt no flow window.
+func (c *Conn) MSS() int { mss, _ := c.c.negotiated(); return mss }
+
+func (c *Conn) FlowWindow() int { _, fw := c.c.negotiated(); return fw }
+
+// Client is the name of the library of the connection, such as gosrt.
+func (c *Conn) Client() string { return c.client }
 
 // WaitClosed reads and drops what the peer sends until it closes the
 // connection, and returns nil then, or the error of ctx, when it closes the
@@ -232,7 +220,7 @@ func (c *Conn) Analyze(ctx context.Context, u report.Until) (*report.Report, err
 // messages reads the stream of messages as bytes: a read that asks for less
 // than a message gets the rest on the next reads, so nothing is lost.
 type messages struct {
-	c    gosrt.Conn
+	c    io.Reader
 	buf  []byte
 	left []byte
 }
@@ -256,9 +244,16 @@ func (m *messages) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// Play connects to addr and analyzes the stream until u, or until ctx ends.
+// Play connects to addr with gosrt and analyzes the stream until u, or until
+// ctx ends.
 func Play(ctx context.Context, addr string, opts Options, u report.Until) (*report.Report, error) {
-	c, err := Dial(ctx, addr, opts)
+	return PlayWith(ctx, GoSRT, addr, opts, u)
+}
+
+// PlayWith connects to addr with a client and analyzes the stream until u, or
+// until ctx ends.
+func PlayWith(ctx context.Context, cl Client, addr string, opts Options, u report.Until) (*report.Report, error) {
+	c, err := cl.Dial(ctx, addr, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -310,10 +305,12 @@ func (e *RejectError) Error() string {
 // MessageSize is the payload of an SRT message in live mode: 7 TS packets.
 const MessageSize = 7 * ts.PacketSize
 
-// A Sender sends an MPEG-TS stream in messages of 7 packets, each timed by
-// the latest PCR up to its end, since the first PCR of the stream.
+// A Sender sends an MPEG-TS stream in messages of 7 packets, or the size
+// NewSenderSize sets, each timed by the latest PCR up to its end, since the
+// first PCR of the stream.
 type Sender struct {
-	r io.Reader
+	r    io.Reader
+	size int
 	// next is the message read ahead, and at its media time.
 	next   []byte
 	at     time.Duration
@@ -325,7 +322,13 @@ type Sender struct {
 }
 
 // NewSender reads the TS stream from r.
-func NewSender(r io.Reader) *Sender { return &Sender{r: r, pcr: -1} }
+func NewSender(r io.Reader) *Sender { return NewSenderSize(r, MessageSize) }
+
+// NewSenderSize reads the TS stream from r, to send in messages of size
+// bytes, whole TS packets, such as for a peer whose MSS takes no 7.
+func NewSenderSize(r io.Reader, size int) *Sender {
+	return &Sender{r: r, size: max(size/ts.PacketSize, 1) * ts.PacketSize, pcr: -1}
+}
 
 // peek reads the next message ahead, if it hasn't; it returns io.EOF at the
 // end of the stream.
@@ -336,9 +339,9 @@ func (s *Sender) peek() error {
 	if s.eof {
 		return io.EOF
 	}
-	msg := make([]byte, 0, MessageSize)
+	msg := make([]byte, 0, s.size)
 	p := make([]byte, ts.PacketSize)
-	for len(msg) < MessageSize {
+	for len(msg) < s.size {
 		if _, err := io.ReadFull(s.r, p); err == io.EOF {
 			s.eof = true
 			break

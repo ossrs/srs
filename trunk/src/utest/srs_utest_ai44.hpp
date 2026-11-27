@@ -58,6 +58,17 @@ public:
         }
         return n;
     }
+    // How many errors hold the text.
+    int errors(std::string text)
+    {
+        int n = 0;
+        for (int i = 0; i < (int)log_.errors_.size(); i++) {
+            if (log_.errors_[i].find(text) != std::string::npos) {
+                n++;
+            }
+        }
+        return n;
+    }
 };
 
 #endif

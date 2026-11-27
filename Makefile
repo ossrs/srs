@@ -77,8 +77,12 @@ integ: integ-prepare
 integ-prepare: bin/srs-integ
 	bin/srs-integ prepare -source doc/source.flv -dir cmd/integ/testdata/media -setup skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh
 
+# The SRT timer cases run after the others, as their own process: each starts
+# its own SRS and loads it with impaired and many clients, which on a CI runner
+# makes the other cases' timers late.
 integ-timer:
-	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer -integ.settle=2s $(INTEG_ARGS)
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -skip '^TestTimer_Srt_' -parallel 256 -args -integ.timer -integ.settle=2s $(INTEG_ARGS)
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_Srt_' -parallel 256 -args -integ.timer -integ.settle=2s $(INTEG_ARGS)
 
 integ-main:
 	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 24 -args $(INTEG_ARGS)

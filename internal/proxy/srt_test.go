@@ -4,11 +4,13 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -639,8 +641,19 @@ func drainBackendWrite(t *testing.T, b *fakeBackendUDP) []byte {
 
 func drainListenerWrite(t *testing.T, l *fakePacketConn, wantAddr net.Addr) []byte {
 	t.Helper()
+	return drainWrite(t, l.writes, wantAddr)
+}
+
+// drainServerWrite is drainListenerWrite for the server fixture's listener.
+func drainServerWrite(t *testing.T, l *blockingUDPListener, wantAddr net.Addr) []byte {
+	t.Helper()
+	return drainWrite(t, l.writes, wantAddr)
+}
+
+func drainWrite(t *testing.T, writes chan packetWrite, wantAddr net.Addr) []byte {
+	t.Helper()
 	select {
-	case got := <-l.writes:
+	case got := <-writes:
 		if got.addr != wantAddr {
 			t.Fatalf("listener addr=%v, want %v", got.addr, wantAddr)
 		}
@@ -983,5 +996,162 @@ func TestSRSSRTProxyServer_HandleClientUDP_BadHandshakeUnmarshalError(t *testing
 	err := f.server.handleClientUDP(context.Background(), &net.UDPAddr{}, bad)
 	if err == nil || !strings.Contains(err.Error(), "Invalid packet length") {
 		t.Fatalf("expected unmarshal err, got %v", err)
+	}
+}
+
+// proxy's handshake as a listener does, from a connection of socket ID
+// originSocketID, and hands over every other packet it gets.
+type srtFakeOrigin struct {
+	conn  *net.UDPConn
+	peer  chan net.Addr
+	media chan []byte
+}
+
+const srtFakeOriginSocketID uint32 = 0x0abc0def
+
+func newSRTFakeOrigin(t *testing.T) *srtFakeOrigin {
+	t.Helper()
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &srtFakeOrigin{conn: conn, peer: make(chan net.Addr, 1), media: make(chan []byte, 16)}
+	t.Cleanup(func() { conn.Close() })
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, addr, err := conn.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			hs := &SRTHandshakePacket{}
+			if n < 64 || buf[0]&0x80 == 0 || hs.UnmarshalBinary(buf[:n]) != nil || !hs.IsHandshake() {
+				o.media <- bytes.Clone(buf[:n])
+				continue
+			}
+			// The induction's answer has the origin's cookie, the
+			// conclusion's the origin's socket ID.
+			answer := &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SynCookie: 0x0c00c1e0, PeerIP: net.ParseIP("127.0.0.1")}
+			if hs.SynCookie != 0 {
+				answer.HandshakeType, answer.SRTSocketID = 0xFFFFFFFF, srtFakeOriginSocketID
+				select {
+				case o.peer <- addr:
+				default:
+				}
+			}
+			b, _ := answer.MarshalBinary()
+			conn.WriteTo(b, addr)
+		}
+	}()
+	return o
+}
+
+func (o *srtFakeOrigin) port() string {
+	return strconv.Itoa(o.conn.LocalAddr().(*net.UDPAddr).Port)
+}
+
+// The client's handshake goes through the server to the origin; after it the
+// client sends to the origin's socket ID, which the server relays on the same
+// connection, and what the origin sends comes back to the client's address.
+func TestSRSSRTProxyServer_HandleClientUDP_HandshakeThenRelayByOriginSocketID(t *testing.T) {
+	f := newSRTServerFixture()
+	f.server.listener = f.listener
+	origin := newSRTFakeOrigin(t)
+	f.lb.PickReturns(&lb.OriginServer{IP: "127.0.0.1", SRT: []string{origin.port()}}, nil)
+	client := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 9000}
+	ctx := context.Background()
+
+	const clientSocketID uint32 = 0x11112222
+	if err := f.server.handleClientUDP(ctx, client, marshalOrFatal(t, newHandshake0(clientSocketID))); err != nil {
+		t.Fatalf("handshake 0: %v", err)
+	}
+	<-f.listener.writes
+	hs2 := newHandshake2(clientSocketID, 0x418d5e4e, "#!::r=live/stream,m=publish")
+	if err := f.server.handleClientUDP(ctx, client, marshalOrFatal(t, hs2)); err != nil {
+		t.Fatalf("handshake 2: %v", err)
+	}
+	hs3 := &SRTHandshakePacket{}
+	if err := hs3.UnmarshalBinary(drainServerWrite(t, f.listener, client)); err != nil {
+		t.Fatalf("handshake 3: %v", err)
+	}
+	if hs3.SRTSocketID != srtFakeOriginSocketID {
+		t.Fatalf("handshake 3 socket ID 0x%08x, want the origin's 0x%08x", hs3.SRTSocketID, srtFakeOriginSocketID)
+	}
+
+	byClient, _ := f.server.sockets.Load(clientSocketID)
+	byOrigin, ok := f.server.sockets.Load(srtFakeOriginSocketID)
+	if !ok || byOrigin != byClient {
+		t.Fatalf("connection under the origin's socket ID %v, the same as the client's %v", ok, byOrigin == byClient)
+	}
+
+	data := buildNonHandshakeUDPPayload(srtFakeOriginSocketID, []byte("media-bytes"))
+	if err := f.server.handleClientUDP(ctx, client, data); err != nil {
+		t.Fatalf("relay the client's data: %v", err)
+	}
+	select {
+	case got := <-origin.media:
+		if !bytes.Equal(got, data) {
+			t.Fatalf("origin got %q, want %q", got, data)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the origin got none of the client's data")
+	}
+
+	back := buildNonHandshakeUDPPayload(clientSocketID, []byte("origin-bytes"))
+	if _, err := origin.conn.WriteTo(back, <-origin.peer); err != nil {
+		t.Fatal(err)
+	}
+	if got := drainServerWrite(t, f.listener, client); !bytes.Equal(got, back) {
+		t.Fatalf("client got %q, want %q", got, back)
+	}
+}
+
+// A client whose handshake 3 was lost sends handshake 2 again: the proxy
+// answers it with the same handshake 3 at once, and does not do the origin's
+// handshake again, since the connection's reader already reads the origin.
+func TestSRTConnection_HandleHandshake_Step2_RepeatedAnsweredAgain(t *testing.T) {
+	f := newSRTConnFixture()
+	f.lb.PickReturns(&lb.OriginServer{IP: "127.0.0.1", SRT: []string{"20080"}}, nil)
+	client := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 9000}
+	t.Cleanup(func() { f.backend.Close() })
+
+	hs0 := newHandshake0(0x11111111)
+	if _, err := f.conn.HandlePacket(hs0, client, marshalOrFatal(t, hs0)); err != nil {
+		t.Fatalf("hs0 HandlePacket err=%v", err)
+	}
+	<-f.listener.writes
+
+	f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
+	f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 0xFFFFFFFF, SRTSocketID: 0xabcd1234, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
+	hs2 := newHandshake2(0x11111111, 0x418d5e4e, "#!::r=live/stream")
+	if _, err := f.conn.HandlePacket(hs2, client, marshalOrFatal(t, hs2)); err != nil {
+		t.Fatalf("hs2 HandlePacket err=%v", err)
+	}
+	drainBackendWrite(t, f.backend)
+	drainBackendWrite(t, f.backend)
+	first := drainListenerWrite(t, f.listener, client)
+	// Let the reader the first handshake started wait for the origin.
+	time.Sleep(20 * time.Millisecond)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.conn.HandlePacket(hs2, client, marshalOrFatal(t, hs2))
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("the repeated handshake 2 failed: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("the repeated handshake 2 still waits after 500ms")
+	}
+	if again := drainListenerWrite(t, f.listener, client); !bytes.Equal(again, first) {
+		t.Fatalf("the client got %x again, want the first handshake 3 %x", again, first)
+	}
+	select {
+	case b := <-f.backend.writes:
+		t.Fatalf("the origin got %vB for the repeated handshake 2, want nothing", len(b))
+	case <-time.After(50 * time.Millisecond):
 	}
 }

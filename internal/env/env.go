@@ -51,6 +51,8 @@ type ProxyEnvironment interface {
 	RedisKeyPrefix() string
 	// Lifetime of an origin server registration.
 	OriginServerTTL() string
+	// How long a WebRTC session lives after the client's last packet.
+	RTCSessionTTL() string
 	// The default backend server is for debugging.
 	DefaultBackendEnabled() string
 	DefaultBackendIP() string
@@ -155,6 +157,10 @@ func (e *proxyEnvironment) RedisKeyPrefix() string {
 
 func (e *proxyEnvironment) OriginServerTTL() string {
 	return getEnv("PROXY_ORIGIN_SERVER_TTL")
+}
+
+func (e *proxyEnvironment) RTCSessionTTL() string {
+	return getEnv("PROXY_RTC_SESSION_TTL")
 }
 
 func (e *proxyEnvironment) DefaultBackendEnabled() string {

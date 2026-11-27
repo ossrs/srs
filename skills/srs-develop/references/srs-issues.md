@@ -34,6 +34,22 @@ FFmpeg's mpegts muxer packs about 15 AAC frames into one PES and writes it about
 
 The report says SRS `8.0.63` drops every predicted frame of OBS SVT-AV1. Not reproduced on `8.0.76`: OBS AOM AV1 with a 1 s keyframe interval plays in Chrome at 30 fps with no loss, and SRS relays the AV1 payload unchanged. With the encoder's default keyframe interval a new player decoded nothing in 15 s, since OBS sent no keyframe after the PLI; that is the likely cause. Not tested: SVT-AV1, `8.0.63`, the reporter's player. Reopen needs logs, the keyframe interval, and the player's `inbound-rtp` stats.
 
+## #4798 [USAGE] SRS: DCS SimpleRadio intercom request filed in the wrong repository
+
+- Issue: https://github.com/ossrs/srs/issues/4798
+- Truth Record: https://github.com/ossrs/srs/issues/4798#issuecomment-6917399716
+- Status: Closed as not planned, 2026-11-16
+
+A DCS SimpleRadio Standalone 2.4.1 request (intercom vs simultaneous transmit in external AWACS mode); SRS has no such feature. Pointed to ciribob/DCS-SimpleRadioStandalone.
+
+## #4771 [FEATURE] SRS: SRT connection bonding (socket groups) for publishers
+
+- Issue: https://github.com/ossrs/srs/issues/4771
+- Truth Record: https://github.com/ossrs/srs/issues/4771#issuecomment-6921133492
+- Status: Open, waits for the maintainer's decision on the feature and approach
+
+SRS has no SRT bonding: the listener never sets `SRTO_GROUPCONNECT` and `auto/depends.sh` builds libsrt without `--enable-bonding` (default `OFF`), so a bonded caller rejects the handshake with `SRT_REJ_GROUP`. The reporter proposes `--srt-bonding=on` (off by default), one listener for bonded and plain callers, and the first link's IP as the client IP; they offer a PR once the approach is agreed. libsrt facts checked in 1.5.6: `SRTO_GROUPCONNECT` is an enum and the installed `srt.h` defines `ENABLE_BONDING 0`, so SRS needs its own macro; with groupconnect set, libsrt makes an accepted socket a group only for a group caller; `srt_getpeername()` fails on a group ID (use `srt_group_data()`). The libsrt cache ignores build flags and there is no `clean_srt`. Open points: whether to support it at all, the tie to libsrt against a native SRT stack (#3251), modes and play scope, per-link stats (#4769 closed). Nothing was built or run.
+
 ## #4739 [BUG] SRT multi-level stream IDs could not play over HTTP-FLV/TS
 
 - Issue: https://github.com/ossrs/srs/issues/4739

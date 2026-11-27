@@ -334,7 +334,7 @@ func TestRTCSession_IdleSessionExpires(t *testing.T) {
 	f.send(t, clientAddr(5003), fakeRTPPacket())
 	receive(t, liveBackend, "RTP of the live client")
 
-	f.server.expireIdleConnections(f.lastPacketOf(t, live).Add(lb.RTCAliveDuration - time.Nanosecond))
+	f.server.expireIdleConnections(f.lastPacketOf(t, live).Add(lb.DefaultRTCSessionTTL - time.Nanosecond))
 
 	f.requireEnded(t, departed, departedBackend)
 	f.requireEnded(t, neverConnected, nil)
@@ -409,6 +409,32 @@ func TestRTCSession_ChecksDuringDeleteLeaveNothing(t *testing.T) {
 	}
 }
 
+// An operator who sets PROXY_RTC_SESSION_TTL gets that lifetime: a client
+// silent for the TTL ends, while one that sent within it lives on.
+func TestRTCSession_ConfiguredTTLExpiresSession(t *testing.T) {
+	f := newRTCSessionFixture(t)
+	f.env.RTCSessionTTLReturns("5s")
+	if err := f.server.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	t.Cleanup(func() { _ = f.server.Close() })
+
+	departed, _ := f.play(t)
+	live, _ := f.play(t)
+	departedBackend := f.connect(t, departed, clientAddr(5001))
+	liveBackend := f.connect(t, live, clientAddr(5003))
+
+	waitClockPast(t, f.lastPacketOf(t, departed))
+	f.send(t, clientAddr(5003), fakeRTPPacket())
+	receive(t, liveBackend, "RTP of the live client")
+
+	f.server.expireIdleConnections(f.lastPacketOf(t, live).Add(5*time.Second - time.Nanosecond))
+
+	f.requireEnded(t, departed, departedBackend)
+	f.send(t, clientAddr(5003), fakeRTPPacket())
+	receive(t, liveBackend, "RTP of the live client after the idle check")
+}
+
 // When the proxy stops, every session ends with it.
 func TestRTCSession_CloseEndsAllSessions(t *testing.T) {
 	f := newRTCSessionFixture(t)
@@ -449,7 +475,7 @@ func TestRTCSession_ChurnLeavesNothing(t *testing.T) {
 		}
 		leftAt = time.Now()
 	}
-	f.server.expireIdleConnections(leftAt.Add(lb.RTCAliveDuration))
+	f.server.expireIdleConnections(leftAt.Add(lb.DefaultRTCSessionTTL))
 
 	f.server.usernames.Range(func(ufrag string, _ *rtcConnection) bool {
 		t.Errorf("session %v is still found by its ICE username", ufrag)
