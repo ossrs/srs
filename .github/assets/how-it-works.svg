@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" width="900" height="440" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">How SRS works</title>
+  <desc id="d">Clients connect to the SRS proxy. Browsers and mobile apps publish and play over WebRTC, encoders such as FFmpeg and OBS publish over RTMP or SRT, and players such as H5, VLC and ffplay play over HLS, HTTP-FLV, RTMP or SRT. The proxy routes each stream to the SRS origin server that serves it, and the origin servers register with the proxy by heartbeat. Many proxies share their routes over Redis. The origin servers write HLS and DASH to cloud storage and DVR files in FLV or MP4 to a VoD system, which players can play too.</desc>
+  <style>
+    :root { --fg: #1f2328; --muted: #59636e; --box: #f6f8fa; --line: #d0d7de; --group: #0969da; --arrow: #8c959f; --srs: #fff1e5; --srs-line: #bc4c00; --proxy: #ddf4ff; }
+    @media (prefers-color-scheme: dark) {
+      :root { --fg: #e6edf3; --muted: #9198a1; --box: #161b22; --line: #3d444d; --group: #58a6ff; --arrow: #6e7681; --srs: #3d1d00; --srs-line: #f0883e; --proxy: #0c2d6b; }
+    }
+    text { fill: var(--fg); font-size: 15px; }
+    .mid { text-anchor: middle; }
+    .label { fill: var(--muted); font-size: 13px; }
+    .sub { fill: var(--muted); font-size: 13px; text-anchor: middle; }
+    .row { fill: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .title { font-weight: 600; }
+    .box { fill: var(--box); stroke: var(--line); stroke-width: 1.5; }
+    .group { fill: none; stroke: var(--group); stroke-width: 2; }
+    .srs { fill: var(--srs); stroke: var(--srs-line); stroke-width: 2; }
+    .proxy { fill: var(--proxy); stroke: var(--group); stroke-width: 2; }
+    .flow { stroke: var(--arrow); stroke-width: 2.5; fill: none; }
+    .head { fill: var(--arrow); }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+
+  <!-- WebRTC clients -->
+  <rect class="group" x="20" y="20" width="400" height="104" rx="12"/>
+  <text class="row" x="36" y="44">WebRTC clients</text>
+  <rect class="box" x="36" y="56" width="214" height="52" rx="8"/>
+  <text class="mid" x="143" y="87">Chrome, Firefox, Edge, Safari</text>
+  <rect class="box" x="262" y="56" width="142" height="52" rx="8"/>
+  <text class="mid" x="333" y="87">iOS, Android</text>
+
+  <!-- Live streaming clients -->
+  <rect class="group" x="440" y="20" width="420" height="104" rx="12"/>
+  <text class="row" x="456" y="44">Live streaming clients</text>
+  <rect class="box" x="456" y="56" width="192" height="52" rx="8"/>
+  <text class="mid" x="552" y="87">FFmpeg, OBS, encoders</text>
+  <rect class="box" x="660" y="56" width="184" height="52" rx="8"/>
+  <text class="mid" x="752" y="87">H5, VLC, ffplay players</text>
+
+  <!-- Proxy -->
+  <rect class="proxy" x="20" y="196" width="840" height="60" rx="10"/>
+  <text class="title mid" x="440" y="221">SRS proxy</text>
+  <text class="sub" x="440" y="243">Routes each stream to the origin that serves it; many proxies share routes over Redis</text>
+
+  <!-- Origin servers -->
+  <rect class="group" x="20" y="318" width="460" height="102" rx="12"/>
+  <text class="row" x="36" y="342">SRS origin servers</text>
+  <rect class="srs" x="36" y="354" width="134" height="50" rx="8"/>
+  <text class="mid" x="103" y="384">Origin 1</text>
+  <rect class="srs" x="182" y="354" width="134" height="50" rx="8"/>
+  <text class="mid" x="249" y="384">Origin 2</text>
+  <rect class="srs" x="328" y="354" width="134" height="50" rx="8"/>
+  <text class="mid" x="395" y="384">Origin 3</text>
+
+  <!-- Storage -->
+  <rect class="box" x="560" y="318" width="300" height="46" rx="8"/>
+  <text class="mid" x="710" y="346">Cloud storage, HLS and DASH</text>
+  <rect class="box" x="560" y="374" width="300" height="46" rx="8"/>
+  <text class="mid" x="710" y="402">VoD system, DVR to FLV and MP4</text>
+
+  <!-- Clients and proxy -->
+  <path class="flow" d="M220 126 V194" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="label" x="232" y="165">WebRTC</text>
+  <path class="flow" d="M552 110 V194" marker-end="url(#a)"/>
+  <text class="label" x="564" y="165">RTMP, SRT, WHIP</text>
+  <path class="flow" d="M752 196 V110" marker-end="url(#a)"/>
+  <text class="label" x="764" y="157">HLS, HTTP-FLV,</text>
+  <text class="label" x="764" y="173">RTMP, SRT</text>
+
+  <!-- Proxy and origins -->
+  <path class="flow" d="M170 258 V316" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="label" x="182" y="292">Forwards each stream</text>
+  <path class="flow" d="M380 316 V258" marker-end="url(#a)"/>
+  <text class="label" x="392" y="292">Register by heartbeat</text>
+
+  <!-- Origins write to storage -->
+  <path class="flow" d="M480 341 H558" marker-end="url(#a)"/>
+  <path class="flow" d="M480 397 H558" marker-end="url(#a)"/>
+
+  <!-- Players read from storage -->
+  <path class="flow" d="M860 397 H870 Q880 397 880 387 V341"/>
+  <path class="flow" d="M860 341 H870 Q880 341 880 331 V92 Q880 82 870 82 H846" marker-end="url(#a)"/>
+</svg>

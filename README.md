@@ -17,9 +17,7 @@ x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures, and
 [Windows](https://ossrs.io/lts/en-us/docs/v8/doc/windows) x64. Supported codecs include
 H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
-[![SRS Overview](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png?v=115)](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png)
-
-> Note: For more details on the single-node architecture for SRS, please visit the following [link](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
+<p align="center"><img src=".github/assets/how-it-works.svg" alt="SRS architecture: clients, proxy, origin servers and storage" width="900" /></p>
 
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), and some third-party libraries are 
 distributed under their [licenses](https://ossrs.io/lts/en-us/license).
