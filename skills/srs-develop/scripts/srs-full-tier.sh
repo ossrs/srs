@@ -6,7 +6,12 @@
 # log is in /tmp/srs-full-tier; the summary is one row per layer, then the unverified OBS and Chrome checks.
 #
 # Usage:
-#   bash skills/srs-develop/scripts/srs-full-tier.sh
+#   bash skills/srs-develop/scripts/srs-full-tier.sh [--ssl-4]
+#
+#   --ssl-4   Build with the Full-tier flags plus --ssl-4=on, the bundled OpenSSL 4.1, and run every layer on it.
+#             Step 1 configures objs again when it has other flags, so run srs-utest-run.sh --configure after it
+#             to go back to the default build. The OBS and Chrome Linux builds in Docker stay on the default
+#             build. Not on native Windows, whose build has no OpenSSL 4.1.
 #
 # Environment:
 #   SRS_TEST_OBS               1 by default; 0 skips the OBS builds and lane G.
@@ -22,6 +27,18 @@ LOGS=${SRS_FULL_TIER_LOGS:-/tmp/srs-full-tier}
 OBS=${SRS_TEST_OBS:-1}
 CHROME=${SRS_TEST_CHROME:-1}
 
+usage() {
+    echo "Usage: bash skills/srs-develop/scripts/srs-full-tier.sh [--ssl-4]"
+    exit 2
+}
+SSL4=
+for arg in "$@"; do
+    case $arg in
+        --ssl-4) SSL4=1; FLAGS="$FLAGS --ssl-4=on" ;;
+        *) usage ;;
+    esac
+done
+
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 SCRIPTS="$ROOT/skills/srs-develop/scripts"
 cd "$ROOT" || exit 1
@@ -32,6 +49,10 @@ TOOLS="go ffmpeg ffprobe curl jq node"
 case $(uname -s) in
     MINGW64*|MSYS*) WINDOWS=1; TOOLS="go ffmpeg curl" ;;
 esac
+if [[ -n $WINDOWS && -n $SSL4 ]]; then
+    echo "--ssl-4: the native Windows build has no OpenSSL 4.1"
+    usage
+fi
 for cmd in $TOOLS; do
     if ! command -v $cmd >/dev/null 2>&1; then
         echo "no $cmd in PATH"
@@ -156,6 +177,7 @@ obs_build() {
 chrome_build() {
     layer chrome-linux-build bash $SCRIPTS/chrome-linux-test.sh --build
 }
+echo "flags: $FLAGS"
 echo "step 1: build"
 if [[ $OBS != 0 ]]; then
     obs_build & PO=$!

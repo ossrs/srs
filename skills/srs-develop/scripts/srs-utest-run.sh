@@ -3,10 +3,12 @@
 # Build and run the C++ unit tests of this checkout, from trunk/ so the cwd-relative test data is found.
 #
 # Usage:
-#   bash skills/srs-develop/scripts/srs-utest-run.sh [--configure] [--disabled] [gtest-filter]
+#   bash skills/srs-develop/scripts/srs-utest-run.sh [--configure] [--ssl-4] [--disabled] [gtest-filter]
 #
 #   --configure     Re-run ./configure with the Full-tier flags, then remove the utest objects, which do not
 #                   depend on the configure header. Done on its own in a new checkout or after trunk/configure or trunk/auto/module_files.sh changes.
+#   --ssl-4         Use the Full-tier flags plus --ssl-4=on, the bundled OpenSSL 4.1 build. Give it with --configure
+#                   to switch objs to that build, and on every run after; without it, objs must be the default build.
 #   --disabled      Also run the DISABLED_ tests, such as a test that shows an unfixed bug. Give a filter to run only
 #                   that test, such as 'RtmpTest.DISABLED_PlayClosesTwice'.
 #   gtest-filter    Run only these tests, such as 'ForwarderTest.*'. Default: all tests.
@@ -24,6 +26,7 @@ FILTER=
 for arg in "$@"; do
     case "$arg" in
         --configure) CONFIGURE=yes ;;
+        --ssl-4) FLAGS="$FLAGS --ssl-4=on" ;;
         --disabled) ARGS+=(--gtest_also_run_disabled_tests) ;;
         *) FILTER="$arg" ;;
     esac
@@ -46,7 +49,7 @@ fi
 
 HEADER=$(grep SRS_USER_CONFIGURE objs/srs_auto_headers.hpp | sed 's/.*"\(.*\)"/\1/')
 if [[ "$HEADER" != "$FLAGS" ]]; then
-    echo "objs is configured with '$HEADER', not the Full-tier flags; run with --configure"
+    echo "objs is configured with '$HEADER', not '$FLAGS'; run with --configure, and --ssl-4 for the OpenSSL 4.1 build"
     exit 1
 fi
 

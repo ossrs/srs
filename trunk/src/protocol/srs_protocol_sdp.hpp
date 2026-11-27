@@ -24,10 +24,14 @@ extern std::vector<std::string> split_str(const std::string &str, const std::str
 class SrsSessionConfig
 {
 public:
+    SrsSessionConfig();
+
+public:
     std::string dtls_role_;
     std::string dtls_version_;
     std::string remote_fingerprint_algo_;
     std::string remote_fingerprint_;
+    bool sped_;
 };
 
 class SrsSessionInfo
@@ -223,6 +227,7 @@ public:
     std::string get_dtls_role() const;
     std::string get_fingerprint_algo() const;
     std::string get_fingerprint() const;
+    bool has_ice_option(const std::string &option) const;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

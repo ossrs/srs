@@ -73,7 +73,7 @@ var (
 	featureNames = []string{
 		"ssl", "hls", "callback", "api", "httpd", "dvr", "transcode", "ingest", "stat",
 		"caster", "complex_send", "tcp_nodelay", "so_sendbuf", "mr", "srt", "rtsp", "gb28181", "rtc",
-		"simulator", "sanitizer",
+		"simulator", "handshake_drop", "sanitizer", "dtls13",
 	}
 )
 
@@ -390,6 +390,8 @@ func apiSystem(t *testing.T) {
 				}
 			}
 		}
+		// The handshake simulator comes with the simulator.
+		c.CheckEqual(features["handshake_drop"], features["simulator"], "feature handshake_drop against simulator")
 	})
 
 	check.Case(t, "Jsonp", check.Fast, func(c *check.C) {

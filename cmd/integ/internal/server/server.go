@@ -1166,6 +1166,9 @@ type RTC struct {
 	// publisher's RTP times by the SDP clock rate from the first Sender
 	// Report of a track, not the second.
 	InitRateFromSDP bool
+	// SPED turns the vhost's sped on: SRS answers a=ice-options:sped to an
+	// offer that has it, and carries the DTLS handshake in STUN.
+	SPED bool
 }
 
 // WithRTC returns a copy of cfg with WebRTC on, over UDP only, with
@@ -1204,6 +1207,9 @@ func WithRTC(cfg Config, r RTC) Config {
 	}
 	if r.InitRateFromSDP {
 		env["SRS_VHOST_RTC_INIT_RATE_FROM_SDP"] = "on"
+	}
+	if r.SPED {
+		env["SRS_VHOST_RTC_SPED"] = "on"
 	}
 	cfg.Env = env
 	if !slices.Contains(cfg.Listeners, RTCUDP) {

@@ -5,8 +5,10 @@
 # ASAN_OPTIONS here overrides. Nothing is written to this checkout except the report, and no image is left behind.
 #
 # Usage:
-#   bash skills/srs-develop/scripts/srs-utest-asan-linux.sh [--disabled] [--each] [gtest-filter] [report-file]
+#   bash skills/srs-develop/scripts/srs-utest-asan-linux.sh [--ssl-4] [--disabled] [--each] [gtest-filter] [report-file]
 #
+#   --ssl-4         Build with --ssl-4=on, the bundled OpenSSL 4.1. The image's cache holds only the default
+#                   build's dependencies, so every dependency is built from source first, a few minutes more.
 #   --disabled      Also run DISABLED_ tests, such as a proof of a known leak that is not fixed yet.
 #   --each          Run every matching test in its own process, after one build. Use it for proofs: a
 #                   use-after-free or overflow report ends the process, so in one process it hides the tests after it.
@@ -25,6 +27,7 @@ EXTRA=
 EACH=
 while [[ $1 == --* ]]; do
     case $1 in
+    --ssl-4) FLAGS="$FLAGS --ssl-4=on" ;;
     --disabled) EXTRA=--gtest_also_run_disabled_tests ;;
     --each) EACH=1 ;;
     *) echo "unknown option $1"; exit 1 ;;
@@ -35,7 +38,7 @@ FILTER=${1:-*}
 REPORT=${2:-$ROOT/trunk/objs/asan-linux-utest.log}
 mkdir -p "$(dirname "$REPORT")"
 
-echo "image $IMAGE, filter '$FILTER', each '${EACH:-no}', report $REPORT"
+echo "image $IMAGE, flags '$FLAGS', filter '$FILTER', each '${EACH:-no}', report $REPORT"
 tar -C "$ROOT" --exclude=trunk/objs --exclude='trunk/3rdparty/srs-bench' -cf - trunk |
     docker run --rm -i -e FILTER="$FILTER" -e EXTRA="$EXTRA" -e EACH="$EACH" -e FLAGS="$FLAGS" "$IMAGE" bash -c '
         mkdir -p /srs && tar -C /srs -xf - && cd /srs/trunk || exit 1

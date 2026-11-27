@@ -113,7 +113,6 @@ public:
     virtual srs_error_t initialize();
     virtual X509 *get_cert();
     virtual EVP_PKEY *get_public_key();
-    virtual EC_KEY *get_ecdsa_key();
     virtual std::string get_fingerprint();
     virtual bool is_ecdsa();
 };
@@ -653,6 +652,7 @@ public:
     virtual bool get_rtc_stun_strict_check(std::string vhost) { return false; }
     virtual std::string get_rtc_dtls_role(std::string vhost) { return rtc_dtls_role_; }
     virtual std::string get_rtc_dtls_version(std::string vhost) { return "auto"; }
+    virtual bool get_rtc_sped(std::string vhost) { return false; }
     virtual SrsConfDirective *get_vhost_on_hls(std::string vhost) { return on_hls_directive_; }
     virtual SrsConfDirective *get_vhost_on_hls_notify(std::string vhost) { return NULL; }
     // HLS methods

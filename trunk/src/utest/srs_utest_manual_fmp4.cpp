@@ -6,7 +6,7 @@
 
 #include <srs_utest_manual_fmp4.hpp>
 
-#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <sstream>
 using namespace std;
 
@@ -381,14 +381,14 @@ VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_WithEncryption)
 // each run of crypt+skip, as the cbcs scheme does; skip 0 encrypts every block.
 static void mock_cbcs_encrypt(const unsigned char *key, const unsigned char *iv, int crypt, int skip, uint8_t *data, int size)
 {
-    AES_KEY k;
-    AES_set_encrypt_key(key, 128, &k);
-    unsigned char chain[16];
-    memcpy(chain, iv, 16);
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
     for (int i = 0; i + 16 <= size; i += 16 * (crypt + skip)) {
         int n = srs_min(crypt, (size - i) / 16);
-        AES_cbc_encrypt(data + i, data + i, n * 16, &k, chain, AES_ENCRYPT);
+        int nb = 0;
+        EVP_EncryptUpdate(ctx, data + i, &nb, data + i, n * 16);
     }
+    EVP_CIPHER_CTX_free(ctx);
 }
 
 VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_CbcsAvcAndAac)

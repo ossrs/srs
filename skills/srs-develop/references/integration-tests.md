@@ -90,9 +90,12 @@ They drive Chrome with `skills/internal-chrome-control/SKILL.md`. Each case uses
 - `chrome-loss-test.sh` — NACK under loss with the NACK simulator, downlink and uplink, with `nack_prefer_rtx` off and on. Needs `--simulator=on`.
 - `chrome-http-test.sh` — Chrome plays FFmpeg's RTMP stream over HTTP-FLV, HTTP-TS and HLS.
 - `chrome-codec-test.sh` — Chrome publishes and plays H.264, VP9, AV1 and H.265 over WebRTC; a codec the browser cannot encode is a `SKIP`.
-- `chrome-lane-test.sh` — lane I: the unit tests below, then the four cases in parallel; `--cases-only` runs only the cases.
-- `chrome-linux-test.sh` — the four cases against SRS for Linux in Docker, like `obs-linux-test.sh`; `--build` builds it.
-- `chrome-windows-test.sh` — the four cases with Edge on the Windows test host, like `obs-windows-test.sh`.
+- `chrome-sped-test.sh` — SPED with Chrome's field trial `WebRTC-IceHandshakeDtls`: Chrome publishes over WHIP and plays over WHEP on a `sped on` SRS, on the same SRS losing its first STUN response of each session (`drop-stun=1`), and on a `sped off` SRS, which also loses the DTLS 1.2 last flight of two sessions (`drop-finished=1`). Every job negotiates DTLS 1.3 when `/api/v1/features` reports `dtls13` (a `--ssl-4=on` build), else DTLS 1.2.
+  - Checks: SPED complete in the clients API with Chrome's ClientHello embedded, and after the lost response SRS's first flight embedded too; no SPED with `sped off`; frames encoded and decoded. After the lost last flight, SRS answers Chrome's resend, and the script prints the gap, the ms from the loss to the resend.
+  - A browser whose offer has no `sped` with the trial is a `SKIP`; without `--simulator=on` the drop and last parts are a `SKIP`, and on DTLS 1.3 the last part is.
+- `chrome-lane-test.sh` — lane I: the unit tests below, then the first four cases in parallel, then SPED, whose two browsers beside them made the loss case's players freeze under the Full tier's load; `--cases-only` runs only the cases.
+- `chrome-linux-test.sh` — the five cases against SRS for Linux in Docker, like `obs-linux-test.sh`; `--build` builds it.
+- `chrome-windows-test.sh` — the five cases with Edge on the Windows test host, like `obs-windows-test.sh`.
 - Unit tests: `npm test` in `skills/internal-chrome-control` for the driver, and `chrome-test-lib-test.sh` for the helper `chrome-test-lib.sh`.
 - CI: the `chrome-test` job of `.github/workflows/test.yml` runs the unit tests and `chrome-linux-test.sh` with Chrome on Linux.
 
@@ -103,7 +106,7 @@ Windows tests:
   `work_dir`, environment-only daemon, foreground override, config check and startup failure.
   Uses ports 16400–16401 by default, moved by `SRS_TEST_PORT_BASE`.
 - `srs-windows-daemon-session-test.sh <host-checkout>` — run from macOS or Linux after the `build` step: a daemon
-  started over SSH on the Windows test host outlives that SSH session. Uses ports 16500–16501 on the host
+  started over SSH on the Windows test host outlives that SSH session. Uses ports 17000–17001 on the host
   by default, moved by `SRS_TEST_PORT_BASE`.
 - `srs-windows-runner.sh` — the native Windows build and tests of SRS on the Windows test host.
   - Use it for changes that reach the Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`.
@@ -159,6 +162,24 @@ WebRTC retransmission tests:
   - `tools/pion-whip` publishes over WHIP under `nack_prefer_rtx off`, offering `rtx` with a FID group.
   - It must get an answer without `rtx` and a resend on the media SSRC.
 
+WebRTC SPED tests:
+
+- `go -C cmd/integ/cases test -count=3 -run 'TestRtc_Sped'` — SPED (`draft-hancke-webrtc-sped`, the DTLS handshake inside the ICE STUN checks), part of `make integ`.
+  - The raw client of `cmd/integ/internal/rtc` offers `a=ice-options:sped` to a server with `vhost.rtc.sped on`, over UDP and over TCP.
+  - Checks: `sped` in the answer, SPED complete on the client and in the clients API, the handshake datagrams embedded both ways, and the media plays.
+  - Loss: a lost first response, a lost client flight, every raw DTLS datagram lost, and 25% random loss over 20 sessions.
+  - `SimulatorLosesFirstResponse` has SRS lose its first response and raw flights itself, with `drop-stun=<n>` and `drop-dtls=<n>` in the WHIP or WHEP URL, which a `--simulator=on` build takes, as `/api/v1/features` reports with `handshake_drop`.
+  - `SimulatorLosesLastFlight` and `TcpSimulatorLosesLastFlight` play without SPED, over UDP and TCP, with `drop-finished=1`, which loses SRS's DTLS 1.2 last flight, CCS and Finished: the client resends its own, SRS answers it again, and the media plays.
+  - `PlayerStartsOnSpedComplete` and `TcpPlayerStartsOnSpedComplete` play a stream already being published, with SPED over UDP and TCP, losing SRS's DTLS 1.2 last flight raw and in its first response: no media comes before the player has that flight, then the media plays.
+  - `SpedOffFallsBack` checks that the default `sped off` answers no `sped` and the client falls back to a raw handshake.
+- `chrome-sped-test.sh` — the same with Chrome's own SPED, in lane I; see the Chrome tests above.
+- `sped-measure.sh [measure flags]` — a measurement, not a test, in no tier: the setup time with and without SPED.
+  - It starts `trunk/objs/srs` with `sped on` and runs `bin/srs-integ measure`, whose raw WHEP players offer `sped` or not over paths with a one-way delay and a loss of STUN and DTLS.
+  - It prints one row per point: the p50 and p95 in ms from the offer to the DTLS handshake done and to the first RTP packet, and the failures. The default matrix is 0/20/60/150 ms, 0/10/25% loss, 30 runs each.
+- `chrome-sped-measure.sh [--runs <n>]` — a measurement, not a test, in no tier: Chrome's setup time with and without its SPED field trial, at zero loss, and the DTLS version negotiated.
+  - It starts `trunk/objs/srs` with `sped on`; each run is a new browser publishing over WHIP and playing over WHEP, with the trial or without it, alternating, 20 runs each by default.
+  - It prints one row per trial and job: the p50 and p95 in ms from `setRemoteDescription` to `connected`, and for the player to its first video frame, from the test page's events; and how many sessions SRS completed SPED for. A browser whose offer has no `sped` with the trial is a `SKIP`.
+
 Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, `setup-ffmpeg-with-whip.sh` and `windows-host-run.sh` are not standalone test cases unless a workflow explicitly invokes them. `windows-host-run.sh` syncs a checkout to the Windows test host and runs a script there, with `--wip` for the uncommitted working tree; its header lists the details.
 
 A skill script with a `-test.sh` beside it, such as `srs-windows-runner-test.sh`, `windows-host-run-test.sh`, `obs-test-lib-test.sh`, `chrome-test-lib-test.sh` or `srs-full-tier-test.sh`, is tested by it on this machine with fakes; run it when the script changes.
@@ -190,7 +211,7 @@ The trigger picks the tier, never the expected runtime. Report every layer not r
 
 ### Full Tier Layers
 
-Run every layer with `bash skills/srs-develop/scripts/srs-full-tier.sh`, after `full-tier-lock.sh status`. It runs them in the [Order](#order) below, under the [Global Lock](#global-lock), and prints one row per layer.
+Run every layer with `bash skills/srs-develop/scripts/srs-full-tier.sh`, after `full-tier-lock.sh status`. It runs them in the [Order](#order) below, under the [Global Lock](#global-lock), and prints one row per layer. With `--ssl-4` it builds and runs every layer on the bundled OpenSSL 4.1 build (`--ssl-4=on`); the OBS and Chrome Linux builds in Docker stay on the default build, and `srs-utest-run.sh --configure` switches `objs` back after it.
 
 **C++ unit.** `make utest && ./objs/srs_utest`, configured as in [Parallel Runs](#parallel-runs).
 
@@ -239,7 +260,7 @@ Two variables control it:
 
 **Chrome**, lane I:
 
-1. `chrome-lane-test.sh`: the driver and helper unit tests, then the four Chrome cases against the local `objs/srs`.
+1. `chrome-lane-test.sh`: the driver and helper unit tests, then the five Chrome cases against the local `objs/srs`.
 2. `chrome-linux-test.sh`, after it: the same cases against SRS for Linux in Docker. Not in parallel: with both sets of browsers at once, players froze at their start on the Mac.
 3. `chrome-windows-test.sh`, only with `SRS_TEST_WINDOWS_HOST`, beside the two above: builds `srs.exe` on the Windows test host, then the same cases from Edge there to the native `srs.exe`.
 
@@ -322,7 +343,7 @@ Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS fo
 | E | `srs-config-file-test.sh` and the feature-specific tests in parallel |
 | F | `make utest`, then `./objs/srs_utest`. With `objs/srs` built, `make utest` does not relink it |
 | G | The OBS scripts in parallel, the Linux run a second after the local cases; skipped with `SRS_TEST_OBS=0` |
-| I | The Chrome unit tests, then the four Chrome cases in parallel (`chrome-lane-test.sh`), then the Linux run (`chrome-linux-test.sh`); skipped with `SRS_TEST_CHROME=0` |
+| I | The Chrome unit tests, then four Chrome cases in parallel and the SPED case after them (`chrome-lane-test.sh`), then the Linux run (`chrome-linux-test.sh`); skipped with `SRS_TEST_CHROME=0` |
 
 **Step 3: lane H**, alone after Step 2: `make integ-unit`, then `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
 
@@ -344,12 +365,13 @@ A normal Full tier on the 10-core arm64 Mac, with everything already built and e
 | E, feature scripts | 34 |
 | F, utest | 41 |
 | G, OBS | 34 |
-| I, Chrome | 55 |
-| Step 2, the slowest lane | 56 |
+| I, Chrome | 76 |
+| Step 2, the slowest lane | 76 |
 | H, integ | 44 |
 | J, SRT proxy | 7 |
-| **Total** | **107** |
+| **Total** | **127** |
 
+- Lane I was measured again on 2026-11-19, after the SPED case joined it: 74 and 76 s in two runs, `chrome-lane-test.sh` 43–44 s and `chrome-linux-test.sh` 29–32 s. The other rows are from a Full tier run without the SPED case.
 - Step 2 takes as long as its slowest lane, so a lane only matters when it becomes the slowest.
 - A rebuild of `objs/srs` and the utest adds about 15 s, and the busy CPU slows every lane.
 - The tests that use the Windows test host take turns on it, so their lanes wait for each other there.
@@ -368,7 +390,7 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 - No test binds a port below 11000, which is kept for human testing and shared services.
 - No test binds a port from 32768, which covers the ephemeral ports of Linux (32768–60999), macOS and Windows (49152–65535): a client socket there makes a later bind fail.
 - No test binds the Go proxy defaults 11935, 11985, 12025, 18000, 18080 and 20080 from `internal/env/env.go`, which are kept for running the proxy by hand.
-- On the Windows test host, lane W binds the same ranges as on this machine: `srs-integ` 14000–14999, the C++ unit tests 26000–29999, the OBS cases of `obs-windows-test.sh` 15100–15399, the `build` step's start check 15500–15599, and the Chrome cases of `chrome-windows-test.sh` 15600–15999. The host lock keeps two runs apart there.
+- On the Windows test host, lane W binds the same ranges as on this machine: `srs-integ` 14000–14999, the C++ unit tests 26000–29999, the OBS cases of `obs-windows-test.sh` 15100–15399, the `build` step's start check 15500–15599, and the Chrome cases of `chrome-windows-test.sh` 15600–15999 and 16500–16599. The host lock keeps two runs apart there.
 - Update this table, including its counts, whenever a test adds, moves or removes a port.
 
 | Range | Owner | Total ports | Bound today | Available for new tests |
@@ -390,11 +412,15 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 15700–15799 | `chrome-loss-test.sh` at `SRS_TEST_PORT_BASE`: four SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3, +4..+7, +10..+13 and +14..+17; the driver's page server +9 | 100 | 17 | 83, inside the existing slot |
 | 15800–15899 | `chrome-http-test.sh` at `SRS_TEST_PORT_BASE`: two SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3 and +4..+7; the driver's page server +9 | 100 | 9 | 91, inside the existing slot |
 | 15900–15999 | `chrome-codec-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, the driver's page server +9 | 100 | 5 | 95, inside the existing slot |
-| 16000–16399 | `chrome-linux-test.sh`: the four Chrome cases at 16000, 16100, 16200 and 16300, with the ports of the 15600–15999 slots. Each SRS container publishes RTMP, HTTP and API on `127.0.0.1` and RTC UDP on the host's own IPv4; the driver's page server +9 is on the host | 400 | 36 | 364, inside the existing slots |
+| 16000–16399 | `chrome-linux-test.sh`: the first four Chrome cases at 16000, 16100, 16200 and 16300, with the ports of the 15600–15999 slots. Each SRS container publishes RTMP, HTTP and API on `127.0.0.1` and RTC UDP on the host's own IPv4; the driver's page server +9 is on the host | 400 | 36 | 364, inside the existing slots |
 | 16400–16499 | `srs-windows-daemon-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
-| 16500–16599 | `srs-windows-daemon-session-test.sh` on the Windows test host, not the local machine, at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
+| 16500–16599 | `chrome-sped-test.sh` at `SRS_TEST_PORT_BASE`, lane I's base +900: two SRS, each with RTMP, HTTP, API and RTC UDP on +0..+3 and +4..+7; the driver's page server +9 | 100 | 9 | 91, inside the existing slot |
 | 16600–16699 | `proxy-e2e-srt-impair-test.sh` at `SRS_TEST_PORT_BASE`: the `srs-integ` allocator's range (`SRS_INTEG_PORTS`) for its cases, which take two origins, six proxies and their mock from the first 80 ports | 100 | Allocated per server | 0, owned by the allocator |
-| 16700–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,300 | 0 | 4,297 |
+| 16700–16799 | `chrome-sped-measure.sh` at `SRS_TEST_PORT_BASE`: one SRS with RTMP, HTTP, API and RTC UDP on +0..+3; the driver's page server +9 | 100 | 5 | 95, inside the existing slot |
+| 16800–16899 | `sped-measure.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, API +1, RTC UDP +2 | 100 | 3 | 97, inside the existing slot |
+| 16900–16999 | `chrome-linux-test.sh`: the SPED case at 16900, its base +900, with the ports of the 16500–16599 slot, published as for its other cases | 100 | 9 | 91, inside the existing slot |
+| 17000–17099 | `srs-windows-daemon-session-test.sh` on the Windows test host, not the local machine, at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
+| 17100–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 3,900 | 0 | 3,897 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
 | 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |

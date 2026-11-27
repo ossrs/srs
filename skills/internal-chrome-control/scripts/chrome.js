@@ -28,19 +28,34 @@ const INTERNALS_URL = 'chrome://webrtc-internals';
 const USAGE = [
   'usage: chrome.js <command> [options]',
   '  find-browser                print the browser executable',
-  '  launch --probe [--headed] [--log-dir <dir>]',
-  '                              start the browser, print its version and video codecs, close it',
+  '  launch --probe [--headed] [--log-dir <dir>] [--extra-chrome-flags <flags>]',
+  '                              start the browser, print its version, video codecs and offer ice-options, close it',
   '  serve --port <n> [--host <h>]',
   '                              serve the test page and the players until stopped; host 127.0.0.1',
   '  run --mode <m> --url <u> [--codec <c>] [--name <n>] [--mode ...]',
   '      [--seconds <n>] [--timeout <s>] [--out <file>] [--internals <file>] [--log-dir <dir>] [--page-port <n>] [--headed]',
-  '      [--allow-loopback]',
+  '      [--allow-loopback] [--extra-chrome-flags <flags>]',
   '                              publish or play in the browser, one window per job, and check the stream moves;',
   '                              modes whip, whep, flv, ts, hls; codecs h264, h265, vp9, av1 (whip and whep)',
+  '  --extra-chrome-flags takes space-separated browser flags, such as --force-fieldtrials=...; it may repeat',
   'exit: 0 pass, 1 fail, 2 skip (no browser or puppeteer-core), 3 bad arguments, 6 SRS did not answer',
 ].join('\n');
 
 class UsageError extends Error {}
+
+// The driver's isolation rests on a pipe and its own profile, so the extra
+// flags may not open a debugging port or pick another profile.
+const REFUSED_FLAGS = ['--remote-debugging-', '--user-data-dir'];
+
+function parseExtraFlags(v) {
+  const flags = v ? v.split(/\s+/).filter(Boolean) : [];
+  if (!flags.length) throw new UsageError('--extra-chrome-flags needs one or more flags');
+  for (const f of flags) {
+    if (!f.startsWith('--')) throw new UsageError(`--extra-chrome-flags: not a flag: ${f}`);
+    if (REFUSED_FLAGS.some((r) => f.startsWith(r))) throw new UsageError(`--extra-chrome-flags: not allowed: ${f}`);
+  }
+  return flags;
+}
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
@@ -49,7 +64,7 @@ function parseArgs(argv) {
     return { command };
   }
   if (command === 'launch') {
-    const opts = { command, probe: false, headed: false, logDir: null };
+    const opts = { command, probe: false, headed: false, logDir: null, extraFlags: [] };
     for (let i = 0; i < rest.length; i++) {
       const a = rest[i];
       if (a === '--probe') opts.probe = true;
@@ -57,6 +72,8 @@ function parseArgs(argv) {
       else if (a === '--log-dir') {
         if (i + 1 >= rest.length) throw new UsageError('--log-dir needs a directory');
         opts.logDir = rest[++i];
+      } else if (a === '--extra-chrome-flags') {
+        opts.extraFlags.push(...parseExtraFlags(rest[++i]));
       } else throw new UsageError(`unknown option ${a}`);
     }
     if (!opts.probe) throw new UsageError('launch needs --probe');
@@ -93,7 +110,7 @@ function positiveInt(name, v, max) {
 function parseRunArgs(rest) {
   const opts = {
     command: 'run', jobs: [], seconds: DEFAULT_SECONDS, timeout: null, out: null,
-    internals: null, logDir: null, pagePort: 0, headed: false, allowLoopback: false,
+    internals: null, logDir: null, pagePort: 0, headed: false, allowLoopback: false, extraFlags: [],
   };
   const raw = [];
   for (let i = 0; i < rest.length; i++) {
@@ -104,6 +121,10 @@ function parseRunArgs(rest) {
     }
     if (a === '--allow-loopback') {
       opts.allowLoopback = true;
+      continue;
+    }
+    if (a === '--extra-chrome-flags') {
+      opts.extraFlags.push(...parseExtraFlags(rest[++i]));
       continue;
     }
     if (!['--mode', '--url', '--codec', '--name', '--seconds', '--timeout', '--out', '--internals', '--log-dir', '--page-port'].includes(a)) {
@@ -293,8 +314,9 @@ function findBrowser({ platform, env, exists }) {
 // loopback and a LAN pair SRS flips its send address between them and media
 // stalls, so loopback is only for a host with no other IPv4.
 // Several jobs run as windows side by side, so a window in the background
-// must not pause its video or slow its timers.
-function launchOptions({ executablePath, userDataDir, headed, allowLoopback }) {
+// must not pause its video or slow its timers. The caller's extra flags,
+// such as a field trial, come last.
+function launchOptions({ executablePath, userDataDir, headed, allowLoopback, extraFlags = [] }) {
   const extra = allowLoopback ? ['--allow-loopback-in-peer-connection'] : [];
   return {
     executablePath,
@@ -313,6 +335,7 @@ function launchOptions({ executablePath, userDataDir, headed, allowLoopback }) {
       '--no-first-run',
       '--no-default-browser-check',
       ...extra,
+      ...extraFlags,
     ],
   };
 }
@@ -338,6 +361,21 @@ async function closeBrowser(browser, timeoutMs) {
   return hung;
 }
 
+// Read in the page: the video codecs, and the a=ice-options of an offer,
+// which a field trial such as WebRTC-IceHandshakeDtls changes.
+const probePage = async () => {
+  const codecs = [...new Set(RTCRtpSender.getCapabilities('video').codecs.map((c) => c.mimeType))];
+  const pc = new RTCPeerConnection();
+  try {
+    pc.addTransceiver('video');
+    const offer = await pc.createOffer();
+    const line = offer.sdp.split(/\r?\n/).find((l) => l.startsWith('a=ice-options:'));
+    return { codecs, iceOptions: line ? line.slice('a=ice-options:'.length).trim() : null };
+  } finally {
+    pc.close();
+  }
+};
+
 async function probe(opts, deps, executablePath) {
   const puppeteer = deps.puppeteer || loadPuppeteer();
   if (!puppeteer) {
@@ -358,14 +396,15 @@ async function probe(opts, deps, executablePath) {
   const started = Date.now();
   let browser = null;
   try {
-    browser = await puppeteer.launch(launchOptions({ executablePath, userDataDir, headed: opts.headed }));
+    browser = await puppeteer.launch(launchOptions({ executablePath, userDataDir, headed: opts.headed, extraFlags: opts.extraFlags }));
     const ms = Date.now() - started;
     const version = await browser.version();
     const pid = browser.process() ? browser.process().pid : 'unknown';
     const page = await browser.newPage();
-    const codecs = await page.evaluate(() => [...new Set(RTCRtpSender.getCapabilities('video').codecs.map((c) => c.mimeType))]);
+    const { codecs, iceOptions } = await page.evaluate(probePage);
     deps.out(`PASS launch ${version} pid ${pid} in ${ms}ms: ${executablePath}`);
     deps.out(`video codecs: ${codecs.join(' ')}`);
+    deps.out(`offer ice-options: ${iceOptions || 'none'}`);
     return EXIT_PASS;
   } catch (e) {
     deps.out(`FAIL launch ${executablePath}: ${e.message}`);
@@ -684,6 +723,7 @@ async function run(opts, deps, executablePath) {
     try {
       browser = await puppeteer.launch(launchOptions({
         executablePath, userDataDir: profile.dir, headed: opts.headed, allowLoopback: opts.allowLoopback,
+        extraFlags: opts.extraFlags,
       }));
       version = await browser.version();
     } catch (e) {
@@ -767,7 +807,7 @@ async function run(opts, deps, executablePath) {
   if (code === EXIT_PASS && report.internals && report.internals.error) code = EXIT_FAIL;
   if (opts.out) {
     report.exitCode = code;
-    report.jobs = jobs.map(({ tab, openedAt, unreachable: u, ...j }) => j);
+    report.jobs = jobs.map(({ tab, openedAt, unreachable: u, ...j }) => ({ ...j, setup: page.setupTimes(j.events) }));
     writeStats(opts.out, report);
     deps.out(`stats ${opts.out}`);
   }

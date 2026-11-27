@@ -285,6 +285,20 @@ srs_error_t MockDtls::on_dtls(char *data, int nb_data)
     return srs_error_copy(on_dtls_error_);
 }
 
+void MockDtls::enable_sped()
+{
+}
+
+SrsSpedController *MockDtls::sped()
+{
+    return NULL;
+}
+
+srs_error_t MockDtls::on_embedded_dtls(char *data, int nb_data)
+{
+    return srs_success;
+}
+
 srs_error_t MockDtls::get_srtp_key(std::string &recv_key, std::string &send_key)
 {
     get_srtp_key_count_++;
@@ -439,6 +453,11 @@ srs_error_t MockRtcNetwork::on_rtcp(char *data, int nb_data)
 bool MockRtcNetwork::is_establelished()
 {
     return is_established_;
+}
+
+SrsSpedController *MockRtcNetwork::sped()
+{
+    return NULL;
 }
 
 srs_error_t MockRtcNetwork::write(void *buf, size_t size, ssize_t *nwrite)
@@ -4352,7 +4371,6 @@ VOID TEST(DtlsCertificateTest, InitializeEcdsaFromInjectedConfig)
     HELPER_EXPECT_SUCCESS(cert.initialize());
     EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
     EXPECT_TRUE(cert.is_ecdsa());
-    EXPECT_TRUE(cert.get_ecdsa_key() != NULL);
     EXPECT_TRUE(cert.get_cert() != NULL);
     ASSERT_TRUE(cert.get_public_key() != NULL);
     EXPECT_EQ(EVP_PKEY_EC, EVP_PKEY_id(cert.get_public_key()));
@@ -4378,7 +4396,6 @@ VOID TEST(DtlsCertificateTest, InitializeRsaFromInjectedConfig)
     HELPER_EXPECT_SUCCESS(cert.initialize());
     EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
     EXPECT_FALSE(cert.is_ecdsa());
-    EXPECT_TRUE(cert.get_ecdsa_key() == NULL);
     EXPECT_TRUE(cert.get_cert() != NULL);
     ASSERT_TRUE(cert.get_public_key() != NULL);
     EXPECT_EQ(EVP_PKEY_RSA, EVP_PKEY_id(cert.get_public_key()));
@@ -4713,7 +4730,6 @@ MockDtlsCertificateForDtlsCtx::MockDtlsCertificateForDtlsCtx(bool ecdsa)
 
     get_cert_count_ = 0;
     get_public_key_count_ = 0;
-    get_ecdsa_key_count_ = 0;
     is_ecdsa_count_ = 0;
 }
 
@@ -4738,12 +4754,6 @@ EVP_PKEY *MockDtlsCertificateForDtlsCtx::get_public_key()
 {
     get_public_key_count_++;
     return real_->get_public_key();
-}
-
-EC_KEY *MockDtlsCertificateForDtlsCtx::get_ecdsa_key()
-{
-    get_ecdsa_key_count_++;
-    return real_->get_ecdsa_key();
 }
 
 std::string MockDtlsCertificateForDtlsCtx::get_fingerprint()
@@ -4837,9 +4847,7 @@ static void utest_dtls_move(BIO *from, BIO *to)
     }
 }
 
-// A DTLS handshake between the two contexts through memory BIOs, as SRS feeds its UDP packets.
-// Returns the version both sides agreed on, or 0 when it did not finish.
-static int utest_dtls_handshake(SSL_CTX *client_ctx, SSL_CTX *server_ctx)
+int utest_dtls_handshake(SSL_CTX *client_ctx, SSL_CTX *server_ctx)
 {
     SSL *client = SSL_new(client_ctx);
     SSL *server = SSL_new(server_ctx);

@@ -115,7 +115,15 @@ func Intrude(ctx context.Context, offer, answer string, opts *Options) (int, err
 // awaitClose closes the write side of a TCP connection and waits, until ctx
 // ends, for the server to close the connection.
 func (s *RawSession) awaitClose(ctx context.Context) {
-	fc, ok := s.conn.(*framedConn)
+	c := s.conn
+	for {
+		u, ok := c.(interface{ unwrap() net.Conn })
+		if !ok {
+			break
+		}
+		c = u.unwrap()
+	}
+	fc, ok := c.(*framedConn)
 	if !ok {
 		return
 	}
@@ -154,6 +162,12 @@ func (s *RawSession) dial(ctx context.Context) error {
 	}
 	if network == "tcp4" {
 		conn = newFramedConn(conn)
+	}
+	if s.opts != nil && s.opts.Faults != nil {
+		conn = s.opts.Faults.wrap(conn)
+	}
+	if s.link != nil {
+		conn = &spedTap{Conn: conn, l: s.link}
 	}
 	s.conn, s.mux = conn, newMux(conn)
 	return nil

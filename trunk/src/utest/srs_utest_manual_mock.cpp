@@ -452,11 +452,6 @@ EVP_PKEY *MockDtlsCertificate::get_public_key()
     return NULL;
 }
 
-EC_KEY *MockDtlsCertificate::get_ecdsa_key()
-{
-    return NULL;
-}
-
 std::string MockDtlsCertificate::get_fingerprint()
 {
     return fingerprint_;

@@ -2461,6 +2461,10 @@ void MockRtcConnectionForTcpConn::simulate_nack_drop(int /*nn*/)
 {
 }
 
+void MockRtcConnectionForTcpConn::simulate_handshake_drop(int /*stun*/, int /*dtls*/, int /*finished*/)
+{
+}
+
 srs_error_t MockRtcConnectionForTcpConn::generate_local_sdp(SrsRtcUserConfig * /*ruc*/, SrsSdp & /*local_sdp*/, std::string & /*username*/)
 {
     return srs_success;
@@ -4349,6 +4353,11 @@ bool MockRtcNetworkForNetworks::is_establelished()
     return is_established_;
 }
 
+SrsSpedController *MockRtcNetworkForNetworks::sped()
+{
+    return NULL;
+}
+
 srs_error_t MockRtcNetworkForNetworks::write(void *buf, size_t size, ssize_t *nwrite)
 {
     return srs_success;
@@ -4538,6 +4547,7 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     binding_request_error_ = srs_success;
     binding_requests_ = 0;
     udp_network_ = NULL;
+    handshake_done_count_ = 0;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
@@ -4615,6 +4625,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::do_check_send_nacks()
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_dtls_handshake_done()
 {
+    handshake_done_count_++;
     return srs_success;
 }
 
@@ -4727,6 +4738,10 @@ void MockRtcConnectionForUdpNetwork::simulate_nack_drop(int /*nn*/)
 {
 }
 
+void MockRtcConnectionForUdpNetwork::simulate_handshake_drop(int /*stun*/, int /*dtls*/, int /*finished*/)
+{
+}
+
 srs_error_t MockRtcConnectionForUdpNetwork::generate_local_sdp(SrsRtcUserConfig * /*ruc*/, SrsSdp & /*local_sdp*/, std::string & /*username*/)
 {
     return srs_success;
@@ -4749,6 +4764,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     rtp_cipher_dropped_ = false;
     srs_freep(binding_request_error_);
     binding_requests_ = 0;
+    handshake_done_count_ = 0;
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -4863,6 +4879,16 @@ srs_error_t MockRtcTransportForUdpNetwork::on_dtls(char *data, int nb_data)
 }
 
 srs_error_t MockRtcTransportForUdpNetwork::on_dtls_alert(std::string type, std::string desc)
+{
+    return srs_success;
+}
+
+SrsSpedController *MockRtcTransportForUdpNetwork::sped()
+{
+    return NULL;
+}
+
+srs_error_t MockRtcTransportForUdpNetwork::on_embedded_dtls(char *data, int nb_data)
 {
     return srs_success;
 }
@@ -6111,6 +6137,10 @@ void MockRtcConnectionForTcpConnHandshake::simulate_nack_drop(int /*nn*/)
 {
 }
 
+void MockRtcConnectionForTcpConnHandshake::simulate_handshake_drop(int /*stun*/, int /*dtls*/, int /*finished*/)
+{
+}
+
 srs_error_t MockRtcConnectionForTcpConnHandshake::generate_local_sdp(SrsRtcUserConfig * /*ruc*/, SrsSdp & /*local_sdp*/, std::string & /*username*/)
 {
     return srs_success;
@@ -6650,6 +6680,11 @@ srs_error_t MockRtcTcpNetworkForTcpConn::on_rtcp(char *data, int nb_data)
 bool MockRtcTcpNetworkForTcpConn::is_establelished()
 {
     return false;
+}
+
+SrsSpedController *MockRtcTcpNetworkForTcpConn::sped()
+{
+    return NULL;
 }
 
 srs_error_t MockRtcTcpNetworkForTcpConn::write(void *buf, size_t size, ssize_t *nwrite)

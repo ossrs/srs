@@ -11,6 +11,7 @@ using namespace std;
 #include <srs_app_http_static.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
+#include <srs_app_rtc_sped.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
@@ -38,6 +39,76 @@ extern bool srs_is_dtls(const uint8_t *data, size_t len);
 extern bool srs_is_rtp_or_rtcp(const uint8_t *data, size_t len);
 extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
+SrsRtcHandshakeDrop::SrsRtcHandshakeDrop()
+{
+    stun_ = 0;
+    dtls_ = 0;
+    finished_ = 0;
+}
+
+SrsRtcHandshakeDrop::~SrsRtcHandshakeDrop()
+{
+}
+
+void SrsRtcHandshakeDrop::arm(int stun, int dtls, int finished)
+{
+    stun_ = srs_max(0, stun);
+    dtls_ = srs_max(0, dtls);
+    finished_ = srs_max(0, finished);
+}
+
+bool SrsRtcHandshakeDrop::drop_stun(int size)
+{
+    if (stun_ <= 0) {
+        return false;
+    }
+
+    srs_warn("RTC: handshake simulator #%d drops a STUN binding response, %d bytes", stun_, size);
+    stun_--;
+    return true;
+}
+
+bool SrsRtcHandshakeDrop::drop_dtls(void *data, size_t size)
+{
+    if ((dtls_ <= 0 && finished_ <= 0) || !srs_is_dtls((const uint8_t *)data, size)) {
+        return false;
+    }
+
+    if (finished_ > 0 && is_last_flight((const uint8_t *)data, size)) {
+        srs_warn("RTC: handshake simulator #%d drops a DTLS last flight, %d bytes", finished_, (int)size);
+        finished_--;
+        return true;
+    }
+
+    if (dtls_ <= 0) {
+        return false;
+    }
+
+    srs_warn("RTC: handshake simulator #%d drops a DTLS datagram, %d bytes", dtls_, (int)size);
+    dtls_--;
+    return true;
+}
+
+// A DTLS 1.2 record header is the content type(1), the version(2), the epoch(2), the sequence number(6) and the
+// length(2), see RFC 6347 section 4.1. The server's last flight has the ChangeCipherSpec(20), and its Finished is the
+// first handshake record(22) of epoch 1; the first flight is all epoch 0. A DTLS 1.3 encrypted record has a unified
+// header with no epoch field, so it ends the walk.
+bool SrsRtcHandshakeDrop::is_last_flight(const uint8_t *data, size_t size)
+{
+    for (size_t pos = 0; pos + 13 <= size;) {
+        uint8_t content_type = data[pos];
+        uint16_t epoch = (uint16_t(data[pos + 3]) << 8) | data[pos + 4];
+        if (content_type == 20 || (content_type == 22 && epoch != 0)) {
+            return true;
+        }
+        if (content_type < 20 || content_type > 26) {
+            return false;
+        }
+        pos += 13 + ((size_t(data[pos + 11]) << 8) | data[pos + 12]);
+    }
+    return false;
+}
+
 ISrsRtcNetworks::ISrsRtcNetworks()
 {
 }
@@ -50,8 +121,16 @@ SrsRtcNetworks::SrsRtcNetworks(ISrsRtcConnection *conn)
 {
     conn_ = conn;
     delta_ = new SrsEphemeralDelta();
-    udp_ = new SrsRtcUdpNetwork(conn_, delta_);
-    tcp_ = new SrsRtcTcpNetwork(conn_, delta_);
+    drop_ = new SrsRtcHandshakeDrop();
+
+    SrsRtcUdpNetwork *udp = new SrsRtcUdpNetwork(conn_, delta_);
+    udp->set_handshake_drop(drop_);
+    udp_ = udp;
+
+    SrsRtcTcpNetwork *tcp = new SrsRtcTcpNetwork(conn_, delta_);
+    tcp->set_handshake_drop(drop_);
+    tcp_ = tcp;
+
     dummy_ = new SrsRtcDummyNetwork();
 }
 
@@ -61,6 +140,7 @@ SrsRtcNetworks::~SrsRtcNetworks()
     srs_freep(tcp_);
     srs_freep(dummy_);
     srs_freep(delta_);
+    srs_freep(drop_);
 }
 
 srs_error_t SrsRtcNetworks::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -111,6 +191,11 @@ ISrsKbpsDelta *SrsRtcNetworks::delta()
     return delta_;
 }
 
+void SrsRtcNetworks::simulate_handshake_drop(int stun, int dtls, int finished)
+{
+    drop_->arm(stun, dtls, finished);
+}
+
 ISrsRtcNetwork::ISrsRtcNetwork()
 {
 }
@@ -139,6 +224,11 @@ void SrsRtcDummyNetwork::set_state(SrsRtcNetworkState state)
 bool SrsRtcDummyNetwork::is_establelished()
 {
     return true;
+}
+
+SrsSpedController *SrsRtcDummyNetwork::sped()
+{
+    return NULL;
 }
 
 srs_error_t SrsRtcDummyNetwork::on_dtls_handshake_done()
@@ -195,6 +285,7 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     nominated_at_ = 0;
     pp_address_change_ = new SrsErrorPithyPrint();
     transport_ = new SrsSecurityTransport(this);
+    drop_ = NULL;
 
     conn_manager_ = _srs_conn_manager;
     blackhole_ = _srs_blackhole;
@@ -361,6 +452,11 @@ bool SrsRtcUdpNetwork::is_establelished()
     return state_ == SrsRtcNetworkStateEstablished;
 }
 
+SrsSpedController *SrsRtcUdpNetwork::sped()
+{
+    return transport_->sped();
+}
+
 string SrsRtcUdpNetwork::get_peer_ip()
 {
     srs_assert(sendonly_skt_);
@@ -371,6 +467,11 @@ int SrsRtcUdpNetwork::get_peer_port()
 {
     srs_assert(sendonly_skt_);
     return sendonly_skt_->get_peer_port();
+}
+
+void SrsRtcUdpNetwork::set_handshake_drop(SrsRtcHandshakeDrop *drop)
+{
+    drop_ = drop;
 }
 
 void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
@@ -465,9 +566,49 @@ srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, c
     return err;
 }
 
+// Take the SPED attributes of a binding request: the controller takes its ACKs, and DTLS reads
+// its embedded DTLS, which counts as received bytes, as raw DTLS does.
+static srs_error_t sped_take_request(SrsSpedController *sped, SrsStunPacket *r, ISrsEphemeralDelta *delta, ISrsRtcTransport *transport)
+{
+    srs_error_t err = srs_success;
+
+    string data = r->get_dtls_in_stun_data();
+    if (!sped->on_stun_received(r->has_dtls_in_stun_data(), data, r->has_dtls_in_stun_ack(), r->get_dtls_in_stun_acks())) {
+        return err;
+    }
+
+    delta->add_delta(data.size(), 0);
+    if ((err = transport->on_embedded_dtls(&data[0], (int)data.size())) != srs_success) {
+        return srs_error_wrap(err, "embedded dtls");
+    }
+
+    return err;
+}
+
+// Put the ACK list and the next datagram of the flight in a binding response.
+static void sped_embed_in_response(SrsSpedController *sped, SrsStunPacket *response)
+{
+    vector<uint32_t> acks;
+    if (sped->acks_to_embed(BindingResponse, acks)) {
+        response->set_dtls_in_stun_acks(acks);
+    }
+
+    // A datagram that does not fit still went raw, when DTLS wrote it.
+    string datagram;
+    if (sped->data_to_embed(BindingResponse, datagram) && response->dtls_in_stun_data_fits((int)datagram.size())) {
+        response->set_dtls_in_stun_data(datagram);
+        sped->on_data_embedded();
+    }
+}
+
 srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pwd, ISrsUdpMuxSocket *from)
 {
     srs_error_t err = srs_success;
+
+    SrsSpedController *sped = transport_->sped();
+    if (sped && (err = on_sped_request(sped, r)) != srs_success) {
+        return srs_error_wrap(err, "sped");
+    }
 
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
@@ -481,23 +622,24 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
     stun_binding_response.set_mapped_address(be32toh(inet_addr(from->get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(from->get_peer_port());
 
+    if (sped) {
+        sped_embed_in_response(sped, &stun_binding_response);
+    }
+
     if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
-    delta_->add_delta(0, stream->pos());
-    if ((err = from->sendto(stream->data(), stream->pos(), SRS_UTIME_NO_TIMEOUT)) != srs_success) {
-        return srs_error_wrap(err, "stun binding response send failed");
+    bool dropped = drop_ && drop_->drop_stun(stream->pos());
+    if (!dropped) {
+        delta_->add_delta(0, stream->pos());
+        if ((err = from->sendto(stream->data(), stream->pos(), SRS_UTIME_NO_TIMEOUT)) != srs_success) {
+            return srs_error_wrap(err, "stun binding response send failed");
+        }
     }
 
-    if (state_ == SrsRtcNetworkStateWaitingStun) {
-        state_ = SrsRtcNetworkStateDtls;
-        // TODO: FIXME: Add cost.
-        srs_trace("RTC: session STUN done, waiting DTLS handshake.");
-
-        if ((err = transport_->start_active_handshake()) != srs_success) {
-            return srs_error_wrap(err, "fail to dtls handshake");
-        }
+    if ((err = on_stun_done()) != srs_success) {
+        return srs_error_wrap(err, "stun done");
     }
 
     blackhole_->sendto(stream->data(), stream->pos());
@@ -505,12 +647,50 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
     return err;
 }
 
+srs_error_t SrsRtcUdpNetwork::on_stun_done()
+{
+    srs_error_t err = srs_success;
+
+    if (state_ != SrsRtcNetworkStateWaitingStun) {
+        return err;
+    }
+
+    state_ = SrsRtcNetworkStateDtls;
+    // TODO: FIXME: Add cost.
+    srs_trace("RTC: session STUN done, waiting DTLS handshake.");
+
+    if ((err = transport_->start_active_handshake()) != srs_success) {
+        return srs_error_wrap(err, "fail to dtls handshake");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcUdpNetwork::on_sped_request(SrsSpedController *sped, SrsStunPacket *r)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = on_stun_done()) != srs_success) {
+        return srs_error_wrap(err, "stun done");
+    }
+
+    if ((err = sped_take_request(sped, r, delta_, transport_)) != srs_success) {
+        return srs_error_wrap(err, "take request");
+    }
+
+    return err;
+}
+
 srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
-    delta_->add_delta(0, size);
-
     if (nwrite)
         *nwrite = size;
+
+    if (drop_ && drop_->drop_dtls(buf, size)) {
+        return srs_success;
+    }
+
+    delta_->add_delta(0, size);
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
@@ -530,6 +710,7 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     writers_ = 0;
     writers_done_ = srs_cond_new();
     transport_ = new SrsSecurityTransport(this);
+    drop_ = NULL;
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
 
@@ -548,6 +729,11 @@ SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
     srs_cond_destroy(writers_done_);
 
     blackhole_ = NULL;
+}
+
+void SrsRtcTcpNetwork::set_handshake_drop(SrsRtcHandshakeDrop *drop)
+{
+    drop_ = drop;
 }
 
 void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
@@ -629,6 +815,11 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket *r, std::string i
 {
     srs_error_t err = srs_success;
 
+    SrsSpedController *sped = transport_->sped();
+    if (sped && (err = on_sped_request(sped, r)) != srs_success) {
+        return srs_error_wrap(err, "sped");
+    }
+
     SrsStunPacket stun_binding_response;
     char buf[kRtpPacketSize];
     SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(buf, sizeof(buf)));
@@ -641,25 +832,58 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket *r, std::string i
     stun_binding_response.set_mapped_address(be32toh(inet_addr(get_peer_ip().c_str())));
     stun_binding_response.set_mapped_port(get_peer_port());
 
+    if (sped) {
+        sped_embed_in_response(sped, &stun_binding_response);
+    }
+
     if ((err = stun_binding_response.encode(ice_pwd, stream.get())) != srs_success) {
         return srs_error_wrap(err, "stun binding response encode failed");
     }
 
-    if ((err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
+    bool dropped = drop_ && drop_->drop_stun(stream->pos());
+    if (!dropped && (err = write(stream->data(), stream->pos(), NULL)) != srs_success) {
         return srs_error_wrap(err, "stun binding response send failed");
     }
 
-    if (state_ == SrsRtcNetworkStateWaitingStun) {
-        state_ = SrsRtcNetworkStateDtls;
-        // TODO: FIXME: Add cost.
-        srs_trace("RTC: session STUN done, waiting DTLS handshake.");
-
-        if ((err = transport_->start_active_handshake()) != srs_success) {
-            return srs_error_wrap(err, "fail to dtls handshake");
-        }
+    if ((err = on_stun_done()) != srs_success) {
+        return srs_error_wrap(err, "stun done");
     }
 
     blackhole_->sendto(stream->data(), stream->pos());
+
+    return err;
+}
+
+srs_error_t SrsRtcTcpNetwork::on_stun_done()
+{
+    srs_error_t err = srs_success;
+
+    if (state_ != SrsRtcNetworkStateWaitingStun) {
+        return err;
+    }
+
+    state_ = SrsRtcNetworkStateDtls;
+    // TODO: FIXME: Add cost.
+    srs_trace("RTC: session STUN done, waiting DTLS handshake.");
+
+    if ((err = transport_->start_active_handshake()) != srs_success) {
+        return srs_error_wrap(err, "fail to dtls handshake");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcTcpNetwork::on_sped_request(SrsSpedController *sped, SrsStunPacket *r)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = on_stun_done()) != srs_success) {
+        return srs_error_wrap(err, "stun done");
+    }
+
+    if ((err = sped_take_request(sped, r, delta_, transport_)) != srs_success) {
+        return srs_error_wrap(err, "take request");
+    }
 
     return err;
 }
@@ -758,6 +982,11 @@ bool SrsRtcTcpNetwork::is_establelished()
     return state_ == SrsRtcNetworkStateEstablished;
 }
 
+SrsSpedController *SrsRtcTcpNetwork::sped()
+{
+    return transport_->sped();
+}
+
 std::string SrsRtcTcpNetwork::get_peer_ip()
 {
     return peer_ip_;
@@ -775,6 +1004,13 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     // No socket when no TCP connection owns this network, for example, it closed before DTLS done.
     if (!sendonly_skt_) {
         return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
+    }
+
+    if (drop_ && drop_->drop_dtls(buf, size)) {
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return err;
     }
 
     // Send 2 bytes size, in network order, and the data in one write, so the data never waits for the peer

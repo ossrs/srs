@@ -2937,6 +2937,10 @@ ISrsKbpsDelta *MockRtcNetworksForConnection::delta()
     return NULL;
 }
 
+void MockRtcNetworksForConnection::simulate_handshake_drop(int stun, int dtls, int finished)
+{
+}
+
 // The connection captures the black hole at construction, so a test can replace it before any RTCP packet is sent.
 VOID TEST(SrsRtcConnectionTest, ConstructionCapturesBlackhole)
 {

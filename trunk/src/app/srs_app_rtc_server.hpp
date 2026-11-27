@@ -97,6 +97,11 @@ public:
     // setRemoteDescription(answer). See https://github.com/ossrs/srs/issues/3179
     bool audio_before_video_;
 
+    // The handshake simulator's drops for the session, of a --simulator=on build.
+    int drop_stun_;
+    int drop_dtls_;
+    int drop_finished_;
+
 public:
     SrsRtcUserConfig();
     virtual ~SrsRtcUserConfig();

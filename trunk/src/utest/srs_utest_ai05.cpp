@@ -26,7 +26,7 @@
 #include <srs_utest_manual_protocol.hpp>
 
 #include <algorithm>
-#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <stdio.h>
 #include <vector>
 
@@ -5862,9 +5862,13 @@ static void srs_utest_check_enc_file_padding(int nb_packets)
     ASSERT_EQ(plain.size() + nb_padding, cipher.size()) << "packets=" << nb_packets;
 
     std::vector<unsigned char> out(cipher.size());
-    AES_KEY k;
-    AES_set_decrypt_key(key, 128, &k);
-    AES_cbc_encrypt(&cipher[0], &out[0], cipher.size(), &k, iv, AES_DECRYPT);
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    int nb_out = 0;
+    EVP_DecryptUpdate(ctx, &out[0], &nb_out, &cipher[0], (int)cipher.size());
+    EVP_CIPHER_CTX_free(ctx);
+    ASSERT_EQ((int)cipher.size(), nb_out) << "packets=" << nb_packets;
 
     EXPECT_TRUE(std::equal(plain.begin(), plain.end(), out.begin())) << "packets=" << nb_packets;
     for (size_t i = plain.size(); i < out.size(); i++) {

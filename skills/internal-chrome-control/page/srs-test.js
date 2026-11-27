@@ -82,6 +82,7 @@
   const OUTBOUND_VIDEO = ['packetsSent', 'framesEncoded', 'nackCount', 'retransmittedPacketsSent',
     'retransmittedBytesSent', 'pliCount', 'qualityLimitationReason', 'frameWidth', 'frameHeight'];
   const OUTBOUND_AUDIO = ['packetsSent', 'nackCount', 'retransmittedPacketsSent', 'retransmittedBytesSent'];
+  const DTLS = ['dtlsState', 'tlsVersion', 'dtlsCipher', 'srtpCipher', 'dtlsRole'];
   const ZERO = ['nackCount', 'retransmittedPacketsReceived', 'retransmittedBytesReceived',
     'retransmittedPacketsSent', 'retransmittedBytesSent'];
 
@@ -102,6 +103,7 @@
       outboundVideo: rtp('outbound-rtp', 'video', OUTBOUND_VIDEO),
       outboundAudio: rtp('outbound-rtp', 'audio', OUTBOUND_AUDIO),
       pair: pair ? pick(pair, ['state', 'nominated', 'currentRoundTripTime']) : null,
+      dtls: transport ? pick(transport, DTLS) : null,
     };
   }
 
@@ -117,6 +119,19 @@
       totalVideoFrames: q ? q.totalVideoFrames : null,
       audioDecodedBytes: el.webkitAudioDecodedByteCount === undefined ? null : el.webkitAudioDecodedByteCount,
     };
+  }
+
+  function setupTimes(events) {
+    const at = (name) => {
+      const e = events.find((x) => x.name === name);
+      return e ? e.t : null;
+    };
+    const since = (from, name) => {
+      const t = at(name);
+      return from === null || t === null ? null : t - from;
+    };
+    const answered = at('remote-description');
+    return { connectedMs: since(answered, 'connected'), firstFrameMs: since(answered, 'first-frame') };
   }
 
   // The browser part. States: starting, signaling, connected, playing,
@@ -204,7 +219,10 @@
         // first track: an empty stream holds back the page's load event.
         pc.ontrack = (e) => {
           remote.addTrack(e.track);
-          if (!video.srcObject) video.srcObject = remote;
+          if (!video.srcObject) {
+            video.srcObject = remote;
+            if (typeof video.requestVideoFrameCallback === 'function') video.requestVideoFrameCallback(() => event('first-frame'));
+          }
           event('track', e.track.kind);
         };
       }
@@ -222,6 +240,7 @@
       await pc.setLocalDescription(offer);
       setState('signaling');
       const answer = await signal(label, signalingUrl(opts), offer.sdp);
+      event('remote-description');
       await pc.setRemoteDescription({ type: 'answer', sdp: answer });
     };
 
@@ -306,6 +325,7 @@
     resolveLocation,
     summarizeStats,
     summarizeMedia,
+    setupTimes,
     start,
   };
 }));

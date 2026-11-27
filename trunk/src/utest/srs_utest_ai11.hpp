@@ -133,6 +133,9 @@ public:
     virtual srs_error_t initialize(std::string role, std::string version);
     virtual srs_error_t start_active_handshake();
     virtual srs_error_t on_dtls(char *data, int nb_data);
+    virtual void enable_sped();
+    virtual SrsSpedController *sped();
+    virtual srs_error_t on_embedded_dtls(char *data, int nb_data);
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);
     virtual srs_error_t get_peer_fingerprint(std::string algo, std::string &fingerprint);
 
@@ -180,6 +183,7 @@ public:
     virtual srs_error_t on_rtp(char *data, int nb_data);
     virtual srs_error_t on_rtcp(char *data, int nb_data);
     virtual bool is_establelished();
+    virtual SrsSpedController *sped();
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 
 public:
@@ -526,7 +530,6 @@ public:
     SrsDtlsCertificate *real_;
     int get_cert_count_;
     int get_public_key_count_;
-    int get_ecdsa_key_count_;
     int is_ecdsa_count_;
 
 public:
@@ -537,9 +540,12 @@ public:
     virtual srs_error_t initialize();
     virtual X509 *get_cert();
     virtual EVP_PKEY *get_public_key();
-    virtual EC_KEY *get_ecdsa_key();
     virtual std::string get_fingerprint();
     virtual bool is_ecdsa();
 };
+
+// A DTLS handshake between the two contexts through memory BIOs, as SRS feeds its UDP packets.
+// Returns the version both sides agreed on, or 0 when it did not finish.
+extern int utest_dtls_handshake(SSL_CTX *client_ctx, SSL_CTX *server_ctx);
 
 #endif

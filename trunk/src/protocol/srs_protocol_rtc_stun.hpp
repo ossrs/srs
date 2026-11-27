@@ -10,6 +10,7 @@
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 #include <srs_kernel_error.hpp>
 
@@ -54,7 +55,20 @@ enum SrsStunMessageAttribute {
     UseCandidate = 0x0025,
     IceControlled = 0x8029,
     IceControlling = 0x802A,
+
+    // SPED, see https://datatracker.ietf.org/doc/draft-hancke-webrtc-sped/ . The draft has not assigned codepoints
+    // yet, so these are the ones Chrome and pion use.
+    DtlsInStunData = 0xC070,
+    DtlsInStunAck = 0xC071,
 };
+
+// A DTLS-IN-STUN-ACK attribute lists at most this many CRC-32 values.
+const int kStunDtlsInStunMaxAcks = 4;
+
+// The most STUN body, after the header and before MESSAGE-INTEGRITY and FINGERPRINT, that may carry an embedded DTLS
+// datagram, as Chrome's kMaxStunBindingLength: a WebRTC UDP payload stays within 1200 bytes, and the two trailing
+// attributes take 24 and 8 bytes.
+const int kStunSpedMaxBodySize = 1200 - 24 - 8;
 
 class SrsStunPacket
 {
@@ -73,6 +87,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The MESSAGE-INTEGRITY of a decoded packet, and the bytes it signs.
     std::string message_integrity_;
     std::string integrity_input_;
+    // The SPED attributes. Chrome sends an empty ACK attribute in its first check, so an ACK may have no values.
+    bool has_dtls_in_stun_data_;
+    std::string dtls_in_stun_data_;
+    bool has_dtls_in_stun_ack_;
+    std::vector<uint32_t> dtls_in_stun_acks_;
 
 public:
     SrsStunPacket();
@@ -91,12 +110,22 @@ public:
     bool get_ice_controlled() const;
     bool get_ice_controlling() const;
     bool get_use_candidate() const;
+    bool has_dtls_in_stun_data() const;
+    std::string get_dtls_in_stun_data() const;
+    bool has_dtls_in_stun_ack() const;
+    std::vector<uint32_t> get_dtls_in_stun_acks() const;
     void set_message_type(const uint16_t &m);
     void set_local_ufrag(const std::string &u);
     void set_remote_ufrag(const std::string &u);
     void set_transcation_id(const std::string &t);
     void set_mapped_address(const uint32_t &addr);
     void set_mapped_port(const uint32_t &port);
+    void set_dtls_in_stun_data(const std::string &datagram);
+    // An empty list still writes the attribute, as Chrome does in its first check.
+    void set_dtls_in_stun_acks(const std::vector<uint32_t> &acks);
+    // Whether a DTLS datagram of this size, embedded with the attributes already set, keeps the body within
+    // kStunSpedMaxBodySize.
+    bool dtls_in_stun_data_fits(int size) const;
     srs_error_t decode(const char *buf, const int nb_buf);
     // The pwd is the ICE password, see RFC 5389 section 15.4.
     srs_error_t check_message_integrity(const std::string &pwd) const;
@@ -107,6 +136,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t encode_binding_response(const std::string &pwd, SrsBuffer *stream);
     std::string encode_username();
     std::string encode_mapped_address();
+    std::string encode_dtls_in_stun();
     std::string encode_hmac(char *hamc_buf, const int hmac_buf_len);
     std::string encode_fingerprint(uint32_t crc32);
 };

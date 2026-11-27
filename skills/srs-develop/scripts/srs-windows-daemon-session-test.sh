@@ -7,12 +7,12 @@
 #   host-checkout   the SRS checkout on the host that holds trunk\objs\windows\srs.exe, relative to the
 #                   host's home, such as projects\srs
 #
-# The host comes from SRS_TEST_WINDOWS_HOST. Uses ports 16500-16501 on the host by default, moved by
+# The host comes from SRS_TEST_WINDOWS_HOST. Uses ports 17000-17001 on the host by default, moved by
 # SRS_TEST_PORT_BASE.
 set -u
 host=${SRS_TEST_WINDOWS_HOST:?set SRS_TEST_WINDOWS_HOST}
 checkout=${1:?usage: srs-windows-daemon-session-test.sh <host-checkout>}
-port=${SRS_TEST_PORT_BASE:-16500}
+port=${SRS_TEST_PORT_BASE:-17000}
 dir="~\\$checkout\\trunk\\objs\\windows-session-test"
 
 remote() {

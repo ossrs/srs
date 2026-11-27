@@ -330,6 +330,10 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
 
 #if (OPENSSL_VERSION_NUMBER < 0x10002000L) // v1.0.2
     ssl_ctx_ = SSL_CTX_new(TLS_method());
+#elif (OPENSSL_VERSION_NUMBER >= 0x30000000L) // v3.0 deprecates the version-specific methods, and v4.0 has none
+    ssl_ctx_ = SSL_CTX_new(TLS_method());
+    SSL_CTX_set_min_proto_version(ssl_ctx_, TLS1_2_VERSION);
+    SSL_CTX_set_max_proto_version(ssl_ctx_, TLS1_2_VERSION);
 #else
     ssl_ctx_ = SSL_CTX_new(TLSv1_2_method());
 #endif
@@ -362,7 +366,12 @@ srs_error_t SrsSslConnection::handshake(string key_file, string crt_file)
         return srs_error_new(ERROR_TLS_KEY_CRT, "use cert %s", crt_file.c_str());
     }
 
-    if ((r0 = SSL_use_RSAPrivateKey_file(ssl_, key_file.c_str(), SSL_FILETYPE_PEM)) != 1) {
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L) // v3.0
+    r0 = SSL_use_PrivateKey_file(ssl_, key_file.c_str(), SSL_FILETYPE_PEM);
+#else
+    r0 = SSL_use_RSAPrivateKey_file(ssl_, key_file.c_str(), SSL_FILETYPE_PEM);
+#endif
+    if (r0 != 1) {
         return srs_error_new(ERROR_TLS_KEY_CRT, "use key %s", key_file.c_str());
     }
 

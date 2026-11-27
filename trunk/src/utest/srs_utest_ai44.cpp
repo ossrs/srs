@@ -2285,6 +2285,9 @@ public:
     std::string ice_ufrag_;
     std::string ice_pwd_;
     bool publish_;
+    int drop_stun_;
+    int drop_dtls_;
+    int drop_finished_;
 
 public:
     RtcApiUtestServer()
@@ -2293,6 +2296,7 @@ public:
         create_count_ = 0;
         created_ = false;
         publish_ = false;
+        drop_stun_ = drop_dtls_ = drop_finished_ = 0;
     }
     virtual ~RtcApiUtestServer()
     {
@@ -2314,6 +2318,9 @@ public:
         ice_ufrag_ = ruc->req_->ice_ufrag_;
         ice_pwd_ = ruc->req_->ice_pwd_;
         publish_ = ruc->publish_;
+        drop_stun_ = ruc->drop_stun_;
+        drop_dtls_ = ruc->drop_dtls_;
+        drop_finished_ = ruc->drop_finished_;
 
         created_ = true;
         *psession = &session_;
@@ -2757,6 +2764,45 @@ VOID TEST(AppRtcApiTest, WhipCustomIceCredentials_OutOfRangeRefused)
     EXPECT_STREQ(ufrag32.c_str(), w.server_.ice_ufrag_.c_str());
 }
 
+// A test client asks the handshake simulator of a --simulator=on build, in its WHIP or WHEP
+// request, to lose what SRS sends it first; another client's session loses nothing.
+VOID TEST(AppRtcApiTest, WhipAndWhepArmTheHandshakeSimulator)
+{
+    srs_error_t err = srs_success;
+
+    RtcApiUtestWhip w;
+    HELPER_ASSERT_SUCCESS(w.initialize(RTC_API_UTEST_VHOST));
+
+    string response = w.post(RTC_API_UTEST_WHIP "&drop-stun=2&drop-dtls=3&drop-finished=4", rtc_api_utest_offer("sendonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+#ifdef SRS_SIMULATOR
+    EXPECT_EQ(2, w.server_.drop_stun_);
+    EXPECT_EQ(3, w.server_.drop_dtls_);
+    EXPECT_EQ(4, w.server_.drop_finished_);
+#else
+    EXPECT_EQ(0, w.server_.drop_stun_);
+    EXPECT_EQ(0, w.server_.drop_dtls_);
+    EXPECT_EQ(0, w.server_.drop_finished_);
+#endif
+
+    response = w.post(RTC_API_UTEST_WHEP "&drop-stun=1&drop-finished=1", rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+#ifdef SRS_SIMULATOR
+    EXPECT_EQ(1, w.server_.drop_stun_);
+    EXPECT_EQ(1, w.server_.drop_finished_);
+#else
+    EXPECT_EQ(0, w.server_.drop_stun_);
+    EXPECT_EQ(0, w.server_.drop_finished_);
+#endif
+    EXPECT_EQ(0, w.server_.drop_dtls_);
+
+    response = w.post(RTC_API_UTEST_WHEP, rtc_api_utest_offer("recvonly"));
+    EXPECT_TRUE(rtc_api_utest_status(response, 201)) << response;
+    EXPECT_EQ(0, w.server_.drop_stun_);
+    EXPECT_EQ(0, w.server_.drop_dtls_);
+    EXPECT_EQ(0, w.server_.drop_finished_);
+}
+
 // A WHIP POST with no offer, or a body that is no SDP, is answered 400.
 VOID TEST(AppRtcApiTest, WhipEmptyOrGarbageOffer_Refused400)
 {
@@ -3198,6 +3244,23 @@ public:
         return err;
     }
 
+    // The session is set up from the answer with DTLS and SRTP, as the session manager does, so the UDP
+    // network has a SPED controller when the answer negotiated SPED.
+    srs_error_t connect_encrypted()
+    {
+        srs_error_t err = srs_success;
+
+        conn_->set_local_sdp(answer_);
+        if ((err = conn_->initialize(ruc_.req_, true, true, "utest")) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+
+        SrsRtcUdpNetwork *udp = dynamic_cast<SrsRtcUdpNetwork *>(conn_->networks_->udp());
+        udp->sendonly_skt_ = &skt_;
+
+        return err;
+    }
+
     // The media sections of the answer of the type, audio or video.
     std::vector<SrsMediaDesc *> answered(std::string type)
     {
@@ -3249,6 +3312,7 @@ private:
 
         answer_.session_config_.dtls_role_ = server_->conf_.get_rtc_dtls_role(ruc_.req_->vhost_);
         answer_.session_config_.dtls_version_ = server_->conf_.get_rtc_dtls_version(ruc_.req_->vhost_);
+        answer_.session_config_.sped_ = server_->conf_.get_rtc_sped(ruc_.req_->vhost_);
 
         if (ruc_.publish_) {
             err = conn_->add_publisher(&ruc_, answer_);
@@ -4418,6 +4482,134 @@ VOID TEST(AppRtcConnTest, WhepPlayerConnectedTwiceStartsOnce)
     EXPECT_EQ(200, (uint8_t)player.skt_.sent_[3][1]);
 }
 
+#define RTC_CONN_UTEST_SPED_VHOST "vhost __defaultVhost__ { rtc { enabled on; sped on; } }"
+
+// A browser's offer with SPED, as Chrome with its field trial offers it at the session level.
+static std::string rtc_conn_utest_sped_offer(std::string offer)
+{
+    offer.insert(offer.find("m="), "a=ice-options:trickle sped googspedv1\r\n");
+    return offer;
+}
+
+// SRS's DTLS handshake as SPED sees it at its end: the client shows SPED in its first check, and SRS wrote its
+// last flight, CCS and Finished, which it keeps until the client ACKs it. When wait_for_peer is true, SRS was the
+// DTLS 1.2 server, done before the client. Returns that last flight.
+static std::string rtc_conn_utest_sped_done(SrsSpedController *sped, bool wait_for_peer)
+{
+    std::vector<uint32_t> none;
+    sped->on_stun_received(false, "", true, none);
+
+    std::string finished("\x14\xfe\xfd"
+                         "ccs-finished");
+    sped->capture(finished.data(), (int)finished.size());
+    sped->flush();
+    sped->on_handshake_done(false, wait_for_peer);
+    return finished;
+}
+
+// A WHEP player with SPED on DTLS 1.2, SRS as DTLS server: SRS is done when it sends its last flight, half a round
+// trip before the viewer, which drops SRTP until it is done, so the player does not start at SRS's handshake done.
+// It starts on the viewer's first proof that it is done: the ACK of that flight in a check, a check without SPED
+// attributes, or an SRTP or SRTCP packet that decrypts. Each proof starts it once; a check that ACKs only other
+// datagrams is no proof.
+VOID TEST(AppRtcConnTest, WhepSpedPlayerStartsWhenTheViewerProvesDtlsDone)
+{
+    srs_error_t err;
+
+    for (int proof = 0; proof < 3; proof++) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize(RTC_CONN_UTEST_SPED_VHOST));
+
+        RtcConnUtestClient publisher(&server);
+        HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+        RtcConnUtestClient player(&server);
+        HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_sped_offer(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264")))));
+        ASSERT_TRUE(player.answer_.session_negotiate_.sped_) << proof;
+        HELPER_ASSERT_SUCCESS(player.connect_encrypted());
+        SrsSpedController *sped = player.conn_->udp()->sped();
+        ASSERT_TRUE(sped != NULL) << proof;
+
+        std::string finished = rtc_conn_utest_sped_done(sped, true);
+        HELPER_EXPECT_SUCCESS(player.conn_->on_dtls_handshake_done());
+        SrsRtcPlayStream *play = player.player();
+        EXPECT_FALSE(play->is_started_) << proof;
+        EXPECT_TRUE(player.skt_.sent_.empty()) << proof;
+
+        std::vector<uint32_t> others;
+        others.push_back(srs_crc32_ieee("client-hello", 12));
+        EXPECT_FALSE(sped->on_stun_received(false, "", true, others));
+        EXPECT_FALSE(play->is_started_) << proof;
+
+        std::vector<uint32_t> acks;
+        acks.push_back(srs_crc32_ieee(finished.data(), (int)finished.size()));
+        std::vector<uint32_t> none;
+        if (proof == 0) {
+            EXPECT_FALSE(sped->on_stun_received(false, "", true, acks));
+        } else if (proof == 1) {
+            EXPECT_FALSE(sped->on_stun_received(false, "", false, none));
+        } else {
+            sped->on_srtp_received();
+        }
+        EXPECT_EQ(SrsSpedStateComplete, sped->state()) << proof;
+        EXPECT_TRUE(play->is_started_) << proof;
+
+        // Later proofs, and the handshake done again on another network, start nothing more.
+        ISrsCoroutine *sender = play->trd_;
+        EXPECT_FALSE(sped->on_stun_received(false, "", true, acks));
+        sped->on_srtp_received();
+        HELPER_EXPECT_SUCCESS(player.conn_->on_dtls_handshake_done());
+        EXPECT_TRUE(sender == play->trd_) << proof;
+    }
+}
+
+// A WHIP publisher with SPED on DTLS 1.2 starts at SRS's handshake done, as without SPED: SRS only receives from it,
+// and its first packets prove it is done.
+VOID TEST(AppRtcConnTest, WhipSpedPublisherStartsAtDtlsDone)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize(RTC_CONN_UTEST_SPED_VHOST));
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_sped_offer(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher()))));
+    ASSERT_TRUE(publisher.answer_.session_negotiate_.sped_);
+    HELPER_ASSERT_SUCCESS(publisher.connect_encrypted());
+    SrsSpedController *sped = publisher.conn_->udp()->sped();
+    ASSERT_TRUE(sped != NULL);
+
+    rtc_conn_utest_sped_done(sped, true);
+    HELPER_EXPECT_SUCCESS(publisher.conn_->on_dtls_handshake_done());
+    EXPECT_EQ(SrsSpedStatePending, sped->state());
+    EXPECT_TRUE(publisher.publisher()->is_sender_started_);
+}
+
+// A WHEP player with SPED whose viewer is done before SRS starts at SRS's handshake done, as without SPED: SRS as
+// DTLS client, which is done on the server's last flight, or SRS as DTLS 1.3 server, which is done on the client's
+// Finished.
+VOID TEST(AppRtcConnTest, WhepSpedPlayerStartsAtDtlsDoneWhenTheViewerIsDone)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize(RTC_CONN_UTEST_SPED_VHOST));
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_sped_offer(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264")))));
+    HELPER_ASSERT_SUCCESS(player.connect_encrypted());
+    SrsSpedController *sped = player.conn_->udp()->sped();
+    ASSERT_TRUE(sped != NULL);
+
+    rtc_conn_utest_sped_done(sped, false);
+    HELPER_EXPECT_SUCCESS(player.conn_->on_dtls_handshake_done());
+    EXPECT_EQ(SrsSpedStatePending, sped->state());
+    EXPECT_TRUE(player.player()->is_started_);
+}
+
 // Each second the publisher's session sends a receiver report and an XR RRTR for each track. When the publisher is
 // gone without a goodbye, sending fails, and the error names the track, for the timer's warning.
 VOID TEST(AppRtcConnTest, PublisherGoneReceiverReportsFail)
@@ -4542,6 +4734,7 @@ VOID TEST(AppRtcDtlsTest, Dtls10VhostRefusedByDtls12OnlyBrowser)
     SrsDtls server(&scb);
     HELPER_ASSERT_SUCCESS(client.initialize("active", "auto"));
     ASSERT_EQ(1, SSL_set_min_proto_version(client.impl_->dtls_, DTLS1_2_VERSION));
+    ASSERT_EQ(1, SSL_set_max_proto_version(client.impl_->dtls_, DTLS1_2_VERSION));
     HELPER_ASSERT_SUCCESS(server.initialize("passive", version));
     HELPER_ASSERT_SUCCESS(server.start_active_handshake());
     HELPER_ASSERT_SUCCESS(client.start_active_handshake());

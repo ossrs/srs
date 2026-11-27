@@ -1,12 +1,13 @@
 #!/bin/bash
 # Lane I of the Full tier: the Chrome driver's unit tests and the helper's
-# self-test, then the WebRTC, loss, HTTP and codec cases in parallel, each on
-# its own 100-port slot from SRS_TEST_PORT_BASE (default 15600, then 15700,
-# 15800 and 15900), within the 60 s lane budget.
+# self-test, then the WebRTC, loss, HTTP and codec cases in parallel, then the
+# SPED case, each on its own 100-port slot from SRS_TEST_PORT_BASE (default
+# 15600, then 15700, 15800 and 15900, and base +900, 16500, for SPED, so the
+# Linux run's 16000-16399 stays free), within the 60 s lane budget.
 #
 #   chrome-lane-test.sh [--cases-only]
 #
-# --cases-only runs the four cases without the unit suites, as
+# --cases-only runs the five cases without the unit suites, as
 # chrome-linux-test.sh does against SRS in Docker.
 set -eu
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -21,13 +22,22 @@ base=${SRS_TEST_PORT_BASE:-15600}
 case "$base" in ''|*[!0-9]*) echo 'FAIL invalid port base' >&2; exit 1;; esac
 LANE_DIR=${CHROME_TEST_ROOT:-/tmp}/srs-chrome-lane
 SKILL_DIR=${CHROME_SKILL_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)/internal-chrome-control}
-CASES='webrtc loss http codec'
+# case_slot <name>: the case's slot, as an offset from the base.
+case_slot() {
+  case "$1" in
+    webrtc) echo 0;;
+    loss) echo 100;;
+    http) echo 200;;
+    codec) echo 300;;
+    sped) echo 900;;
+  esac
+}
 mkdir -p "$LANE_DIR"
 started=$SECONDS
 passed=0 skipped=0 known=0 failed=0
 
 # The driver's suite needs the skill's packages; installing them here also
-# keeps the four cases from waiting on each other's npm ci.
+# keeps the cases from waiting on each other's npm ci.
 unit_driver() {
   local version
   CHROME_CASE=driver CHROME_STARTED=$SECONDS CHROME_TEST_DIR=$LANE_DIR
@@ -79,30 +89,38 @@ run_units() {
 }
 [[ -z "$units" ]] || run_units
 
-pids=
-slot=$base
-for name in $CASES; do
-  SRS_TEST_PORT_BASE=$slot bash "$SCRIPT_DIR/chrome-$name-test.sh" >"$LANE_DIR/$name.log" 2>&1 &
-  pids="$pids $!"
-  slot=$((slot + 100))
-done
-set -- $pids
-for name in $CASES; do
-  status=0
-  wait "$1" || status=$?
-  shift
-  cat "$LANE_DIR/$name.log"
-  last=$(tail -n 1 "$LANE_DIR/$name.log")
-  case_known=$(sed -n 's/^RESULT .* known=\([0-9]*\) .*/\1/p' "$LANE_DIR/$name.log" | tail -n 1)
-  known=$((known + ${case_known:-0}))
-  if [[ $status -ne 0 ]]; then
-    failed=$((failed + 1)); echo "LANE $name failed exit=$status"
-  elif [[ "$last" == SKIP* ]]; then
-    skipped=$((skipped + 1)); echo "LANE $name skipped"
-  else
-    passed=$((passed + 1)); echo "LANE $name passed"
-  fi
-done
+# run_cases <names>: run the cases at once, each on its slot, then print each
+# one's log and count its result.
+run_cases() {
+  local name status last case_known i=0
+  local case_pids=()
+  pids=
+  for name in "$@"; do
+    SRS_TEST_PORT_BASE=$((base + $(case_slot "$name"))) bash "$SCRIPT_DIR/chrome-$name-test.sh" >"$LANE_DIR/$name.log" 2>&1 &
+    case_pids+=($!)
+    pids="$pids $!"
+  done
+  for name in "$@"; do
+    status=0
+    wait "${case_pids[$i]}" || status=$?
+    i=$((i + 1))
+    cat "$LANE_DIR/$name.log"
+    last=$(tail -n 1 "$LANE_DIR/$name.log")
+    case_known=$(sed -n 's/^RESULT .* known=\([0-9]*\) .*/\1/p' "$LANE_DIR/$name.log" | tail -n 1)
+    known=$((known + ${case_known:-0}))
+    if [[ $status -ne 0 ]]; then
+      failed=$((failed + 1)); echo "LANE $name failed exit=$status"
+    elif [[ "$last" == SKIP* ]]; then
+      skipped=$((skipped + 1)); echo "LANE $name skipped"
+    else
+      passed=$((passed + 1)); echo "LANE $name passed"
+    fi
+  done
+}
+# SPED runs after the others: beside them, its two browsers made the loss
+# case's players freeze before any drop under the Full tier's load.
+run_cases webrtc loss http codec
+run_cases sped
 elapsed=$((SECONDS - started))
 [[ $elapsed -le 60 ]] || { failed=$((failed + 1)); echo "FAIL budget ${elapsed}s > 60s" >&2; }
 echo "LANE chrome passed=$passed skipped=$skipped known=$known failed=$failed elapsed=${elapsed}s"
