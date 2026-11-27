@@ -33,13 +33,13 @@ Environment-specific values belong to the user:
 
 ## Comments Only for Hidden Context
 
-**Write a comment only when it gives background the code cannot show**, such as a protocol quirk, a past bug, a platform limitation, or why the obvious approach was not used.
+**Write no comment by default.** Add one only for a fact outside the code that a reader cannot learn from the code and its callers: a protocol or spec rule, what a client or library does, a platform limitation, or why the obvious approach fails. This applies to test code too.
 
 - Never write a comment that repeats what the code does or names.
-- New, self-explanatory code needs no comment.
+- Never explain a fix: what triggers it or what the code now does. That belongs in the commit message.
+- Comments in the code nearby are not a reason to add one.
 - No plan IDs, task step names, or process history in comments.
-- Never describe the rule the code implements, or the case a fix handles; describe only the outside fact behind it, such as what a protocol or a client does.
-- Check each comment line: cover it and read the code of its function. When the code tells what the line says, delete the line.
+- Example: `if v.handshake3 != nil { resend v.handshake3 }` needs no comment; "a client resends its conclusion when our answer was lost" goes in the commit message.
 
 ## Independent Implementation from a Reference PR
 
@@ -127,6 +127,7 @@ Apply these rules whenever a task produces a commit:
 - Commit only when the user explicitly asks. Asking for a step that makes a commit, such as a merge or a cherry-pick, asks for that commit.
 - After a cherry-pick to another branch, such as a release branch, audit the new commit with `internal-audit-for-srs` before reporting it, and report its findings with the pick.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
+- Before committing, check every comment line the staged diff adds against [Comments Only for Hidden Context](#comments-only-for-hidden-context).
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, `Codex:`, or `Kiro:`.
 - If Claude made changes, use this commit message format. End it with the co-author line the Claude Code harness gives; it names the current model, so do not hard-code one:
   ```
