@@ -37,6 +37,8 @@
 #include <srs_utest_ai41.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_ai44.hpp>
+#include <srs_utest_ai46.hpp>
+#include <srs_utest_ai48.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -5091,12 +5093,17 @@ public:
     {
         io_ = new SrtConnUtestIO();
         io_->streamid_ = streamid;
-        return prepare(text, 100, "192.168.1.100", io_);
+        return prepare(text, 100, "192.168.1.100", 9000, io_);
     }
     // A client over the SRT socket, as the listener accepted it.
     srs_error_t open_socket(std::string text, srs_srt_t fd)
     {
-        return prepare(text, fd, "127.0.0.1", NULL);
+        return prepare(text, fd, "127.0.0.1", 9000, NULL);
+    }
+    // A client over the SRT socket or group, with the address the listener accepted it from.
+    srs_error_t open_accepted(std::string text, srs_srt_t fd, std::string ip, int port)
+    {
+        return prepare(text, fd, ip, port, NULL);
     }
     srs_error_t start()
     {
@@ -5176,7 +5183,7 @@ public:
     }
 
 private:
-    srs_error_t prepare(std::string text, srs_srt_t fd, std::string ip, SrtConnUtestIO *io)
+    srs_error_t prepare(std::string text, srs_srt_t fd, std::string ip, int port, SrtConnUtestIO *io)
     {
         srs_error_t err = srs_success;
 
@@ -5190,7 +5197,7 @@ private:
         }
         source_->stat_ = &stat_;
 
-        conn_ = new SrsMpegtsSrtConn(&manager_, fd, ip, 9000);
+        conn_ = new SrsMpegtsSrtConn(&manager_, fd, ip, port);
         conn_->config_ = &conf_;
         conn_->stat_ = &stat_;
         conn_->hooks_ = &hooks_;
@@ -5673,6 +5680,10 @@ VOID TEST(AppSrtConnTest, EncoderTransportStatsLogged)
     EXPECT_NE(string::npos, line.find("pktRecv=1, pktRcvLoss=0, pktRcvRetrans=0, pktRcvDrop=0")) << line;
     line = log.last_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " time=");
     EXPECT_NE(string::npos, line.find("packets=1,")) << line;
+    // A plain encoder is no group: no group or link lines.
+    EXPECT_STREQ("", log.last_trace("Group Stats #").c_str());
+    EXPECT_STREQ("", log.last_trace("Link Stats #").c_str());
+    EXPECT_STREQ("", log.last_trace(" joined, peer=").c_str());
 
     c.conn_->expire();
     c.wait_done();
@@ -5900,4 +5911,881 @@ VOID TEST(AppSrtConnTest, ClientRefused_LoggedAsErrorAndRemoved)
     SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
     HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
     EXPECT_EQ(0, clients->count());
+}
+
+// An encoder that bonds two links, a broadcast group unless told another type, to a listener that takes groups, and
+// the group as the listener accepted it, with the address it gave: the first link's.
+class SrtConnUtestGroupPair
+{
+public:
+    SrsSrtSocket *listener_;
+    SrtUtestBondCaller bond_;
+    srs_srt_t accepted_;
+    std::string ip_;
+    int port_;
+    // The port the listener listens on.
+    int listen_port_;
+
+public:
+    SrtConnUtestGroupPair(SRT_GROUP_TYPE type = SRT_GTYPE_BROADCAST) : bond_(type)
+    {
+        listener_ = NULL;
+        accepted_ = srs_srt_socket_invalid();
+        port_ = 0;
+        listen_port_ = 0;
+    }
+    virtual ~SrtConnUtestGroupPair()
+    {
+        bond_.close();
+        srs_freep(listener_);
+    }
+
+public:
+    srs_error_t connect(std::string streamid)
+    {
+        srs_error_t err = srs_success;
+
+        int port = 0;
+        if ((err = srs_utest_free_port(SOCK_DGRAM, &port)) != srs_success) {
+            return srs_error_wrap(err, "port");
+        }
+
+        srs_srt_t lfd = srs_srt_socket_invalid();
+        if ((err = srs_srt_socket_with_default_option(&lfd)) != srs_success) {
+            return srs_error_wrap(err, "listener");
+        }
+        listener_ = new SrsSrtSocket(_srs_srt_eventloop->poller(), lfd);
+        listener_->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+        if ((err = srs_srt_set_group_connect(lfd, true)) != srs_success) {
+            return srs_error_wrap(err, "group connect");
+        }
+        if ((err = srs_srt_listen(lfd, "127.0.0.1", port)) != srs_success) {
+            return srs_error_wrap(err, "listen");
+        }
+        listen_port_ = port;
+
+        for (int i = 0; i < 2; i++) {
+            if ((err = bond_.add_link("127.0.0.1", port)) != srs_success) {
+                return srs_error_wrap(err, "link %d", i);
+            }
+        }
+        if ((err = bond_.connect(streamid, 120 * SRS_UTIME_MILLISECONDS)) != srs_success) {
+            return srs_error_wrap(err, "connect");
+        }
+
+        if ((err = listener_->accept(&accepted_, ip_, port_)) != srs_success) {
+            return srs_error_wrap(err, "accept");
+        }
+        return err;
+    }
+};
+
+// A bonded encoder is one client to the HTTP API: one srt-publish of the stream, with the IP of its first link,
+// though it sends over two.
+VOID TEST(AppSrtConnTest, GroupListedInApiOnceWithFirstLinksIp)
+{
+    srs_error_t err;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK);
+    EXPECT_STREQ("127.0.0.1", pair.ip_.c_str());
+    EXPECT_GT(pair.port_, 0);
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+    EXPECT_FALSE(c.source_->can_publish());
+
+    SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+    HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+    ASSERT_EQ(1, clients->count());
+    SrsJsonObject *client = clients->at(0)->to_object();
+    EXPECT_STREQ("srt-publish", client->get_property("type")->to_str().c_str());
+    EXPECT_STREQ("127.0.0.1", client->get_property("ip")->to_str().c_str());
+    EXPECT_STREQ("/live/livestream", client->get_property("url")->to_str().c_str());
+
+    c.conn_->expire();
+    c.wait_done();
+}
+
+// A security rule that denies the first link's IP refuses the bonded encoder, before it takes the stream.
+VOID TEST(AppSrtConnTest, GroupDeniedBySecurityOfFirstLinksIp)
+{
+    srs_error_t err;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK);
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost("security { enabled on; deny publish " + pair.ip_ + "; }"), pair.accepted_, pair.ip_, pair.port_));
+    rtmp_conn_utest_expect(c.run(), ERROR_SYSTEM_SECURITY_DENY, "srt: security check");
+    EXPECT_STREQ("on_connect,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->can_publish());
+}
+
+// Bonding is for publishers only: a bonded caller that asks to play, by the request mode or by no mode, which is
+// play, is refused with an error that names bonding, before any hook, and never joins the stream another encoder
+// publishes. A plain player of the same stream id is served.
+VOID TEST(AppSrtConnTest, GroupInPlayMode_RefusedNamingBonding)
+{
+    srs_error_t err;
+
+    string streamids[] = {"#!::r=live/livestream,m=request", "#!::r=live/livestream"};
+    for (int i = 0; i < 2; i++) {
+        SrtConnUtestGroupPair pair;
+        HELPER_ASSERT_SUCCESS(pair.connect(streamids[i]));
+        ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK) << streamids[i];
+
+        ListenerUtestLog log;
+        SrtConnUtestClient c;
+        c.whole_cycle_ = true;
+        HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+        HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_done();
+        ASSERT_TRUE(c.done_) << streamids[i];
+        HELPER_EXPECT_SUCCESS(c.err_);
+        c.err_ = srs_success;
+
+        EXPECT_EQ(1, log.errors("srt bonding is publish only")) << streamids[i];
+        EXPECT_STREQ("", c.hooks_.called().c_str()) << streamids[i];
+        EXPECT_TRUE(c.source_->consumers_.empty()) << streamids[i];
+        ASSERT_EQ(1, (int)c.manager_.removed_.size()) << streamids[i];
+
+        SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+        EXPECT_EQ(0, clients->count()) << streamids[i];
+
+        c.encoder_unpublishes();
+    }
+
+    // A plain caller in play mode is still a player.
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open(srt_conn_utest_vhost(), "#!::r=live/livestream,m=request"));
+    HELPER_ASSERT_SUCCESS(c.encoder_publishes());
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_playing();
+    EXPECT_EQ(1, (int)c.source_->consumers_.size());
+    c.conn_->expire();
+    c.wait_done();
+    c.encoder_unpublishes();
+}
+
+// The RTMP side of a stream bridged from SRT, a live source keeping the first byte and the AVC or AAC packet type of
+// each FLV tag the bridge gives it, such as "17 00" for an AVC sequence header.
+class SrtConnUtestRtmpSide : public MockLiveSource
+{
+public:
+    std::vector<std::string> kinds_;
+
+public:
+    virtual srs_error_t on_frame(SrsMediaPacket *msg)
+    {
+        char kind[8];
+        uint8_t *p = (uint8_t *)msg->payload();
+        snprintf(kind, sizeof(kind), "%02x %02x", p[0], msg->size() > 1 ? p[1] : 0);
+        kinds_.push_back(kind);
+        return srs_success;
+    }
+    int count(const std::string &kind)
+    {
+        return (int)std::count(kinds_.begin(), kinds_.end(), kind);
+    }
+};
+
+// A bonded encoder, such as one with a wired and a cellular network, publishes H.264 and AAC over both links of a
+// broadcast group, so every message reaches the server twice. The server takes the group as one encoder: an SRT
+// player of the stream gets each TS message once, in order and byte for byte; the RTMP side of `srt_to_rtmp` gets
+// each frame once; and the hooks run once for the group, not per link, from connect to close when the encoder ends.
+VOID TEST(AppSrtConnTest, GroupPublishes_EachMessageOnceToPlayersAndRtmp_HooksOncePerGroup)
+{
+    srs_error_t err;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK);
+    ASSERT_EQ(2, pair.bond_.connected_links());
+
+    SrtConnUtestClient c;
+    SrtConnUtestRtmpSide *rtmp = new SrtConnUtestRtmpSide();
+    c.live_sources_.mock_source_ = SrsSharedPtr<SrsLiveSource>(rtmp);
+    string vhost = string("vhost __defaultVhost__ { srt { enabled on; srt_to_rtmp on; } ") + rtmp_conn_utest_all_hooks + " }";
+    HELPER_ASSERT_SUCCESS(c.open_accepted(vhost, pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+    ASSERT_FALSE(c.source_->can_publish());
+    EXPECT_STREQ("on_connect,on_publish", c.hooks_.called().c_str());
+
+    // An SRT player of the stream.
+    ISrsSrtConsumer *consumer = NULL;
+    HELPER_ASSERT_SUCCESS(c.source_->create_consumer(consumer));
+    SrsUniquePtr<ISrsSrtConsumer> player(consumer);
+    HELPER_ASSERT_SUCCESS(c.source_->consumer_dumps(consumer));
+
+    // Two keyframes, a P frame and an AAC frame after each video frame, 40ms apart, muxed to TS as FFmpeg does.
+    SrsTsContext ts;
+    SrtSourceUtestTsWriter writer;
+    string videos[] = {srt_source_utest_h264_key(), srt_source_utest_h264_p(), srt_source_utest_h264_key()};
+    for (int i = 0; i < 3; i++) {
+        SrsTsMessage video;
+        video.sid_ = SrsTsPESStreamIdVideoCommon;
+        video.dts_ = video.pts_ = 90000 + i * 3600;
+        video.payload_->append(videos[i].data(), (int)videos[i].length());
+        HELPER_ASSERT_SUCCESS(ts.encode(&writer, &video, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC));
+
+        SrsTsMessage audio;
+        audio.sid_ = SrsTsPESStreamIdAudioCommon;
+        audio.dts_ = audio.pts_ = 90000 + i * 3600;
+        string adts = srt_source_utest_adts_frame();
+        audio.payload_->append(adts.data(), (int)adts.length());
+        HELPER_ASSERT_SUCCESS(ts.encode(&writer, &audio, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC));
+    }
+
+    // The encoder sends the TS in SRT messages of 7 TS packets.
+    vector<string> sent;
+    const size_t nb_msg = 7 * SRS_TS_PACKET_SIZE;
+    for (size_t off = 0; off < writer.data_.size(); off += nb_msg) {
+        sent.push_back(writer.data_.substr(off, nb_msg));
+        HELPER_ASSERT_SUCCESS(pair.bond_.send(sent.back().data(), (int)sent.back().size()));
+    }
+
+    // The player gets each message once, in order.
+    vector<string> got;
+    for (int i = 0; i < 1000 && got.size() < sent.size(); i++) {
+        SrsSrtPacket *pkt = NULL;
+        HELPER_ASSERT_SUCCESS(player->dump_packet(&pkt));
+        if (!pkt) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            continue;
+        }
+        got.push_back(string(pkt->data(), pkt->size()));
+        srs_freep(pkt);
+    }
+    ASSERT_EQ(sent.size(), got.size());
+    for (int i = 0; i < (int)sent.size(); i++) {
+        EXPECT_TRUE(sent[i] == got[i]) << "message " << i;
+    }
+    // Nothing more comes: the copies over the other link were dropped.
+    srs_usleep(20 * SRS_UTIME_MILLISECONDS);
+    SrsSrtPacket *extra = NULL;
+    HELPER_ASSERT_SUCCESS(player->dump_packet(&extra));
+    EXPECT_TRUE(extra == NULL);
+    srs_freep(extra);
+
+    // The RTMP side gets the AVC and AAC sequence headers once, then each frame once, in the order sent.
+    string kinds;
+    for (int i = 0; i < (int)rtmp->kinds_.size(); i++) {
+        kinds += (i ? "," : "") + rtmp->kinds_[i];
+    }
+    EXPECT_STREQ("17 00,17 01,af 00,af 01,27 01,af 01,17 01,af 01", kinds.c_str());
+
+    // The encoder ends, closing both links: the stream is unpublished once, and the group closed once.
+    pair.bond_.close();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    srs_freep(c.err_);
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->can_publish());
+}
+
+// A message of TS null packets, as srt_conn_utest_ts, that carries its index in the first packet's payload, which a
+// demuxer skips, so a player can tell which message it got.
+static string srt_conn_utest_indexed_ts(int index)
+{
+    string msg = srt_conn_utest_ts(7);
+    msg[4] = (char)(index >> 8);
+    msg[5] = (char)index;
+    return msg;
+}
+
+// The IDs of the links of the server's side of a group that are connected, waiting up to about 3s for n of them,
+// as a later link joins in libsrt's threads after the accept.
+static vector<int> srt_conn_utest_group_links(srs_srt_t group, int n)
+{
+    vector<int> ids;
+    for (int i = 0; i < 300; i++) {
+        ids.clear();
+        vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(group);
+        for (int j = 0; j < (int)members.size(); j++) {
+            SRT_SOCKGROUPDATA &member = members[j];
+            if (member.sockstate == SRTS_CONNECTED) {
+                ids.push_back(member.id);
+            }
+        }
+        if ((int)ids.size() >= n) {
+            break;
+        }
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
+// A bonded encoder sends each message over both links of a broadcast group, such as a wired and a cellular network.
+// When one network goes down mid-stream for longer than the latency, the stream goes on over the other with no gap:
+// every message reaches the player once and in order, and the encoder stays the one publisher, with no unpublish
+// and no hook. When the network comes back, the same link carries again, with no new link or connection, and the
+// copies it sends late are dropped, so the player still gets each message once.
+VOID TEST(AppSrtConnTest, GroupBroadcast_OneLinkBlackholed_EveryMessageOnceNoUnpublish)
+{
+    srs_error_t err;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK);
+    ASSERT_EQ(2, pair.bond_.connected_links());
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+    ASSERT_FALSE(c.source_->can_publish());
+
+    // Both links have joined the server's side of the group.
+    vector<int> links = srt_conn_utest_group_links(pair.accepted_, 2);
+    ASSERT_EQ(2, (int)links.size());
+
+    ISrsSrtConsumer *consumer = NULL;
+    HELPER_ASSERT_SUCCESS(c.source_->create_consumer(consumer));
+    SrsUniquePtr<ISrsSrtConsumer> player(consumer);
+    HELPER_ASSERT_SUCCESS(c.source_->consumer_dumps(consumer));
+
+    // The encoder sends a message every 2ms: 50 over both links, 150 while the first link is down, about 300ms or
+    // more than twice the latency of 120ms, then 50 more once it is back.
+    SrtUtestUdpRelay *down = pair.bond_.relay(0);
+    const int nb_before = 50, nb_down = 150, nb_after = 50, nb_all = nb_before + nb_down + nb_after;
+    int down_up = 0;
+    for (int i = 0; i < nb_all; i++) {
+        if (i == nb_before) {
+            down->blackhole();
+        }
+        if (i == nb_before + nb_down) {
+            // The stream went on while the link was down: still published by the encoder, with no new hook.
+            EXPECT_FALSE(c.done_);
+            EXPECT_FALSE(c.source_->can_publish());
+            EXPECT_STREQ("on_connect,on_publish", c.hooks_.called().c_str());
+            down->restore();
+            down_up = down->forwarded(SrtUtestUdpRelay::Up);
+        }
+        string msg = srt_conn_utest_indexed_ts(i);
+        HELPER_ASSERT_SUCCESS(pair.bond_.send(msg.data(), (int)msg.size()));
+        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_GE(down->blackholed(SrtUtestUdpRelay::Up), nb_down);
+
+    // The player gets each message once, in order.
+    vector<int> got;
+    for (int i = 0; i < 3000 && (int)got.size() < nb_all; i++) {
+        SrsSrtPacket *pkt = NULL;
+        HELPER_ASSERT_SUCCESS(player->dump_packet(&pkt));
+        if (!pkt) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            continue;
+        }
+        SrsUniquePtr<SrsSrtPacket> pkt_uptr(pkt);
+        ASSERT_EQ(7 * SRS_TS_PACKET_SIZE, pkt->size());
+        uint8_t *p = (uint8_t *)pkt->data();
+        got.push_back((p[4] << 8) | p[5]);
+    }
+    ASSERT_EQ(nb_all, (int)got.size());
+    for (int i = 0; i < nb_all; i++) {
+        EXPECT_EQ(i, got[i]);
+    }
+    // Nothing more comes, though the restored link sent again what it had not got through, for longer than the latency.
+    srs_usleep(200 * SRS_UTIME_MILLISECONDS);
+    SrsSrtPacket *extra = NULL;
+    HELPER_ASSERT_SUCCESS(player->dump_packet(&extra));
+    EXPECT_TRUE(extra == NULL);
+    srs_freep(extra);
+
+    // The restored link carries again, and the group has the same two links on both sides: no link reconnected.
+    EXPECT_GT(down->forwarded(SrtUtestUdpRelay::Up), down_up);
+    EXPECT_EQ(2, pair.bond_.connected_links());
+    vector<int> after = srt_conn_utest_group_links(pair.accepted_, 2);
+    EXPECT_TRUE(links == after);
+
+    // Still one publisher, the same connection, with no unpublish.
+    EXPECT_FALSE(c.done_);
+    EXPECT_FALSE(c.source_->can_publish());
+    EXPECT_STREQ("on_connect,on_publish", c.hooks_.called().c_str());
+    SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+    HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+    ASSERT_EQ(1, clients->count());
+    EXPECT_STREQ("srt-publish", clients->at(0)->to_object()->get_property("type")->to_str().c_str());
+
+    pair.bond_.close();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    srs_freep(c.err_);
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->can_publish());
+}
+
+// Take every message a player has, as srt_conn_utest_indexed_ts made them, noting the index of each in got and the
+// time it came in at.
+static srs_error_t srt_conn_utest_take_indexed(ISrsSrtConsumer *player, vector<int> &got, vector<srs_utime_t> &at)
+{
+    srs_error_t err = srs_success;
+
+    while (true) {
+        SrsSrtPacket *pkt = NULL;
+        if ((err = player->dump_packet(&pkt)) != srs_success) {
+            return srs_error_wrap(err, "dump");
+        }
+        if (!pkt) {
+            return err;
+        }
+        SrsUniquePtr<SrsSrtPacket> pkt_uptr(pkt);
+        if (pkt->size() != 7 * SRS_TS_PACKET_SIZE) {
+            return srs_error_new(ERROR_SRT_IO, "message of %d bytes", pkt->size());
+        }
+        uint8_t *p = (uint8_t *)pkt->data();
+        got.push_back((p[4] << 8) | p[5]);
+        at.push_back(srs_time_now_realtime());
+    }
+}
+
+// A bonded encoder of a backup group, such as a wired network with a cellular one held in reserve, sends over one
+// link, the active one, while the other only keeps alive. When the active network goes down mid-stream for longer
+// than the latency, libsrt on the encoder moves the stream to the standby link and sends again what the server had
+// not acknowledged, so the stream goes on: every message reaches the player once and in order, and the encoder
+// stays the one publisher, with no unpublish and no hook. The longest wait of the player between two messages is the
+// gap of the switch. When the network comes back, the group still has the same two links: none reconnected.
+VOID TEST(AppSrtConnTest, GroupBackup_ActiveLinkBlackholed_EveryMessageOnceNoUnpublish)
+{
+    srs_error_t err;
+
+    SrtConnUtestGroupPair pair(SRT_GTYPE_BACKUP);
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK);
+    ASSERT_EQ(2, pair.bond_.connected_links());
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+    ASSERT_FALSE(c.source_->can_publish());
+
+    // Both links have joined the server's side of the group.
+    vector<int> links = srt_conn_utest_group_links(pair.accepted_, 2);
+    ASSERT_EQ(2, (int)links.size());
+
+    ISrsSrtConsumer *consumer = NULL;
+    HELPER_ASSERT_SUCCESS(c.source_->create_consumer(consumer));
+    SrsUniquePtr<ISrsSrtConsumer> player(consumer);
+    HELPER_ASSERT_SUCCESS(c.source_->consumer_dumps(consumer));
+
+    // The encoder sends a message every 2ms: 50 over the active link, 150 while it is down, about 300ms or more than
+    // twice the latency of 120ms, then 50 more once it is back. The player takes what it has as it goes.
+    const int nb_before = 50, nb_down = 150, nb_after = 50, nb_all = nb_before + nb_down + nb_after;
+    SrtUtestUdpRelay *active = NULL, *standby = NULL;
+    int standby_up = 0;
+    vector<int> got;
+    vector<srs_utime_t> at;
+    for (int i = 0; i < nb_all; i++) {
+        if (i == nb_before) {
+            // The active link is the one that carried the messages; the standby one carried only its keepalives.
+            active = pair.bond_.busiest();
+            ASSERT_TRUE(active != NULL);
+            standby = (active == pair.bond_.relay(0)) ? pair.bond_.relay(1) : pair.bond_.relay(0);
+            standby_up = standby->forwarded(SrtUtestUdpRelay::Up);
+            EXPECT_GE(active->forwarded(SrtUtestUdpRelay::Up), nb_before);
+            EXPECT_LT(standby_up, nb_before);
+            active->blackhole();        }
+        if (i == nb_before + nb_down) {
+            // The stream went on while the link was down: still published by the encoder, with no new hook.
+            EXPECT_FALSE(c.done_);
+            EXPECT_FALSE(c.source_->can_publish());
+            EXPECT_STREQ("on_connect,on_publish", c.hooks_.called().c_str());
+            active->restore();
+        }
+        string msg = srt_conn_utest_indexed_ts(i);
+        HELPER_ASSERT_SUCCESS(pair.bond_.send(msg.data(), (int)msg.size()));
+        srs_usleep(2 * SRS_UTIME_MILLISECONDS);
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_take_indexed(player.get(), got, at));
+    }
+    // The cut link carried until libsrt found it unstable and gave the stream to the standby link, which took it over.
+    EXPECT_GT(active->blackholed(SrtUtestUdpRelay::Up), 0);
+    EXPECT_GE(standby->forwarded(SrtUtestUdpRelay::Up), standby_up + nb_down);
+
+    // The player gets each message once, in order.
+    for (int i = 0; i < 3000 && (int)got.size() < nb_all; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        HELPER_ASSERT_SUCCESS(srt_conn_utest_take_indexed(player.get(), got, at));
+    }
+    ASSERT_EQ(nb_all, (int)got.size());
+    for (int i = 0; i < nb_all; i++) {
+        EXPECT_EQ(i, got[i]);
+    }
+    // Nothing more comes, though the encoder sent again over the standby link what the active one had not got through.
+    srs_usleep(200 * SRS_UTIME_MILLISECONDS);
+    HELPER_ASSERT_SUCCESS(srt_conn_utest_take_indexed(player.get(), got, at));
+    EXPECT_EQ(nb_all, (int)got.size());
+
+    // The gap of the switch, the longest wait of the player between two messages sent 2ms apart, is shorter than the
+    // outage, so the stream did not wait for the link to come back; 40 to 75ms was measured on macOS.
+    srs_utime_t gap = 0;
+    for (int i = 1; i < (int)at.size(); i++) {
+        gap = srs_max(gap, at[i] - at[i - 1]);
+    }
+    EXPECT_LT(gap, 200 * SRS_UTIME_MILLISECONDS) << "gap " << srsu2msi(gap) << "ms";
+
+    // The group has the same two links on both sides: no link reconnected.
+    EXPECT_EQ(2, pair.bond_.connected_links());
+    vector<int> after = srt_conn_utest_group_links(pair.accepted_, 2);
+    EXPECT_TRUE(links == after);
+
+    // Still one publisher, the same connection, with no unpublish.
+    EXPECT_FALSE(c.done_);
+    EXPECT_FALSE(c.source_->can_publish());
+    EXPECT_STREQ("on_connect,on_publish", c.hooks_.called().c_str());
+    SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+    HELPER_ASSERT_SUCCESS(srt_conn_utest_api_clients(&c.stat_, clients.get()));
+    ASSERT_EQ(1, clients->count());
+    EXPECT_STREQ("srt-publish", clients->at(0)->to_object()->get_property("type")->to_str().c_str());
+
+    pair.bond_.close();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    srs_freep(c.err_);
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+    EXPECT_TRUE(c.source_->can_publish());
+}
+
+// A bonded encoder whose every network goes down mid-stream, such as a car with a wired and a cellular link in a
+// tunnel, tells the server nothing: the server ends the publish when nothing comes for `peer_idle_timeout`, long
+// before libsrt breaks the links (about 5s), with the stream unpublished and the hooks of one client, and releasing
+// the connection closes the group.
+//
+// When the networks come back, an encoder that dials its old group again is refused by its own libsrt, which keeps
+// the server's first group as the group's peer and takes the server's new one as a collision. The listener still
+// hands that new group, whose every link is broken: its connection ends at once on the group's error, not at the
+// idle timeout. So the encoder dials a new group, which the listener accepts as a new client, and the same stream
+// is published again.
+VOID TEST(AppSrtConnTest, GroupAllLinksDown_EndsAndClosed_EncoderPublishesAgainInNewGroup)
+{
+    srs_error_t err;
+
+    SRT_GROUP_TYPE types[] = {SRT_GTYPE_BROADCAST, SRT_GTYPE_BACKUP};
+    for (int t = 0; t < 2; t++) {
+        SrtConnUtestGroupPair pair(types[t]);
+        HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+        ASSERT_NE(0, pair.accepted_ & SRTGROUP_MASK) << "type " << types[t];
+        ASSERT_EQ(2, pair.bond_.connected_links()) << "type " << types[t];
+        srs_srt_t first = pair.accepted_;
+
+        string conf = string("srt_server { enabled on; listen 10080; peer_idle_timeout 200; } ") + srt_conn_utest_vhost();
+        SrtConnUtestClient c;
+        HELPER_ASSERT_SUCCESS(c.open_accepted(conf, first, pair.ip_, pair.port_));
+        HELPER_ASSERT_SUCCESS(c.start());
+        c.wait_publishing();
+        ASSERT_FALSE(c.source_->can_publish()) << "type " << types[t];
+        ASSERT_EQ(2, (int)srt_conn_utest_group_links(first, 2).size()) << "type " << types[t];
+
+        ISrsSrtConsumer *consumer = NULL;
+        HELPER_ASSERT_SUCCESS(c.source_->create_consumer(consumer));
+        SrsUniquePtr<ISrsSrtConsumer> player(consumer);
+        HELPER_ASSERT_SUCCESS(c.source_->consumer_dumps(consumer));
+
+        const int nb_msgs = 20;
+        for (int i = 0; i < nb_msgs; i++) {
+            string msg = srt_conn_utest_indexed_ts(i);
+            HELPER_ASSERT_SUCCESS(pair.bond_.send(msg.data(), (int)msg.size()));
+        }
+        vector<int> got;
+        vector<srs_utime_t> at;
+        for (int i = 0; i < 1000 && (int)got.size() < nb_msgs; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            HELPER_ASSERT_SUCCESS(srt_conn_utest_take_indexed(player.get(), got, at));
+        }
+        ASSERT_EQ(nb_msgs, (int)got.size()) << "type " << types[t];
+
+        // Every network goes down: the server ends the publish at its idle timeout.
+        srs_utime_t down = srs_time_now_realtime();
+        pair.bond_.relay(0)->blackhole();
+        pair.bond_.relay(1)->blackhole();
+        c.wait_done();
+        srs_utime_t ended = srs_time_now_realtime() - down;
+        ASSERT_TRUE(c.done_) << "type " << types[t];
+        EXPECT_EQ(ERROR_SRT_TIMEOUT, srs_error_code(c.err_)) << srs_error_desc(c.err_);
+        srs_freep(c.err_);
+        EXPECT_GE(ended, 150 * SRS_UTIME_MILLISECONDS) << srsu2msi(ended) << "ms";
+        EXPECT_LT(ended, 1000 * SRS_UTIME_MILLISECONDS) << srsu2msi(ended) << "ms";
+        EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+        EXPECT_TRUE(c.source_->can_publish());
+
+        // The server frees the connection it removed, which closes the group and its links.
+        srs_freep(c.conn_);
+        EXPECT_EQ(SRTS_NONEXIST, srt_getsockstate(first));
+        EXPECT_TRUE(srt_utest_group_members(first).empty());
+
+        // The encoder gives up its dead links, the networks come back, and it dials its old group again: its libsrt
+        // refuses the answer of the server's new group.
+        pair.bond_.drop_links();
+        pair.bond_.relay(0)->restore();
+        pair.bond_.relay(1)->restore();
+        err = pair.bond_.redial();
+        EXPECT_TRUE(err != srs_success) << "type " << types[t];
+        srs_freep(err);
+        EXPECT_EQ(0, pair.bond_.connected_links());
+
+        // The listener hands that group with every link broken; its connection ends at once on the group's error,
+        // and releasing it closes the group.
+        srs_srt_t broken = srs_srt_socket_invalid();
+        string broken_ip;
+        int broken_port = 0;
+        HELPER_ASSERT_SUCCESS(pair.listener_->accept(&broken, broken_ip, broken_port));
+        ASSERT_NE(0, broken & SRTGROUP_MASK);
+        EXPECT_NE(first, broken);
+        EXPECT_EQ(SRTS_BROKEN, srt_getsockstate(broken));
+        {
+            SrtConnUtestClient b;
+            HELPER_ASSERT_SUCCESS(b.open_accepted(conf, broken, broken_ip, broken_port));
+            srs_utime_t start = srs_time_now_realtime();
+            HELPER_ASSERT_SUCCESS(b.start());
+            b.wait_done();
+            srs_utime_t lived = srs_time_now_realtime() - start;
+            ASSERT_TRUE(b.done_);
+            EXPECT_EQ(ERROR_SRT_IO, srs_error_code(b.err_)) << srs_error_desc(b.err_);
+            srs_freep(b.err_);
+            EXPECT_LT(lived, 100 * SRS_UTIME_MILLISECONDS) << srsu2msi(lived) << "ms";
+            // It took the stream for those few milliseconds, with the hooks of a client that published.
+            EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", b.hooks_.called().c_str());
+            EXPECT_TRUE(b.source_->can_publish());
+        }
+        EXPECT_EQ(SRTS_NONEXIST, srt_getsockstate(broken));
+        pair.bond_.close();
+
+        // So the encoder dials a new group.
+        SrtUtestBondCaller encoder(types[t]);
+        HELPER_ASSERT_SUCCESS(encoder.add_link("127.0.0.1", pair.listen_port_));
+        HELPER_ASSERT_SUCCESS(encoder.add_link("127.0.0.1", pair.listen_port_));
+        HELPER_ASSERT_SUCCESS(encoder.connect("#!::r=live/livestream,m=publish", 120 * SRS_UTIME_MILLISECONDS));
+        EXPECT_EQ(2, encoder.connected_links());
+
+        // The listener accepts it as a new group, with the stream id of the encoder.
+        srs_srt_t second = srs_srt_socket_invalid();
+        string ip;
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(pair.listener_->accept(&second, ip, port));
+        ASSERT_NE(0, second & SRTGROUP_MASK);
+        EXPECT_NE(first, second);
+        EXPECT_NE(broken, second);
+        EXPECT_STREQ("127.0.0.1", ip.c_str());
+        string streamid;
+        HELPER_EXPECT_SUCCESS(srs_srt_get_streamid(second, streamid));
+        EXPECT_STREQ("#!::r=live/livestream,m=publish", streamid.c_str());
+        EXPECT_EQ(2, (int)srt_conn_utest_group_links(second, 2).size());
+
+        // It publishes the stream again, and a player gets what it sends.
+        SrtConnUtestClient again;
+        HELPER_ASSERT_SUCCESS(again.open_accepted(conf, second, ip, port));
+        HELPER_ASSERT_SUCCESS(again.start());
+        again.wait_publishing();
+        ASSERT_FALSE(again.source_->can_publish());
+        EXPECT_STREQ("on_connect,on_publish", again.hooks_.called().c_str());
+
+        HELPER_ASSERT_SUCCESS(again.source_->create_consumer(consumer));
+        SrsUniquePtr<ISrsSrtConsumer> player2(consumer);
+        HELPER_ASSERT_SUCCESS(again.source_->consumer_dumps(consumer));
+        for (int i = 0; i < nb_msgs; i++) {
+            string msg = srt_conn_utest_indexed_ts(i);
+            HELPER_ASSERT_SUCCESS(encoder.send(msg.data(), (int)msg.size()));
+        }
+        got.clear();
+        for (int i = 0; i < 1000 && (int)got.size() < nb_msgs; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+            HELPER_ASSERT_SUCCESS(srt_conn_utest_take_indexed(player2.get(), got, at));
+        }
+        ASSERT_EQ(nb_msgs, (int)got.size());
+        for (int i = 0; i < nb_msgs; i++) {
+            EXPECT_EQ(i, got[i]);
+        }
+
+        encoder.close();
+        again.wait_done();
+        ASSERT_TRUE(again.done_);
+        srs_freep(again.err_);
+        EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", again.hooks_.called().c_str());
+    }
+}
+
+// How many traces hold the text.
+static int srt_conn_utest_count_traces(ListenerUtestLog &log, string text)
+{
+    int n = 0;
+    for (int i = 0; i < (int)log.log_.traces_.size(); i++) {
+        if (log.log_.traces_[i].find(text) != string::npos) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// The sum of the value of key, such as "pktRecv=", over every trace that holds the text.
+static int64_t srt_conn_utest_sum_traces(ListenerUtestLog &log, string text, string key)
+{
+    int64_t sum = 0;
+    for (int i = 0; i < (int)log.log_.traces_.size(); i++) {
+        string &line = log.log_.traces_[i];
+        size_t pos = line.find(key);
+        if (line.find(text) != string::npos && pos != string::npos) {
+            sum += ::atoll(line.c_str() + pos + key.size());
+        }
+    }
+    return sum;
+}
+
+// The link of the server's side of the group that is not one of the known ones, waiting up to about 3s for it.
+static srs_srt_t srt_conn_utest_new_link(srs_srt_t group, const vector<int> &known)
+{
+    for (int i = 0; i < 300; i++) {
+        vector<SRT_SOCKGROUPDATA> members = srt_utest_group_members(group);
+        for (int j = 0; j < (int)members.size(); j++) {
+            SRT_SOCKGROUPDATA &member = members[j];
+            if (member.sockstate == SRTS_CONNECTED && std::find(known.begin(), known.end(), member.id) == known.end()) {
+                return member.id;
+            }
+        }
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    return srs_srt_socket_invalid();
+}
+
+// A bonded encoder starts with two networks, such as wired and cellular, brings up a third mid-stream, and later
+// one of its links goes away. An operator reads in the log which links a group has: the server logs each link with
+// its peer address when the publish starts, each link that joined or left at the next pithy print, and the count
+// of links after each change, so a link that comes and goes is seen once each way.
+VOID TEST(AppSrtConnTest, GroupLinksLoggedAsTheyJoinAndLeave)
+{
+    srs_error_t err;
+
+    PithyPrintAtOnceScope stages(SrsPithyPrint::create_srt_publish);
+    ListenerUtestLog log;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    vector<int> links = srt_conn_utest_group_links(pair.accepted_, 2);
+    ASSERT_EQ(2, (int)links.size());
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+
+    // Both links are logged when the publish starts, one of them with the client's address, the first link's.
+    string group = srs_fmt_sprintf("group=%d ", pair.accepted_);
+    string first_peer = srs_fmt_sprintf("peer=%s:%d,", pair.ip_.c_str(), pair.port_);
+    int with_first_peer = 0;
+    for (int i = 0; i < (int)links.size(); i++) {
+        string line = srt_conn_utest_wait_trace(log, srs_fmt_sprintf("link=%d joined, peer=", links[i]));
+        EXPECT_NE(string::npos, line.find(group)) << line;
+        EXPECT_NE(string::npos, line.find("peer=127.0.0.1:")) << line;
+        EXPECT_NE(string::npos, line.find("links=2")) << line;
+        if (line.find(first_peer) != string::npos) {
+            with_first_peer++;
+        }
+    }
+    EXPECT_EQ(1, with_first_peer);
+
+    // The encoder brings up a third link; the next message's pithy print logs it once, with three links.
+    HELPER_ASSERT_SUCCESS(pair.bond_.join("127.0.0.1", pair.listen_port_));
+    srs_srt_t third = srt_conn_utest_new_link(pair.accepted_, links);
+    ASSERT_NE(srs_srt_socket_invalid(), third);
+    HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+    string joined = srt_conn_utest_wait_trace(log, srs_fmt_sprintf("link=%d joined, peer=", third));
+    EXPECT_NE(string::npos, joined.find(group)) << joined;
+    EXPECT_NE(string::npos, joined.find("links=3")) << joined;
+    HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+    srt_conn_utest_wait_trace(log, "Group Stats # links=3,");
+    EXPECT_EQ(3, srt_conn_utest_count_traces(log, " joined, peer="));
+    EXPECT_EQ(0, srt_conn_utest_count_traces(log, " left, peer="));
+
+    // The third link goes away; the next pithy print logs it once, with its peer, and two links.
+    HELPER_EXPECT_SUCCESS(srs_srt_close(third));
+    for (int i = 0; i < 300 && (int)srt_utest_group_members(pair.accepted_).size() > 2; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+    string left = srt_conn_utest_wait_trace(log, srs_fmt_sprintf("link=%d left, peer=", third));
+    EXPECT_NE(string::npos, left.find(group)) << left;
+    EXPECT_NE(string::npos, left.find("links=2")) << left;
+    string third_peer = joined.substr(joined.find("peer="));
+    third_peer = third_peer.substr(0, third_peer.find(","));
+    EXPECT_NE(string::npos, left.find(third_peer)) << left << " joined as " << joined;
+    HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+    srt_conn_utest_wait_trace(log, "Group Stats # links=2,");
+    EXPECT_EQ(3, srt_conn_utest_count_traces(log, " joined, peer="));
+    EXPECT_EQ(1, srt_conn_utest_count_traces(log, " left, peer="));
+
+    pair.bond_.close();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    srs_freep(c.err_);
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
+}
+
+// A bonded encoder sends over two networks at once. libsrt's stats of the group itself count only what reached the
+// server once, and not per network, so each pithy print the server logs the group's count and a line for each link
+// with its peer, state and transport stats: an operator sees which network carries, loses or retransmits. A plain
+// encoder's transport stats line is not logged for a group, as libsrt leaves its counts at 0 there.
+VOID TEST(AppSrtConnTest, GroupPithyStatsOfGroupAndEachLink)
+{
+    srs_error_t err;
+
+    PithyPrintAtOnceScope stages(SrsPithyPrint::create_srt_publish);
+    ListenerUtestLog log;
+
+    SrtConnUtestGroupPair pair;
+    HELPER_ASSERT_SUCCESS(pair.connect("#!::r=live/livestream,m=publish"));
+    vector<int> links = srt_conn_utest_group_links(pair.accepted_, 2);
+    ASSERT_EQ(2, (int)links.size());
+
+    SrtConnUtestClient c;
+    HELPER_ASSERT_SUCCESS(c.open_accepted(srt_conn_utest_vhost(), pair.accepted_, pair.ip_, pair.port_));
+    HELPER_ASSERT_SUCCESS(c.start());
+    c.wait_publishing();
+
+    // Three messages, then a fourth once both links have every copy, so a pithy print comes after the copies of
+    // the first three on each link. The stats are cleared at each print, so the lines are summed.
+    for (int i = 0; i < 3; i++) {
+        HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    HELPER_ASSERT_SUCCESS(pair.bond_.send(srt_conn_utest_ts(7).data(), 7 * SRS_TS_PACKET_SIZE));
+    for (int i = 0; i < 300 && srt_conn_utest_sum_traces(log, "Group Stats #", "pktRecvUnique=") < 4; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+
+    // The group got each message once, over two links.
+    string line = log.last_trace("Group Stats #");
+    EXPECT_NE(string::npos, line.find("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Group Stats # links=2, pktRecvUnique=")) << line;
+    EXPECT_EQ(4, srt_conn_utest_sum_traces(log, "Group Stats #", "pktRecvUnique="));
+    EXPECT_EQ(0, srt_conn_utest_sum_traces(log, "Group Stats #", "pktRcvDrop="));
+
+    // Each link got a copy of at least the first three, with no loss on loopback.
+    for (int i = 0; i < (int)links.size(); i++) {
+        string link = srs_fmt_sprintf("Link Stats # group=%d, link=%d,", pair.accepted_, links[i]);
+        line = log.last_trace(link);
+        EXPECT_NE(string::npos, line.find("<- " SRS_CONSTS_LOG_SRT_PUBLISH " ")) << line;
+        EXPECT_NE(string::npos, line.find("peer=127.0.0.1:")) << line;
+        EXPECT_NE(string::npos, line.find("state=running")) << line;
+        EXPECT_NE(string::npos, line.find("rtt=")) << line;
+        int64_t recv = srt_conn_utest_sum_traces(log, link, "pktRecv=");
+        EXPECT_GE(recv, 3) << links[i];
+        EXPECT_LE(recv, 4) << links[i];
+        EXPECT_EQ(0, srt_conn_utest_sum_traces(log, link, "pktRcvLoss=")) << links[i];
+        EXPECT_EQ(0, srt_conn_utest_sum_traces(log, link, "pktRcvRetrans=")) << links[i];
+    }
+    EXPECT_STREQ("", log.last_trace("Transport Stats #").c_str());
+
+    pair.bond_.close();
+    c.wait_done();
+    ASSERT_TRUE(c.done_);
+    srs_freep(c.err_);
+    EXPECT_STREQ("on_connect,on_publish,on_unpublish,on_close", c.hooks_.called().c_str());
 }

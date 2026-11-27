@@ -51,6 +51,29 @@ func ClientNamed(name string) (Client, error) {
 	return nil, fmt.Errorf("no SRT client %q, only %v", name, strings.Join(names, ", "))
 }
 
+// A GroupMode is how a socket group sends over its links, by libsrt's names.
+type GroupMode string
+
+const (
+	// GroupBroadcast sends each packet over every link; the receiver drops
+	// the copies.
+	GroupBroadcast GroupMode = "broadcast"
+	// GroupBackup sends over one link at a time, and moves to another when it
+	// fails.
+	GroupBackup GroupMode = "backup"
+)
+
+// A GroupClient is a Client that also calls as a socket group, bonding: one
+// connection over several links, one to each address of links, which goes on
+// while any link works.
+type GroupClient interface {
+	Client
+	DialGroup(ctx context.Context, mode GroupMode, links []string, opts Options) (*Conn, error)
+}
+
+// GroupClients are the clients that call as a socket group.
+func GroupClients() []GroupClient { return []GroupClient{zsiecClient{}, libsrtClient{}} }
+
 // A link is one library's connection: Read and Write move one message, and
 // Close ends a Read that waits.
 type link interface {
@@ -211,14 +234,30 @@ func zsiecPacket(mss int) int {
 }
 
 func (zsiecClient) Dial(ctx context.Context, addr string, opts Options) (*Conn, error) {
-	if err := checkOptions(opts); err != nil {
+	cfg, err := zsiecConfig(ctx, opts)
+	if err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	c, err := zsrt.Dial(addr, cfg)
+	if err != nil {
+		return nil, zsiecRejectOf(err)
+	}
+	return &Conn{c: zsiecLink{c}, client: "zsiec"}, nil
+}
+
+// zsiecConfig is zsiec's config of opts.
+func zsiecConfig(ctx context.Context, opts Options) (zsrt.Config, error) {
+	if err := checkOptions(opts); err != nil {
+		return zsrt.Config{}, err
+	}
 	if opts.TSBPDMode != nil {
-		return nil, fmt.Errorf("zsiec has no tsbpdmode option: always on in live mode")
+		return zsrt.Config{}, fmt.Errorf("zsiec has no tsbpdmode option: always on in live mode")
 	}
 	if opts.TLPktDrop != nil {
-		return nil, fmt.Errorf("zsiec has no tlpktdrop option: always on in live mode")
+		return zsrt.Config{}, fmt.Errorf("zsiec has no tlpktdrop option: always on in live mode")
 	}
 	cfg := zsrt.DefaultConfig()
 	cfg.StreamID = opts.StreamID
@@ -249,15 +288,7 @@ func (zsiecClient) Dial(ctx context.Context, addr string, opts Options) (*Conn, 
 	// Close at once, as gosrt does, not after draining for up to 1s.
 	cfg.Linger = -1
 	cfg.ConnTimeout = handshakeTimeout(ctx, opts)
-
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	c, err := zsrt.Dial(addr, cfg)
-	if err != nil {
-		return nil, zsiecRejectOf(err)
-	}
-	return &Conn{c: zsiecLink{c}, client: "zsiec"}, nil
+	return cfg, nil
 }
 
 // zsiecRejectedRE is how zsiec reports a refused handshake, with the reason
@@ -289,4 +320,48 @@ func (l zsiecLink) tsbpd() (recv, send time.Duration) {
 	// zsiec leaves MsRcvTsbPdDelay and MsSndTsbPdDelay at zero.
 	s := l.Stats(false)
 	return s.NegotiatedLatency, s.PeerLatency
+}
+
+// DialGroup calls each link with zsiec's Group, one after another. Its
+// handshake does not say the link is a group member, so a libsrt listener
+// takes each link as a connection of its own.
+func (zsiecClient) DialGroup(ctx context.Context, mode GroupMode, links []string, opts Options) (*Conn, error) {
+	modes := map[GroupMode]zsrt.GroupMode{GroupBroadcast: zsrt.GroupBroadcast, GroupBackup: zsrt.GroupBackup}
+	zmode, ok := modes[mode]
+	if !ok {
+		return nil, fmt.Errorf("zsiec: no group mode %q", mode)
+	}
+	cfg, err := zsiecConfig(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	g := zsrt.NewGroup(zmode)
+	for i, addr := range links {
+		if err := g.Connect(addr, cfg, i+1, 0); err != nil {
+			g.Close()
+			return nil, zsiecRejectOf(err)
+		}
+	}
+	return &Conn{c: zsiecGroupLink{g}, client: "zsiec"}, nil
+}
+
+// A zsiecGroupLink is a zsiec Group, which tells neither the TSBPD delays nor
+// what the handshake agreed.
+type zsiecGroupLink struct{ *zsrt.Group }
+
+func (l zsiecGroupLink) tsbpd() (recv, send time.Duration) { return 0, 0 }
+
+func (l zsiecGroupLink) negotiated() (mss, flowWindow int) { return 0, 0 }
+
+func (l zsiecGroupLink) links() int {
+	n := 0
+	for _, m := range l.Members() {
+		if m.Status != zsrt.MemberBroken {
+			n++
+		}
+	}
+	return n
 }

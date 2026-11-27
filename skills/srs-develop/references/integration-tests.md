@@ -30,12 +30,15 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 | 11 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
 | 12 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
 | 13 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |
-| 14 | `proxy-e2e-srt-impair-test.sh` | SRT through the proxy over a bad network, as the `srs-integ` cases `TestTimer_Srt_Proxy`: gosrt, libsrt v1.5.7 and FFmpeg publishing, 5% loss, a dead publisher, two origins, two proxies sharing Redis, and the proxy's known SRT bugs; about 7 s |
+| 14 | `proxy-e2e-srt-impair-test.sh` | SRT through the proxy over a bad network, as the `srs-integ` cases `TestTimer_Srt_Proxy`: gosrt, libsrt v1.5.7 and FFmpeg publishing, 5% loss, a dead publisher, two origins, two proxies sharing Redis, and the proxy's known SRT bugs; about 8 s |
+| 15 | `proxy-e2e-srt-bonding-test.sh` | A bonded SRT publish through the proxy, as the `srs-integ` cases `TestTimer_Srt_ProxyBonding`: a broadcast or backup group of the libsrt v1.5.7 client through the memory load balancer to one of two origins with `srt_server.bonding on`, one link blackholed with no gap and no unpublish, and two proxies sharing Redis with one link through each, which several proxies need; about 4 s |
 
 ### Dependencies
 
 - The SRT test requires an FFmpeg build with libsrt.
-- The SRT cases of `make integ`, `make integ-unit` and `proxy-e2e-srt-impair-test.sh` use the libsrt v1.5.7 client `tools/srt-libsrt`, which `srt-libsrt-build.sh` builds once (cmake, a C++ compiler, Go, and OpenSSL: Homebrew's `openssl@3` on macOS, `libssl-dev` on Linux); without it those cases fail with the build command. `proxy-e2e-srt-impair-test.sh` also needs Redis, as the Redis test does.
+- The SRT cases of `make integ`, `make integ-unit`, `proxy-e2e-srt-impair-test.sh` and `proxy-e2e-srt-bonding-test.sh` use the libsrt v1.5.7 client `tools/srt-libsrt`, which `srt-libsrt-build.sh` builds once (cmake, a C++ compiler, Go, and OpenSSL: Homebrew's `openssl@3` on macOS, `libssl-dev` on Linux); without it those cases fail with the build command.
+- `proxy-e2e-srt-impair-test.sh` and `proxy-e2e-srt-bonding-test.sh` also need Redis, as the Redis test does, and each uses a key prefix of its own per run, removed at the end.
+- `proxy-e2e-srt-bonding-test.sh` needs `trunk/objs/srs` with its libsrt built with bonding, as `./configure` builds it.
 - The WHIP and config file tests require the `whip` muxer and OpenSSL.
 - These scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available.
 - The Redis test runs `brew services start redis` when Redis is not running; do not start a temporary `redis-server` instead.
@@ -326,7 +329,7 @@ Beside these, unless `SRS_TEST_OBS=0`, `obs-linux-test.sh --build` builds SRS fo
 
 **Step 3: lane H**, alone after Step 2: `make integ-unit`, then `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
 
-**Step 4: lane J**, alone after lane H: `proxy-e2e-srt-impair-test.sh`, the `srs-integ` SRT cases through the proxy. They are timer cases too; beside lane A in Step 2, one went over its limit.
+**Step 4: lane J**, alone after lane H: `proxy-e2e-srt-impair-test.sh`, then `proxy-e2e-srt-bonding-test.sh`, the `srs-integ` SRT cases through the proxy. They are timer cases too; beside lane A in Step 2, one went over its limit.
 
 **Native Windows:** lane W in four steps, as in [Full Tier Layers](#full-tier-layers).
 
@@ -347,8 +350,8 @@ A normal Full tier on the 10-core arm64 Mac, with everything already built and e
 | I, Chrome | 55 |
 | Step 2, the slowest lane | 56 |
 | H, integ | 44 |
-| J, SRT proxy | 7 |
-| **Total** | **107** |
+| J, SRT proxy | 13 |
+| **Total** | **113** |
 
 - Step 2 takes as long as its slowest lane, so a lane only matters when it becomes the slowest.
 - A rebuild of `objs/srs` and the utest adds about 15 s, and the busy CPU slows every lane.
@@ -394,7 +397,8 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 16400–16499 | `srs-windows-daemon-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
 | 16500–16599 | `srs-windows-daemon-session-test.sh` on the Windows test host, not the local machine, at `SRS_TEST_PORT_BASE`: RTMP +0, API +1 | 100 | 2 | 98 |
 | 16600–16699 | `proxy-e2e-srt-impair-test.sh` at `SRS_TEST_PORT_BASE`: the `srs-integ` allocator's range (`SRS_INTEG_PORTS`) for its cases, which take two origins, six proxies and their mock from the first 80 ports | 100 | Allocated per server | 0, owned by the allocator |
-| 16700–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,300 | 0 | 4,297 |
+| 16700–16799 | `proxy-e2e-srt-bonding-test.sh` at `SRS_TEST_PORT_BASE`: the `srs-integ` allocator's range (`SRS_INTEG_PORTS`) for its cases, which take two origins, three proxies and their mock from the first 80 ports; the relays bind ports the system picks | 100 | Allocated per server | 0, owned by the allocator |
+| 16800–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 4,200 | 0 | 4,197 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
 | 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |

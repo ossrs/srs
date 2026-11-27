@@ -103,6 +103,62 @@ static int srtl_sndbuffer(SRTSOCKET s, int64_t* bytes) {
 	*bytes = (int64_t)b;
 	return r;
 }
+
+static int srtl_is_group(SRTSOCKET s) { return (s & SRTGROUP_MASK) != 0; }
+
+static int srtl_endpoint(const char* ip, int port, SRT_SOCKGROUPCONFIG* c) {
+	struct sockaddr_storage ss;
+	int len;
+	if (srtl_addr(ip, port, &ss, &len) != 0) {
+		return -2;
+	}
+	*c = srt_prepare_endpoint(NULL, (struct sockaddr*)&ss, len);
+	return 0;
+}
+
+// The group tells no reject reason, and libsrt frees a refused link's socket
+// before srt_connect_group returns, so a callback on each link's failure
+// keeps the first reason in *reject. It may run while the group lives, so
+// reject is never freed.
+static void srtl_on_link(void* opaq, SRTSOCKET ns, int errorcode, const struct sockaddr* peer, int token) {
+	if (errorcode != SRT_SUCCESS) {
+		int r = srt_getrejectreason(ns);
+		int unknown = SRT_REJ_UNKNOWN;
+		if (r > SRT_REJ_UNKNOWN) {
+			__atomic_compare_exchange_n((int*)opaq, &unknown, r, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+		}
+	}
+}
+
+static int* srtl_watch_links(SRTSOCKET g) {
+	int* reject = (int*)malloc(sizeof(int));
+	*reject = SRT_REJ_UNKNOWN;
+	if (srt_connect_callback(g, srtl_on_link, reject) != 0) {
+		free(reject);
+		return NULL;
+	}
+	return reject;
+}
+
+static int srtl_link_reject(int* reject) { return __atomic_load_n(reject, __ATOMIC_SEQ_CST); }
+
+#define SRTL_MAX_LINKS 16
+
+// srtl_members gives the IDs and the states of a group's members, at most n, and returns how many. The
+// group's copy of a state, sockstate, changes only in some of the group's calls, so the socket's own is read.
+static int srtl_members(SRTSOCKET g, SRTSOCKET* ids, int* states, int n) {
+	SRT_SOCKGROUPDATA d[SRTL_MAX_LINKS];
+	size_t len = SRTL_MAX_LINKS;
+	if (srt_group_data(g, d, &len) < 0) {
+		return -1;
+	}
+	int i;
+	for (i = 0; i < (int)len && i < n; i++) {
+		ids[i] = d[i].id;
+		states[i] = srt_getsockstate(d[i].id);
+	}
+	return i;
+}
 */
 import "C"
 
@@ -110,6 +166,7 @@ import (
 	"fmt"
 	"net"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -359,4 +416,158 @@ func (s *socket) stats() (Stats, error) {
 
 func (s *socket) close() {
 	C.srt_close(s.s)
+}
+
+// groupTypes are the group types by their names.
+var groupTypes = map[string]C.SRT_GROUP_TYPE{"broadcast": C.SRT_GTYPE_BROADCAST, "backup": C.SRT_GTYPE_BACKUP}
+
+// maxLinks is the most links of a group.
+const maxLinks = C.SRTL_MAX_LINKS
+
+func newGroup(name string) (*socket, error) {
+	var s C.SRTSOCKET
+	err := call("create_group", func() C.int {
+		s = C.srt_create_group(groupTypes[name])
+		if s < 0 {
+			return -1
+		}
+		return 0
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &socket{s: s}, nil
+}
+
+func (s *socket) isGroup() bool { return C.srtl_is_group(s.s) != 0 }
+
+// connectGroup calls each link of a group, and returns once one connected;
+// the others go on in libsrt's threads. A refused handshake gives a
+// *rejectError.
+func (s *socket) connectGroup(links []*net.UDPAddr) error {
+	cfgs := (*[maxLinks]C.SRT_SOCKGROUPCONFIG)(C.malloc(C.size_t(unsafe.Sizeof(C.SRT_SOCKGROUPCONFIG{})) * maxLinks))
+	defer C.free(unsafe.Pointer(cfgs))
+	for i, addr := range links {
+		ip := C.CString(addr.IP.String())
+		r := C.srtl_endpoint(ip, C.int(addr.Port), &cfgs[i])
+		C.free(unsafe.Pointer(ip))
+		if r != 0 {
+			return fmt.Errorf("connect: bad address %v", addr)
+		}
+	}
+	var reject *C.int
+	if err := call("connect_callback", func() C.int {
+		if reject = C.srtl_watch_links(s.s); reject == nil {
+			return -1
+		}
+		return 0
+	}); err != nil {
+		return err
+	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if C.srt_connect_group(s.s, &cfgs[0], C.int(len(links))) >= 0 {
+		return nil
+	}
+	err := lastError("connect")
+	if r := int(C.srtl_link_reject(reject)); r != int(C.SRT_REJ_UNKNOWN) {
+		return &rejectError{reason: 1000 + r, msg: err.Error()}
+	}
+	return err
+}
+
+// A member is one link of a group, with its socket's state.
+type member struct {
+	s     *socket
+	state C.int
+}
+
+func (m member) connected() bool { return m.state == C.SRTS_CONNECTED }
+
+func (m member) pending() bool { return m.state < C.SRTS_CONNECTED }
+
+// members returns the links of a group.
+func (s *socket) members() ([]member, error) {
+	var ids [maxLinks]C.SRTSOCKET
+	var states [maxLinks]C.int
+	var n C.int
+	if err := call("group_data", func() C.int {
+		n = C.srtl_members(s.s, &ids[0], &states[0], maxLinks)
+		return n
+	}); err != nil {
+		return nil, err
+	}
+	var ms []member
+	for i := range int(n) {
+		ms = append(ms, member{s: &socket{s: ids[i]}, state: states[i]})
+	}
+	return ms, nil
+}
+
+// links is the number of connected links of a group.
+func (s *socket) links() int {
+	ms, err := s.members()
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, m := range ms {
+		if m.connected() {
+			n++
+		}
+	}
+	return n
+}
+
+// waitLinks waits up to timeout until no link of a group is still connecting.
+func (s *socket) waitLinks(timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		ms, err := s.members()
+		if err != nil {
+			return
+		}
+		connecting := false
+		for _, m := range ms {
+			connecting = connecting || m.pending()
+		}
+		if !connecting {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// pending gives the bytes sent but not yet acknowledged, and how long the
+// peer may hold what it got, its TSBPD delay and the RTT; sent is false when
+// nothing was given to send. Of a group, it is the most of any link that was
+// given something to send: a link that joined a broadcast group late has only
+// the end of the stream, and a link that broke never acknowledges, which the
+// drain's timeout bounds.
+func (s *socket) pending() (bytes int64, hold time.Duration, sent bool, err error) {
+	links := []*socket{s}
+	if s.isGroup() {
+		ms, err := s.members()
+		if err != nil {
+			return 0, 0, false, err
+		}
+		links = nil
+		for _, m := range ms {
+			links = append(links, m.s)
+		}
+	}
+	for _, l := range links {
+		st, err := l.stats()
+		if err != nil {
+			continue
+		}
+		n, err := l.unacked()
+		if err != nil || (n == 0 && st.PktSent == 0) {
+			continue
+		}
+		bytes = max(bytes, n)
+		hold = max(hold, time.Duration(st.MsSndTsbPdDelay)*time.Millisecond+time.Duration(st.MsRTT*float64(time.Millisecond)))
+		sent = true
+	}
+	return bytes, hold, sent, nil
 }

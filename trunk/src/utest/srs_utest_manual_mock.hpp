@@ -387,6 +387,7 @@ public:
     int rtc_drop_for_pt_;
     bool rtc_twcc_enabled_;
     bool srt_enabled_;
+    bool srt_bonding_;
     bool rtc_to_rtmp_;
     srs_utime_t dash_dispose_;
     bool dash_enabled_;
@@ -420,6 +421,7 @@ public:
         rtc_drop_for_pt_ = 0;
         rtc_twcc_enabled_ = true;
         srt_enabled_ = false;
+        srt_bonding_ = false;
         rtc_to_rtmp_ = false;
         dash_dispose_ = 0;
         dash_enabled_ = false;
@@ -633,6 +635,7 @@ public:
     virtual bool get_srt_enabled(std::string vhost) { return srt_enabled_; }
     virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
     virtual std::string get_srt_default_mode() { return srt_default_mode_; }
+    virtual bool get_srt_bonding() { return srt_bonding_; }
     virtual bool get_srt_to_rtmp(std::string vhost) { return srt_to_rtmp_; }
     virtual int64_t get_srto_maxbw() { return -1; }
     virtual int get_srto_mss() { return 1500; }
@@ -799,6 +802,7 @@ public:
     void set_rtc_drop_for_pt(int pt) { rtc_drop_for_pt_ = pt; }
     void set_rtc_twcc_enabled(bool enabled) { rtc_twcc_enabled_ = enabled; }
     void set_srt_enabled(bool enabled) { srt_enabled_ = enabled; }
+    void set_srt_bonding(bool enabled) { srt_bonding_ = enabled; }
     void set_rtc_to_rtmp(bool enabled) { rtc_to_rtmp_ = enabled; }
     void set_api_as_candidates(bool enabled) { api_as_candidates_ = enabled; }
     void set_resolve_api_domain(bool enabled) { resolve_api_domain_ = enabled; }

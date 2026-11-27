@@ -186,6 +186,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<ISrsSrtAcceptor *>
         srt_acceptors_;
+    // Shared by the acceptors, as a group's links may join through the listener of each IP family.
+    SrsSrtGroups *srt_groups_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -259,8 +261,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
     virtual srs_error_t listen_srt_mpegts();
     virtual void close_srt_listeners();
-    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd);
-    virtual srs_error_t srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr);
+    virtual srs_error_t accept_srt_client(srs_srt_t srt_fd, std::string ip, int port);
+    virtual void on_srt_links_joined();
+    virtual srs_error_t srt_fd_to_resource(srs_srt_t srt_fd, std::string ip, int port, ISrsResource **pr);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

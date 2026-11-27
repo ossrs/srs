@@ -83,6 +83,10 @@ srs_error_t SrsSrtListener::listen()
     srt_skt_->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     srt_skt_->set_send_timeout(SRS_UTIME_NO_TIMEOUT);
 
+    if ((err = srt_skt_->set_update_handler(this)) != srs_success) {
+        return srs_error_wrap(err, "watch updates");
+    }
+
     srs_freep(trd_);
     // No context id, so the coroutine generates a new one when it starts.
     trd_ = app_factory_->create_coroutine("srt_listener", this, SrsContextId());
@@ -115,18 +119,25 @@ srs_error_t SrsSrtListener::cycle()
     return err;
 }
 
+void SrsSrtListener::on_srt_update()
+{
+    handler_->on_srt_links_joined();
+}
+
 srs_error_t SrsSrtListener::do_cycle()
 {
     srs_error_t err = srs_success;
 
     srs_srt_t client_srt_fd = srs_srt_socket_invalid();
-    if ((err = srt_skt_->accept(&client_srt_fd)) != srs_success) {
+    std::string ip;
+    int port = 0;
+    if ((err = srt_skt_->accept(&client_srt_fd, ip, port)) != srs_success) {
         return srs_error_wrap(err, "srt accept");
     }
 
     // TODO: FIXME: print some log and client srt options.
 
-    if ((err = handler_->on_srt_client(client_srt_fd)) != srs_success) {
+    if ((err = handler_->on_srt_client(client_srt_fd, ip, port)) != srs_success) {
         return srs_error_wrap(err, "handle srt fd=%d", client_srt_fd);
     }
 

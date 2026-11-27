@@ -87,7 +87,8 @@ public:
     virtual ~MockSrtHandlerForSrtListener();
 
 public:
-    virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd, std::string ip, int port);
+    virtual void on_srt_links_joined();
 };
 
 // Mock ISrsUdpHandler for testing SrsUdpListener

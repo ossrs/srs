@@ -347,10 +347,13 @@ public:
     }
 
 public:
-    virtual srs_error_t on_srt_client(srs_srt_t fd)
+    virtual srs_error_t on_srt_client(srs_srt_t fd, std::string ip, int port)
     {
         srt_fd = fd;
         return srs_success;
+    }
+    virtual void on_srt_links_joined()
+    {
     }
 };
 

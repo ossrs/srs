@@ -374,6 +374,11 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 
+    // A bonded caller may only publish; a socket group is never a player.
+    if (mode != SrtModePush && srs_srt_is_group(srt_conn_->srtfd())) {
+        return srs_error_new(ERROR_SRT_CONN, "srt bonding is publish only, refuse group to play, streamid=%s", streamid.c_str());
+    }
+
     SrsConfDirective *parsed_vhost = config_->get_vhost(req_->vhost_);
     if (parsed_vhost) {
         req_->vhost_ = parsed_vhost->arg0();
@@ -582,6 +587,12 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_publish());
 
+    // A bonded encoder publishes over a socket group, whose links are logged as it starts and at each pithy print.
+    bool is_group = srs_srt_is_group(srt_conn_->srtfd());
+    if (is_group) {
+        update_group_links();
+    }
+
     int nb_packets = 0;
 
     // The max UDP packet size is 1500.
@@ -594,7 +605,10 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
         pprint->elapse();
         if (pprint->can_print()) {
             SrsSrtStat s;
-            if ((err = srt_conn_->get_stats(s)) != srs_success) {
+            if (is_group) {
+                update_group_links();
+                print_group_stats();
+            } else if ((err = srt_conn_->get_stats(s)) != srs_success) {
                 srs_freep(err);
             } else {
                 srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Transport Stats # pktRecv=%" PRId64 ", pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d",
@@ -735,6 +749,75 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char *buf, int nb_buf)
     }
 
     return err;
+}
+
+static bool srs_srt_has_link(const vector<SrsSrtGroupLink> &links, srs_srt_t id)
+{
+    for (int i = 0; i < (int)links.size(); i++) {
+        const SrsSrtGroupLink &link = links[i];
+        if (link.id_ == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void SrsMpegtsSrtConn::update_group_links()
+{
+    srs_srt_t group = srt_conn_->srtfd();
+
+    vector<SrsSrtGroupLink> links;
+    srs_error_t err = srs_srt_group_links(group, links);
+    if (err != srs_success) {
+        srs_warn("srt group=%d links, %s", group, srs_error_desc(err).c_str());
+        srs_freep(err);
+        return;
+    }
+
+    for (int i = 0; i < (int)group_links_.size(); i++) {
+        SrsSrtGroupLink &link = group_links_[i];
+        if (!srs_srt_has_link(links, link.id_)) {
+            srs_trace("SRT: group=%d link=%d left, peer=%s:%d, links=%d", group, link.id_, link.ip_.c_str(), link.port_, (int)links.size());
+        }
+    }
+    for (int i = 0; i < (int)links.size(); i++) {
+        SrsSrtGroupLink &link = links[i];
+        if (!srs_srt_has_link(group_links_, link.id_)) {
+            srs_trace("SRT: group=%d link=%d joined, peer=%s:%d, links=%d", group, link.id_, link.ip_.c_str(), link.port_, (int)links.size());
+        }
+    }
+
+    group_links_ = links;
+}
+
+void SrsMpegtsSrtConn::print_group_stats()
+{
+    srs_error_t err = srs_success;
+
+    SrsSrtStat s;
+    if ((err = srt_conn_->get_stats(s)) != srs_success) {
+        srs_freep(err);
+    } else {
+        srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Group Stats # links=%d, pktRecvUnique=%" PRId64 ", pktRcvDrop=%d",
+                  (int)group_links_.size(), s.pktRecvUnique(), s.pktRcvDrop());
+    }
+
+    srs_srt_t group = srt_conn_->srtfd();
+    for (int i = 0; i < (int)group_links_.size(); i++) {
+        SrsSrtGroupLink &link = group_links_[i];
+
+        // A link that went since the update has no stats, only its state.
+        SrsSrtStat ls;
+        if ((err = ls.fetch(link.id_, true)) != srs_success) {
+            srs_freep(err);
+            srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Link Stats # group=%d, link=%d, peer=%s:%d, state=%s, weight=%d",
+                      group, link.id_, link.ip_.c_str(), link.port_, link.state_.c_str(), link.weight_);
+            continue;
+        }
+        srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Link Stats # group=%d, link=%d, peer=%s:%d, state=%s, weight=%d, pktRecv=%" PRId64 ", pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d, rtt=%.1fms",
+                  group, link.id_, link.ip_.c_str(), link.port_, link.state_.c_str(), link.weight_,
+                  ls.pktRecv(), ls.pktRcvLoss(), ls.pktRcvRetrans(), ls.pktRcvDrop(), ls.msRTT());
+    }
 }
 
 srs_error_t SrsMpegtsSrtConn::http_hooks_on_connect()

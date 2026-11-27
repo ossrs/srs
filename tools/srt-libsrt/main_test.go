@@ -329,3 +329,127 @@ func TestNegotiated(t *testing.T) {
 		t.Errorf("listener MSS %v, want 1000", e.MSS)
 	}
 }
+
+// TestGroupPublishToListener publishes 500 messages over a socket group of two
+// links to a listener that takes groups: the listener accepts the group, not
+// one link, sees both links join it, and writes each message once.
+func TestGroupPublishToListener(t *testing.T) {
+	for _, mode := range []string{"broadcast", "backup"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			keep, _ := io.Pipe()
+			ln, addr := listenOn(t, ctx, keep, "-latency", "200", "-groupconnect", "on")
+
+			data := tsMessages(500)
+			pub := start(t, ctx, bytes.NewReader(data), "publish", "-latency", "200", "-streamid", "#!::r=live/a,m=publish",
+				"-group", mode, "-link", addr, "-link", addr)
+			if e := pub.next(t, "connected"); !e.Group || e.Links != 2 {
+				t.Errorf("publisher connected %+v, want a group with 2 links", e)
+			}
+			if e := ln.next(t, "connected"); !e.Group || e.StreamID != "#!::r=live/a,m=publish" {
+				t.Errorf("listener connected %+v, want a group with the stream ID", e)
+			}
+
+			code, e := pub.wait(t)
+			if code != 0 || e.Event != "closed" || e.Reason != "eof" || e.MsgSent != 500 {
+				t.Errorf("publisher exit %v, last event %+v; want closed at eof after 500 messages", code, e)
+			}
+			code, e = ln.wait(t)
+			if code != 0 || e.Event != "closed" || e.Reason != "peer" || e.MsgRecv != 500 || e.Links != 2 {
+				t.Errorf("listener exit %v, last event %+v; want closed by the peer after 500 messages over 2 links", code, e)
+			}
+			if got := ln.stdout.Bytes(); !bytes.Equal(got, data) {
+				t.Errorf("listener wrote %v bytes, want the %v published", len(got), len(data))
+			}
+		})
+	}
+}
+
+// TestGroupPlayFromListener plays over a group what a listener sends: a group
+// caller also takes media, as a player SRS refuses would. The listener sends
+// once the caller has both links: libsrt sends what comes before a link joins
+// only on the links it has. At 20ms of latency, a run on Linux with the race
+// detector dropped messages as too late to play.
+func TestGroupPlayFromListener(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	data := tsMessages(200)
+	r, w := io.Pipe()
+	ln, addr := listenOn(t, ctx, r, "-latency", "200", "-groupconnect", "on")
+
+	play := start(t, ctx, nil, "play", "-latency", "200", "-group", "broadcast", "-link", addr, "-link", addr)
+	if e := play.next(t, "connected"); e.Links != 2 {
+		t.Errorf("play connected %+v, want 2 links", e)
+	}
+	go func() {
+		w.Write(data)
+		w.Close()
+	}()
+	if code, e := ln.wait(t); code != 0 || e.Reason != "eof" || e.MsgSent != 200 {
+		t.Errorf("listener exit %v, last event %+v; want closed at eof after 200 messages", code, e)
+	}
+	if code, e := play.wait(t); code != 0 || e.Reason != "peer" || e.MsgRecv != 200 {
+		t.Errorf("play exit %v, last event %+v; want closed by the peer after 200 messages", code, e)
+	}
+	if got := play.stdout.Bytes(); !bytes.Equal(got, data) {
+		t.Errorf("play wrote %v bytes, want the %v sent", len(got), len(data))
+	}
+}
+
+// TestGroupRefused calls a listener that does not take groups with a group:
+// libsrt refuses it in the handshake, as a group, SRT_REJ_GROUP.
+func TestGroupRefused(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	keep, _ := io.Pipe()
+	_, addr := listenOn(t, ctx, keep)
+
+	c := start(t, ctx, nil, "publish", "-group", "broadcast", "-link", addr, "-link", addr)
+	if code, e := c.wait(t); code != 1 || e.Event != "error" || e.Reject != 1015 {
+		t.Errorf("exit %v, last event %+v; want an error with reject reason 1015", code, e)
+	}
+}
+
+// TestGroupConnectTakesPlainCaller calls a listener that takes groups with a
+// plain caller, which it accepts as a plain connection.
+func TestGroupConnectTakesPlainCaller(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	keep, _ := io.Pipe()
+	ln, addr := listenOn(t, ctx, keep, "-groupconnect", "on")
+
+	data := tsMessages(10)
+	c := start(t, ctx, bytes.NewReader(data), "publish", addr)
+	if e := c.next(t, "connected"); e.Group || e.Links != 0 {
+		t.Errorf("caller connected %+v, want a plain connection", e)
+	}
+	if e := ln.next(t, "connected"); e.Group {
+		t.Errorf("listener connected %+v, want a plain connection", e)
+	}
+	if code, e := ln.wait(t); code != 0 || e.MsgRecv != 10 {
+		t.Errorf("listener exit %v, last event %+v; want 10 messages", code, e)
+	}
+}
+
+// TestGroupUsage checks the command line errors of a group.
+func TestGroupUsage(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		{"publish", "-group", "broadcast"},
+		{"publish", "-group", "broadcast", "-link", "127.0.0.1:1", "127.0.0.1:1"},
+		{"publish", "-link", "127.0.0.1:1", "127.0.0.1:1"},
+		{"publish", "-group", "balancing", "-link", "127.0.0.1:1"},
+		{"publish", "-group", "broadcast", "-link", "nohost"},
+		{"listen", "-group", "broadcast", "-link", "127.0.0.1:1"},
+	} {
+		var out bytes.Buffer
+		if code := run(context.Background(), args, nil, io.Discard, &out); code != 2 {
+			t.Errorf("%q: exit %v, want 2: %s", args, code, out.String())
+		}
+	}
+}

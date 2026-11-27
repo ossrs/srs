@@ -178,6 +178,14 @@ Gather these details first when missing:
 - Preserve required WHIP and WHEP proxy headers.
 - Load the Nginx or Caddy documentation for exact configuration.
 
+**Bonded SRT publisher fails or loses links**
+- Verify `srt_server.bonding on` and a restart; with it off, libsrt refuses a group caller in the handshake.
+- Verify the encoder bonds with libsrt socket groups and publishes; FFmpeg and OBS cannot bond, and a group in play mode is refused.
+- Check the log for each link joining and leaving the group, and the per-link stats in the pithy print.
+- After every link was lost, the encoder must start a new group; reconnecting the old one is refused by libsrt.
+- Through several proxies, use the Redis load balancer; links dialed at the same moment through two proxies may still reach two origins.
+- For the rest, such as the 8-link limit, the client IP and the passphrase, load the Bonding section of the SRT document.
+
 **Connection limit reached**
 - Check `max_connections` and `/api/v1/summaries`.
 - Remember that WebRTC uses more resources than RTMP, especially with audio transcoding.

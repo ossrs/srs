@@ -510,6 +510,7 @@ func TestWithSRT(t *testing.T) {
 			map[string]string{"SRS_SRT_SERVER_TSBPDMODE": "off", "SRS_SRT_SERVER_TLPKTDROP": "off"}},
 		{"VhostOff", SRTOptions{VhostOff: true}, map[string]string{"SRS_VHOST_SRT_ENABLED": "off"}},
 		{"NoToRTMP", SRTOptions{NoToRTMP: true}, map[string]string{"SRS_VHOST_SRT_TO_RTMP": "off"}},
+		{"Bonding", SRTOptions{Bonding: true}, map[string]string{"SRS_SRT_SERVER_BONDING": "on"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

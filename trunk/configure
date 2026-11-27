@@ -395,7 +395,7 @@ mv ${SRS_MAKEFILE} ${SRS_MAKEFILE}.bk
 # generate phony header
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default all _default install help clean destroy server utest _prepare_dir $__mphonys
-.PHONY: clean_srs clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
+.PHONY: clean_srs clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st clean_srt
 .PHONY: st ffmpeg
 
 CC = ${SRS_TOOL_CC}
@@ -447,6 +447,7 @@ help:
 	@echo "     clean_opus      Remove the opus cache."
 	@echo "     clean_ffmpeg    Remove the FFmpeg cache."
 	@echo "     clean_st        Remove the ST cache."
+	@echo "     clean_srt       Remove the libsrt cache."
 	@echo "For example:"
 	@echo "     make"
 	@echo "     make help"
@@ -483,6 +484,10 @@ clean_ffmpeg:
 clean_st:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st
 	@echo "Please rebuild ST by: ./configure"
+
+clean_srt:
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt
+	@echo "Please rebuild libsrt by: ./configure"
 
 st:
 	@rm -f ${SRS_OBJS}/srs srs_utest

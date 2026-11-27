@@ -156,6 +156,20 @@ func (c *Conn) FlowWindow() int { _, fw := c.c.negotiated(); return fw }
 // Client is the name of the library of the connection, such as gosrt.
 func (c *Conn) Client() string { return c.client }
 
+// A grouped link is a socket group's.
+type grouped interface {
+	links() int
+}
+
+// Links is the number of links of a socket group that connected in the dial,
+// or 0 for a plain connection.
+func (c *Conn) Links() int {
+	if g, ok := c.c.(grouped); ok {
+		return g.links()
+	}
+	return 0
+}
+
 // WaitClosed reads and drops what the peer sends until it closes the
 // connection, and returns nil then, or the error of ctx, when it closes the
 // connection itself: gosrt's read deadline doesn't end a read.

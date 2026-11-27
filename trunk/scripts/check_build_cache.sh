@@ -48,6 +48,17 @@ for pair in st:st-srs openssl:openssl-1.1-fit srtp2:libsrtp-2-fit ffmpeg:ffmpeg-
     fi
 done
 
+# A cached libsrt built with other options than this tree's, such as without bonding, or before configure kept
+# its options in srs-options.txt, is rebuilt by configure. That only costs build time, so it is not a failure.
+if [[ -d ${cache}/3rdparty/srt ]]; then
+    . auto/srt_options.sh
+    cached_options=$(cat ${cache}/3rdparty/srt/srs-options.txt 2>/dev/null)
+    if [[ $cached_options != "$LIBSRT_OPTIONS" ]]; then
+        echo "The cached libsrt was built with other options (${cached_options:-no srs-options.txt}),"
+        echo "    libsrt will be rebuilt with: $LIBSRT_OPTIONS"
+    fi
+fi
+
 if [[ ${#failed[@]} -ne 0 ]]; then
     echo "Cache stale or missed: ${failed[*]}. The build would use old libraries or rebuild them."
     echo "$refresh"; exit 1

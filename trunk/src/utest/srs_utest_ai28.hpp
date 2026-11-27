@@ -107,6 +107,7 @@ public:
     virtual srs_error_t set_peer_latency(srs_srt_t srt_fd, int peer_latency);
     virtual srs_error_t set_passphrase(srs_srt_t srt_fd, const std::string &passphrase);
     virtual srs_error_t set_pbkeylen(srs_srt_t srt_fd, int pbkeylen);
+    virtual srs_error_t set_group_connect(srs_srt_t srt_fd, bool group_connect);
 
 private:
     srs_error_t record(srs_srt_t srt_fd, std::string name, std::string value);

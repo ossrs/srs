@@ -66,6 +66,11 @@ srt_server {
     #       listen 10080 [::]:10080 192.168.1.100:10080 10.10.10.100:10080;
     # Overwrite by env SRS_SRT_SERVER_LISTEN
     listen 10080;
+    # Whether to accept bonded publishers, an encoder that sends one stream over several links (a libsrt
+    # socket group). Changing it needs a restart. See the Bonding section below.
+    # Overwrite by env SRS_SRT_SERVER_BONDING
+    # default: off
+    bonding off;
     # For detail parameters, please read wiki:
     # @see https://ossrs.io/lts/en-us/docs/v7/doc/srt#config
     # The maxbw is the max bandwidth of the sender side.
@@ -549,6 +554,52 @@ srt_server {
 This configuration allows:
 - IPv4 clients: `srt://192.168.1.100:10080?streamid=#!::r=live/stream,m=publish`
 - IPv6 clients: `srt://[2001:db8::1]:10080?streamid=#!::r=live/stream,m=publish`
+
+## Bonding
+
+SRS 8.0 accepts a bonded SRT publisher: an encoder that sends one stream over two or more links, such as a
+wired line and a cellular modem, so the stream survives losing a link. libsrt calls this a socket group.
+The encoder picks the group mode:
+
+- **Broadcast** — every link carries the whole stream, and SRS keeps the first copy of each packet.
+- **Backup** — one link carries the stream, and another takes over when it fails.
+
+Bonding is off by default. Turn it on in the config file, or with `SRS_SRT_SERVER_BONDING=on`, and restart SRS:
+
+```bash
+srt_server {
+    enabled on;
+    listen 10080;
+    bonding on;
+    passphrase your-secret-passphrase;
+}
+```
+
+Plain SRT callers, such as FFmpeg and OBS, publish and play on the same port as before. Neither FFmpeg nor
+OBS can bond, so the bonded publisher must be an encoder or app built on libsrt's socket groups
+(`srt_create_group` and `srt_connect_group`).
+
+What to know before you use it:
+
+- **Publish only** — SRS refuses a group in play mode, and logs that bonding is publish only. Players use plain SRT.
+- **One server** — every link of a group must reach the same SRS, on one of the ports of `listen`. The IPv4
+  and IPv6 listeners of a port can share a group, so one link may use IPv4 and another IPv6.
+- **At most 8 links** — SRS keeps the first 8 links of a group and closes any link after them.
+- **One client** — the group publishes one stream, shows as one client in the HTTP API, and calls each hook
+  once. Its client IP, in the API, the hooks and the [security](./security.md) rules, is the address of its
+  first link.
+- **Logs** — SRS logs each link as it joins and leaves the group, and the stats of the group and of each link
+  in the pithy print.
+- **All links lost** — when every link is gone, SRS closes the group. To publish again, the encoder must
+  start a new group; libsrt refuses to connect the old group again.
+- **Set a passphrase** — libsrt joins a link to a group by the group ID the caller sends. Without a passphrase,
+  anyone who guesses the ID of a live group can add a link to it.
+- **Through the proxy** — every link must reach one origin. One [proxy](./origin-cluster.md) does that. With
+  several proxies, use the Redis load balancer; even then, two links dialed at the same moment through two
+  proxies may reach two origins, and the encoder keeps only one link. A link that connects after the first one
+  has connected reaches the same origin.
+- **Build** — the libsrt SRS builds has bonding. With `--sys-srt=on`, the system libsrt must be built with
+  bonding (`ENABLE_BONDING`), or SRS fails to listen when bonding is on.
 
 ## VLC
 

@@ -78,7 +78,10 @@ RTC/WebRTC:
 - `protocol_rtp` — RTP packetizer (H.264/Opus → RTP packets)
 
 Other protocols:
-- `protocol_srt` — SRT socket wrapper
+- `protocol_srt` — SRT socket wrapper over libsrt's C API, the only file that calls libsrt. For bonding:
+  - `SrsSrtSocket::accept(fd, ip, port)` returns the caller's address from `srt_accept`; a socket group has no peer, so its address is its first link's.
+  - `srs_srt_is_group` (the group bit of the ID) and `srs_srt_group_links` (`srt_group_data`: each link's socket, peer, state and weight).
+  - `ISrsSrtUpdateHandler`: the poller hands libsrt's update event of a listener, raised when a link joins a group it accepted before.
 - `protocol_rtsp_stack` — RTSP message parsing
 
 Media:
@@ -127,10 +130,10 @@ WebRTC:
 - `app_rtc_network` — RTC network I/O, UDP mux
 
 SRT:
-- `app_srt_server` — SRT server: manages SRT connections
-- `app_srt_conn` — SRT connection lifecycle (publish, play)
+- `app_srt_server` — SRT server: manages SRT connections. `SrsSrtAcceptor::set_srt_opt` sets the listener options, and `SRTO_GROUPCONNECT` when `srt_server.bonding` is on (`get_srt_bonding`); `SrsSrtGroups`, owned by `SrsServer` and shared by every acceptor, keeps the accepted socket groups and closes the links of a group past `SRS_SRT_GROUP_MAX_LINKS` (8)
+- `app_srt_conn` — SRT connection lifecycle (publish, play). A socket group in play mode is refused; a publishing group's links are logged as they join and leave, and the group and per-link stats are in the pithy print (`update_group_links`, `print_group_stats`)
 - `app_srt_source` — SRT source: manages SRT consumers
-- `app_srt_listener` — SRT listener (bind/accept)
+- `app_srt_listener` — SRT listener (bind/accept): hands each accepted caller with its address (`ISrsSrtHandler::on_srt_client`), and a link that joined an accepted group (`on_srt_links_joined`), which `SrsServer` passes to `SrsSrtGroups`
 
 RTSP:
 - `app_rtsp_conn` — RTSP connection handler
@@ -230,6 +233,14 @@ Windows x64 (MSVC, C++14, static `/MT`):
 `cmd/integ/` — The `srs-integ` black-box suite, the one that also runs against `srs.exe` on Windows; `cmd/integ/README.md` has its rules and catalog. The OS differences live in two files:
 - `cmd/integ/internal/server/platform.go` — Per OS: the SRS binary, the work dir, how SRS is stopped, and the features the build has
 - `cmd/integ/internal/check/skips.go` — The named skip list: an OS, a case-name pattern and the reason
+
+SRT test tools, plain and bonded:
+- `trunk/src/utest/srs_utest_ai48` — `SrtUtestUdpRelay`, a UDP relay with loss, delay and blackhole between libsrt sockets, and `SrtUtestBondCaller`, an in-process libsrt group caller
+- `trunk/src/utest/srs_utest_ai50` — Bonding utests: the config, the listener's `SRTO_GROUPCONNECT`, the accept and its address, publish only, the link cap, and links that claim another group; the bonded publish on the real conn is in `srs_utest_ai45`
+- `cmd/integ/internal/srt/` — The SRT clients of the suite (`Client`, `GroupClient`): gosrt, zsiec, the libsrt tool (`libsrt.go`), FFmpeg, and libsrt's apps in Docker (`interop.go`); the impairment relay (`impair.go`) and a raw packet caller (`raw.go`)
+- `cmd/integ/cases/srt_bonding_test.go`, `srt_proxy_bonding_test.go` — Bonded publish cases, direct and through the proxy
+- `tools/srt-libsrt/` — A CLI peer on its own libsrt v1.5.7 with bonding, plain or group caller and listener; built by `skills/srs-develop/scripts/srt-libsrt-build.sh`
+- `tools/srt-interop/` — The Docker image of libsrt's `srt-live-transmit` and `srt-test-live`, built by `srt-interop-image.sh`
 
 `trunk/3rdparty/srs-bench/srs/` — E2E protocol tests against an externally started SRS server. Uses real Pion WebRTC, RTMP, and HTTP API clients.
 
@@ -373,6 +384,12 @@ Non-runtime support:
 ## SRT Fit Code
 
 SRT Fit (`trunk/3rdparty/srt-1-fit/`) is the vendored SRT 1.5.6 transport library used by the C++ media server's SRT listener, connections, and source. It builds `libsrt` without the upstream command-line applications and uses OpenSSL through HaiCrypt for payload encryption; the Go server does not use this tree. The tree is pristine upstream source with the apps, tests, docs, examples, and CI files removed; the only SRS-local change is `trunk/3rdparty/patches/srt/api.cpp-01.patch`, applied at build time by `trunk/auto/depends.sh`.
+
+Build options:
+- `trunk/auto/srt_options.sh` — Sets `LIBSRT_OPTIONS`, always with `--enable-bonding=1` (socket groups); sourced by `auto/depends.sh` and `scripts/check_build_cache.sh`
+- `auto/depends.sh` keeps the options in `objs/<platform>/3rdparty/srt/srs-options.txt` beside the built libsrt, and rebuilds a cached libsrt built with other options; `make clean_srt` removes the cache
+- `scripts/check_build_cache.sh` reports a cached libsrt of other options as a rebuild, not a failure
+- `--sys-srt=on` skips the build; the system libsrt then needs bonding for `srt_server.bonding on`
 
 Build and portability:
 - `CMakeLists.txt` — Library version, source selection, crypto backend, build options, targets, and installation

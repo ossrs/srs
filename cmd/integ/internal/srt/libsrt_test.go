@@ -60,3 +60,12 @@ func TestLibsrtNoListener(t *testing.T) {
 		t.Errorf("gave up after %v, want about 300ms", d)
 	}
 }
+
+// TestLibsrtGroupArgs checks the tool's options of a group: its mode, then
+// each link.
+func TestLibsrtGroupArgs(t *testing.T) {
+	got := strings.Join(libsrtGroupArgs(GroupBackup, []string{"127.0.0.1:1", "127.0.0.1:2"}), " ")
+	if want := "-group backup -link 127.0.0.1:1 -link 127.0.0.1:2"; got != want {
+		t.Errorf("args %q, want %q", got, want)
+	}
+}

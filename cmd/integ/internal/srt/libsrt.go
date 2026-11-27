@@ -55,6 +55,7 @@ type libsrtEvent struct {
 	MsSndTsbPdDelay int    `json:"msSndTsbPdDelay"`
 	MSS             int    `json:"mss"`
 	FlowWindow      int    `json:"flowWindow"`
+	Links           int    `json:"links"`
 }
 
 // libsrtArgs are the tool's options for opts, with timeout for the handshake.
@@ -114,6 +115,26 @@ func libsrtArgs(opts Options, timeout time.Duration) []string {
 // Dial runs the tool's publish, which also writes what the peer sends to its
 // stdout, so the Conn both publishes and plays, as the stream ID asks.
 func (libsrtClient) Dial(ctx context.Context, addr string, opts Options) (*Conn, error) {
+	return libsrtStart(ctx, opts, addr)
+}
+
+// DialGroup runs the tool's publish as a group over links.
+func (libsrtClient) DialGroup(ctx context.Context, mode GroupMode, links []string, opts Options) (*Conn, error) {
+	return libsrtStart(ctx, opts, libsrtGroupArgs(mode, links)...)
+}
+
+// libsrtGroupArgs are the tool's options of a group of mode over links.
+func libsrtGroupArgs(mode GroupMode, links []string) []string {
+	args := []string{"-group", string(mode)}
+	for _, l := range links {
+		args = append(args, "-link", l)
+	}
+	return args
+}
+
+// libsrtStart runs the tool's publish with opts, then the rest of its
+// arguments, and returns the Conn once it connected.
+func libsrtStart(ctx context.Context, opts Options, rest ...string) (*Conn, error) {
 	if err := checkOptions(opts); err != nil {
 		return nil, err
 	}
@@ -125,7 +146,7 @@ func (libsrtClient) Dial(ctx context.Context, addr string, opts Options) (*Conn,
 		return nil, err
 	}
 
-	cmd := exec.Command(path, append(append([]string{"publish"}, libsrtArgs(opts, handshakeTimeout(ctx, opts))...), addr)...)
+	cmd := exec.Command(path, append(append([]string{"publish"}, libsrtArgs(opts, handshakeTimeout(ctx, opts))...), rest...)...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -182,7 +203,7 @@ func (libsrtClient) Dial(ctx context.Context, addr string, opts Options) (*Conn,
 		if ok && e.Event == "connected" {
 			l.recv = time.Duration(e.MsRcvTsbPdDelay) * time.Millisecond
 			l.send = time.Duration(e.MsSndTsbPdDelay) * time.Millisecond
-			l.mss, l.flowWindow = e.MSS, e.FlowWindow
+			l.mss, l.flowWindow, l.nlinks = e.MSS, e.FlowWindow, e.Links
 			return &Conn{c: l, client: "libsrt"}, nil
 		}
 		l.kill()
@@ -206,6 +227,7 @@ type libsrtLink struct {
 	stdout          *os.File
 	recv, send      time.Duration
 	mss, flowWindow int
+	nlinks          int
 	exited          chan struct{}
 	waitErr         error
 	closeOnce       sync.Once
@@ -243,3 +265,5 @@ func (l *libsrtLink) kill() {
 func (l *libsrtLink) tsbpd() (recv, send time.Duration) { return l.recv, l.send }
 
 func (l *libsrtLink) negotiated() (mss, flowWindow int) { return l.mss, l.flowWindow }
+
+func (l *libsrtLink) links() int { return l.nlinks }

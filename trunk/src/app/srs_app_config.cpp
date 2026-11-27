@@ -1980,6 +1980,7 @@ void SrsConfig::print_help(char **argv)
         "   SRT:\n"
         "      SRS_SRT_SERVER_ENABLED=off                    Enable the SRT server.\n"
         "      SRS_SRT_SERVER_LISTEN=10080                   SRT UDP listen [ip:]port.\n"
+        "      SRS_SRT_SERVER_BONDING=off                    Accept bonded publishers (socket groups).\n"
         "      SRS_VHOST_SRT_ENABLED=off                     Enable SRT for streams.\n"
         "      SRS_VHOST_SRT_SRT_TO_RTMP=off                 Convert SRT to RTMP, for RTMP, HTTP-FLV, HLS and WebRTC.\n"
         "      SRS_SRT_SERVER_DEFAULT_APP=live               App for a short streamid without app.\n"
@@ -2327,7 +2328,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective *conf = root_->get("srt_server");
         for (int i = 0; conf && i < (int)conf->directives_.size(); i++) {
             string n = conf->at(i)->name_;
-            if (n != "enabled" && n != "listen" && n != "maxbw" && n != "mss" && n != "latency" && n != "recvlatency" && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout" && n != "sendbuf" && n != "recvbuf" && n != "payloadsize" && n != "default_app" && n != "sei_filter" && n != "mix_correct" && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen" && n != "default_streamid" && n != "default_mode") {
+            if (n != "enabled" && n != "listen" && n != "maxbw" && n != "mss" && n != "latency" && n != "recvlatency" && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout" && n != "sendbuf" && n != "recvbuf" && n != "payloadsize" && n != "default_app" && n != "sei_filter" && n != "mix_correct" && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen" && n != "default_streamid" && n != "default_mode" && n != "bonding") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
         }
@@ -7822,6 +7823,25 @@ bool SrsConfig::get_srt_enabled()
     }
 
     conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_srt_bonding()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.srt_server.bonding"); // SRS_SRT_SERVER_BONDING
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = root_->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("bonding");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

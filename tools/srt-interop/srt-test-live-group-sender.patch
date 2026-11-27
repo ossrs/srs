@@ -1,0 +1,17 @@
+srt-test-live 1.5.7 cannot send over a socket group: SrtTarget::ConfigurePre sets SRTO_SENDER on the group, which
+libsrt refuses as an option of a link ("option is socket- or link-specific"), so srt-test-live -g ends before it
+connects. SRTO_SENDER only matters to an HSv4 peer, and a group needs HSv5 on both sides, so a group skips it.
+--- a/testing/testmedia.cpp
++++ b/testing/testmedia.cpp
+@@ -2451,6 +2451,11 @@
+     if (result == -1)
+         return result;
+
++    // A group's links are HSv5 only, and libsrt refuses SRTO_SENDER on a
++    // group, as an option of a link.
++    if (sock & SRTGROUP_MASK)
++        return 0;
++
+     int yes = 1;
+     // This is for the HSv4 compatibility; if both parties are HSv5
+     // (min. version 1.2.1), then this setting simply does nothing.

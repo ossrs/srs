@@ -168,6 +168,11 @@ srs_error_t MockSrtOptionsForSrtAcceptor::set_pbkeylen(srs_srt_t srt_fd, int pbk
     return record(srt_fd, "pbkeylen", to_str(pbkeylen));
 }
 
+srs_error_t MockSrtOptionsForSrtAcceptor::set_group_connect(srs_srt_t srt_fd, bool group_connect)
+{
+    return record(srt_fd, "group_connect", to_str(group_connect));
+}
+
 MockAppFactoryForSrtAcceptor::MockAppFactoryForSrtAcceptor(MockSrtListenerForSrtAcceptor *listener)
 {
     listener_ = listener;
