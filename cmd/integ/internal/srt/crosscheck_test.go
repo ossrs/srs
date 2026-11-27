@@ -166,7 +166,7 @@ func TestCrossCheck(t *testing.T) {
 						err = checkExact(got, all, crossCount, cl.messages && ln.messages)
 						if err != nil && m.loss != 0 && ln.libsrt {
 							if n, ok := droppedMessages(got.data, all); ok && n <= crossDropLimit {
-								t.Logf("known bug F4: libsrt dropped %v of %v messages at %v%% loss, the rest arrived once each and in order", n, crossCount, m.loss)
+								t.Logf("libsrt dropped %v of %v messages at %v%% loss, the rest arrived once each and in order", n, crossCount, m.loss)
 								err = nil
 							}
 						}
@@ -365,8 +365,8 @@ func checkExact(got crossResult, want []byte, count int, messages bool) error {
 }
 
 // crossDropLimit is how many whole messages a libsrt listener may drop at
-// loss and still pass, as the known drop of a packet ARQ should recover (F4):
-// one now and then; more is something else.
+// loss and still pass: now and then a lost packet is not sent again within
+// the latency, and the receiver drops it; more is something else.
 const crossDropLimit = 3
 
 // droppedMessages tells how many whole messages of want are missing from got,

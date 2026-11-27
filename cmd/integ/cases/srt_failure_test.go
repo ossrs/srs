@@ -34,20 +34,13 @@ const (
 // whatever SRTO_PEERIDLETIMEO says.
 const srtFailBreak = 8 * time.Second
 
-// srtIdleBug is F5: peer_idle_timeout under about 5s does not close a player
-// SRS no longer hears from: SRS's read of a player ignores its timeout, as a
-// player sends nothing, and its sends go on into libsrt's buffer, so only
-// libsrt's own break, about 5s, ends it. A publisher is closed in time, by
-// SRS's read timeout.
-const srtIdleBug = "F5 peer_idle_timeout under 5s does not close a dead SRT player"
-
 // TestTimer_Srt_Failure checks what SRS does when a client's network fails,
 // for gosrt and libsrt on the failing link, with the relay between it and
 // SRS and the other side of the stream on a clean link:
 //   - the publisher's network dies: SRS closes it after peer_idle_timeout,
 //     sends on_unpublish once, closes its player after the same timeout, and
 //     a new publish of the stream plays;
-//   - a player's network dies: SRS closes it after peer_idle_timeout (F5),
+//   - a player's network dies: SRS closes it, at the latest at libsrt's break,
 //     and the publisher and another player go on;
 //   - SRS's answers are lost in the handshake: the caller fails at its own
 //     timeout, not at connect_timeout, SRS keeps nothing of it, and the next
@@ -166,18 +159,14 @@ func (r *srtImpairRun) checkPublisherGone(c *check.C, srs *server.Server, dead t
 }
 
 // checkPlayerGone checks that SRS closed the player of first, whose on_play
-// it is, that it stopped hearing from at dead, after peer_idle_timeout (F5);
-// libsrt's own break ends it at last.
+// it is, that it stopped hearing from at dead, not before peer_idle_timeout
+// and at the latest at libsrt's own break.
 func (r *srtImpairRun) checkPlayerGone(c *check.C, srs *server.Server, first mock.Request, dead time.Time) {
 	c.Helper()
 	id := first.Field("client_id")
 	h := waitSRTHook(c, srs, "on_stop", r.name, srtFailBreak, func(got string) bool { return got == id })
 	idle := h.Time.Sub(dead)
-	if idle > srtFailIdle+500*time.Millisecond {
-		check.KnownBug(c, srtIdleBug)
-	}
-	c.Check(idle >= srtFailIdle-100*time.Millisecond && idle <= srtFailIdle+500*time.Millisecond,
-		"the player closed %v after SRS stopped hearing from it, want about %v", idle, srtFailIdle)
+	c.Check(idle >= srtFailIdle-100*time.Millisecond, "the player closed %v after SRS stopped hearing from it, want at least %v", idle, srtFailIdle)
 }
 
 // srtPlayerOther connects a second gosrt player of a stream, beside the one

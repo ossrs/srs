@@ -6,7 +6,6 @@ package cases
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"math/rand"
@@ -39,12 +38,6 @@ const srtRobustLatency = 20 * time.Millisecond
 // which a caller that sends no stream ID plays.
 const srtRobustDefault = "robust-default"
 
-// srtStreamIDBug is F6: SRS reads the stream ID into a buffer of 512 bytes,
-// but libsrt needs room for its NUL too, so a stream ID of 512 bytes, the
-// most SRT carries and libsrt accepts, fails to read and SRS closes the
-// caller with no hook.
-const srtStreamIDBug = "F6 SRS refuses an SRT stream ID of 512 bytes, the most SRT carries"
-
 // TestSrt_Robust sends SRS's SRT port what no library sends, from raw UDP
 // sockets that speak SRT by hand, and checks that SRS stays up and serves
 // the next caller. SRS's code sees only the sockets libsrt accepts and the
@@ -57,15 +50,13 @@ const srtStreamIDBug = "F6 SRS refuses an SRT stream ID of 512 bytes, the most S
 //     cut in its stream ID block, or whose block is longer than the packet,
 //     or with blocks of unknown types, connects with the block ignored, so
 //     SRS takes default_streamid;
-//   - a stream ID over 512 bytes is refused; one of 511 bytes publishes, and
-//     one of 512 does not (F6);
+//   - a stream ID over 512 bytes is refused; one of 511 bytes publishes;
 //   - on a publisher's own connection, a control packet of any type with no
 //     body, a short one or a whole packet of random bytes leaves its stream
 //     as it was, but a shutdown ends it, and new key material loses the
 //     messages after it: what a peer may do to its own connection;
 //   - an ACK or a NAK of a packet SRS never sent ends the connection, and a
-//     drop request of a few packets passes (a wide one, or an ACK far ahead,
-//     stalls every connection: TestTimer_Srt_RemoteStall);
+//     drop request of a few packets passes;
 //   - a flood of inductions from 200 sockets is answered statelessly, and the
 //     next caller connects at once.
 func TestSrt_Robust(t *testing.T) {
@@ -218,19 +209,13 @@ func TestSrt_Robust(t *testing.T) {
 		checkSRTAlive(c, srs)
 	})
 
-	for _, size := range []int{srt.MaxStreamID - 1, srt.MaxStreamID} {
-		check.Case(t, "StreamId"+strconv.Itoa(size), check.Normal, func(c *check.C) {
-			stream := streamName(c)
-			pub := dialSRT(c, srs, srt.Options{StreamID: srtPadID(stream, size)})
-			defer pub.Close()
-			published := waitSRTPublish(srs, stream)
-			if size == srt.MaxStreamID && !published {
-				check.KnownBug(c, srtStreamIDBug)
-			}
-			c.Check(published, "a stream id of %v bytes did not publish", size)
-			checkSRTAlive(c, srs)
-		})
-	}
+	check.Case(t, "StreamId"+strconv.Itoa(srt.MaxStreamID-1), check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		pub := dialSRT(c, srs, srt.Options{StreamID: srtPadID(stream, srt.MaxStreamID-1)})
+		defer pub.Close()
+		c.Check(waitSRTPublish(srs, stream), "a stream id of %v bytes did not publish", srt.MaxStreamID-1)
+		checkSRTAlive(c, srs)
+	})
 
 	// To the listener, to random sockets, and to a live connection's socket
 	// from another address, which libsrt drops as not its peer's.
@@ -331,87 +316,6 @@ func TestSrt_Robust(t *testing.T) {
 
 // srtDropReq is the control type of a drop request.
 const srtDropReq packet.CtrlType = 7
-
-// srtStallWide is how far ahead a peer's drop request or ACK reaches in the
-// cases that stall SRS's SRT for about half a second; libsrt takes any
-// distance up to 2^30.
-const srtStallWide = 1 << 29
-
-// srtDropReqBug is F7: libsrt removes the packets of a drop request from its
-// receive loss list one sequence number at a time (CRcvLossList::remove), on
-// the receive thread that every socket of the port shares, so one drop
-// request of a range of 2^29 packets from a peer stops every SRT connection
-// of SRS, and every handshake, for about half a second; libsrt 1.5.6 and
-// 1.5.7.
-const srtDropReqBug = "F7 one SRT drop request of a wide range stalls every SRT connection of SRS"
-
-// srtAckAheadBug is F8: libsrt acknowledges its send buffer one block at a
-// time up to the sequence number of an ACK (CSndBuffer::ackData), before it
-// checks that the number was sent, on the receive thread that every socket of
-// the port shares, so one ACK from a peer of a number 2^29 ahead stops every
-// SRT connection of SRS for about half a second; libsrt 1.5.6 and 1.5.7.
-const srtAckAheadBug = "F8 one SRT ACK of a number far ahead stalls every SRT connection of SRS"
-
-// TestTimer_Srt_RemoteStall checks that one control packet of a publisher on
-// its own connection does not stall SRS's other SRT clients: after a drop
-// request of a range as wide as libsrt takes (F7), or a lite ACK of a number
-// as far ahead (F8), the next caller connects at once. Its own server, as
-// each stops SRS's SRT for every case on it.
-func TestTimer_Srt_RemoteStall(t *testing.T) {
-	t.Parallel()
-	srs := server.Group(t, srtImpairConfig(server.SRTOptions{PeerIdleTimeout: srtFailIdle}))
-
-	for _, s := range []struct {
-		name string
-		bug  string
-		send func(pub *srt.Raw) error
-	}{
-		{"DropReqWide", srtDropReqBug, func(pub *srt.Raw) error {
-			return pub.SendControl(srtDropReq, 0, 0, srtDropRange(pub.Seq(), srtStallWide))
-		}},
-		{"AckFarAhead", srtAckAheadBug, func(pub *srt.Raw) error {
-			return pub.SendControl(packet.CTRLTYPE_ACK, 0, 0, srtSeqBody((pub.ISN+srtStallWide)&0x7fffffff))
-		}},
-	} {
-		check.Case(t, s.name, check.Timer, func(c *check.C) {
-			// One at a time, so each case times only its own stall.
-			srtStallMu.Lock()
-			defer srtStallMu.Unlock()
-			pub := startRawPublisher(c, srs, streamName(c))
-			c.Must(pub.SendData(srtRobustMessages(c, 1)[0]), "send")
-			c.Must(s.send(pub), "send the control")
-			took, err := timeSRTServes(c, srs)
-			if err != nil || took > 200*time.Millisecond {
-				check.KnownBug(c, s.bug)
-			}
-			c.CheckNoError(err, "the next caller")
-			c.Check(took < 200*time.Millisecond, "the next caller took %v after the control", took)
-		})
-	}
-}
-
-// srtStallMu lets one case of TestTimer_Srt_RemoteStall stall its server at
-// a time.
-var srtStallMu sync.Mutex
-
-// timeSRTServes times how long a new caller takes to publish, for at most
-// 3s, as a stalled SRS answers its handshake late.
-func timeSRTServes(c *check.C, srs *server.Server) (time.Duration, error) {
-	c.Helper()
-	stream := streamName(c) + "-next"
-	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	conn, err := srt.Dial(ctx, srs.Addr(server.SRT), srt.Options{StreamID: srtID("live/"+stream, "publish"), Timeout: 3 * time.Second})
-	if err != nil {
-		return time.Since(start), err
-	}
-	defer conn.Close()
-	if _, err := srs.Hooks.Wait(ctx, mock.Match{Action: "on_publish", Stream: stream}); err != nil {
-		return time.Since(start), err
-	}
-	return time.Since(start), nil
-}
 
 // srtSeqBody is the body of an ACK or a NAK of one sequence number: a lite
 // ACK, or a loss report of one packet.

@@ -169,7 +169,6 @@ type SRTConnection struct {
 	handshake2 *SRTHandshakePacket
 	handshake3 *SRTHandshakePacket
 
-	// The client resends handshake 2 when our handshake 3 is lost.
 	startReader stdSync.Once
 
 	// Tests replace it.
@@ -244,6 +243,15 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 			return errors.Wrapf(err, "write handshake 1")
 		}
 
+		return nil
+	}
+
+	if v.handshake3 != nil {
+		if b, err := v.handshake3.MarshalBinary(); err != nil {
+			return errors.Wrapf(err, "marshal handshake 3")
+		} else if _, err = v.listenerUDP.WriteTo(b, addr); err != nil {
+			return errors.Wrapf(err, "write handshake 3")
+		}
 		return nil
 	}
 

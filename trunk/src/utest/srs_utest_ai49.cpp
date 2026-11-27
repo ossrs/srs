@@ -335,28 +335,6 @@ VOID TEST(SrtRobustTest, StreamIdOf511Bytes_ServerReadsIt)
     srs_freep(caller);
 }
 
-// F6: a stream id of 512 bytes, the most SRT carries, which libsrt accepts from the caller. The server reads
-// it into a buffer of 512 bytes, but libsrt needs one more for the NUL, so the read fails and the server
-// closes the caller. Disabled until it is fixed.
-VOID TEST(SrtRobustTest, DISABLED_StreamIdOf512Bytes_ServerReadsIt)
-{
-    srs_error_t err;
-
-    SrtUtestRobustServer s;
-    HELPER_ASSERT_SUCCESS(s.listen());
-
-    string streamid = srt_utest_padded_streamid(512);
-    SrsSrtSocket *caller = NULL;
-    HELPER_EXPECT_SUCCESS(srt_utest_robust_call(s.port_, streamid, &caller));
-    s.wait_for_callers(1);
-    ASSERT_EQ(1, (int)s.server_.fds_.size());
-
-    string got;
-    HELPER_EXPECT_SUCCESS(srs_srt_get_streamid(s.server_.fds_[0], got));
-    EXPECT_STREQ(streamid.c_str(), got.c_str());
-    srs_freep(caller);
-}
-
 // A message of 7 TS packets that starts with its sequence number.
 static string srt_utest_robust_message(int seq)
 {

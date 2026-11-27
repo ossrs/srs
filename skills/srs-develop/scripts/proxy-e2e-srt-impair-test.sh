@@ -7,7 +7,7 @@
 #   - a blackholed publisher, closed by the origin, then a new publish;
 #   - two origins behind one proxy, each stream on the origin picked for it;
 #   - two proxies sharing Redis, a publisher through one and a player through the other;
-#   - the proxy's sockets to the origin after every client closed (known bug F10).
+#   - a caller that sends its conclusion again, answered while another caller connects.
 #
 # Usage:
 #   bash skills/srs-develop/scripts/proxy-e2e-srt-impair-test.sh [go test args after -args, such as -integ.known-bugs=fail]

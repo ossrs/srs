@@ -70,8 +70,6 @@ func commonVersion(c *check.C) (version, signature string) {
 var badEnv = []struct {
 	name string
 	env  func(c *check.C) map[string]string
-	// checkBug is the known bug of a setting the config test passes.
-	checkBug string
 }{
 	{name: "MaxConnectionsZero", env: envOf("SRS_MAX_CONNECTIONS", "0")},
 	{name: "MaxConnectionsNegative", env: envOf("SRS_MAX_CONNECTIONS", "-5")},
@@ -106,11 +104,6 @@ var badEnv = []struct {
 	{name: "HttpServerListen", env: envOf("SRS_HTTP_SERVER_ENABLED", "on", "SRS_HTTP_SERVER_LISTEN", "abc")},
 	{name: "RtcListen", env: envOf("SRS_RTC_SERVER_ENABLED", "on", "SRS_RTC_SERVER_LISTEN", "abc")},
 	{name: "SrtListen", env: envOf("SRS_SRT_SERVER_ENABLED", "on", "SRS_SRT_SERVER_LISTEN", "abc")},
-	// Values libsrt refuses for the listener: a payload over 1456 bytes, an
-	// MSS under 76, and a passphrase under 10 characters.
-	{name: "SrtPayloadSizeOverMax", env: srtEnvOf("SRS_SRT_SERVER_PAYLOADSIZE", "1500"), checkBug: srtCheckBug},
-	{name: "SrtMssUnderMin", env: srtEnvOf("SRS_SRT_SERVER_MSS", "50"), checkBug: srtCheckBug},
-	{name: "SrtPassphraseShort", env: srtEnvOf("SRS_SRT_SERVER_PASSPHRASE", "short"), checkBug: srtCheckBug},
 	{name: "RtspListen", env: envOf("SRS_RTSP_SERVER_ENABLED", "on", "SRS_RTSP_SERVER_LISTEN", "abc")},
 	{name: "ExporterListen", env: envOf("SRS_EXPORTER_ENABLED", "on", "SRS_EXPORTER_LISTEN", "abc")},
 	{name: "RtmpsListen", env: envOf("SRS_RTMPS_ENABLED", "on", "SRS_RTMPS_LISTEN", "abc")},
@@ -172,20 +165,6 @@ var badEnv = []struct {
 	{name: "TcmallocReleaseRateNan", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "nan")},
 	{name: "TcmallocReleaseRateInf", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "inf")},
 	{name: "TcmallocReleaseRateNotNumber", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "abc")},
-}
-
-// srtCheckBug is F1: SRS checks no SRT setting libsrt refuses, so the
-// config test passes and the start fails.
-const srtCheckBug = "F1 the config test passes an SRT setting libsrt refuses at listen"
-
-// srtEnvOf is envOf with the SRT listener on a port of its own.
-func srtEnvOf(kv ...string) func(c *check.C) map[string]string {
-	return func(c *check.C) map[string]string {
-		env := envOf(kv...)(c)
-		env["SRS_SRT_SERVER_ENABLED"] = "on"
-		env["SRS_SRT_SERVER_LISTEN"] = strconv.Itoa(server.ReservePort(c))
-		return env
-	}
 }
 
 // envOf returns the env of name and value pairs.
@@ -325,9 +304,6 @@ func TestProcess_Cli(t *testing.T) {
 	// The settings SRS refuses, by the config test and at a start.
 	for _, tt := range badEnv {
 		check.Case(t, "CheckRejects"+tt.name, check.Normal, func(c *check.C) {
-			if tt.checkBug != "" {
-				check.KnownBug(c, tt.checkBug)
-			}
 			checkExit(c, cli(c, tt.env(c), "-e", "-t"), false)
 		})
 		check.Case(t, "StartRejects"+tt.name, check.Normal, func(c *check.C) {

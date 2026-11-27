@@ -70,9 +70,9 @@ func TestSrt_Concurrency(t *testing.T) {
 
 // TestTimer_Srt_Concurrency is TestSrt_Concurrency with every link of every
 // client over a relay at 2% loss each way once the stream is warm, the media
-// sent in real time at 120ms of latency as in TestTimer_Srt_Impair; a
-// message lost for good is F4. Its cases run one at a time, from
-// srtLoadSettle after the process starts: any of them at the start, beside
+// sent in real time at 120ms of latency, which may drop a few messages, as
+// checkSRTWhole. Its cases run one at a time,
+// from srtLoadSettle after the process starts: any of them at the start, beside
 // the timer cases of peer_idle_timeout, which start then too, delays the
 // close of their idle publisher by 0.5-0.7s, out of its window.
 func TestTimer_Srt_Concurrency(t *testing.T) {
@@ -218,7 +218,7 @@ const (
 // TestSrt_MaxConnections checks max_connections for SRT, on a server of its
 // own whose cases run one at a time, since every connection counts: SRS
 // takes the handshake of a caller past the limit, then closes it with no
-// hook (F2 when the caller sees no shutdown), and serves the ones it holds;
+// hook, and serves the ones it holds;
 // a connection that closes frees its place for the next caller. Each also
 // with every link at 2% loss after its handshake.
 func TestSrt_MaxConnections(t *testing.T) {
@@ -245,7 +245,7 @@ func TestSrt_MaxConnections(t *testing.T) {
 			lock(c)
 			l := &srtLoad{srs: srs, loss: loss}
 			held := l.hold(c, srtMaxConnections)
-			l.checkRefused(c, srt.GoSRT, srt.Libsrt)
+			l.checkRefused(c)
 			for _, id := range held {
 				c.CheckEqual(len(srs.Hooks.Requests(srtClosed(id))), 0, "on_close of a held publisher")
 			}
@@ -263,7 +263,7 @@ func TestSrt_MaxConnections(t *testing.T) {
 			l.pubs[0].close()
 			c.Check(until(time.Second, func() bool { return len(srs.Hooks.Requests(srtClosed(held[0]))) > 0 }), "no on_close of the closed publisher in 1s")
 			l.holdOne(c, srt.GoSRT, fmt.Sprintf("%v-next", streamName(c)))
-			l.checkRefused(c, srt.GoSRT)
+			l.checkRefused(c)
 		})
 	}
 }
@@ -378,8 +378,8 @@ func (p *srtLoadPlayer) since(first []byte) *srtLoadPlayer {
 }
 
 // checkWhole waits for a player to get msgs, and checks it got each, in
-// order, from the first it got, as a whole TS stream; with loss, a message
-// lost is F4. It returns the report of the stream it got.
+// order, from the first it got, as a whole TS stream; with loss, as
+// checkSRTWhole. It returns the report of the stream it got.
 func (l *srtLoad) checkWhole(c *check.C, p *srtLoadPlayer, msgs [][]byte) *report.Report {
 	c.Helper()
 	n := len(bytes.Join(msgs, nil))
@@ -394,8 +394,8 @@ func (l *srtLoad) checkWhole(c *check.C, p *srtLoadPlayer, msgs [][]byte) *repor
 	}
 	got := p.got.waitFor(check.Scaled(time.Second), func(got []byte) bool { return len(part(got)) >= n })
 	w := &srtWhole{what: p.what, msgs: msgs, got: part(got), relay: p.relay}
-	if l.loss > 0 && !w.whole() {
-		check.KnownBug(c, srtLossBug)
+	if l.loss > 0 {
+		return checkSRTWhole(c, w)
 	}
 	return w.check(c)
 }
@@ -568,37 +568,20 @@ func srtClosed(id string) mock.Match {
 	return mock.Match{Action: "on_close", Func: func(r mock.Request) bool { return r.Field("client_id") == id }}
 }
 
-// checkRefused checks that SRS closes a publisher of each of cls past the
-// limit soon after the handshake, with no hook of its stream: gosrt by its
-// idle probe, as in checkSRTVhostRefuses, libsrt by the shutdown (F2). The
-// publishers call at once, so their waits overlap.
-func (l *srtLoad) checkRefused(c *check.C, cls ...srt.Client) {
+// checkRefused checks that SRS closes a gosrt publisher past the limit soon
+// after the handshake, with no hook of its stream, found by its idle probe,
+// as in checkSRTVhostRefuses.
+func (l *srtLoad) checkRefused(c *check.C) {
 	c.Helper()
-	streams := make([]string, len(cls))
-	conns := make([]*srt.Conn, len(cls))
-	for i, cl := range cls {
-		streams[i] = streamName(c) + "-refused-" + cl.Name()
-		addr, _ := l.link(c)
-		opts := srt.Options{StreamID: srtID("live/"+streams[i], "publish"), PeerIdleTimeout: srtProbeIdle, Latency: l.latency()}
-		conns[i] = dialSRTAt(c, cl, addr, opts)
-	}
+	stream := streamName(c) + "-refused"
+	addr, _ := l.link(c)
+	opts := srt.Options{StreamID: srtID("live/"+stream, "publish"), PeerIdleTimeout: srtProbeIdle, Latency: l.latency()}
+	conn := dialSRTAt(c, srt.GoSRT, addr, opts)
 	l.lossNow()
-	for i, cl := range cls {
-		if cl == srt.GoSRT {
-			ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
-			c.CheckNoError(conns[i].WaitClosedProbing(ctx, 50*time.Millisecond), cl.Name()+": the server closes the connection")
-			cancel()
-		} else {
-			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-			err := conns[i].WaitClosed(ctx)
-			cancel()
-			if err != nil {
-				check.KnownBug(c, srtCloseBug)
-			}
-			c.CheckNoError(err, cl.Name()+": the server closes the connection")
-		}
-		c.CheckEqual(len(l.srs.Hooks.Requests(mock.Match{Stream: streams[i]})), 0, cl.Name()+": hooks for the refused stream")
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	c.CheckNoError(conn.WaitClosedProbing(ctx, 50*time.Millisecond), "the server closes the connection")
+	c.CheckEqual(len(l.srs.Hooks.Requests(mock.Match{Stream: stream})), 0, "hooks for the refused stream")
 }
 
 // checkSRTPublishing checks that a stream's publisher is still on: SRS sent

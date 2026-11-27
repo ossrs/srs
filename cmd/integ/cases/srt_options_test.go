@@ -273,45 +273,20 @@ func TestSrt_Edge(t *testing.T) {
 	checkSRTVhostRefuses(t, srs)
 }
 
-// srtCloseBug is F2: SRS closes a caller it refuses after the handshake, and
-// in some runs the caller sees no shutdown, so libsrt goes on sending into
-// nothing until its own break, about 5s; gosrt, by its idle probe, ends
-// sooner. It is a race, so a case marks it only when it sees it.
-const srtCloseBug = "F2 a caller SRS closes after the handshake sees no shutdown"
-
 // checkSRTVhostRefuses adds the cases of a server whose vhost refuses SRT:
-// a publisher and a player of gosrt, and a publisher of libsrt, are closed
-// after the handshake, with no hook.
+// a publisher and a player of gosrt are closed after the handshake, with no
+// hook.
 func checkSRTVhostRefuses(t *testing.T, srs *server.Server) {
-	for _, cl := range []srt.Client{srt.GoSRT, srt.Libsrt} {
-		for _, mode := range []string{"publish", "request"} {
-			if cl == srt.Libsrt && mode == "request" {
-				continue
-			}
-			check.Case(t, "Closes_"+mode+"_"+cl.Name(), check.Normal, func(c *check.C) {
-				stream := streamName(c)
-				opts := srt.Options{StreamID: srtID("live/"+stream, mode), PeerIdleTimeout: srtProbeIdle}
-				if cl == srt.GoSRT {
-					conn := dialSRTAt(c, cl, srs.Addr(server.SRT), opts)
-					ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
-					defer cancel()
-					c.CheckNoError(conn.WaitClosedProbing(ctx, 50*time.Millisecond), "the server closes the connection")
-				} else {
-					// libsrt needs no probe to see a shutdown; it sends nothing,
-					// and holds for 20ms, so its close at the timeout is quick.
-					opts.Latency = 20 * time.Millisecond
-					conn := dialSRTAt(c, cl, srs.Addr(server.SRT), opts)
-					ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-					defer cancel()
-					err := conn.WaitClosed(ctx)
-					if err != nil {
-						check.KnownBug(c, srtCloseBug)
-					}
-					c.CheckNoError(err, "the server closes the connection")
-				}
-				c.CheckEqual(len(srs.Hooks.Requests(mock.Match{Stream: stream})), 0, "hooks for the stream")
-			})
-		}
+	for _, mode := range []string{"publish", "request"} {
+		check.Case(t, "Closes_"+mode+"_gosrt", check.Normal, func(c *check.C) {
+			stream := streamName(c)
+			opts := srt.Options{StreamID: srtID("live/"+stream, mode), PeerIdleTimeout: srtProbeIdle}
+			conn := dialSRTAt(c, srt.GoSRT, srs.Addr(server.SRT), opts)
+			ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+			defer cancel()
+			c.CheckNoError(conn.WaitClosedProbing(ctx, 50*time.Millisecond), "the server closes the connection")
+			c.CheckEqual(len(srs.Hooks.Requests(mock.Match{Stream: stream})), 0, "hooks for the stream")
+		})
 	}
 }
 

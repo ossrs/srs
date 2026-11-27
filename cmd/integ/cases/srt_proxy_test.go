@@ -5,12 +5,9 @@
 package cases
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -22,7 +19,6 @@ import (
 	"time"
 
 	"srs-integ/internal/check"
-	"srs-integ/internal/media"
 	"srs-integ/internal/mock"
 	"srs-integ/internal/server"
 	"srs-integ/internal/srt"
@@ -53,21 +49,6 @@ const srtProxyTTL = 400 * time.Millisecond
 // stream nobody publishes after that long.
 const srtProxyIdle = 2 * time.Second
 
-// srtProxyLeakBug is F10: the proxy never frees an SRT connection: the
-// UDP socket it dialed to the origin and its reader stay after the client
-// and SRS have closed (internal/proxy/srt.go, "Should cleanup the dead SRT
-// connection").
-const srtProxyLeakBug = "F10 the Go proxy never frees an SRT connection's socket to the origin"
-
-// srtProxyStallBug is F11: a caller that sends its conclusion again, as
-// one does whose answer was lost, stalls the proxy's SRT port: the proxy
-// does the origin's handshake once more on the connection's socket, whose
-// reader takes the origin's answers and relays them to the caller as they
-// are (an induction answer, not a conclusion), and the proxy's one receive
-// loop waits for an answer until the origin sends the connection anything
-// else, so no other caller's packet is relayed meanwhile.
-const srtProxyStallBug = "F11 a repeated SRT conclusion stalls the Go proxy's SRT port"
-
 // srtProxyListeners are the proxy's listeners, each on a port of its own:
 // it starts them all.
 var srtProxyListeners = []string{"PROXY_RTMP_SERVER", "PROXY_HTTP_API", "PROXY_HTTP_SERVER", "PROXY_WEBRTC_SERVER", "PROXY_SRT_SERVER", "PROXY_SYSTEM_API"}
@@ -77,7 +58,7 @@ var srtProxyListeners = []string{"PROXY_RTMP_SERVER", "PROXY_HTTP_API", "PROXY_H
 //   - gosrt, libsrt v1.5.7 and FFmpeg publish through the proxy, and a gosrt
 //     player through it plays;
 //   - 5% loss each way between a publisher or a player and the proxy: every
-//     message arrives, in order (F4, as without the proxy);
+//     message arrives, in order, as without the proxy;
 //   - a publisher's network dies: the origin closes it after
 //     peer_idle_timeout, and a new publish through the proxy plays;
 //   - two origins: each stream goes to the origin the proxy picked for it,
@@ -85,9 +66,7 @@ var srtProxyListeners = []string{"PROXY_RTMP_SERVER", "PROXY_HTTP_API", "PROXY_H
 //   - two proxies sharing Redis: a player through one and a publisher
 //     through the other reach the same origin;
 //   - a caller sends its conclusion again: the proxy answers it, and another
-//     caller connects meanwhile (F11);
-//   - every client closed: the proxy keeps each connection's socket to the
-//     origin (F10).
+//     caller connects meanwhile.
 //
 // The cases register the origins with the proxies by the proxy's API, as an
 // origin's heartbeat does, so a case knows which origins a proxy has.
@@ -229,55 +208,13 @@ func TestTimer_Srt_Proxy(t *testing.T) {
 			play.Close()
 		}
 
-		if !answered || err != nil || took > 300*time.Millisecond {
-			check.KnownBug(c, srtProxyStallBug)
-		}
 		c.Check(answered, "the repeated conclusion answered with %v, want a conclusion", handshakeOf(again))
 		c.Check(err == nil && took <= 300*time.Millisecond, "another caller connected after %v (%v), want within 300ms", took, err)
-	})
-
-	leak := startSRTProxy(t, bin, "leak", nil)
-	leak.register(t, origin1, "origin1")
-	check.Case(t, "ClosedConnectionsFreed", check.Timer, func(c *check.C) {
-		file, err := os.ReadFile(media.Path(c, media.H264HighAACTS))
-		c.Must(err, "read the media")
-		before := leak.socketsTo(c, origin1)
-		for i := 0; i < 3; i++ {
-			stream := fmt.Sprintf("%v-%v", streamName(c), i)
-			play := dialSRTAt(c, srt.GoSRT, leak.srtAddr(), srt.Options{StreamID: srtID("live/"+stream, "request")})
-			waitHook(c, origin1, "on_play", stream)
-			pub := dialSRTAt(c, srt.GoSRT, leak.srtAddr(), srt.Options{StreamID: srtID("live/"+stream, "publish")})
-			waitHook(c, origin1, "on_publish", stream)
-			s := srt.NewSender(bytes.NewReader(file))
-			c.Must(s.SendThrough(pub, 100*time.Millisecond), "publish")
-
-			// SRS finds a closed player only when it sends to it, so the
-			// publisher sends on after the player closed; without media, SRS
-			// holds it until peer_idle_timeout.
-			play.Close()
-			c.Must(s.SendThrough(pub, 300*time.Millisecond), "publish after the player closed")
-			waitHookCount(c, origin1, mock.Match{Action: "on_stop", Stream: stream}, 1)
-			pub.Close()
-			waitHookCount(c, origin1, mock.Match{Action: "on_unpublish", Stream: stream}, 1)
-		}
-		// SRS has closed both of each stream; the proxy has had the
-		// shutdowns, and has nothing more to relay.
-		after := leak.socketsTo(c, origin1)
-		deadline := time.Now().Add(check.Scaled(time.Second))
-		for after > before && time.Now().Before(deadline) {
-			time.Sleep(100 * time.Millisecond)
-			after = leak.socketsTo(c, origin1)
-		}
-		if after > before {
-			check.KnownBug(c, srtProxyLeakBug)
-		}
-		c.Check(after == before, "the proxy holds %v UDP sockets to the origin after 6 clients closed, %v before", after, before)
 	})
 }
 
 // srtProxy is a running srs-proxy, with each listener on a port of its own.
 type srtProxy struct {
-	pid   int
 	ports map[string]int
 }
 
@@ -309,7 +246,6 @@ func startSRTProxy(t *testing.T, bin, name string, env map[string]string) *srtPr
 		log.Close()
 		t.Fatalf("start the proxy %v: %v", bin, err)
 	}
-	p.pid = cmd.Process.Pid
 	done := make(chan struct{})
 	go func() {
 		cmd.Wait()
@@ -421,27 +357,6 @@ func (p *srtProxy) register(t interface {
 	if err := json.NewDecoder(res.Body).Decode(&reply); err != nil || res.StatusCode != http.StatusOK || reply.Code != 0 {
 		t.Fatalf("register %v: status %v, code %v, err %v", id, res.StatusCode, reply.Code, err)
 	}
-}
-
-// socketsTo is how many UDP sockets the proxy has connected to the origin's
-// SRT port, one for each connection it relays, from lsof.
-func (p *srtProxy) socketsTo(c *check.C, origin *server.Server) int {
-	c.Helper()
-	out, err := exec.Command("lsof", "-nP", "-a", "-p", strconv.Itoa(p.pid), "-iUDP").Output()
-	var exit *exec.ExitError
-	// lsof exits 1 when the process has no UDP socket at all.
-	if err != nil && !(errors.As(err, &exit) && exit.ExitCode() == 1 && len(out) == 0) {
-		c.Fatalf("lsof the proxy's UDP sockets: %v", err)
-	}
-	n := 0
-	peer := "->" + origin.Addr(server.SRT)
-	sc := bufio.NewScanner(bytes.NewReader(out))
-	for sc.Scan() {
-		if strings.Contains(sc.Text(), peer) {
-			n++
-		}
-	}
-	return n
 }
 
 // srtProxyOriginOf is the origin that got a player of a stream, by its

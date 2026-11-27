@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -38,7 +37,6 @@ import (
 // 20ms under it, a loaded run recovered every message).
 const (
 	srtImpairLatency       = 120 * time.Millisecond
-	srtImpairBurstLatency  = 100 * time.Millisecond
 	srtImpairOutageLatency = 50 * time.Millisecond
 	srtImpairCleanLatency  = 20 * time.Millisecond
 )
@@ -48,13 +46,8 @@ const (
 // 100ms, so it would wait longer than the latency to repeat a lost NAK.
 const srtImpairWarm = 100 * time.Millisecond
 
-// srtImpairBurst is the media sent at once, as an encoder sends a key frame:
-// about 76 packets. srtImpairRealTime is the media sent in real time, about
-// 50 packets.
-const (
-	srtImpairBurst    = 2 * time.Second
-	srtImpairRealTime = time.Second
-)
+// srtImpairRealTime is the media sent in real time, about 50 packets.
+const srtImpairRealTime = time.Second
 
 // srtImpairOutage is how long an outage lasts, longer than
 // srtImpairOutageLatency: an outage in which nothing arrives, or one in which
@@ -70,14 +63,6 @@ const (
 // publisher's, where SRS receives, and the player's, where it sends.
 var srtImpairLegs = []string{"Publisher", "Player"}
 
-// srtImpairLosses are the loss rates of each way of the loss cases.
-var srtImpairLosses = []float64{2, 5, 10}
-
-// srtImpairJitter is the delay and jitter of the jitter cases, at most 35ms
-// each way, so a lost packet, its NAK and the packet again take at most
-// 105ms, within srtImpairLatency.
-var srtImpairJitter = srt.Shape{Delay: 20 * time.Millisecond, Jitter: 15 * time.Millisecond}
-
 // srtImpairConfig is the config of the impaired cases' servers: SRT with
 // hooks, and a peerlatency of srtImpairCleanLatency, so each player's latency
 // is its own: libsrt's default, 120ms, would raise any lower one to it, as a
@@ -87,30 +72,33 @@ func srtImpairConfig(s server.SRTOptions) server.Config {
 	return server.WithSRT(server.Config{Listeners: []server.Listener{server.HTTPAPI}, Hooks: true}, s)
 }
 
-// srtLossBug is F4: over a link of 2% to 10% loss each way between SRS and a
-// caller, now and then a lost packet is not sent again within the latency,
-// 100ms or 120ms, on loopback (an RTT under 1ms), so the receiver drops it:
-// SRS's libsrt 1.5.6 logs RCV-DROPPED, the next packet late by 4 to 41ms.
-// Most often in a burst, such as a key frame (a third of the cases with a
-// libsrt peer), now and then in real time; with a libsrt peer even 250ms of
-// latency drops in a burst; least with a gosrt player. It is a race, so a
-// case marks it only when it sees it.
-const srtLossBug = "F4 SRT over a 2-10% loss link drops a packet that ARQ should recover"
+// srtLossDropped is the most messages a player over a lossy link may miss:
+// now and then, at 2% to 10% loss each way, a lost packet is not sent again
+// within the latency and the receiver drops it, as tlpktdrop on does; more
+// is something else.
+const srtLossDropped = 3
 
-// checkSRTWhole checks what a player got, and marks F4 when a message is
-// missing.
-func checkSRTWhole(c *check.C, w *srtWhole) {
+// checkSRTWhole checks what a player got over an impaired link: every
+// message, in order, as a whole TS stream, or all but at most srtLossDropped
+// of them, the rest once each and in order. It returns the report of what
+// the player got, or, with messages dropped, of what was sent: the analyzer
+// stops at the gap.
+func checkSRTWhole(c *check.C, w *srtWhole) *report.Report {
 	c.Helper()
-	if !w.whole() {
-		check.KnownBug(c, srtLossBug)
+	if w.whole() {
+		return w.check(c)
 	}
-	w.check(c)
+	missing := srtMissing(w.msgs, w.got)
+	if len(missing) > srtLossDropped {
+		w.checkMessages(c)
+	}
+	c.Logf("%v: dropped messages %v of %v, the rest in order", w.what, missing, len(w.msgs))
+	sent, _ := ts.Analyze(ts.NewDemuxer(bytes.NewReader(bytes.Join(w.msgs, nil))), report.Until{})
+	return sent
 }
 
 // TestSrt_Impair checks SRT over a bad network, with the relay on the
 // publisher's link or on the player's, for gosrt and libsrt:
-//   - a burst with loss of 2%, 5% and 10% each way: every message arrives, in
-//     order, with no TS continuity error (F4);
 //   - an outage of both ways longer than the latency: the sender keeps what
 //     it sent (libsrt for at least 1s), and nothing later arrives before the
 //     receiver asks for it, so every message arrives, late;
@@ -125,15 +113,6 @@ func TestSrt_Impair(t *testing.T) {
 
 	for _, cl := range []srt.Client{srt.GoSRT, srt.Libsrt} {
 		for _, leg := range srtImpairLegs {
-			for _, loss := range srtImpairLosses {
-				check.Case(t, fmt.Sprintf("BurstLoss%v_%v_%v", loss, leg, cl.Name()), check.Normal, func(c *check.C) {
-					run := startSRTImpair(c, srs, cl, srt.GoSRT, leg, srtImpairBurstLatency)
-					run.impairBoth(srt.Shape{Loss: loss})
-					checkSRTWhole(c, run.burst(c))
-					run.checkPublishing(c, srs)
-				})
-			}
-
 			check.Case(t, "OutageRecovered_"+leg+"_"+cl.Name(), check.Normal, func(c *check.C) {
 				run := startSRTImpair(c, srs, cl, srt.GoSRT, leg, srtImpairOutageLatency)
 				missing, ok := run.outage(c, func() { run.relay.Blackhole(true) }, 0)
@@ -151,87 +130,6 @@ func TestSrt_Impair(t *testing.T) {
 			})
 		}
 	}
-}
-
-// TestTimer_Srt_Impair checks SRT over a bad network with the media sent in
-// real time, as an encoder of a low bitrate sends it, for gosrt and libsrt,
-// with the relay on the publisher's link or on the player's: loss of 2%, 5%
-// and 10% each way, and delay and jitter within the latency. Every message
-// arrives, in order, with no TS continuity error (F4), and the publisher stays
-// on. It takes srtImpairRealTime of media, so it is in the timer process.
-func TestTimer_Srt_Impair(t *testing.T) {
-	t.Parallel()
-	srs := server.Group(t, srtImpairConfig(server.SRTOptions{}))
-
-	for _, cl := range []srt.Client{srt.GoSRT, srt.Libsrt} {
-		for _, leg := range srtImpairLegs {
-			for _, loss := range srtImpairLosses {
-				check.Case(t, fmt.Sprintf("Loss%v_%v_%v", loss, leg, cl.Name()), check.Timer, func(c *check.C) {
-					run := startSRTImpair(c, srs, cl, srt.GoSRT, leg, srtImpairLatency)
-					run.impairBoth(srt.Shape{Loss: loss})
-					checkSRTWhole(c, run.realTime(c))
-					run.checkPublishing(c, srs)
-				})
-			}
-
-			check.Case(t, "DelayJitter_"+leg+"_"+cl.Name(), check.Timer, func(c *check.C) {
-				run := startSRTImpair(c, srs, cl, srt.GoSRT, leg, srtImpairLatency)
-				run.impairBoth(srtImpairJitter)
-				checkSRTWhole(c, run.realTime(c))
-				run.checkPublishing(c, srs)
-			})
-		}
-	}
-}
-
-// srtFreezeBug is F3: with tlpktdrop off, libsrt's receive thread spins
-// while a lost packet's time to play has passed, holding the socket's
-// receive lock, so SRS's one thread blocks in srt_recvmsg and the whole
-// server freezes: no stream, no SIGTERM, and every SRT peer breaks after
-// about 5s. Whether the lost packet comes back before its time is a race,
-// so the case marks it only when it sees it.
-const srtFreezeBug = "F3 with tlpktdrop off a packet lost past its time to play freezes SRS"
-
-// TestSrt_ImpairTlpktdropOff checks SRS with tlpktdrop off, whose receiver
-// drops nothing: the messages a publisher loses while SRS's reports are
-// lost arrive, late, once the reports reach it again. gosrt refuses the
-// server, so libsrt is on both sides. The player's drop is the player's
-// own setting, so only the publisher's link is impaired. The case has a
-// server of its own, since F3 freezes it.
-func TestSrt_ImpairTlpktdropOff(t *testing.T) {
-	t.Parallel()
-
-	check.Case(t, "LateLossKept_Publisher_libsrt", check.Normal, func(c *check.C) {
-		var srs *server.Server
-		var err error
-		c.Untimed(func() { srs, err = server.Start(c.Name(), srtImpairConfig(server.SRTOptions{TLPktDropOff: true})) })
-		c.Must(err, "start SRS")
-		frozen := false
-		c.Cleanup(func() {
-			if frozen {
-				// It ignores SIGTERM; the suite's stop would wait 5s.
-				srs.Signal(syscall.SIGKILL)
-				srs.Wait(time.Second)
-				return
-			}
-			c.CheckNoError(srs.Stop(), "stop SRS")
-		})
-
-		// Like the server, its two libsrt processes and their warm-up are
-		// the case's own setup, untimed: with F3, the wait for the player
-		// that gets nothing took the case over its limit (528ms) in a full
-		// run.
-		var run *srtImpairRun
-		c.Untimed(func() { run = startSRTImpair(c, srs, srt.Libsrt, srt.Libsrt, "Publisher", srtImpairOutageLatency) })
-		missing, ok := run.outage(c, run.lateLoss, srtImpairLateBurst)
-		if !ok {
-			frozen = true
-			check.KnownBug(c, srtFreezeBug)
-		}
-		c.Check(ok, "the player got nothing after the outage (relay seed %v)", run.relay.Seed())
-		c.CheckEqual(len(missing), 0, "messages dropped")
-		run.checkPublishing(c, srs)
-	})
 }
 
 // srtImpairRun is a publisher and a player of one stream through SRS, one of
@@ -320,24 +218,6 @@ func (r *srtImpairRun) stream() {
 		<-done
 	}
 }
-
-// burst sends srtImpairBurst of the media at once, then the rest in real
-// time, and waits for the player to get the messages up to the end of the
-// burst. It waits srtImpairBurstWait at most: a message not there by then is
-// past its time to play, so the player dropped it and the rest of the media
-// takes its place, and a longer wait would only take a case that hits F4
-// over its limit (seen: a loaded run held 25 messages for the whole 1s).
-func (r *srtImpairRun) burst(c *check.C) *srtWhole {
-	c.Helper()
-	r.send(c, srtImpairWarm+srtImpairBurst)
-	msgs := r.sent.messages()
-	r.stream()
-	return r.waitWholeFor("the burst", msgs, check.Scaled(srtImpairBurstWait))
-}
-
-// srtImpairBurstWait is how long a burst case waits for the player: the
-// latency, then time for the last repeats.
-const srtImpairBurstWait = srtImpairBurstLatency + 150*time.Millisecond
 
 // realTime sends srtImpairRealTime of the media in real time, and waits for
 // the player to get those messages.

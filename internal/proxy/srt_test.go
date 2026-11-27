@@ -8,10 +8,8 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1001,24 +999,6 @@ func TestSRSSRTProxyServer_HandleClientUDP_BadHandshakeUnmarshalError(t *testing
 	}
 }
 
-// srtKnownBug runs the check of a known bug: a check that fails passes the
-// test, logged with the bug, and one that passes fails it, so the mark is
-// removed once the bug is fixed. With PROXY_KNOWN_BUGS=fail, a failing
-// check fails the test like any other.
-func srtKnownBug(t *testing.T, bug string, check func() error) {
-	t.Helper()
-	err := check()
-	switch {
-	case err == nil:
-		t.Errorf("bug fixed, remove the known-bug mark: %v", bug)
-	case os.Getenv("PROXY_KNOWN_BUGS") == "fail":
-		t.Errorf("KNOWN BUG: %v: %v", bug, err)
-	default:
-		t.Logf("KNOWN BUG: %v: %v", bug, err)
-	}
-}
-
-// srtFakeOrigin is an origin's SRT port on loopback that answers the
 // proxy's handshake as a listener does, from a connection of socket ID
 // originSocketID, and hands over every other packet it gets.
 type srtFakeOrigin struct {
@@ -1127,10 +1107,8 @@ func TestSRSSRTProxyServer_HandleClientUDP_HandshakeThenRelayByOriginSocketID(t 
 }
 
 // A client whose handshake 3 was lost sends handshake 2 again: the proxy
-// answers it with handshake 3 again, at once. F11: the connection's reader,
-// started by the first handshake, takes the origin's answers to the second
-// and relays them to the client as they are, and the handshake waits for
-// answers that never come, holding the server's receive loop.
+// answers it with the same handshake 3 at once, and does not do the origin's
+// handshake again, since the connection's reader already reads the origin.
 func TestSRTConnection_HandleHandshake_Step2_RepeatedAnsweredAgain(t *testing.T) {
 	f := newSRTConnFixture()
 	f.lb.PickReturns(&lb.OriginServer{IP: "127.0.0.1", SRT: []string{"20080"}}, nil)
@@ -1143,48 +1121,37 @@ func TestSRTConnection_HandleHandshake_Step2_RepeatedAnsweredAgain(t *testing.T)
 	}
 	<-f.listener.writes
 
-	answers := func() {
-		f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
-		f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 0xFFFFFFFF, SRTSocketID: 0xabcd1234, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
-	}
-	answers()
+	f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 1, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
+	f.backend.reads <- marshalOrFatal(t, &SRTHandshakePacket{ControlFlag: 0x80, HandshakeType: 0xFFFFFFFF, SRTSocketID: 0xabcd1234, SynCookie: 0x12345678, PeerIP: net.ParseIP("127.0.0.1")})
 	hs2 := newHandshake2(0x11111111, 0x418d5e4e, "#!::r=live/stream")
 	if _, err := f.conn.HandlePacket(hs2, client, marshalOrFatal(t, hs2)); err != nil {
 		t.Fatalf("hs2 HandlePacket err=%v", err)
 	}
 	drainBackendWrite(t, f.backend)
 	drainBackendWrite(t, f.backend)
-	drainListenerWrite(t, f.listener, client)
+	first := drainListenerWrite(t, f.listener, client)
 	// Let the reader the first handshake started wait for the origin.
 	time.Sleep(20 * time.Millisecond)
 
-	srtKnownBug(t, "F11 a repeated SRT conclusion stalls the Go proxy's SRT port", func() error {
-		answers()
-		done := make(chan error, 1)
-		go func() {
-			_, err := f.conn.HandlePacket(hs2, client, marshalOrFatal(t, hs2))
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			if err != nil {
-				return fmt.Errorf("the repeated handshake 2 failed: %w", err)
-			}
-		case <-time.After(500 * time.Millisecond):
-			return errors.New("the repeated handshake 2 still waits for the origin after 500ms")
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.conn.HandlePacket(hs2, client, marshalOrFatal(t, hs2))
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("the repeated handshake 2 failed: %v", err)
 		}
-		select {
-		case got := <-f.listener.writes:
-			hs3 := &SRTHandshakePacket{}
-			if err := hs3.UnmarshalBinary(got.data); err != nil {
-				return err
-			}
-			if hs3.HandshakeType != 0xFFFFFFFF || hs3.SynCookie != 0x418d5e4e {
-				return fmt.Errorf("the client got handshake type 0x%x cookie 0x%x, want a handshake 3 with the proxy's cookie", hs3.HandshakeType, hs3.SynCookie)
-			}
-			return nil
-		case <-time.After(time.Second):
-			return errors.New("the client got no handshake 3")
-		}
-	})
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("the repeated handshake 2 still waits after 500ms")
+	}
+	if again := drainListenerWrite(t, f.listener, client); !bytes.Equal(again, first) {
+		t.Fatalf("the client got %x again, want the first handshake 3 %x", again, first)
+	}
+	select {
+	case b := <-f.backend.writes:
+		t.Fatalf("the origin got %vB for the repeated handshake 2, want nothing", len(b))
+	case <-time.After(50 * time.Millisecond):
+	}
 }
