@@ -423,6 +423,11 @@ VOID TEST(SrtRobustTest, ControlPacketsOnConnection_MessagesGoOn)
     for (int i = 0; i < nn_controls; i++) {
         string bodies[] = {"", string(4, 0), srt_utest_random(&random, 1456)};
         for (int j = 0; j < 3; j++) {
+            // libsrt 1.5.7 answers a handshake whose SRT extensions don't parse with a rejection and closes
+            // the connection, which 1.5.6 does not, so a handshake of random bytes is left out.
+            if (controls[i].type == SrtUtestHandshake && j == 2) {
+                continue;
+            }
             string pkt = srt_utest_control(controls[i].type, controls[i].subtype, (uint32_t)pair.afd_, bodies[j]);
             pair.relay_->inject(pkt.data(), (int)pkt.size());
             string msg = srt_utest_robust_message(seq++);

@@ -205,7 +205,9 @@ default vhost and the FFmpeg log dir, for `-c`, while the env sets the rest.
 - **Feature:** one name per feature area, such as `Rtmp`, `HttpFlv`, `Hls`, `Rtc`, `Api` or `Hooks`. Reuse a name from the catalog before adding one.
 
 `make integ` runs `^TestTimer_` in one process and everything else in another,
-with `-parallel 24`, at the same time. With 64 cases at once, the cases that
+with `-parallel 24`, at the same time. `make integ-timer` runs the
+`TestTimer_Srt_` cases after the other timer cases, as their own process,
+since their load made the others' timers late on a CI runner. With 64 cases at once, the cases that
 start together slowed each other past their limit, while the run took no
 less time; with 32, at about 1,300 cases, a fast run still had cases at
 500-600ms, and 24 holds them under 420ms in about the same time.
